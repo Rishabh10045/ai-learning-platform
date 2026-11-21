@@ -332,7 +332,7 @@
         h("h1", null, (e.unavailable ? "Day off · " : "Session " + e.n + " of " + derived.res.count + " · ") + subj.title + " + DSA"),
         h("div", { class: "sd-hero-meta" },
           e.unavailable ? h("span", { class: "sd-badge is-off" }, h("span", { "aria-hidden": "true", text: "⊘" }), " Unavailable") : badge(e.status, "sd-badge-lg"),
-          h("span", { class: "sd-chip sd-chip-budget", text: (e.budget.kind === "sunday" ? "Sunday plan · " : e.budget.dayName + " · ") + fmtMin(e.budget.minutes) + (e.budget.stretch ? " (2h core + " + fmtMin(e.budget.stretch) + " stretch)" : "") }),
+          h("span", { class: "sd-chip sd-chip-budget", text: (e.budget.kind === "weekend" ? "Weekend long day · " + e.budget.dayName + " · " : e.budget.dayName + " · ") + fmtMin(e.budget.minutes) + (e.budget.stretch ? " (2h core + " + fmtMin(e.budget.stretch) + " stretch)" : "") }),
           e.carried ? h("span", { class: "sd-chip sd-chip-carry", text: "Carried forward: unfinished from an earlier date" }) : null,
           e.budget.short ? h("span", { class: "sd-chip sd-chip-carry", text: "Short day: the core is scaled down; unfinished work carries forward" }) : null)]);
       main.appendChild(head);
@@ -363,7 +363,7 @@
           e.budget.overridden ? h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { emit({ type: "minutes", date: d, minutes: "" }); } }, "Reset") : null),
         h("div", { class: "sd-ctl-row" }, h("label", { for: "sd-wdmins", text: "Default for every " + S.DAY_NAMES[wd] }), wdMins,
           h("button", { type: "button", class: "sd-btn", onclick: function () { emit({ type: "minutes", weekday: wd, minutes: wdMins.value }); } }, "Save default")),
-        h("p", { class: "sd-muted", text: "Defaults: Sunday 6h 30m (2h core + 4h 30m stretch); other days 2h, 9:00–11:00 PM IST." }));
+        h("p", { class: "sd-muted", text: "Defaults: Saturday and Sunday are weekend long days, 6h 30m (2h core 9:00–11:00 PM IST + 4h 30m stretch practice any time); Monday–Friday 2h, 9:00–11:00 PM IST." }));
     }
 
     function upcoming(fromDate) {

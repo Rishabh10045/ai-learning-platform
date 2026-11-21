@@ -100,7 +100,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   const h1 = await text(page, ".sd-main h1"), chip = await text(page, ".sd-chip-budget");
   const blocks = await allText(page, ".sd-timeline .sd-tblock");
   check("Today (Sun 22 Nov) is Session 1 with Java core + DSA", /Session 1 of 20/.test(h1) && /Java core \+ DSA/.test(h1), h1);
-  check("Sunday plan shows 6h 30m (2h core + 4h 30m stretch)", /Sunday plan · 6h 30m \(2h core \+ 4h 30m stretch\)/.test(chip), chip);
+  check("Sunday Day 1 shows Weekend long day 6h 30m (2h core + 4h 30m stretch)", /Weekend long day · Sunday · 6h 30m \(2h core \+ 4h 30m stretch\)/.test(chip), chip);
   check("Day 1 blocks: 9:00 PM Java foundations 12 min, 9:12 PM main lesson 1h 18m, 10:30 PM DSA 30 min, stretch 4h 30m",
     /^9:00 PM 12 min Java foundations/i.test(blocks[0]) && /^9:12 PM 1h 18m Main lesson/i.test(blocks[1]) && /^10:30 PM 30 min DSA practice/i.test(blocks[2]) && /^Any time 4h 30m Stretch practice/i.test(blocks[3]), blocks.map(b => b.slice(0, 40)).join(" | "));
   check("Continue studying points at the first lesson (JC-01)", /Java foundations: JDK, JVM/.test(await text(page, ".sd-continue")));
@@ -111,6 +111,32 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   const wd = await allText(page, ".sd-timeline .sd-tblock"), wchip = await text(page, ".sd-panel .sd-chip-budget");
   check("Weekday (Mon 23 Nov) session 2 = 12 min revision + 78 min lesson + 30 min DSA, 2h",
     /Mon, 23 Nov 2026/.test(await text(page, ".sd-panel h2")) && wchip === "2h" && wd.length === 3 && /^9:00 PM 12 min Quick revision Quick revision of session 1/i.test(wd[0]) && /^9:12 PM 1h 18m Main lesson/i.test(wd[1]) && /^10:30 PM 30 min DSA/i.test(wd[2]), wchip + " | " + wd.map(b => b.slice(0, 40)).join(" | "));
+
+  // Saturday 28 Nov: weekend long day, same 6h 30m shape (session 7 projected).
+  await go(page, "store=0&today=2026-11-28", "#today");
+  // Sessions 1-6 finished on their own dates (22-27 Nov), through the host reducer the UI uses.
+  const seeded = await page.evaluate(() => {
+    const S = window.StudyDeskSchedule, c = window.STUDY_DESK_FIXTURES.course, idx = S.indexCourse(c), res = S.resolveSessions(c, idx); let ok = true;
+    res.sessions.slice(0, 6).forEach((r, i) => {
+      const date = S.addDays("2026-11-22", i);
+      (r.warmup ? [r.warmup] : []).concat(r.lessons, r.dsa).forEach(l => {
+        if (l.quiz) { const a = {}; l.quiz.questions.forEach(q => a[q.id] = q.answer); ok = window.__studyDeskApply({ type: "quiz", id: l.id, answers: a, date }).ok && ok; }
+        (l.practice || []).forEach(p => { ok = window.__studyDeskApply({ type: "practice", id: p.id, status: "complete", evidence: "https://github.com/example/" + p.id, date }).ok && ok; });
+        ok = window.__studyDeskApply({ type: "lesson", id: l.id, status: "complete", date }).ok && ok;
+      });
+      if (r.test) { const a = {}; idx.moduleById[r.test].module.test.questions.forEach(q => a[q.id] = q.answer); ok = window.__studyDeskApply({ type: "test", id: r.test, answers: a, date }).ok && ok; }
+    });
+    return ok;
+  });
+  const sh1 = await text(page, ".sd-main h1"), schip = await text(page, ".sd-chip-budget"), sb = await allText(page, ".sd-timeline .sd-tblock");
+  check("Saturday (28 Nov) Today: Weekend long day 6h 30m = 12 revision + 78 lesson + 30 DSA + 4h 30m stretch",
+    /Weekend long day · Saturday · 6h 30m \(2h core \+ 4h 30m stretch\)/.test(schip) && sb.length === 4 && /^9:00 PM 12 min Quick revision/i.test(sb[0]) && /^9:12 PM 1h 18m Main lesson/i.test(sb[1]) && /^10:30 PM 30 min DSA/i.test(sb[2]) && /^Any time 4h 30m Stretch/i.test(sb[3]) && seeded && /Session 7 of 20/.test(sh1) && /6\/20 sessions/.test(await text(page, ".sd-overall")), sh1 + " | " + schip);
+  await page.screenshot({ path: path.join(outDir, "flow-5-saturday-today.png"), fullPage: true });
+  await page.setViewport(viewports.mobile);
+  await page.screenshot({ path: path.join(outDir, "mobile-saturday-today.png"), fullPage: false });
+  await page.setViewport(viewports.desktop);
+  await go(page, "store=0&today=2026-11-22", "#day-6");
+  check("Friday (27 Nov) stays a 2h weekday", /Fri, 27 Nov 2026/.test(await text(page, ".sd-panel h2")) && (await text(page, ".sd-panel .sd-chip-budget")) === "2h");
 
   // Missed date: today = Mon 23 Nov with nothing done -> session 1 carried forward on a 2h weekday.
   await go(page, "store=0&today=2026-11-23", "#today");
