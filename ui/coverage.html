@@ -12,15 +12,18 @@
     .cov-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .cov-table th, .cov-table td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--sd-line); vertical-align: top; }
     .cov-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--sd-ink-3); }
-    .cov-miss td { background: var(--sd-off-bg); }
+    .cov-miss td { background: var(--sd-off-bg); color: var(--sd-off); }
+    .cov-refsubj { margin-top: 14px; }
+    .cov-refsubj h3 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   </style>
 </head>
 <body style="margin:0">
-  <p class="demo-banner" role="note">Coverage of the <strong>example fixture</strong>. The same page checks Codex’s real curriculum once it is wired in.</p>
+  <p class="demo-banner" role="note">Coverage of the <strong>example fixture</strong>. The same page checks the real curriculum (GPT/Codex) once it is wired in.</p>
   <div id="coverage"></div>
   <script src="engine/schedule-engine.js"></script>
   <script src="fixtures/course.fixture.js"></script>
+  <script src="reference/topics.reference.js"></script>
   <script src="coverage.js"></script>
-  <script>StudyDeskCoverage.mount(document.getElementById("coverage"), { course: window.STUDY_DESK_FIXTURES.course, deskHref: "index.html" });</script>
+  <script>StudyDeskCoverage.mount(document.getElementById("coverage"), { course: window.STUDY_DESK_FIXTURES.course, reference: window.STUDY_DESK_REFERENCE, deskHref: "index.html" });</script>
 </body>
 </html>

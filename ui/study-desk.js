@@ -78,8 +78,8 @@
   function mount(root, opts) {
     if (!S) throw new Error("StudyDesk needs StudyDeskSchedule (ui/engine/schedule-engine.js) loaded first");
     opts = opts || {};
-    var data = { course: opts.course, progress: S.normalize(opts.progress), today: opts.today || S.todayIST(), sync: opts.sync || null };
-    var state = { route: { view: "today" }, query: "", navOpen: false, toast: "", openModules: {}, focusLesson: null, drafts: {} };
+    var data = { course: opts.course, progress: S.normalize(opts.progress), today: opts.today || S.studyDayIST(), sync: opts.sync || null };
+    var state = { route: { view: "today" }, query: "", navOpen: false, toast: "", openModules: {}, focusLesson: null, drafts: {}, pendingNotes: {} };
     var derived;
     root.classList.add("sd-root");
     root.innerHTML = "";
@@ -93,9 +93,10 @@
 
     /* ---------- routing ---------- */
     function parseHash() {
-      var hs = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+      var raw = (location.hash || "").replace(/^#/, ""), hs;
+      try { hs = decodeURIComponent(raw); } catch (e) { hs = raw; }   // malformed %-escapes must not crash routing (QA M1)
       var m = /^day-(\d+)(?:\/(learn|practice|revision|my-notes|coach|test))?$/.exec(hs);
-      if (m) return { view: m[2] || "plan", day: +m[1] };
+      if (m) return { view: m[2] || "plan", day: +m[1], canonical: "day-" + (+m[1]) + (m[2] ? "/" + m[2] : "") };
       m = /^lesson\/(.+)$/.exec(hs);
       if (m) return { view: "lesson", lessonId: m[1] };
       if (hs === "course" || hs === "calendar" || hs === "today") return { view: hs };
@@ -116,18 +117,30 @@
         if (n) { state.focusLesson = r.lessonId; history.replaceState(null, "", "#day-" + n + "/learn"); r = { view: "learn", day: n }; }
         else r = { view: "not-found", raw: "lesson/" + r.lessonId };
       }
+      // #day-01 -> #day-1: one URL per page (QA L5).
+      if (r.canonical && location.hash !== "#" + r.canonical) history.replaceState(null, "", "#" + r.canonical);
       state.route = r; setNav(false); render(true);
     }
 
     /* ---------- change plumbing ---------- */
     function emit(change) {
       change.date = change.date || data.today;
-      var out = opts.onChange ? opts.onChange(change) : null;
-      Promise.resolve(out).then(function (r) {
+      var out;
+      try { out = opts.onChange ? opts.onChange(change) : null; } catch (e) { out = Promise.reject(e); }
+      return Promise.resolve(out).then(function (r) {
         if (r && r.ok === false) toast(r.reason || "Could not save that change");
-        else if (r && r.result && r.result.total) toast((change.type === "test" ? "Test" : "Lesson check") + ": " + r.result.right + "/" + r.result.total + " (" + r.result.pct + "%). " + (r.result.passed ? "Passed." : "Need " + r.result.passPct + "% to pass."));
-      }, function (e) { toast("Host could not save: " + (e && e.message || e)); });
+        else if (r && r.result && r.result.total) toast((change.type === "test" ? "Test" : "Lesson check") + ": " + r.result.right + "/" + r.result.total + " (" + r.result.pct + "%). " + (r.result.passed ? "Passed." : "Need " + r.result.passPct + "% to pass.") + (r.result.keptPass ? " Your earlier pass still counts." : ""));
+        return r || { ok: true };
+      }, function (e) { toast("Host could not save: " + (e && e.message || e)); return { ok: false, reason: String(e && e.message || e) }; });
     }
+    // Notes are saved 600 ms after typing stops; anything pending is flushed when the page hides, unloads or the field loses focus (QA M2).
+    function flushNotes() {
+      Object.keys(state.pendingNotes).forEach(function (k) { var pn = state.pendingNotes[k]; clearTimeout(pn.timer); delete state.pendingNotes[k]; pn.save(); });
+    }
+    function onVis() { if (document.visibilityState === "hidden") flushNotes(); }
+    window.addEventListener("pagehide", flushNotes);
+    window.addEventListener("beforeunload", flushNotes);
+    document.addEventListener("visibilitychange", onVis);
     function toast(msg) { state.toast = msg; toastEl.textContent = msg; toastEl.hidden = !msg; clearTimeout(toast.t); toast.t = setTimeout(function () { toastEl.hidden = true; }, 6000); }
 
     /* ---------- chrome ---------- */
@@ -144,7 +157,8 @@
     var tree = h("div", { class: "sd-tree" });
     var sideSessions = h("ol", { class: "sd-daylist", "aria-label": "Sessions" });
     var sessionsBox = h("details", { class: "sd-sessions" }, h("summary", { class: "sd-side-h" }, "All sessions"), sideSessions);
-    var sidebar = h("nav", { class: "sd-sidebar", id: "sd-sidebar", "aria-label": "Course navigation" }, sideNav,
+    var navClose = h("button", { type: "button", class: "sd-navclose", onclick: function () { setNav(false); navToggle.focus(); } }, "✕ Close");
+    var sidebar = h("nav", { class: "sd-sidebar", id: "sd-sidebar", "aria-label": "Course navigation" }, navClose, sideNav,
       h("label", { class: "sd-search-label", for: "sd-search", text: "Find a lesson or session" }), search, searchCount,
       h("h2", { class: "sd-side-h", text: "Subjects" }), tree, sessionsBox);
     var scrim = h("div", { class: "sd-scrim", hidden: true, onclick: function () { setNav(false); } });
@@ -166,10 +180,28 @@
       var nx = items[i + (e.key === "ArrowDown" ? 1 : -1)];
       if (nx) nx.focus();
     });
-    function onKey(e) { if (e.key === "Escape" && state.navOpen) { setNav(false); navToggle.focus(); } }
+    function onKey(e) {
+      if (!state.navOpen) return;
+      if (e.key === "Escape") { setNav(false); navToggle.focus(); return; }
+      if (e.key !== "Tab") return;
+      // Keep Tab cycling inside the open drawer instead of escaping to the browser chrome (QA M15).
+      var f = Array.prototype.filter.call(sidebar.querySelectorAll("a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex='-1'])"),
+        function (el) {
+          if (el.disabled || !el.getClientRects().length) return false;
+          var d = el.closest("details:not([open])");   // content of a closed <details> is not tabbable, its summary is
+          return !d || (el.tagName === "SUMMARY" && el.parentElement === d);
+        });
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1], a = document.activeElement, inside = sidebar.contains(a);
+      if (!inside || (e.shiftKey && a === first) || (!e.shiftKey && a === last)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    }
     document.addEventListener("keydown", onKey);
+    // While the drawer is open, everything outside it is inert so Tab cannot reach content behind the scrim (QA M15).
+    function setInert(el, on) { if (!el) return; if (on) { el.setAttribute("inert", ""); el.inert = true; } else { el.removeAttribute("inert"); el.inert = false; } }
     function setNav(open) {
       state.navOpen = open; root.classList.toggle("sd-nav-open", open); navToggle.setAttribute("aria-expanded", open ? "true" : "false"); scrim.hidden = !open;
+      [main, topbar, skip, toastEl].forEach(function (el) { setInert(el, open); });
+      Array.prototype.forEach.call(document.body.children, function (el) { if (!el.contains(root)) setInert(el, open); });
       if (open) { var f = sidebar.querySelector("a[aria-current], a, input"); if (f) f.focus(); }
     }
 
@@ -272,6 +304,7 @@
       main.innerHTML = "";
       var r = state.route;
       main.dataset.view = r.view; main.dataset.day = r.day || "";
+      if (data.sync && data.sync.state === "error" && data.sync.detail) main.appendChild(h("div", { class: "sd-alert", role: "alert" }, h("strong", { text: "Not saved: " }), data.sync.detail));
       if (!derived.res.ok) main.appendChild(h("div", { class: "sd-alert", role: "alert" }, h("strong", { text: "Curriculum check failed: " }), derived.res.errors.slice(0, 5).join(" · ") + (derived.res.errors.length > 5 ? " …" : "")));
       if (r.view === "today") return viewToday();
       if (r.view === "course") return viewCourse();
@@ -296,7 +329,7 @@
       return ol;
     }
     function blockState(b, rs) {
-      if (b.kind === "revision") return rs.n > 1 && derived.cal.statuses[rs.n - 2].status === "complete" ? (data.progress.notes["rev-" + rs.id] ? "complete" : "pending") : "pending";
+      if (b.kind === "revision") return data.progress.revisions[rs.id] ? "complete" : "pending";
       var ls = (b.lessonIds || []).map(function (id) { return derived.idx.lessonById[id] && S.lessonState(derived.idx.lessonById[id].lesson, data.progress); }).filter(Boolean);
       if (!ls.length) return "pending";
       if (ls.every(function (x) { return x === "complete"; })) return "complete";
@@ -332,51 +365,61 @@
         h("h1", null, (e.unavailable ? "Day off · " : "Session " + e.n + " of " + derived.res.count + " · ") + subj.title + " + DSA"),
         h("div", { class: "sd-hero-meta" },
           e.unavailable ? h("span", { class: "sd-badge is-off" }, h("span", { "aria-hidden": "true", text: "⊘" }), " Unavailable") : badge(e.status, "sd-badge-lg"),
-          h("span", { class: "sd-chip sd-chip-budget", text: (e.budget.kind === "weekend" ? "Weekend long day · " + e.budget.dayName + " · " : e.budget.dayName + " · ") + fmtMin(e.budget.minutes) + (e.budget.stretch ? " (2h core + " + fmtMin(e.budget.stretch) + " stretch)" : "") }),
+          h("span", { class: "sd-chip sd-chip-budget", text: (e.budget.kind === "weekend" ? "Weekend long day · " + e.budget.dayName + " · " : e.budget.dayName + " · ") + fmtMin(e.budget.minutes) + (e.budget.stretch ? " (" + fmtMin(coreMin()) + " core + " + fmtMin(e.budget.stretch) + " stretch)" : "") }),
           e.carried ? h("span", { class: "sd-chip sd-chip-carry", text: "Carried forward: unfinished from an earlier date" }) : null,
           e.budget.short ? h("span", { class: "sd-chip sd-chip-carry", text: "Short day: the core is scaled down; unfinished work carries forward" }) : null)]);
       main.appendChild(head);
       main.appendChild(continueCard());
       if (e.unavailable) {
-        main.appendChild(h("section", { class: "sd-card sd-offcard" }, h("h2", { text: "You marked " + fmtDate(e.date) + " as unavailable" }),
+        main.appendChild(h("section", { class: "sd-card sd-offcard" }, h("h2", { text: e.reason === "zero-minutes" ? "0 minutes planned on " + fmtDate(e.date) + ": day off" : "You marked " + fmtDate(e.date) + " as unavailable" }),
           h("p", { text: "Session " + e.carries + " stays pending and moves to your next available date. Nothing is skipped." })));
       } else {
         main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-tl-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-tl-h", text: "Tonight’s plan" }),
           h("a", { href: "#day-" + rs.n, class: "sd-link", text: "Open session " + rs.n + " ▸" })), blockList(e, rs),
-          h("p", { class: "sd-muted", text: e.n === 1 ? "Day 1 uses the 12-minute revision slot for Java foundations (" + (rs.warmup ? rs.warmup.id : "warm-up") + ")." : "From Day 2: 12 min revision, 78 min main lesson, 30 min DSA." })));
+          h("p", { class: "sd-muted", text: e.n === 1 ? "Day 1 uses the " + fmtMin(derived.settings.core.revision) + " revision slot for Java foundations (" + (rs.warmup ? rs.warmup.id : "warm-up") + ")." : "From Day 2: " + fmtMin(derived.settings.core.revision) + " revision, " + fmtMin(derived.settings.core.lesson) + " main lesson, " + fmtMin(derived.settings.core.dsa) + " DSA." })));
       }
       main.appendChild(dayControls(e));
       main.appendChild(upcoming(e.date));
     }
 
+    function coreMin() { var c = derived.settings.core; return c.revision + c.lesson + c.dsa; }
+    // Minutes: 0 = day off, otherwise min..max. Invalid input is refused with a message (QA M7).
+    function readMinutes(input) {
+      var v = String(input.value).trim(), lo = S.DEFAULTS.minMinutes, hi = S.DEFAULTS.maxMinutes, n = Math.round(+v);
+      if (v === "" || isNaN(n) || (n !== 0 && (n < lo || n > hi))) { toast("Enter 0 (day off) or " + lo + "–" + hi + " minutes."); input.setAttribute("aria-invalid", "true"); input.focus(); return null; }
+      input.removeAttribute("aria-invalid"); return n;
+    }
     function dayControls(e) {
-      var d = e.date, set = derived.settings, wd = S.weekday(d);
+      var d = e.date, set = derived.settings, wd = S.weekday(d), lo = S.DEFAULTS.minMinutes, hi = S.DEFAULTS.maxMinutes;
       var off = h("input", { type: "checkbox", id: "sd-off", checked: !!set.unavailable[d] });
       off.addEventListener("change", function () { emit({ type: "unavailable", date: d, value: off.checked }); });
-      var mins = h("input", { type: "number", id: "sd-mins", min: "30", max: "960", step: "15", value: String(e.budget.minutes), class: "sd-num", disabled: !!set.unavailable[d] });
-      var wdMins = h("input", { type: "number", id: "sd-wdmins", min: "30", max: "960", step: "15", value: String(set.dailyMinutes[wd]), class: "sd-num" });
+      var mins = h("input", { type: "number", id: "sd-mins", min: "0", max: String(hi), step: "15", value: String(e.budget.minutes), class: "sd-num", disabled: !!set.unavailable[d], "aria-describedby": "sd-mins-help" });
+      var wdMins = h("input", { type: "number", id: "sd-wdmins", min: "0", max: String(hi), step: "15", value: String(set.dailyMinutes[wd]), class: "sd-num", "aria-describedby": "sd-mins-help" });
+      var c = set.core, we = set.dailyMinutes[6], su = set.dailyMinutes[0], wk = set.dailyMinutes[1];
       return h("section", { class: "sd-card sd-controls", "aria-labelledby": "sd-ctl-h" },
         h("h2", { id: "sd-ctl-h", text: "Adjust " + fmtDate(d) }),
         h("div", { class: "sd-ctl-row" }, off, h("label", { for: "sd-off" }, h("strong", { text: "I can’t study on " + fmtDate(d) }), h("small", { class: "sd-muted", text: " The same unfinished session moves to the next available date." }))),
         h("div", { class: "sd-ctl-row" }, h("label", { for: "sd-mins", text: "Minutes on " + fmtDate(d) }), mins,
-          h("button", { type: "button", class: "sd-btn", onclick: function () { emit({ type: "minutes", date: d, minutes: mins.value }); } }, "Save for this date"),
-          e.budget.overridden ? h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { emit({ type: "minutes", date: d, minutes: "" }); } }, "Reset") : null),
+          h("button", { type: "button", class: "sd-btn", onclick: function () { var n = readMinutes(mins); if (n != null) emit({ type: "minutes", targetDate: d, date: d, minutes: n }); } }, "Save for this date"),
+          e.budget.overridden ? h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { emit({ type: "minutes", targetDate: d, date: d, minutes: "" }); } }, "Reset") : null),
         h("div", { class: "sd-ctl-row" }, h("label", { for: "sd-wdmins", text: "Default for every " + S.DAY_NAMES[wd] }), wdMins,
-          h("button", { type: "button", class: "sd-btn", onclick: function () { emit({ type: "minutes", weekday: wd, minutes: wdMins.value }); } }, "Save default")),
-        h("p", { class: "sd-muted", text: "Defaults: Saturday and Sunday are weekend long days, 6h 30m (2h core 9:00–11:00 PM IST + 4h 30m stretch practice any time); Monday–Friday 2h, 9:00–11:00 PM IST." }));
+          h("button", { type: "button", class: "sd-btn", onclick: function () { var n = readMinutes(wdMins); if (n != null) emit({ type: "minutes", weekday: wd, minutes: n }); } }, "Save default")),
+        h("p", { class: "sd-muted", id: "sd-mins-help", text: "0 minutes = day off (the session moves to the next date); otherwise " + lo + "–" + hi + " minutes." }),
+        h("p", { class: "sd-muted", text: "Defaults: Saturday " + fmtMin(we) + ", Sunday " + fmtMin(su) + " (" + fmtMin(c.revision + c.lesson + c.dsa) + " core from " + fmtTime(set.sessionStart) + " IST + stretch practice any time); Monday–Friday " + fmtMin(wk) + "." }));
     }
 
     function upcoming(fromDate) {
       var list = derived.cal.entries.filter(function (x) { return x.date > fromDate; }).slice(0, 6);
       return h("section", { class: "sd-card", "aria-labelledby": "sd-up-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-up-h", text: "Next up" }), h("a", { href: "#calendar", class: "sd-link", text: "Full calendar ▸" })),
         h("ul", { class: "sd-upcoming" }, list.map(calRow)),
-        h("p", { class: "sd-muted", text: "Projected finish: " + fmtDate(derived.cal.finishDate, true) + "." }));
+        h("p", { class: "sd-muted", text: finishText() }));
     }
+    function finishText() { return derived.cal.finishDate ? "Projected finish: " + fmtDate(derived.cal.finishDate, true) + "." : "The plan extends beyond the " + derived.cal.entries.length + "-day calendar window: no finish date yet."; }
     function calRow(x) {
       var rs = x.n ? derived.res.sessions[x.n - 1] : null, subj = rs ? derived.idx.subjectById[rs.subjectId] : null;
       return h("li", { class: "sd-calrow" + (x.unavailable ? " is-off" : "") + (x.isToday ? " is-today" : "") },
         h("span", { class: "sd-cal-date", text: fmtDate(x.date) }),
-        x.unavailable ? h("span", { class: "sd-cal-main" }, h("strong", { text: "Unavailable" }), h("small", { class: "sd-muted", text: " · session " + x.carries + " moves to the next date" }))
+        x.unavailable ? h("span", { class: "sd-cal-main" }, h("strong", { text: x.reason === "zero-minutes" ? "Day off (0 min)" : "Unavailable" }), h("small", { class: "sd-muted", text: " · session " + x.carries + " moves to the next date" }))
           : h("a", { class: "sd-cal-main", href: "#day-" + x.n }, h("strong", { text: "Session " + x.n }), " · " + subj.title + " + DSA" + (x.carried ? " (carried)" : "")),
         h("span", { class: "sd-cal-min", text: x.unavailable ? "—" : fmtMin(x.budget.minutes) }),
         x.unavailable ? h("span", { class: "sd-badge is-off", text: "⊘ Off" }) : badge(x.status));
@@ -384,7 +427,7 @@
 
     function viewCalendar() {
       add(main, [h("header", { class: "sd-hero" }, h("p", { class: "sd-eyebrow", text: "Calendar · starts " + fmtDate(derived.settings.startDate, true) }), h("h1", { text: "Dates and sessions" }),
-        h("p", { class: "sd-muted", text: derived.res.count + " study sessions. Study days are not calendar days: an unavailable or missed date keeps the same session pending and pushes the rest forward. Projected finish: " + fmtDate(derived.cal.finishDate, true) + "." }))]);
+        h("p", { class: "sd-muted", text: derived.res.count + " study sessions. Study days are not calendar days: an unavailable or missed date keeps the same session pending and pushes the rest forward. " + finishText() }))]);
       var ul = h("ul", { class: "sd-upcoming sd-calendar" });
       derived.cal.entries.forEach(function (x) {
         var row = calRow(x);
@@ -464,7 +507,7 @@
     function vPlan(panel, rs, ent) {
       if (ent) {
         panel.appendChild(h("div", { class: "sd-card" }, h("div", { class: "sd-card-h" }, h("h2", { text: (ent.isToday ? "Today · " : ent.projected ? "Planned · " : "") + fmtDate(ent.date, true) }),
-          h("span", { class: "sd-chip sd-chip-budget", text: fmtMin(ent.budget.minutes) + (ent.budget.stretch ? " (2h core + " + fmtMin(ent.budget.stretch) + " stretch)" : "") })), blockList(ent, rs)));
+          h("span", { class: "sd-chip sd-chip-budget", text: fmtMin(ent.budget.minutes) + (ent.budget.stretch ? " (" + fmtMin(coreMin()) + " core + " + fmtMin(ent.budget.stretch) + " stretch)" : "") })), blockList(ent, rs)));
       }
       var ul = h("ul", { class: "sd-lrows" });
       sessionLessons(rs).forEach(function (l) {
@@ -538,7 +581,7 @@
     }
     function quizForm(quiz, label, gate, onSubmit, key) {
       var form = h("form", { class: "sd-quiz" + (gate.passed ? " is-complete" : "") });
-      form.appendChild(h("h3", null, label + " ", gate.passed ? h("span", { class: "sd-badge is-complete", text: "✓ Passed" + (gate.score != null ? " (" + gate.score + "%)" : "") }) : gate.score != null ? h("span", { class: "sd-badge is-progress", text: "↻ " + gate.score + "% · retry" }) : h("span", { class: "sd-badge is-pending", text: "Needed to complete" })));
+      form.appendChild(h("h3", null, label + " ", gate.passed ? h("span", { class: "sd-badge is-complete", text: "✓ Passed" + (gate.best != null ? " (best " + gate.best + "%" + (gate.score != null && gate.score !== gate.best ? ", last " + gate.score + "%" : "") + ")" : gate.score != null ? " (" + gate.score + "%)" : "") }) : gate.score != null ? h("span", { class: "sd-badge is-progress", text: "↻ " + gate.score + "% · retry" }) : h("span", { class: "sd-badge is-pending", text: "Needed to complete" })));
       quiz.questions.forEach(function (q, qi) {
         var fs = h("fieldset", null, h("legend", { text: (qi + 1) + ". " + q.q }));
         q.options.forEach(function (o, oi) {
@@ -599,8 +642,8 @@
       panel.appendChild(h("section", { class: "sd-card sd-suggested" }, h("h2", { text: "Suggested revision points" }), h("p", { class: "sd-muted", text: "12 minutes: say each point out loud, then test yourself with one question." }),
         bullets.length ? h("ul", null, bullets.map(function (b) { return h("li", null, h("code", { text: b[0] }), " " + b[1]); })) : h("p", { class: "sd-emptynote", text: "No suggested points." })));
       if (prevRs) {
-        var done = !!data.progress.notes["rev-" + rs.id];
-        panel.appendChild(h("button", { type: "button", class: "sd-btn" + (done ? "" : " sd-btn-primary"), onclick: function () { emit({ type: "note", key: "rev-" + rs.id, text: done ? "" : "done" }); } }, done ? "↺ Revision done (undo)" : "✓ Revision done"));
+        var done = !!data.progress.revisions[rs.id];
+        panel.appendChild(h("button", { type: "button", class: "sd-btn" + (done ? "" : " sd-btn-primary"), onclick: function () { emit({ type: "revision", id: rs.id, done: !done }); } }, done ? "↺ Revision done (undo)" : "✓ Revision done"));
       }
     }
     function notesText(t) { return h("div", { class: "sd-notetext" }, t.split(/\n+/).map(function (line) { return h("p", { text: line }); })); }
@@ -608,12 +651,25 @@
     function vNotes(panel, rs) {
       var ta = h("textarea", { class: "sd-notes-ta", id: "sd-notes-ta", rows: "12", placeholder: "Your own words: key ideas, mistakes you made, questions for the coach." });
       ta.value = state.drafts["n-" + rs.id] != null ? state.drafts["n-" + rs.id] : data.progress.notes[rs.id] || "";
-      var status = h("p", { class: "sd-muted", "aria-live": "polite" });
-      var t;
+      var status = h("p", { class: "sd-muted sd-notes-status", id: "sd-notes-status", "aria-live": "polite" });
+      var key = "n-" + rs.id, sid = rs.id;
+      if (state.pendingNotes[key]) status.textContent = "Saving…";
       ta.addEventListener("input", function () {
-        state.drafts["n-" + rs.id] = ta.value; status.textContent = "Saving…"; clearTimeout(t);
-        t = setTimeout(function () { delete state.drafts["n-" + rs.id]; emit({ type: "note", key: rs.id, text: ta.value }); status.textContent = "Saved"; }, 600);
+        state.drafts[key] = ta.value; status.textContent = "Saving…";
+        var pn = state.pendingNotes[key] || (state.pendingNotes[key] = {});
+        clearTimeout(pn.timer);
+        pn.save = function () {
+          var text = state.drafts[key] != null ? state.drafts[key] : ta.value;
+          delete state.drafts[key];
+          // "Saved" only after the host confirms (QA M2/M3).
+          emit({ type: "note", key: sid, text: text }).then(function (r) {
+            var el = document.getElementById("sd-notes-status");
+            if (el) el.textContent = r && r.ok === false ? "Not saved: " + (r.reason || "error") : "Saved";
+          });
+        };
+        pn.timer = setTimeout(function () { delete state.pendingNotes[key]; pn.save(); }, 600);
       });
+      ta.addEventListener("blur", flushNotes);
       panel.appendChild(h("section", { class: "sd-card" }, h("label", { for: "sd-notes-ta", class: "sd-h2label", text: "My notes · session " + rs.n }), ta, status,
         h("p", { class: "sd-muted", text: "These show first in the next session’s quick revision." })));
     }
@@ -657,7 +713,7 @@
     if (routing) window.addEventListener("hashchange", onHash);
     state.route = parseHash();
     derive();
-    if (state.route.view === "lesson") onHash(); else render(false);
+    if (routing && (state.route.view === "lesson" || (state.route.canonical && location.hash !== "#" + state.route.canonical))) onHash(); else render(false);
 
     return {
       update: function (next) {
@@ -682,7 +738,8 @@
       navigate: function (hash) { location.hash = hash; },
       getRoute: function () { return Object.assign({}, state.route); },
       getDerived: function () { return derived; },
-      destroy: function () { window.removeEventListener("hashchange", onHash); document.removeEventListener("keydown", onKey); root.innerHTML = ""; root.classList.remove("sd-root"); }
+      flush: flushNotes,
+      destroy: function () { flushNotes(); window.removeEventListener("hashchange", onHash); window.removeEventListener("pagehide", flushNotes); window.removeEventListener("beforeunload", flushNotes); document.removeEventListener("visibilitychange", onVis); document.removeEventListener("keydown", onKey); setNav(false); root.innerHTML = ""; root.classList.remove("sd-root"); }
     };
   }
 
