@@ -130,15 +130,15 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   if (vpName === "desktop") {
     // Tab order: skip link -> search -> Day 1 link -> Day 1 lesson-nav links (6) -> Day 2 link
     const seq = [];
-    for (let i = 0; i < 10; i++) { await page.keyboard.press("Tab"); seq.push(await focusInfo()); }
+    for (let i = 0; i < 11; i++) { await page.keyboard.press("Tab"); seq.push(await focusInfo()); }
     const label = f => f.cls.includes("sd-skip") ? "skip" : f.id === "sd-search" ? "search" : f.day ? "day" + f.day : f.href ? f.href : f.tag;
     const order = seq.map(label);
-    const expected = ["skip", "search", "day1", "#day-1", "#day-1/learn", "#day-1/practice", "#day-1/revision", "#day-1/my-notes", "#day-1/coach", "day2"];
-    check(`${vpName} keyboard: Tab order skip → search → day index → lesson sidebar`, JSON.stringify(order) === JSON.stringify(expected), order.join(" > "));
+    const expected = ["skip", "coverage.html", "search", "day1", "#day-1", "#day-1/learn", "#day-1/practice", "#day-1/revision", "#day-1/my-notes", "#day-1/coach", "day2"];
+    check(`${vpName} keyboard: Tab order skip → Coverage link → search → day index → lesson sidebar`, JSON.stringify(order) === JSON.stringify(expected), order.join(" > "));
     check(`${vpName} keyboard: focus ring visible on every tabbed element`, seq.every(f => f.outline && f.matchesFV), seq.filter(f => !f.outline).map(label).join(",") || "all have ≥2px outline");
     // Enter on a lesson-sidebar link
     await page.goto("about:blank"); await page.goto(base + "#day-1", { waitUntil: "load" });
-    for (let i = 0; i < 5; i++) await page.keyboard.press("Tab"); // -> #day-1/learn
+    for (let i = 0; i < 6; i++) await page.keyboard.press("Tab"); // -> #day-1/learn
     const onLearn = await focusInfo();
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => location.hash === "#day-1/learn" && document.querySelector(".sd-main").dataset.view === "learn");
@@ -199,6 +199,79 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   await page.keyboard.press("Space");
   const sp = await page.evaluate(() => document.querySelector(".sd-block .sd-stbtn-txt").textContent);
   check(`${vpName} keyboard: Space toggles block status`, sp === "In progress", sp);
+
+  // ---- Status defaults: nothing started ----
+  await page.goto("about:blank");
+  await page.goto(base + "#day-1", { waitUntil: "load" });
+  const st0 = await page.evaluate(() => ({
+    days: document.querySelectorAll(".sd-daylink").length,
+    notPending: [...document.querySelectorAll(".sd-daynum")].filter(e => !e.classList.contains("sd-st-pending")).length,
+    badge: document.querySelector(".sd-badge-lg").textContent.trim(),
+    blockBtns: [...document.querySelectorAll(".sd-block .sd-stbtn-txt")].map(e => e.textContent),
+    overall: document.querySelector(".sd-overall-txt").textContent,
+    pendingWord: /\bPending\b/.test(document.body.innerText)
+  }));
+  check(`${vpName} status: every day and block is "Not started" on load`,
+    st0.notPending === 0 && /Not started/.test(st0.badge) && st0.blockBtns.every(t => t === "Not started") && /^0\/\d+/.test(st0.overall) && !st0.pendingWord,
+    `days=${st0.days} nonPending=${st0.notPending} badge=${st0.badge} overall=${st0.overall}`);
+
+  // ---- Session plan: dates, 4 course blocks, time slots, totals (every day, count from data) ----
+  const plan = [];
+  for (let n = 1; n <= st0.days; n++) {
+    await page.evaluate(n => { location.hash = "#day-" + n; }, n);
+    await page.waitForFunction(n => document.querySelector(".sd-main").dataset.day === String(n), {}, n);
+    plan.push(await page.evaluate(() => ({
+      date: (document.querySelector(".sd-dayhead time") || {}).getAttribute?.("datetime"),
+      label: document.querySelector(".sd-daylink[aria-current=page] .sd-daylabel").textContent,
+      courses: [...document.querySelectorAll(".sd-block .sd-block-course")].map(e => e.textContent),
+      slots: [...document.querySelectorAll(".sd-block .sd-slot")].map(e => e.textContent.replace("🕘 ", "")),
+      mins: [...document.querySelectorAll(".sd-block .sd-block-meta")].map(e => e.textContent),
+      total: document.querySelector(".sd-total").textContent
+    })));
+  }
+  const want = ["System Design (HLD)", "DSA", "Java · Multithreading · Spring Boot (+ Spring AI)", "GenAI / LLM"];
+  const d1 = plan[0];
+  check(`${vpName} plan: Day 1 is 2026-11-22 with 4 course blocks 9:00–11:00 PM`,
+    d1.date === "2026-11-22" && JSON.stringify(d1.courses) === JSON.stringify(want) && d1.slots[0] === "9:00 PM–9:30 PM" && d1.slots[3] === "10:30 PM–11:00 PM" && /Total 2 h/.test(d1.total) && /fits/.test(d1.total),
+    `${d1.date} | ${d1.courses.length} blocks | ${d1.slots.join(", ")} | ${d1.total}`);
+  const later = plan.slice(1);
+  const datesOk = plan.every((p, i) => p.date === new Date(Date.UTC(2026, 10, 22 + i)).toISOString().slice(0, 10));
+  check(`${vpName} plan: dates run consecutively from start date (${plan.length} days, from data)`, datesOk && plan.length >= 6, plan.map(p => p.date).join(" "));
+  check(`${vpName} plan: Day 2+ start with a 12-min quick revision, then the 4 courses, total 2 h`,
+    later.every(p => p.courses[0] === "Quick revision" && /12 min/.test(p.mins[0]) && p.slots[0] === "9:00 PM–9:12 PM" &&
+      JSON.stringify(p.courses.slice(1)) === JSON.stringify(want) && p.slots[p.slots.length - 1].endsWith("11:00 PM") && /fits/.test(p.total)),
+    later.map(p => p.courses.length + " blocks/" + p.total.split(" · ")[0]).join("; "));
+  check(`${vpName} plan: day index shows calendar dates`, /Day 1 · Sun, 22 Nov/.test(plan[0].label), plan[0].label);
+  if (vpName === "desktop") { await page.goto(base + "#day-2", { waitUntil: "load" }); await page.screenshot({ path: path.join(outDir, "desktop_day-2_plan.png"), fullPage: true }); }
+
+  // ---- Header link to coverage ----
+  await page.goto("about:blank");
+  await page.goto(base + "#day-1", { waitUntil: "load" });
+  const link = await page.$eval(".sd-toplink", a => [a.textContent, a.getAttribute("href")]);
+  await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.click(".sd-toplink")]);
+  check(`${vpName} header: "Coverage check" link opens coverage page`, link[0] === "Coverage check" && /coverage\.html$/.test(page.url()), link.join(" → "));
+
+  // ---- Coverage page ----
+  await page.goto("about:blank");
+  await page.goto(base.replace("index.html", "coverage.html"), { waitUntil: "load" });
+  const cov = await page.evaluate(() => ({
+    tracks: [...document.querySelectorAll("section[data-track]")].map(s => ({ id: s.dataset.track, rows: s.querySelectorAll("tr[data-topic]").length,
+      miss: [...s.querySelectorAll("tr[data-covered=no]")].map(r => r.dataset.topic), gap: !!s.querySelector(".cv-gap") })),
+    sched: document.querySelector("[data-stat=scheduled] strong").textContent,
+    unsched: document.querySelector("[data-stat=unscheduled] strong").textContent,
+    rollup: document.querySelectorAll("#unscheduled li").length,
+    firstLink: (document.querySelector("tr[data-covered=yes] a") || {}).getAttribute?.("href"),
+    overflowX: document.documentElement.scrollWidth > window.innerWidth + 1
+  }));
+  check(`${vpName} coverage: 4 tracks with per-topic day mapping`, cov.tracks.length === 4 && cov.tracks.every(t => t.rows === 8) && cov.firstLink === "index.html#day-1",
+    cov.tracks.map(t => t.id + ":" + t.rows).join(" ") + " firstLink=" + cov.firstLink);
+  check(`${vpName} coverage: unscheduled topics listed per track and rolled up`, cov.sched === "24/32" && cov.unsched === "8" && cov.rollup === 8 && cov.tracks.every(t => t.miss.length === 2 && t.gap),
+    cov.tracks.map(t => t.id + "→" + t.miss.join("+")).join("; "));
+  check(`${vpName} coverage: no horizontal overflow`, !cov.overflowX);
+  await page.screenshot({ path: path.join(outDir, `${vpName}_coverage.png`), fullPage: vpName === "desktop" });
+  await page.click("tr[data-covered=yes] a");
+  await page.waitForFunction(() => location.hash === "#day-1" && document.querySelector(".sd-main") && document.querySelector(".sd-main").dataset.day === "1");
+  check(`${vpName} coverage: day link opens Study Desk at that day`, true, "index.html#day-1");
 
   check(`${vpName} no console/page errors`, errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();

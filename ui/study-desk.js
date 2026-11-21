@@ -30,7 +30,7 @@
   VIEWS.forEach(function (v) { VIEW_BY_SLUG[v.slug] = v; });
 
   var STATUS = {
-    "pending": { label: "Pending", icon: "○", cls: "sd-st-pending" },
+    "pending": { label: "Not started", icon: "○", cls: "sd-st-pending" },
     "in-progress": { label: "In progress", icon: "◐", cls: "sd-st-progress" },
     "complete": { label: "Complete", icon: "✓", cls: "sd-st-complete" }
   };
@@ -78,7 +78,28 @@
   }
   function safeUrl(u) {
     if (!u || typeof u !== "string") return null;
-    return /^(https?:)?\/\//i.test(u) || /^[./#]/.test(u) ? u : null;
+    var scheme = /^\s*([a-z][a-z0-9+.-]*):/i.exec(u);
+    return !scheme || /^https?$/i.test(scheme[1]) ? u : null; // relative paths or http(s) only
+  }
+
+  /* "2026-11-22" -> Date at UTC midnight (date-only, no time-zone drift) */
+  function parseISODate(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
+    return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;
+  }
+  function fmtDate(dt, long) {
+    if (!dt) return null;
+    try {
+      return dt.toLocaleDateString("en-IN", long ? { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }
+        : { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+    } catch (e) { return dt.toISOString().slice(0, 10); }
+  }
+  /* "21:00" + minutes -> "9:00 PM" */
+  function clock(start, addMin) {
+    var m = /^(\d{1,2}):(\d{2})$/.exec(start || "");
+    if (!m) return null;
+    var t = (+m[1] * 60 + +m[2] + (addMin || 0)) % 1440, hr = Math.floor(t / 60), mi = t % 60;
+    return ((hr % 12) || 12) + ":" + (mi < 10 ? "0" : "") + mi + " " + (hr < 12 ? "AM" : "PM");
   }
 
   /* ---------- routing ---------- */
@@ -104,6 +125,18 @@
     var noteTimer = null;
 
     function days() { return (data.curriculum && data.curriculum.days) || []; }
+    function tracks() { return (data.curriculum && data.curriculum.tracks) || []; }
+    function trackOf(id) { return tracks().filter(function (t) { return t.id === id; })[0] || null; }
+    function trackName(id, short) { var t = trackOf(id); return t ? (short && t.short) || t.name : id; }
+    function dayDate(d) {
+      if (d.date) return parseISODate(d.date);
+      var start = parseISODate(data.curriculum && data.curriculum.startDate);
+      var idx = days().indexOf(d);
+      return start && idx >= 0 ? new Date(start.getTime() + idx * 86400000) : null;
+    }
+    function uniq(a) { return a.filter(function (x, i) { return x && a.indexOf(x) === i; }); }
+    function dayTracks(d) { return d.tracks || uniq((d.blocks || []).map(function (b) { return b.track; })); }
+    function dayTopicIds(d) { return d.topicIds || uniq((d.blocks || []).map(function (b) { return b.topicId; })); }
     function findDay(n) { return days().filter(function (d) { return d.day === n; })[0]; }
     function dayProgress(n) { return byKey(data.progress && data.progress.days, n) || {}; }
     function dayStatus(d) {
@@ -137,7 +170,10 @@
       onclick: function () { setNav(!state.navOpen); } }, h("span", { "aria-hidden": "true", text: "☰" }), " Days");
     var titleEl = h("div", { class: "sd-brand" });
     var overall = h("div", { class: "sd-overall" });
-    var topbar = h("header", { class: "sd-topbar" }, navToggle, titleEl, overall);
+    var links = (opts.headerLinks || []).filter(function (l) { return l && l.label && safeUrl(l.href); });
+    var linksEl = links.length ? h("nav", { class: "sd-toplinks", "aria-label": "Study Desk pages" },
+      links.map(function (l) { return h("a", { class: "sd-toplink", href: l.href }, l.label); })) : null;
+    var topbar = h("header", { class: "sd-topbar" }, navToggle, titleEl, linksEl, overall);
 
     var search = h("input", { type: "search", class: "sd-search", id: "sd-search", placeholder: "Search days, topics, IDs…", autocomplete: "off", "aria-describedby": "sd-search-count" });
     var searchCount = h("p", { class: "sd-search-count", id: "sd-search-count", "aria-live": "polite" });
@@ -194,7 +230,7 @@
 
     function matches(d, q) {
       if (!q) return true;
-      var hay = ["day " + d.day, "day-" + d.day, d.title, d.summary, (d.tracks || []).join(" "), (d.topicIds || []).join(" "),
+      var hay = ["day " + d.day, "day-" + d.day, d.title, d.summary, dayTracks(d).map(function (t) { return t + " " + trackName(t); }).join(" "), dayTopicIds(d).join(" "), fmtDate(dayDate(d), true) || "",
         (d.blocks || []).map(function (b) { return b.title + " " + (b.topicId || ""); }).join(" ")].join(" ").toLowerCase();
       return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (t) { return hay.indexOf(t) >= 0; });
     }
@@ -210,7 +246,7 @@
         var link = h("a", { class: "sd-daylink", href: hashFor(d.day, "plan"), "aria-current": active ? "page" : null, "data-day": d.day },
           h("span", { class: "sd-daynum " + STATUS[st].cls, "aria-hidden": "true" }, h("span", { text: STATUS[st].icon })),
           h("span", { class: "sd-daytxt" },
-            h("span", { class: "sd-daylabel", text: "Day " + d.day }),
+            h("span", { class: "sd-daylabel", text: "Day " + d.day + (dayDate(d) ? " · " + fmtDate(dayDate(d)) : "") }),
             h("span", { class: "sd-daytitle", text: d.title || "" })),
           h("span", { class: "sd-vh", text: ", " + STATUS[st].label }));
         var li = h("li", { class: "sd-dayitem" + (active ? " is-active" : "") }, link);
@@ -251,14 +287,15 @@
       var head = h("header", { class: "sd-dayhead" },
         h("div", { class: "sd-crumbs" },
           h("span", { text: "Day " + d.day + " of " + list.length }),
-          (d.tracks || []).map(function (t) { return h("span", { class: "sd-chip", text: t }); })),
+          dayDate(d) ? h("time", { class: "sd-date", datetime: dayDate(d).toISOString().slice(0, 10), text: fmtDate(dayDate(d), true) }) : null,
+          dayTracks(d).map(function (t) { return h("span", { class: "sd-chip", title: trackName(t), text: trackName(t, true) }); })),
         h("div", { class: "sd-dayhead-row" },
           h("h1", { class: "sd-daytitle-main", text: d.title || "Day " + d.day }),
           badge(st, "sd-badge-lg")),
         h("p", { class: "sd-meta" },
           totalMin ? h("span", { text: "⏱ " + fmtMin(totalMin) + " planned" }) : null,
           data.curriculum.sessionWindow ? h("span", { text: "🕘 " + data.curriculum.sessionWindow }) : null,
-          (d.topicIds || []).length ? h("span", null, "Topics: ", (d.topicIds || []).map(function (t) { return h("code", { text: t }); })) : null));
+          dayTopicIds(d).length ? h("span", null, "Topics: ", dayTopicIds(d).map(function (t) { return h("code", { text: t }); })) : null));
 
       var tabs = h("nav", { class: "sd-tabs", "aria-label": "Lesson views" });
       VIEWS.forEach(function (v) {
@@ -304,22 +341,37 @@
           h("a", { href: hashFor(d.revisionOf, "revision"), text: "Open Day " + d.revisionOf + " revision" })));
       }
       var ol = h("ol", { class: "sd-blocks" });
+      var startAt = data.curriculum.sessionStart, elapsed = 0;
       (d.blocks || []).forEach(function (b, i) {
+        var slot = startAt && b.minutes ? clock(startAt, elapsed) + "–" + clock(startAt, elapsed + b.minutes) : null;
+        elapsed += b.minutes || 0;
+        var course = b.track ? trackName(b.track) : (b.kind === "revision" ? "Quick revision" : null);
         var bs = normStatus((p.blocks || {})[b.id]);
         var href = b.kind === "revision" && i === 0 && d.revisionOf != null ? hashFor(d.revisionOf, "revision")
           : ({ learn: 1, practice: 1, revision: 1, coach: 1 }[b.kind] ? hashFor(d.day, b.kind) : null);
         ol.appendChild(h("li", { class: "sd-block " + STATUS[bs].cls },
           h("span", { class: "sd-block-idx", "aria-hidden": "true", text: String(i + 1) }),
           h("div", { class: "sd-block-body" },
+            course ? h("div", { class: "sd-block-course" + (b.track ? " sd-trk-" + String(b.track).toLowerCase() : "") , text: course }) : null,
             h("div", { class: "sd-block-title" }, href ? h("a", { href: href, text: b.title }) : h("span", { text: b.title })),
             h("div", { class: "sd-block-meta" },
+              slot ? h("span", { class: "sd-slot", text: "🕘 " + slot }) : null,
               b.minutes ? h("span", { text: fmtMin(b.minutes) }) : null,
-              b.kind ? h("span", { class: "sd-chip sd-chip-kind", text: b.kind }) : null,
+              b.kind && !b.track ? h("span", { class: "sd-chip sd-chip-kind", text: b.kind }) : null,
               b.topicId ? h("code", { text: b.topicId }) : null)),
           statusButton(bs, b.title, function (nx) { emitProgress({ day: d.day, scope: "block", id: b.id, status: nx }); })));
       });
       if (!(d.blocks || []).length) append(panel, emptyNote("No blocks in this day's plan yet."));
-      else append(panel, ol);
+      else {
+        append(panel, ol);
+        var win = data.curriculum.sessionStart && data.curriculum.sessionEnd ? (function () {
+          var a = data.curriculum.sessionStart.split(":"), z = data.curriculum.sessionEnd.split(":");
+          return ((+z[0] * 60 + +z[1]) - (+a[0] * 60 + +a[1]) + 1440) % 1440;
+        })() : null;
+        append(panel, h("p", { class: "sd-total" + (win && elapsed > win ? " sd-total-over" : "") },
+          h("strong", { text: "Total " + fmtMin(elapsed) }),
+          win ? (elapsed > win ? " · ⚠ " + fmtMin(elapsed - win) + " over the " + fmtMin(win) + " session" : " · fits the " + fmtMin(win) + " session") : null));
+      }
       if ((lesson.objectives || []).length) {
         append(panel, h("div", { class: "sd-card" }, h("h3", { text: "By the end of this session you can" }),
           h("ul", { class: "sd-checklist" }, lesson.objectives.map(function (o) { return h("li", { text: o }); }))));
@@ -347,6 +399,7 @@
           h("div", { class: "sd-video-top" },
             h("span", { class: "sd-source" }, h("span", { "aria-hidden": "true", text: v.kind === "article" ? "📄 " : "▶ " }), v.source || "Source"),
             v.suggestedWatchMin ? h("span", { class: "sd-watch" }, h("strong", { text: fmtMin(v.suggestedWatchMin) }), v.kind === "article" ? " suggested reading" : " suggested watch") : null),
+          v.track ? h("p", { class: "sd-block-course sd-trk-" + String(v.track).toLowerCase(), text: trackName(v.track) }) : null,
           h("h3", { class: "sd-video-title", text: v.title || "Untitled" }),
           h("p", { class: "sd-video-meta" },
             v.channel ? h("span", { text: v.channel }) : null,
@@ -445,7 +498,7 @@
         var box = h("article", { class: "sd-card sd-coachq" },
           h("p", { class: "sd-muted", text: "Question " + (i + 1) + " of " + qs.length }),
           h("h3", { text: q.prompt }));
-        var copyText = "Day " + d.day + ": " + (d.title || "") + "\nTopics: " + (d.topicIds || []).join(", ") + "\nQuestion: " + q.prompt + (notes ? "\nMy notes:\n" + notes : "") + "\nMy answer: ";
+        var copyText = "Day " + d.day + ": " + (d.title || "") + "\nTopics: " + dayTopicIds(d).join(", ") + "\nQuestion: " + q.prompt + (notes ? "\nMy notes:\n" + notes : "") + "\nMy answer: ";
         var msg = h("span", { class: "sd-muted", "aria-live": "polite" });
         var row = h("div", { class: "sd-btnrow" },
           h("button", { type: "button", class: "sd-btn", onclick: function () {

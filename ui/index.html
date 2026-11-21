@@ -28,6 +28,7 @@
       function dayEntry(day) { return progress.days[day] || (progress.days[day] = { blocks: {}, practice: {}, notes: "" }); }
       var desk = StudyDesk.mount(document.getElementById("study-desk"), {
         curriculum: F.curriculum, lessons: F.lessons, videos: F.videos, progress: progress,
+        headerLinks: [{ label: "Coverage check", href: "coverage.html" }],
         onProgressChange: function (c) {
           var e = dayEntry(c.day);
           if (c.scope === "day") e.status = c.status;

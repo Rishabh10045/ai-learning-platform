@@ -16,6 +16,8 @@ Everything in `ui/fixtures/` is **example data** for the preview only.
 | `study-desk.js` | Exposes `window.StudyDesk` (no build step, no dependencies) |
 | `study-desk.css` | Styles, all scoped under `.sd-root`; light + dark, responsive |
 | `index.html` | Demo host that mounts the UI with fixtures, in-memory only |
+| `coverage.js` | Exposes `window.StudyDeskCoverage` (`mount`, `analyze`) |
+| `coverage.html` | Coverage check page: syllabus topics vs scheduled days (same curriculum input) |
 | `fixtures/*.fixture.js` | Example curriculum, lessons, videos and progress |
 | `checks/run-checks.mjs` | Headless Chrome checks + screenshots (desktop 1366×900, mobile 390×844) |
 
@@ -31,6 +33,7 @@ Everything in `ui/fixtures/` is **example data** for the preview only.
     onProgressChange(change) { /* host persists, then desk.update({ progress }) */ },
     onNoteChange(day, text) { /* host persists; may return a Promise */ },
     onCoachAsk(req) { /* optional; return string | {text} | Promise of either */ },
+    headerLinks: [{ label: "Coverage check", href: "coverage.html" }], // optional top-bar links
     routing: true,            // default: hash routing on window
     setDocumentTitle: true    // default
   });
@@ -64,14 +67,22 @@ from `curriculum.days.length`.
 
 ```js
 curriculum = {
-  title: "Study Desk", subtitle: "optional", sessionWindow: "9:00–11:00 PM IST", // optional display text
+  title: "Study Desk", subtitle: "optional",
+  startDate: "2026-11-22",        // Day 1's calendar date (YYYY-MM-DD, read as a plain date in Asia/Kolkata)
+  timeZone: "Asia/Kolkata",       // informational
+  sessionStart: "21:00", sessionEnd: "23:00",   // optional: per-block time slots + "fits the session" check
+  sessionWindow: "9:00–11:00 PM IST",           // optional display text
+  tracks: [{                      // course tracks; used for block labels and coverage.html
+    id: "HLD", name: "System Design (HLD)", short: "HLD",
+    syllabus: [{ id: "H-REQUEST-01", title: "Request lifecycle" }]   // the course's topic list
+  }],
   days: [{
     day: 1,                       // number used in #day-N
+    date: "2026-11-22",           // optional; overrides startDate + index (the host shifts dates for skipped days)
     title: "…", summary: "…",
-    tracks: ["J", "L"],           // shown as chips, searchable
-    topicIds: ["J-OOP-01"],       // shown + searchable
+    tracks: ["HLD"], topicIds: ["H-REQUEST-01"],   // optional; derived from blocks when missing
     revisionOf: 0,                // optional: day number to revise first
-    blocks: [{ id: "d1-b1", kind: "learn|practice|revision|coach", title: "…", topicId: "…", minutes: 40 }]
+    blocks: [{ id: "d1-hld", kind: "learn|practice|revision|coach", track: "HLD", topicId: "H-REQUEST-01", title: "…", minutes: 30 }]
   }]
 };
 
@@ -111,9 +122,30 @@ progress = {
 
 Missing pieces render empty-state messages instead of failing.
 
+**Dates.** A day shows `day.date` when it is present; otherwise it shows
+`startDate + (position in days[])`. The UI only displays dates. Moving days
+forward when one is skipped is the host's job (it can write `date` on each day).
+
+**Session plan.** Each block shows its course (`tracks[].name` from
+`block.track`), topic title, topic ID, minutes and a time slot counted from
+`sessionStart`. The plan prints the total and warns when it runs past
+`sessionEnd`.
+
+## Coverage check (`coverage.html`)
+
+`StudyDeskCoverage.mount(root, { curriculum, deskHref: "index.html" })` reads
+the same `curriculum` object. For each `tracks[]` entry it lists every
+`syllabus[]` topic with the day(s) whose blocks carry that `topicId` (linked to
+`index.html#day-N`). It flags topics **not scheduled on any day**, and topics
+scheduled under a track but missing from its syllabus. An overall "All
+unscheduled topics" list closes the page. `StudyDeskCoverage.analyze(curriculum)`
+returns the same result as plain data. The fixture leaves 2 topics per track
+unscheduled on purpose so the report has something to show.
+
 ## Status states
 
-Pending (○, dashed grey), In progress (◐, amber), Complete (✓, green). Every
+Not started (○, dashed grey; status value `"pending"`, also the default for any
+missing progress), In progress (◐, amber), Complete (✓, green). Every
 badge carries an icon and a text label, so state never depends on color alone.
 
 ## Views
@@ -150,6 +182,14 @@ Keyboard checks (explicit):
 - **Day index arrows:** ArrowDown from search enters the list; ArrowDown/ArrowUp walk the day links and the active day's lesson-sidebar links; ArrowUp from the first day returns to search.
 - **Enter:** in search, it opens the first match. On a day link or lesson-sidebar link, it opens that route and `aria-current` moves.
 - **Space:** toggles a block's status.
+- Desktop Tab order now starts: skip link → Coverage check link → search.
 - **Mobile:** Tab reaches the Days toggle; Enter opens the drawer and focuses search; Esc closes it and returns focus to the toggle.
+
+Other checks: the fixture loads with every day and block "Not started". Day 1 is
+2026-11-22, and the dates run consecutively from there. Day 1 has 4 course blocks
+(9:00–11:00 PM). Day 2 onward starts with a 12-minute revision followed by the 4
+courses, 2 h in total. The header link opens the coverage page, which shows 4
+tracks, 24/32 topics scheduled and 2 unscheduled per track, and its day links
+open the desk.
 
 Content, persistence and publishing to `main` are left to the integration step.
