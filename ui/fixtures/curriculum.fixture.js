@@ -1,81 +1,92 @@
 /*
  * EXAMPLE DATA ONLY: UI fixture for the Study Desk presentation layer.
  * Not the real curriculum. Codex's curriculum.js replaces this when it lands.
- * The UI derives the day count from days.length; nothing assumes a fixed total.
+ *
+ * - The UI derives the day count from days.length; nothing assumes a fixed total.
+ * - Calendar dates: a day's own `date` wins; otherwise startDate + (day - 1).
+ *   Pushing dates forward for skipped days is the host's job.
+ * - Each day has one topic block per course track (4 tracks), plus a quick revision of the
+ *   previous day from Day 2 onward. Every day adds up to 120 min (9:00–11:00 PM).
+ * - tracks[].syllabus lists each course's topics. A few are deliberately NOT scheduled
+ *   so that coverage.html has something to report.
  */
 window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
-window.STUDY_DESK_FIXTURES.curriculum = {
-  title: "Study Desk (example fixture)",
-  subtitle: "Sample plan used to preview the UI",
-  sessionWindow: "9:00–11:00 PM IST",
-  days: [
-    {
-      day: 1, title: "Objects, state and the first invariant",
-      tracks: ["J", "L"], topicIds: ["J-OOP-01", "L-INVARIANTS-01"],
-      summary: "Example day: model a seat with valid state transitions and keep rules inside the object.",
-      blocks: [
-        { id: "d1-b1", kind: "learn", title: "Watch + read: encapsulation and state", topicId: "J-OOP-01", minutes: 40 },
-        { id: "d1-b2", kind: "practice", title: "LAB-1.1 Seat booking model", topicId: "L-INVARIANTS-01", minutes: 45 },
-        { id: "d1-b3", kind: "revision", title: "Write your own notes", minutes: 15 },
-        { id: "d1-b4", kind: "coach", title: "Two interview-style questions", minutes: 20 }
-      ]
-    },
-    {
-      day: 2, title: "HTTP request lifecycle",
-      tracks: ["H", "B"], topicIds: ["H-REQUEST-01", "B-HTTP-01"],
-      summary: "Example day: what happens between typing a URL and seeing a response.",
-      revisionOf: 1,
-      blocks: [
-        { id: "d2-b0", kind: "revision", title: "Quick revision of Day 1", minutes: 12 },
-        { id: "d2-b1", kind: "learn", title: "Watch + read: DNS, TCP, TLS, HTTP", topicId: "H-REQUEST-01", minutes: 45 },
-        { id: "d2-b2", kind: "practice", title: "Trace a request with curl -v", topicId: "B-HTTP-01", minutes: 40 },
-        { id: "d2-b3", kind: "coach", title: "Explain it back", minutes: 20 }
-      ]
-    },
-    {
-      day: 3, title: "Hashing and HashMap internals",
-      tracks: ["D", "J"], topicIds: ["D-HASHING-01", "J-COLL-02"],
-      summary: "Example day: buckets, collisions, equals/hashCode contract.",
-      revisionOf: 2,
-      blocks: [
-        { id: "d3-b0", kind: "revision", title: "Quick revision of Day 2", minutes: 10 },
-        { id: "d3-b1", kind: "learn", title: "Watch + read: hashing", topicId: "D-HASHING-01", minutes: 40 },
-        { id: "d3-b2", kind: "practice", title: "Two Sum + frequency map", topicId: "D-HASHING-01", minutes: 50 },
-        { id: "d3-b3", kind: "coach", title: "Mock question", minutes: 20 }
-      ]
-    },
-    {
-      day: 4, title: "Threads and the check-then-act race",
-      tracks: ["J"], topicIds: ["J-CONC-01"],
-      summary: "Example day: why two threads can book the same seat, and how locks fix it.",
-      revisionOf: 3,
-      blocks: [
-        { id: "d4-b0", kind: "revision", title: "Quick revision of Day 3", minutes: 10 },
-        { id: "d4-b1", kind: "learn", title: "Watch + read: threads, races", topicId: "J-CONC-01", minutes: 45 },
-        { id: "d4-b2", kind: "practice", title: "Reproduce and fix a race", topicId: "J-CONC-01", minutes: 45 }
-      ]
-    },
-    {
-      day: 5, title: "GenAI foundations: tokens and prompts",
-      tracks: ["AI"], topicIds: ["AI-FOUNDATIONS-01"],
-      summary: "Example day: what an LLM predicts, tokens, context windows.",
-      revisionOf: 4,
-      blocks: [
-        { id: "d5-b0", kind: "revision", title: "Quick revision of Day 4", minutes: 10 },
-        { id: "d5-b1", kind: "learn", title: "Read: Generative AI for Beginners, lesson 1", topicId: "AI-FOUNDATIONS-01", minutes: 50 },
-        { id: "d5-b2", kind: "practice", title: "Token counting exercise", topicId: "AI-FOUNDATIONS-01", minutes: 30 }
-      ]
-    },
-    {
-      day: 6, title: "SQL basics and constraints",
-      tracks: ["B"], topicIds: ["B-SQL-01", "B-CONSTRAINTS-01"],
-      summary: "Example day: SELECT, JOIN and letting the database enforce invariants.",
-      revisionOf: 5,
-      blocks: [
-        { id: "d6-b0", kind: "revision", title: "Quick revision of Day 5", minutes: 10 },
-        { id: "d6-b1", kind: "learn", title: "Read: PostgreSQL tutorial basics", topicId: "B-SQL-01", minutes: 45 },
-        { id: "d6-b2", kind: "practice", title: "HackerRank SQL warm-ups", topicId: "B-SQL-01", minutes: 45 }
-      ]
-    }
-  ]
-};
+(function () {
+  var tracks = [
+    { id: "HLD", name: "System Design (HLD)", short: "HLD", syllabus: [
+      { id: "H-REQUEST-01", title: "Request lifecycle: DNS, TCP, TLS, HTTP" },
+      { id: "H-ESTIMATE-01", title: "Back-of-the-envelope estimates" },
+      { id: "H-SCALE-01", title: "Vertical vs horizontal scaling" },
+      { id: "H-LB-01", title: "Load balancers" },
+      { id: "H-CACHE-01", title: "Caching strategies" },
+      { id: "H-DB-01", title: "SQL vs NoSQL, replication" },
+      { id: "H-QUEUE-01", title: "Message queues" },
+      { id: "H-CAP-01", title: "CAP theorem and consistency models" }
+    ] },
+    { id: "DSA", name: "DSA", short: "DSA", syllabus: [
+      { id: "D-COMPLEX-01", title: "Time and space complexity (Big-O)" },
+      { id: "D-ARRAY-01", title: "Arrays and two pointers" },
+      { id: "D-HASHING-01", title: "Hashing and frequency maps" },
+      { id: "D-SLIDING-01", title: "Sliding window" },
+      { id: "D-STACK-01", title: "Stacks and queues" },
+      { id: "D-LIST-01", title: "Linked lists" },
+      { id: "D-TREE-01", title: "Binary trees and traversals" },
+      { id: "D-GRAPH-01", title: "Graphs: BFS and DFS" }
+    ] },
+    { id: "JAVA", name: "Java · Multithreading · Spring Boot (+ Spring AI)", short: "Java/Spring", syllabus: [
+      { id: "J-OOP-01", title: "OOP, encapsulation and object state" },
+      { id: "J-COLL-01", title: "Collections, equals and hashCode" },
+      { id: "J-EXC-01", title: "Exceptions and error handling" },
+      { id: "J-CONC-01", title: "Threads and race conditions" },
+      { id: "J-CONC-02", title: "synchronized, locks and volatile" },
+      { id: "B-SPRING-01", title: "Spring Boot REST basics" },
+      { id: "J-EXEC-01", title: "Executors and CompletableFuture" },
+      { id: "B-SPRINGAI-01", title: "Spring AI: ChatClient basics" }
+    ] },
+    { id: "AI", name: "GenAI / LLM", short: "GenAI", syllabus: [
+      { id: "AI-FOUND-01", title: "What an LLM is and how it predicts" },
+      { id: "AI-TOKENS-01", title: "Tokens and context windows" },
+      { id: "AI-PROMPT-01", title: "Prompt engineering basics" },
+      { id: "AI-EMBED-01", title: "Embeddings and similarity" },
+      { id: "AI-RAG-01", title: "Retrieval-augmented generation (RAG)" },
+      { id: "AI-EVAL-01", title: "Hallucinations and evaluation" },
+      { id: "AI-AGENTS-01", title: "Tool use and agents" },
+      { id: "AI-FINETUNE-01", title: "Fine-tuning vs RAG" }
+    ] }
+  ];
+  var byId = {};
+  tracks.forEach(function (t) { t.syllabus.forEach(function (s) { byId[s.id] = { track: t.id, title: s.title }; }); });
+
+  // [day title, HLD topic, DSA topic, Java topic, AI topic]
+  var plan = [
+    ["Foundations across all four courses", "H-REQUEST-01", "D-COMPLEX-01", "J-OOP-01", "AI-FOUND-01"],
+    ["Estimates, arrays and collections", "H-ESTIMATE-01", "D-ARRAY-01", "J-COLL-01", "AI-TOKENS-01"],
+    ["Scaling, hashing and exceptions", "H-SCALE-01", "D-HASHING-01", "J-EXC-01", "AI-PROMPT-01"],
+    ["Load balancers, sliding window and threads", "H-LB-01", "D-SLIDING-01", "J-CONC-01", "AI-EMBED-01"],
+    ["Caching, stacks and locking", "H-CACHE-01", "D-STACK-01", "J-CONC-02", "AI-RAG-01"],
+    ["Databases, linked lists and Spring Boot", "H-DB-01", "D-LIST-01", "B-SPRING-01", "AI-EVAL-01"]
+  ];
+
+  var days = plan.map(function (row, i) {
+    var day = i + 1, blocks = [];
+    var each = day === 1 ? 30 : 27; // Day 1: 4 × 30 = 120; later days: 12 + 4 × 27 = 120
+    if (day > 1) blocks.push({ id: "d" + day + "-rev", kind: "revision", title: "Quick revision of Day " + (day - 1), minutes: 12 });
+    row.slice(1).forEach(function (topicId) {
+      var t = byId[topicId];
+      blocks.push({ id: "d" + day + "-" + t.track.toLowerCase(), kind: "learn", track: t.track, topicId: topicId, title: t.title, minutes: each });
+    });
+    return { day: day, title: row[0], summary: "Example day: one topic from each of the four courses.", revisionOf: day > 1 ? day - 1 : undefined, blocks: blocks };
+  });
+
+  window.STUDY_DESK_FIXTURES.curriculum = {
+    title: "Study Desk (example fixture)",
+    subtitle: "Sample plan used to preview the UI",
+    startDate: "2026-11-22",
+    timeZone: "Asia/Kolkata",
+    sessionStart: "21:00",
+    sessionEnd: "23:00",
+    sessionWindow: "9:00–11:00 PM IST",
+    tracks: tracks,
+    days: days
+  };
+})();
