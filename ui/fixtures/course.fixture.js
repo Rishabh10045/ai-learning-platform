@@ -5,8 +5,12 @@
  * Codex's curriculum replaces it through the same shape (see ui/README.md, "Course contract v2").
  *
  * Shape: subjects[] -> modules[] -> lessons[] (stable IDs), sessions[] reference lesson IDs.
- * Order: Java core -> Streams/APIs -> Concurrency -> Spring Boot -> LLD -> HLD -> GenAI.
+ * Order: Java core -> Streams/APIs -> Concurrency -> SQL & JDBC -> Spring Boot -> LLD -> HLD -> GenAI.
  * DSA in Java is its own subject (dsa: true) and every session has one DSA problem set.
+ * Structure (QA 2026-11-21 fixes): one main lesson per session so lesson + practice fit the 78-min slot and
+ * each DSA set fits 30 min; prerequisites in order (generics before collections, SQL/JDBC before JPA,
+ * HTTP before REST, LLM basics before Spring AI). Titles of the added example lessons are placeholders,
+ * not curriculum content.
  * source.kind "gfg" = mapped to a GfG course module (mapping here is illustrative);
  * source.kind "added" = supplementary content that is not in the GfG syllabus.
  * Video links are YouTube *search* links, not picked videos.
@@ -26,7 +30,7 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
       : { kind: "gfg", course: GFG[row[2].split(":")[1]], ref: row[2].split(":").slice(2).join(":") };
     var l = {
       id: row[0], title: row[1], source: src, estMinutes: row[3],
-      videos: [{ id: row[0] + "-v1", title: row[1] + " (pick one explainer)", source: "YouTube", channel: "Search results", url: yt("java " + row[1]),
+      videos: [{ id: row[0] + "-v1", title: row[1] + " (pick one explainer)", source: "YouTube", channel: "Search results", url: null,
         durationMin: Math.round(row[3] * 0.6), suggestedWatchMin: Math.round(row[3] * 0.35), segment: "Any 20–30 min explainer", kind: "video" }],
       notes: [
         { type: "h", text: row[1] },
@@ -49,12 +53,13 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
   var subjects = [
     { id: "java-core", title: "Java core", short: "Java", color: "#c2571a", modules: [
       { id: "jc-basics", title: "Foundations & OOP", lessons: [
-        lesson(["JC-01", "Java foundations: JDK, JVM, compile and run", "gfg:java:Module 1", 40, "javac turns .java into bytecode; the JVM loads, verifies and runs it.", ["JDK = tools + JRE", "JVM runs bytecode"], ["The JVM executes Java source code directly.", tf, 1], ["Hello.java", "javac", "Hello.class", "JVM", "Output"]]),
+        lesson(["JC-01", "Java foundations: JDK, JVM, compile and run", "gfg:java:Module 1", 12, "javac turns .java into bytecode; the JVM loads, verifies and runs it.", ["JDK = tools + JRE", "JVM runs bytecode"], ["The JVM executes Java source code directly.", tf, 1], ["Hello.java", "javac", "Hello.class", "JVM", "Output"]], { practice: [] }),
         lesson(["JC-02", "Types, operators and control flow", "gfg:java:Module 1", 40, "Primitives vs references, switch expressions and loops.", ["int/long/double are primitives", "String is a reference type"], ["Which is a primitive?", ["String", "int", "Integer"], 1]]),
         lesson(["JC-03", "Classes, objects and encapsulation", "gfg:java:Module 2", 45, "Private state, constructors and intent-revealing methods.", ["Keep fields private", "Guard state changes in methods"], ["Encapsulation mainly protects…", ["object state", "speed", "memory"], 0], ["Client", "public method", "invariant check", "private field"]]),
         lesson(["JC-04", "Inheritance, interfaces and polymorphism", "gfg:java:Module 2", 45, "Program to interfaces; override vs overload.", ["Prefer composition", "Interfaces define contracts"], ["Overriding is resolved at…", ["compile time", "run time"], 1]])
       ], test: test("Foundations & OOP test", [["A class can implement many interfaces.", tf, 0], ["Private fields are visible to subclasses.", tf, 1], ["javac produces…", ["bytecode", "machine code"], 0]]) },
       { id: "jc-collections", title: "Collections & exceptions", lessons: [
+        lesson(["JC-07", "Generics: bounded types, wildcards and PECS", "gfg:java:Module 3", 40, "Type parameters, bounded types, ? extends / ? super, type erasure.", ["Producer extends, consumer super"], ["List<? extends Number> lets you add an Integer.", tf, 1]]),
         lesson(["JC-05", "Collections: List, Set, Map", "gfg:java:Module 3", 45, "ArrayList vs LinkedList, HashMap internals, iteration.", ["HashMap: buckets + equals/hashCode", "ArrayList: O(1) get"], ["HashMap lookup is on average…", ["O(1)", "O(n)", "O(log n)"], 0], ["key", "hashCode()", "bucket", "equals()", "value"]]),
         lesson(["JC-06", "equals/hashCode and exceptions", "gfg:java:Module 3", 40, "The equals/hashCode contract; checked vs unchecked exceptions.", ["Equal objects -> equal hashCodes", "Checked = must handle"], ["IllegalStateException is…", ["checked", "unchecked"], 1]])
       ], test: test("Collections test", [["Two equal objects must have equal hashCodes.", tf, 0], ["TreeMap keeps keys sorted.", tf, 0], ["ArrayList.get(i) is…", ["O(1)", "O(n)"], 0]]) }
@@ -80,9 +85,19 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
         lesson(["CC-05", "CompletableFuture pipelines", "gfg:java:Module 6", 40, "thenApply, thenCompose, allOf, exception handling.", ["thenCompose flattens"], ["thenCompose is used for dependent async calls.", tf, 0]])
       ], test: test("Concurrency test", [["synchronized gives mutual exclusion.", tf, 0], ["volatile guarantees atomic increments.", tf, 1], ["A thread pool reuses threads.", tf, 0]]) }
     ] },
+    { id: "databases", title: "SQL & JDBC", short: "SQL", color: "#6b5a1e", modules: [
+      { id: "db-sql", title: "SQL essentials", lessons: [
+        lesson(["DB-01", "SQL: joins, grouping and window functions", "gfg:java:MySQL", 45, "INNER/LEFT joins, GROUP BY/HAVING, ROW_NUMBER and RANK.", ["WHERE filters rows, HAVING filters groups"], ["HAVING filters groups after GROUP BY.", tf, 0]]),
+        lesson(["DB-02", "Indexes, transactions and isolation levels", "gfg:java:MySQL", 45, "B-tree and composite indexes, ACID, read phenomena per isolation level.", ["Composite index: leftmost prefix"], ["READ COMMITTED prevents dirty reads.", tf, 0]])
+      ], test: test("SQL test", [["A composite index (a, b) helps a query filtering only on b.", tf, 1], ["Transactions are atomic.", tf, 0]]) },
+      { id: "db-jdbc", title: "JDBC", lessons: [
+        lesson(["DB-03", "JDBC, PreparedStatement and connection pools", "gfg:java:JDBC", 40, "Connection, PreparedStatement (no SQL injection), HikariCP.", ["Always use PreparedStatement"], ["PreparedStatement helps prevent SQL injection.", tf, 0]])
+      ] }
+    ] },
     { id: "spring-boot", title: "Spring Boot", short: "Spring", color: "#2e8b57", modules: [
       { id: "sb-rest", title: "REST APIs", lessons: [
         lesson(["SB-01", "Spring core: IoC, DI and Boot auto-configuration", "gfg:java:Module 7", 40, "Beans, @Component, constructor injection, starters.", ["Prefer constructor injection"], ["Spring creates and wires beans.", tf, 0], ["@SpringBootApplication", "component scan", "beans", "auto-config", "app ready"]]),
+        lesson(["SB-09", "HTTP for APIs: methods, status codes and idempotency", "added", 40, "GET/POST/PUT/PATCH/DELETE, 2xx/4xx/5xx, safe vs idempotent methods.", ["PUT is idempotent, POST is not"], ["PUT requests are idempotent.", tf, 0]]),
         lesson(["SB-02", "REST controllers, validation and errors", "gfg:java:Module 7", 45, "@RestController, DTOs, @Valid, @ControllerAdvice.", ["Return DTOs, not entities"], ["@ControllerAdvice handles exceptions globally.", tf, 0]])
       ], test: test("REST test", [["@RestController = @Controller + @ResponseBody.", tf, 0], ["Field injection is preferred.", tf, 1]]) },
       { id: "sb-persistence", title: "Persistence (JPA)", lessons: [
@@ -97,6 +112,7 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
         lesson(["SB-07", "Google OAuth2 login", "gfg:java:Module 10", 40, "spring-boot-starter-oauth2-client, redirect flow, user mapping.", ["Authorization code flow"], ["OAuth2 login uses the authorization code flow.", tf, 0]])
       ], test: test("Security test", [["Authorization decides what a user can do.", tf, 0], ["OAuth2 sends the user's Google password to your app.", tf, 1]]) },
       { id: "sb-ai", title: "Spring AI introduction", lessons: [
+        lesson(["SB-10", "LLM basics for Spring developers: tokens, context and prompts", "added", 40, "What a model call costs (tokens), context limits, system vs user prompts.", ["Tokens drive cost and latency"], ["Longer prompts use more tokens.", tf, 0]]),
         lesson(["SB-08", "Spring AI: ChatClient, prompts and models", "gfg:java:Spring Boot with AI", 45, "ChatClient, prompt templates, structured output.", ["ChatClient wraps the model API"], ["Spring AI can map model output to Java records.", tf, 0]])
       ] }
     ] },
@@ -107,7 +123,7 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
         lesson(["LLD-03", "Structural and behavioral patterns", "gfg:sd:LLD Module 2", 45, "Strategy, Observer, Decorator, Adapter.", ["Strategy = swap algorithms"], ["Observer notifies subscribers of changes.", tf, 0]])
       ] },
       { id: "lld-cases", title: "Case studies", lessons: [
-        lesson(["LLD-04", "Case study: parking lot", "gfg:sd:LLD Case studies", 60, "Requirements -> entities -> relationships -> APIs -> concurrency.", ["Start from use cases"], ["Start an LLD round by clarifying requirements.", tf, 0], ["Requirements", "Entities", "Relations", "APIs", "Edge cases"]])
+        lesson(["LLD-04", "Case study: parking lot", "gfg:sd:LLD Case studies", 50, "Requirements -> entities -> relationships -> APIs -> concurrency.", ["Start from use cases"], ["Start an LLD round by clarifying requirements.", tf, 0], ["Requirements", "Entities", "Relations", "APIs", "Edge cases"]])
       ], test: test("LLD test", [["Strategy pattern swaps behaviour at run time.", tf, 0], ["Singletons are always a good idea.", tf, 1]]) }
     ] },
     { id: "hld", title: "High-level design", short: "HLD", color: "#33658a", modules: [
@@ -118,7 +134,7 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
         lesson(["HLD-04", "Queues, CAP and consistency", "gfg:sd:HLD Module 3", 40, "Async processing, at-least-once, CAP trade-offs.", ["CAP: pick C or A under partition"], ["Under a partition you can keep both C and A.", tf, 1]])
       ] },
       { id: "hld-cases", title: "Case studies", lessons: [
-        lesson(["HLD-05", "Design a URL shortener", "gfg:sd:HLD Case studies", 60, "IDs, storage, redirects, caching, analytics.", ["Base62 IDs", "Cache hot links"], ["301 redirects can be cached by browsers.", tf, 0]])
+        lesson(["HLD-05", "Design a URL shortener", "gfg:sd:HLD Case studies", 50, "IDs, storage, redirects, caching, analytics.", ["Base62 IDs", "Cache hot links"], ["301 redirects can be cached by browsers.", tf, 0]])
       ], test: test("HLD test", [["A CDN reduces latency for static content.", tf, 0], ["Sharding means copying all data to every node.", tf, 1]]) }
     ] },
     { id: "genai", title: "GenAI & LLMs", short: "GenAI", color: "#8a5a00", modules: [
@@ -143,43 +159,62 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
     ["DSA-12", "Binary trees: traversals", "Trees & graphs"], ["DSA-13", "Binary search trees", "Trees & graphs"], ["DSA-14", "Heaps and priority queues", "Trees & graphs"],
     ["DSA-15", "Graphs: BFS and DFS", "Trees & graphs"], ["DSA-16", "Topological sort and shortest paths", "Trees & graphs"],
     ["DSA-17", "Dynamic programming: 1D", "Dynamic programming"], ["DSA-18", "Dynamic programming: 2D", "Dynamic programming"],
-    ["DSA-19", "Greedy algorithms", "Dynamic programming"], ["DSA-20", "Tries and mixed revision", "Dynamic programming"]
+    ["DSA-19", "Greedy algorithms", "Dynamic programming"], ["DSA-20", "Tries and mixed revision", "Trees & graphs"]
   ];
+  // Example problem-set titles so every session has its own DSA set (placeholders, not a curated list).
+  var dsaMore = [
+    ["DSA-21", "Strings: palindromes and anagrams", "Basics"], ["DSA-22", "Matrix traversal", "Basics"], ["DSA-23", "Bit manipulation", "Basics"],
+    ["DSA-24", "Math: GCD, primes, modular arithmetic", "Basics"], ["DSA-25", "Binary search on the answer", "Searching & sorting"],
+    ["DSA-26", "Intervals: merge and insert", "Searching & sorting"], ["DSA-27", "Cyclic sort", "Searching & sorting"],
+    ["DSA-28", "Fast and slow pointers", "Linear structures"], ["DSA-29", "Tree DP, diameter and LCA", "Trees & graphs"],
+    ["DSA-30", "Top-K and k-way merge", "Trees & graphs"], ["DSA-31", "Two heaps: running median", "Trees & graphs"],
+    ["DSA-32", "Union-Find (DSU)", "Trees & graphs"], ["DSA-33", "Dijkstra and minimum spanning trees", "Trees & graphs"],
+    ["DSA-34", "Knapsack and partition DP", "Dynamic programming"], ["DSA-35", "LIS, LCS and edit distance", "Dynamic programming"],
+    ["DSA-36", "Design data structures: LRU, LFU, min-stack", "Design"],
+    ["DSA-37", "Timed mixed set 1", "Timed mixed sets"], ["DSA-38", "Timed mixed set 2", "Timed mixed sets"], ["DSA-39", "Timed mixed set 3", "Timed mixed sets"],
+    ["DSA-40", "Timed mixed set 4", "Timed mixed sets"], ["DSA-41", "Timed mixed set 5", "Timed mixed sets"], ["DSA-42", "Timed mixed set 6", "Timed mixed sets"]
+  ];
+  var byId = {}; dsaRows.concat(dsaMore).forEach(function (r) { byId[r[0]] = r; });
+  // Session order of DSA sets: basics -> searching -> recursion -> linear -> trees -> graphs -> DP, with timed mixed sets between blocks.
+  dsaRows = ["DSA-01", "DSA-02", "DSA-03", "DSA-04", "DSA-05", "DSA-21", "DSA-22", "DSA-23", "DSA-24", "DSA-06", "DSA-25", "DSA-07", "DSA-26", "DSA-27",
+    "DSA-08", "DSA-09", "DSA-10", "DSA-11", "DSA-28", "DSA-37", "DSA-12", "DSA-13", "DSA-29", "DSA-14", "DSA-30", "DSA-31", "DSA-20", "DSA-38",
+    "DSA-15", "DSA-32", "DSA-16", "DSA-33", "DSA-39", "DSA-17", "DSA-18", "DSA-34", "DSA-35", "DSA-19", "DSA-36", "DSA-40", "DSA-41", "DSA-42"].map(function (id) { return byId[id]; });
   var dsaModules = [];
   dsaRows.forEach(function (r) {
     var m = dsaModules.find(function (x) { return x.title === r[2]; });
     if (!m) { m = { id: "dsa-" + r[2].toLowerCase().replace(/[^a-z]+/g, "-").replace(/-$/, ""), title: r[2], lessons: [] }; dsaModules.push(m); }
     m.lessons.push({
-      id: r[0], title: r[1], source: { kind: "gfg", course: GFG.dsa, ref: r[2] }, estMinutes: 30,
-      videos: [{ id: r[0] + "-v1", title: r[1] + " in Java", source: "YouTube", channel: "Search results", url: yt("java dsa " + r[1]), durationMin: 20, suggestedWatchMin: 8, kind: "video" }],
+      id: r[0], title: r[1], source: { kind: "gfg", course: GFG.dsa, ref: r[2] }, estMinutes: 10,
+      videos: [{ id: r[0] + "-v1", title: r[1] + " in Java", source: "YouTube", channel: "Search results", url: null, durationMin: 20, suggestedWatchMin: 8, kind: "video" }],
       notes: [{ type: "p", text: "Example DSA notes for " + r[1] + ": pattern, template, and complexity." }],
       revision: ["Pattern: " + r[1]],
-      practice: [{ id: r[0] + "-p1", title: "Problem set: " + r[1], platform: "GfG Practice", difficulty: "Easy–Medium", minutes: 25,
+      practice: [{ id: r[0] + "-p1", title: "Problem set: " + r[1], platform: "GfG Practice", difficulty: "Easy–Medium", minutes: 20,
         prompt: "Solve 2 problems on " + r[1] + " in Java and paste your submission link.", url: "https://www.geeksforgeeks.org/explore", evidenceRequired: true }],
       coach: [{ id: r[0] + "-c1", prompt: "State the time and space complexity of your solution for " + r[1] + "." }]
     });
   });
   subjects.push({ id: "dsa", title: "DSA in Java", short: "DSA", color: "#4a5160", dsa: true, daily: true, modules: dsaModules });
 
-  // Sessions: one main subject + one DSA set. Tests sit in the session that finishes a module.
-  var plan = [
-    ["java-core", ["JC-02", "JC-03"]], ["java-core", ["JC-04"], "jc-basics"], ["java-core", ["JC-05", "JC-06"], "jc-collections"],
-    ["streams-apis", ["SA-01", "SA-02"]], ["streams-apis", ["SA-03", "SA-04"], "sa-apis"],
-    ["concurrency", ["CC-01", "CC-02"]], ["concurrency", ["CC-03", "CC-04"]], ["concurrency", ["CC-05"], "cc-advanced"],
-    ["spring-boot", ["SB-01", "SB-02"], "sb-rest"], ["spring-boot", ["SB-03", "SB-04"]], ["spring-boot", ["SB-05"]],
-    ["spring-boot", ["SB-06", "SB-07"], "sb-security"], ["spring-boot", ["SB-08"]],
-    ["lld", ["LLD-01", "LLD-02"]], ["lld", ["LLD-03", "LLD-04"], "lld-cases"],
-    ["hld", ["HLD-01", "HLD-02"]], ["hld", ["HLD-03", "HLD-04"]], ["hld", ["HLD-05"], "hld-cases"],
-    ["genai", ["GEN-01", "GEN-02", "GEN-03"]], ["genai", ["GEN-04", "GEN-05"], "gen-llm"]
-  ];
-  var sessions = plan.map(function (p, i) {
-    var s = { id: "S" + String(i + 1).padStart(2, "0"), subject: p[0], lessons: p[1], dsa: [dsaRows[i][0]] };
-    if (p[2]) s.test = p[2];
-    return s;
+  // Search-link prefix per subject (video links are YouTube searches, not picked videos).
+  var QUERY = { "java-core": "java", "streams-apis": "java", concurrency: "java", databases: "sql", "spring-boot": "spring boot", lld: "low level design", hld: "system design", genai: "llm", dsa: "java dsa" };
+  subjects.forEach(function (s) { s.modules.forEach(function (m) { m.lessons.forEach(function (l) { (l.videos || []).forEach(function (v) { v.url = yt(QUERY[s.id] + " " + l.title); }); }); }); });
+
+  // Sessions: one main lesson + one DSA set each, in subject -> module -> lesson order.
+  // A module test sits in the session that schedules the module's last lesson.
+  var WARMUP = "JC-01", sessions = [];
+  subjects.forEach(function (s) {
+    if (s.dsa) return;
+    s.modules.forEach(function (m) {
+      m.lessons.forEach(function (l, li) {
+        if (l.id === WARMUP) return;
+        var n = sessions.length;
+        var x = { id: "S" + String(n + 1).padStart(2, "0"), subject: s.id, lessons: [l.id], dsa: [dsaRows[n][0]] };
+        if (li === m.lessons.length - 1 && m.test) x.test = m.id;
+        sessions.push(x);
+      });
+    });
   });
-  // gen-llm's test covers GEN-01/02; gen-apps has the GenAI test in its own module.
-  sessions[sessions.length - 1].test = "gen-apps";
-  sessions[0].warmup = "JC-01";
+  sessions[0].warmup = WARMUP;
 
   window.STUDY_DESK_FIXTURES.course = {
     title: "Study Desk", subtitle: "Subject-first plan · example fixture",
@@ -190,9 +225,11 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
     sessions: sessions,
     // Old day-based fixture (v1 contract) -> stable lesson IDs, for migrateProgress().
     legacyMap: {
-      blocks: { "d1-java": "JC-03", "d1-dsa": "DSA-01", "d1-hld": "HLD-01", "d1-ai": "GEN-01", "d2-java": "JC-05", "d2-dsa": "DSA-02", "d2-hld": "HLD-01", "d2-ai": "GEN-01",
-        "d3-java": "JC-06", "d3-dsa": "DSA-03", "d3-hld": "HLD-02", "d3-ai": "GEN-02", "d4-java": "CC-01", "d4-dsa": "DSA-04", "d4-hld": "HLD-02", "d4-ai": "GEN-03",
-        "d5-java": "CC-02", "d5-dsa": "DSA-09", "d5-hld": "HLD-02", "d5-ai": "GEN-04", "d6-java": "SB-01", "d6-dsa": "DSA-11", "d6-hld": "HLD-03", "d6-ai": "GEN-05" },
+      // Only Java/DSA blocks map to lessons. v1 HLD/GenAI blocks (4 courses per day) would land on lessons
+      // weeks ahead in the subject-first order, so they are kept under progress.legacy instead (QA M11).
+      blocks: { "d1-java": "JC-03", "d1-dsa": "DSA-01", "d2-java": "JC-05", "d2-dsa": "DSA-02",
+        "d3-java": "JC-06", "d3-dsa": "DSA-03", "d4-java": "CC-01", "d4-dsa": "DSA-04",
+        "d5-java": "CC-02", "d5-dsa": "DSA-09", "d6-java": "SB-01", "d6-dsa": "DSA-11" },
       practice: { "d1-dsa": "DSA-01-p1", "d1-java": "JC-03-p1" },
       days: { "1": "S01", "2": "S02", "3": "S03", "4": "S04", "5": "S05", "6": "S06" }
     }

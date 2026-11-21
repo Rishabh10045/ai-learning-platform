@@ -30,7 +30,9 @@
     core: { revision: 12, lesson: 78, dsa: 30 },          // 120 min core (D6)
     dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 390 }, // Sat + Sun long day 6h30m (2h core + 4h30m stretch), Mon–Fri 2h (D7)
     testPassPct: 70,
-    horizonDays: 120
+    horizonDays: 120,
+    dayCutoff: "04:00",        // a study day runs until 4:00 AM IST: late-night completions count for the evening before (QA H3)
+    minMinutes: 30, maxMinutes: 960   // a study date is 0 (= day off) or 30..960 minutes (QA M7)
   };
   var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -49,6 +51,14 @@
     var d = now != null ? new Date(now) : new Date();
     return new Date(d.getTime() + 330 * 60000).toISOString().slice(0, 10);   // Asia/Kolkata is UTC+5:30, no DST
   }
+  function isISO(x) { return typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && !isNaN(Date.parse(x + "T00:00:00Z")); }
+  function hhmmMin(hhmm) { var p = String(hhmm || "0:0").split(":"); return (+p[0] || 0) * 60 + (+p[1] || 0); }
+  // The study date for "now": IST calendar date, but times before the cutoff (default 04:00) belong to the previous evening.
+  function studyDayIST(now, cutoff) {
+    var ms = now != null ? +new Date(now) : Date.now();
+    return todayIST(ms - hhmmMin(cutoff == null ? DEFAULTS.dayCutoff : cutoff) * 60000);
+  }
+  function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
   function hhmmAdd(hhmm, min) {
     var p = String(hhmm || "21:00").split(":"), t = (+p[0]) * 60 + (+p[1] || 0) + min;
     t = ((t % 1440) + 1440) % 1440;
@@ -58,7 +68,7 @@
   function settingsOf(course, progress) {
     var c = (course && course.schedule) || {}, p = (progress && progress.schedule) || {};
     var s = {
-      startDate: p.startDate || c.startDate || DEFAULTS.startDate,
+      startDate: (isISO(p.startDate) && p.startDate) || (isISO(c.startDate) && c.startDate) || DEFAULTS.startDate,
       sessionStart: c.sessionStart || DEFAULTS.sessionStart,
       core: Object.assign({}, DEFAULTS.core, c.core || {}),
       dailyMinutes: Object.assign({}, DEFAULTS.dailyMinutes, c.dailyMinutes || {}, p.dailyMinutes || {}),
@@ -66,14 +76,15 @@
       unavailable: Object.assign({}, p.unavailable || {}),
       testPassPct: c.testPassPct || DEFAULTS.testPassPct,
       day1WarmupLessonId: c.day1WarmupLessonId || null,
-      horizonDays: c.horizonDays || DEFAULTS.horizonDays
+      horizonDays: c.horizonDays || DEFAULTS.horizonDays,
+      dayCutoff: c.dayCutoff || DEFAULTS.dayCutoff
     };
     return s;
   }
 
   /* ---------- course index ---------- */
   function indexCourse(course) {
-    var idx = { subjects: [], subjectById: {}, moduleById: {}, lessonById: {}, practiceById: {}, order: [], errors: [] };
+    var idx = { subjects: [], subjectById: {}, moduleById: {}, lessonById: {}, practiceById: {}, videoById: {}, order: [], errors: [] };
     var seen = {};
     function claim(id, what) {
       if (!id) { idx.errors.push(what + " without id"); return false; }
@@ -91,6 +102,7 @@
           if (!l.source || (l.source.kind !== "gfg" && l.source.kind !== "added")) idx.errors.push("Lesson " + l.id + " has no source (gfg | added)");
           idx.lessonById[l.id] = { lesson: l, module: m, subject: s, order: idx.order.length, subjectIndex: si };
           idx.order.push(l.id);
+          (l.videos || []).forEach(function (v) { if (v && v.id) idx.videoById[v.id] = { video: v, lesson: l }; });
           (l.practice || []).forEach(function (p) {
             claim(p.id, "practice");
             idx.practiceById[p.id] = { practice: p, lesson: l };
@@ -133,13 +145,32 @@
     var scheduled = {};
     out.forEach(function (r) { r.lessons.concat(r.dsa, r.warmup ? [r.warmup] : []).forEach(function (l) { (scheduled[l.id] = scheduled[l.id] || []).push(r.n); }); });
     var unscheduled = idx.order.filter(function (id) { return !scheduled[id]; });
+    var warnings = [];
+    // A lesson scheduled in more than one session (QA M12).
+    Object.keys(scheduled).forEach(function (id) { if (scheduled[id].length > 1) warnings.push("Lesson " + id + " is scheduled in sessions " + scheduled[id].join(", ")); });
+    // A module test must sit in (or after) the session that schedules the module's last lesson,
+    // otherwise that session can never complete and the whole plan is stuck (QA M12).
+    out.forEach(function (r) {
+      if (!r.test) return;
+      var m = idx.moduleById[r.test].module, late = [];
+      (m.lessons || []).forEach(function (l) { var ns = scheduled[l.id]; if (!ns || Math.min.apply(null, ns) > r.n) late.push(l.id + (ns ? " (session " + Math.min.apply(null, ns) + ")" : " (not scheduled)")); });
+      if (late.length) errors.push("Session " + r.n + ": test " + r.test + " comes before its lessons " + late.join(", "));
+    });
+    // Time budget: lesson time (estMinutes, incl. watch + notes) + practice minutes must fit the slot (QA M13).
+    function need(ls) { return ls.reduce(function (a, l) { return a + (+l.estMinutes || 0) + (l.practice || []).reduce(function (b, p) { return b + (+p.minutes || 0); }, 0); }, 0); }
+    out.forEach(function (r) {
+      var lm = need(r.lessons), dm = need(r.dsa), wm = r.warmup ? need([r.warmup]) : 0;
+      if (lm > s.core.lesson) warnings.push("Session " + r.n + ": main lesson needs " + lm + " min, slot is " + s.core.lesson);
+      if (dm > s.core.dsa) warnings.push("Session " + r.n + ": DSA needs " + dm + " min, slot is " + s.core.dsa);
+      if (wm > s.core.revision) warnings.push("Session 1: Java foundations warm-up needs " + wm + " min, slot is " + s.core.revision);
+    });
     // Subject order must follow course.subjects order for the main track (non-decreasing).
     var last = -1;
     out.forEach(function (r) {
       var si = idx.subjects.indexOf(idx.subjectById[r.subjectId]);
       if (si >= 0 && !idx.subjectById[r.subjectId].dsa) { if (si < last) errors.push("Session " + r.n + ": subject " + r.subjectId + " goes back in the learning order"); last = Math.max(last, si); }
     });
-    return { sessions: out, errors: errors, ok: errors.length === 0, scheduled: scheduled, unscheduled: unscheduled, count: out.length };
+    return { sessions: out, errors: errors, warnings: warnings, ok: errors.length === 0, scheduled: scheduled, unscheduled: unscheduled, count: out.length };
   }
 
   /* ---------- budgets and blocks ---------- */
@@ -148,7 +179,7 @@
     var minutes = settings.dateMinutes[date] != null ? +settings.dateMinutes[date] : +settings.dailyMinutes[wd];
     var core = settings.core.revision + settings.core.lesson + settings.core.dsa;
     return { date: date, weekday: wd, dayName: DAY_NAMES[wd], kind: wd === 0 || wd === 6 ? "weekend" : "weekday",
-      minutes: minutes, core: Math.min(core, minutes), stretch: Math.max(0, minutes - core), short: minutes < core,
+      minutes: minutes, core: Math.min(core, minutes), stretch: Math.max(0, minutes - core), short: minutes > 0 && minutes < core, off: !(minutes > 0),
       overridden: settings.dateMinutes[date] != null };
   }
 
@@ -179,7 +210,7 @@
   function quizGate(lesson, progress) {
     if (!lesson.quiz || !(lesson.quiz.questions || []).length) return { required: false, passed: true };
     var q = rec(progress.quizzes, lesson.id);
-    return { required: true, passed: !!q.passed, score: q.score != null ? q.score : null };
+    return { required: true, passed: !!q.passed, score: q.score != null ? q.score : null, best: q.best != null ? q.best : (q.score != null ? q.score : null) };
   }
   function practiceState(p, progress) {
     var r = rec(progress.practice, p.id);
@@ -209,8 +240,9 @@
   function testState(m, progress) {
     if (!m.test) return "none";
     var r = rec(progress.tests, m.id);
-    if (r.passed) return "passed";
+    // A lesson reopened after the test was passed relocks the test until the module is complete again (QA L2).
     if (!moduleLessonsDone(m, progress)) return "locked";
+    if (r.passed) return "passed";
     return r.score != null ? "failed" : "unlocked";
   }
   function moduleProgress(m, progress) {
@@ -266,8 +298,9 @@
     }
     while (ptr < sessions.length && guard++ < limit) {
       var budget = dayBudget(d, settings), past = cmp(d, today) < 0, isToday = d === today, future = cmp(d, today) > 0;
-      if (settings.unavailable[d]) {
-        entries.push({ date: d, unavailable: true, n: null, carries: sessions[ptr].n, budget: budget, past: past, isToday: isToday, projected: future });
+      if (settings.unavailable[d] || budget.off) {
+        // A date marked unavailable, or with 0 minutes, gets no session; the same unfinished session moves on (QA M7).
+        entries.push({ date: d, unavailable: true, reason: settings.unavailable[d] ? "off" : "zero-minutes", n: null, carries: sessions[ptr].n, budget: budget, past: past, isToday: isToday, projected: future });
       } else {
         var r = sessions[ptr], prevEntry = null;
         for (var k = entries.length - 1; k >= 0; k--) if (!entries[k].unavailable) { prevEntry = entries[k]; break; }
@@ -280,8 +313,9 @@
       }
       d = addDays(d, 1);
     }
-    var lastDate = entries.length ? entries[entries.length - 1].date : null;
-    return { entries: entries, byN: byN, finishDate: lastDate, settings: settings, statuses: statuses, today: today, sessions: sessions };
+    var lastDate = entries.length ? entries[entries.length - 1].date : null, truncated = ptr < sessions.length;
+    // If the walk hit the horizon, the plan does not finish inside the window: no fake finish date (QA L8).
+    return { entries: entries, byN: byN, finishDate: truncated ? null : lastDate, truncated: truncated, settings: settings, statuses: statuses, today: today, sessions: sessions };
   }
 
   function entryFor(cal, date) { for (var i = 0; i < cal.entries.length; i++) if (cal.entries[i].date === date) return cal.entries[i]; return null; }
@@ -312,11 +346,34 @@
 
   /* ---------- reducer ---------- */
   function clone(o) { return JSON.parse(JSON.stringify(o || {})); }
-  function emptyProgress() { return { schemaVersion: SCHEMA_VERSION, lessons: {}, practice: {}, quizzes: {}, tests: {}, watch: {}, notes: {}, schedule: { unavailable: {}, dateMinutes: {}, dailyMinutes: {} } }; }
+  var MAPS = ["lessons", "practice", "quizzes", "tests", "watch", "notes", "revisions"];
+  var LESSON_STATUSES = { pending: 1, "in-progress": 1, complete: 1 };
+  function emptyProgress() { return { schemaVersion: SCHEMA_VERSION, lessons: {}, practice: {}, quizzes: {}, tests: {}, watch: {}, notes: {}, revisions: {}, schedule: { unavailable: {}, dateMinutes: {}, dailyMinutes: {} } }; }
+  // Problems that make stored progress untrustworthy (the host backs the raw data up instead of wiping it; QA M4).
+  function validateProgress(raw) {
+    var problems = [];
+    if (!isObj(raw)) return ["progress is " + (Array.isArray(raw) ? "an array" : raw === null ? "null" : typeof raw) + ", not an object"];
+    MAPS.forEach(function (k) { if (raw[k] != null && !isObj(raw[k])) problems.push(k + " is not an object"); });
+    var sc = raw.schedule;
+    if (sc != null) {
+      if (!isObj(sc)) problems.push("schedule is not an object");
+      else {
+        ["unavailable", "dateMinutes", "dailyMinutes"].forEach(function (k) { if (sc[k] != null && !isObj(sc[k])) problems.push("schedule." + k + " is not an object"); });
+        if (sc.startDate != null && !isISO(sc.startDate)) problems.push("schedule.startDate is not YYYY-MM-DD");
+      }
+    }
+    return problems;
+  }
+  // Always returns a well-formed progress object; bad parts are dropped (callers back up the raw value first).
   function normalize(p) {
-    var e = emptyProgress(), out = Object.assign(e, clone(p));
-    ["lessons", "practice", "quizzes", "tests", "watch", "notes"].forEach(function (k) { out[k] = out[k] || {}; });
-    out.schedule = Object.assign({ unavailable: {}, dateMinutes: {}, dailyMinutes: {} }, out.schedule || {});
+    var src = isObj(p) ? clone(p) : {}, out = emptyProgress();
+    Object.keys(src).forEach(function (k) { if (MAPS.indexOf(k) < 0 && k !== "schedule") out[k] = src[k]; });
+    MAPS.forEach(function (k) { out[k] = isObj(src[k]) ? src[k] : {}; });
+    var sc = isObj(src.schedule) ? src.schedule : {};
+    out.schedule = Object.assign({}, sc, { unavailable: isObj(sc.unavailable) ? sc.unavailable : {}, dateMinutes: isObj(sc.dateMinutes) ? sc.dateMinutes : {}, dailyMinutes: isObj(sc.dailyMinutes) ? sc.dailyMinutes : {} });
+    if (sc.startDate != null && !isISO(sc.startDate)) delete out.schedule.startDate;
+    // v2.0 stored "revision done" as notes["rev-Sxx"] = "done"; it now lives in revisions (QA L6).
+    Object.keys(out.notes).forEach(function (k) { if (/^rev-/.test(k)) { if (out.notes[k]) out.revisions[k.slice(4)] = out.revisions[k.slice(4)] || { doneOn: null }; delete out.notes[k]; } });
     out.schemaVersion = SCHEMA_VERSION;
     return out;
   }
@@ -339,6 +396,7 @@
     switch (change.type) {
       case "lesson": {
         var e = idx.lessonById[change.id]; if (!e) return fail("Unknown lesson " + change.id);
+        if (!LESSON_STATUSES[change.status]) return fail("Unknown status " + change.status);
         if (change.status === "complete") { var c = canCompleteLesson(e.lesson, p); if (!c.ok) return fail(c.reasons.join("; ")); }
         if (change.status === "pending") delete p.lessons[change.id];
         else p.lessons[change.id] = { status: change.status, completedOn: change.status === "complete" ? date : null, updatedOn: date };
@@ -346,18 +404,25 @@
       }
       case "practice": {
         var pe = idx.practiceById[change.id]; if (!pe) return fail("Unknown practice " + change.id);
+        if (change.status != null && !LESSON_STATUSES[change.status]) return fail("Unknown status " + change.status);
         var prev = p.practice[change.id] || {}, ev = change.evidence != null ? String(change.evidence) : (prev.evidence || "");
-        if (change.status === "complete" && pe.practice.evidenceRequired && !ev.trim()) return fail("Add assignment evidence (link or summary) before marking complete");
-        if (change.status === "pending" && !ev) delete p.practice[change.id];
-        else p.practice[change.id] = { status: change.status || prev.status || "pending", evidence: ev, completedOn: change.status === "complete" ? date : null, updatedOn: date };
-        // Reopening practice reopens a completed lesson (keeps gates honest).
-        if (change.status !== "complete" && p.lessons[pe.lesson.id] && p.lessons[pe.lesson.id].status === "complete") p.lessons[pe.lesson.id] = { status: "in-progress", completedOn: null, updatedOn: date };
+        var newStatus = change.status || prev.status || "pending";
+        if (newStatus === "complete" && pe.practice.evidenceRequired && !ev.trim()) return fail("Add assignment evidence (link or summary) before marking complete");
+        if (newStatus === "pending" && !ev) delete p.practice[change.id];
+        // completedOn keeps the original date when an already complete item only gets new evidence (QA L4).
+        else p.practice[change.id] = { status: newStatus, evidence: ev, completedOn: newStatus === "complete" ? (prev.status === "complete" && prev.completedOn ? prev.completedOn : date) : null, updatedOn: date };
+        // Reopening practice reopens a completed lesson (keeps gates honest). An evidence-only edit does not (QA L4).
+        if (newStatus !== "complete" && p.lessons[pe.lesson.id] && p.lessons[pe.lesson.id].status === "complete") p.lessons[pe.lesson.id] = { status: "in-progress", completedOn: null, updatedOn: date };
         break;
       }
       case "quiz": {
         var le = idx.lessonById[change.id]; if (!le || !le.lesson.quiz) return fail("No quiz for " + change.id);
         var sc = scoreQuiz(le.lesson.quiz, change.answers, s.testPassPct);
-        p.quizzes[change.id] = { score: sc.pct, passed: sc.passed, takenOn: date, attempts: ((p.quizzes[change.id] || {}).attempts || 0) + 1 };
+        // A pass is kept: a failed retake records the score but never un-passes the gate of a completed lesson (QA M10).
+        var oq = p.quizzes[change.id] || {};
+        p.quizzes[change.id] = { score: sc.pct, best: Math.max(sc.pct, oq.best != null ? oq.best : (oq.score || 0)), passed: sc.passed || !!oq.passed, takenOn: date,
+          passedOn: sc.passed && !oq.passed ? date : (oq.passedOn || (sc.passed ? date : null)), attempts: (oq.attempts || 0) + 1 };
+        if (!sc.passed && oq.passed) sc.keptPass = true;
         return { progress: p, ok: true, result: sc };
       }
       case "test": {
@@ -368,20 +433,34 @@
         return { progress: p, ok: true, result: ts };
       }
       case "watch": {
+        if (!idx.videoById[change.id]) return fail("Unknown video " + change.id);
         var w = p.watch[change.id] || { minutes: 0, log: [] }, m = Math.max(0, Math.round(+change.minutes || 0));
         if (!m) return fail("Enter minutes watched");
+        if (m > 600) return fail("Log at most 600 minutes at a time");
         w.minutes += m; w.log.push({ date: date, minutes: m }); p.watch[change.id] = w;
         break;
       }
       case "note": p.notes[change.key] = String(change.text || ""); if (!p.notes[change.key]) delete p.notes[change.key]; break;
+      case "revision":   // {id: sessionId, done: true|false}: the 12-minute quick revision of the previous session (QA L6)
+        if (change.done) p.revisions[change.id] = { doneOn: date }; else delete p.revisions[change.id];
+        break;
       case "unavailable":
+        if (!isISO(change.date)) return fail("Bad date " + change.date);
         if (change.value) p.schedule.unavailable[change.date] = true; else delete p.schedule.unavailable[change.date];
         break;
       case "minutes": {
-        var mm = Math.max(0, Math.min(16 * 60, Math.round(+change.minutes || 0)));
-        if (change.date) { if (change.minutes == null || change.minutes === "") delete p.schedule.dateMinutes[change.date]; else p.schedule.dateMinutes[change.date] = mm; }
-        else if (change.weekday != null) p.schedule.dailyMinutes[change.weekday] = mm;
-        else return fail("minutes needs date or weekday");
+        // weekday wins over date: hosts stamp every change with today's date, so a weekday default must not
+        // turn into a one-date override (QA H2). Use {weekday} for a default, {date} (or targetDate) for one date.
+        var clear = change.minutes == null || change.minutes === "", mm = Math.round(+change.minutes);
+        if (!clear && (isNaN(mm) || (mm !== 0 && (mm < DEFAULTS.minMinutes || mm > DEFAULTS.maxMinutes))))
+          return fail("Minutes must be 0 (day off) or between " + DEFAULTS.minMinutes + " and " + DEFAULTS.maxMinutes);
+        if (change.weekday != null && change.weekday !== "") {
+          var wd = +change.weekday; if (!(wd >= 0 && wd <= 6)) return fail("Bad weekday " + change.weekday);
+          if (clear) delete p.schedule.dailyMinutes[wd]; else p.schedule.dailyMinutes[wd] = mm;
+        } else {
+          var td = change.targetDate || change.date; if (!isISO(td)) return fail("minutes needs a weekday or a date");
+          if (clear) delete p.schedule.dateMinutes[td]; else p.schedule.dateMinutes[td] = mm;
+        }
         break;
       }
       default: return fail("Unknown change " + change.type);
@@ -406,9 +485,12 @@
       if (!cur || rank[status] > rank[cur.status]) p.lessons[id] = { status: status, completedOn: null, migratedFrom: why };
       report.migrated++; report.details.push(why + " -> " + id + " (" + status + ")"); return true;
     }
-    var days = (old && old.days) || {};
+    var days = (old && isObj(old.days) && old.days) || {};
+    if (old && old.currentDay != null) { legacy.currentDay = old.currentDay; report.kept++; }
     Object.keys(days).forEach(function (dk) {
       var d = days[dk] || {};
+      // Day-level status ("mark the whole day complete" in v1) has no lesson equivalent: keep it (QA M11).
+      if (d.status && d.status !== "pending") { (legacy.dayStatus = legacy.dayStatus || {})[dk] = d.status; report.kept++; report.details.push("day " + dk + " status kept as legacy"); }
       Object.keys(d.blocks || {}).forEach(function (b) {
         var st = d.blocks[b]; if (!st || st === "pending") return;
         var target = (map.blocks || {})[b];
@@ -427,18 +509,18 @@
       }
     });
     if (Object.keys(legacy).length) p.legacy = legacy;
-    if (old && old.unavailable) p.schedule.unavailable = Object.assign({}, old.unavailable);
+    if (old && isObj(old.unavailable)) p.schedule.unavailable = Object.assign({}, old.unavailable);
     return { progress: p, report: report };
   }
 
   return {
     SCHEMA_VERSION: SCHEMA_VERSION, DEFAULTS: DEFAULTS, DAY_NAMES: DAY_NAMES,
-    addDays: addDays, weekday: weekday, diffDays: diffDays, todayIST: todayIST, hhmmAdd: hhmmAdd,
+    addDays: addDays, weekday: weekday, diffDays: diffDays, todayIST: todayIST, studyDayIST: studyDayIST, isISO: isISO, hhmmAdd: hhmmAdd,
     settingsOf: settingsOf, indexCourse: indexCourse, resolveSessions: resolveSessions,
     dayBudget: dayBudget, sessionBlocks: sessionBlocks,
     quizGate: quizGate, practiceState: practiceState, lessonState: lessonState, canCompleteLesson: canCompleteLesson,
     testState: testState, moduleProgress: moduleProgress, subjectProgress: subjectProgress, scoreQuiz: scoreQuiz,
     sessionStatus: sessionStatus, buildCalendar: buildCalendar, entryFor: entryFor, todayPlan: todayPlan, continueTarget: continueTarget,
-    emptyProgress: emptyProgress, normalize: normalize, applyChange: applyChange, migrateProgress: migrateProgress
+    emptyProgress: emptyProgress, normalize: normalize, validateProgress: validateProgress, applyChange: applyChange, migrateProgress: migrateProgress
   };
 });
