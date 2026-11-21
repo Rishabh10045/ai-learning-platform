@@ -1,581 +1,690 @@
 /*
- * Study Desk: presentation layer (UI only).
+ * Study Desk presentation layer v2 (subject-first). No build step, no dependencies.
+ * Needs ui/engine/schedule-engine.js (window.StudyDeskSchedule) loaded first.
  *
- * Renders a searchable day index, a lesson sidebar and six views from data the
- * host passes in. It does not fetch, store or schedule anything: progress and
- * note edits are reported through callbacks and the host decides what to keep.
+ *   const desk = StudyDesk.mount(el, { course, progress, today, sync, onChange, onCoachAsk, headerLinks });
+ *   desk.update({ progress, sync, today, course });
  *
- *   const desk = StudyDesk.mount(rootEl, {
- *     curriculum, lessons, videos, progress,
- *     onProgressChange(change) {}, onNoteChange(day, text) {}, onCoachAsk(req) {}
- *   });
- *   desk.update({ progress });   // re-render with new data
- *   desk.navigate(3, "learn");   // same as setting location.hash = "#day-3/learn"
- *   desk.destroy();
- *
- * Data shapes are documented in ui/README.md.
+ * The UI never stores anything. Every user action calls onChange(change) with the
+ * change shapes documented in schedule-engine.js applyChange(); the host persists
+ * (Codex's progress.js / account sync) and calls update(). If onChange returns
+ * { ok:false, reason } (or a Promise of it) the reason is shown to the learner.
  */
 (function (global) {
   "use strict";
-
-  var VIEWS = [
-    { id: "plan", slug: "", label: "Session plan", icon: "▤" },
-    { id: "learn", slug: "learn", label: "Videos & notes", icon: "▶" },
-    { id: "practice", slug: "practice", label: "Practice", icon: "⌨" },
-    { id: "revision", slug: "revision", label: "Quick revision", icon: "↺" },
-    { id: "my-notes", slug: "my-notes", label: "My notes", icon: "✎" },
-    { id: "coach", slug: "coach", label: "AI coach", icon: "◆" }
-  ];
-  var VIEW_BY_SLUG = {};
-  VIEWS.forEach(function (v) { VIEW_BY_SLUG[v.slug] = v; });
-
+  var S = global.StudyDeskSchedule;
   var STATUS = {
-    "pending": { label: "Not started", icon: "○", cls: "sd-st-pending" },
-    "in-progress": { label: "In progress", icon: "◐", cls: "sd-st-progress" },
-    "complete": { label: "Complete", icon: "✓", cls: "sd-st-complete" }
+    "pending": { label: "Not started", icon: "○", cls: "is-pending" },
+    "in-progress": { label: "In progress", icon: "◐", cls: "is-progress" },
+    "complete": { label: "Complete", icon: "✓", cls: "is-complete" }
   };
-  var NEXT_STATUS = { "pending": "in-progress", "in-progress": "complete", "complete": "pending" };
-
-  /* ---------- helpers ---------- */
+  var TEST = {
+    none: { label: "No test", icon: "–", cls: "is-pending" },
+    locked: { label: "Test locked", icon: "🔒", cls: "is-locked" },
+    unlocked: { label: "Test ready", icon: "▶", cls: "is-ready" },
+    failed: { label: "Test: retry", icon: "↻", cls: "is-progress" },
+    passed: { label: "Test passed", icon: "✓", cls: "is-complete" }
+  };
+  var KIND = { foundations: "Java foundations", revision: "Quick revision", lesson: "Main lesson", dsa: "DSA practice", stretch: "Stretch practice" };
+  var VIEWS = [
+    { id: "plan", label: "Session plan", suffix: "" },
+    { id: "learn", label: "Videos & notes", suffix: "/learn" },
+    { id: "practice", label: "Practice", suffix: "/practice" },
+    { id: "revision", label: "Quick revision", suffix: "/revision" },
+    { id: "my-notes", label: "My notes", suffix: "/my-notes" },
+    { id: "coach", label: "AI coach", suffix: "/coach" },
+    { id: "test", label: "Module test", suffix: "/test", optional: true }
+  ];
 
   function h(tag, attrs) {
     var el = document.createElement(tag);
-    if (attrs) {
-      Object.keys(attrs).forEach(function (k) {
-        var v = attrs[k];
-        if (v == null || v === false) return;
-        if (k === "class") el.className = v;
-        else if (k === "text") el.textContent = v;
-        else if (k.slice(0, 2) === "on" && typeof v === "function") el.addEventListener(k.slice(2), v);
-        else if (v === true) el.setAttribute(k, "");
-        else el.setAttribute(k, String(v));
-      });
-    }
-    for (var i = 2; i < arguments.length; i++) append(el, arguments[i]);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === "text") el.textContent = v;
+      else if (k === "class") el.className = v;
+      else if (k.slice(0, 2) === "on" && typeof v === "function") el.addEventListener(k.slice(2), v);
+      else if (v === true) el.setAttribute(k, "");
+      else el.setAttribute(k, v);
+    });
+    for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
     return el;
   }
-  function append(el, child) {
-    if (child == null || child === false) return;
-    if (Array.isArray(child)) { child.forEach(function (c) { append(el, c); }); return; }
-    el.appendChild(typeof child === "object" ? child : document.createTextNode(String(child)));
+  function add(el, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) { c.forEach(function (x) { add(el, x); }); return; }
+    el.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
   }
-  function byKey(map, day) {
-    if (!map) return undefined;
-    return map[day] !== undefined ? map[day] : map[String(day)];
+  function fmtMin(m) { m = Math.round(m || 0); var hh = Math.floor(m / 60), mm = m % 60; return hh ? hh + "h" + (mm ? " " + mm + "m" : "") : mm + " min"; }
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function fmtDate(iso, withYear) {
+    if (!iso) return "";
+    var p = iso.split("-"), wd = S.DAY_NAMES[S.weekday(iso)].slice(0, 3);
+    return wd + ", " + (+p[2]) + " " + MONTHS[+p[1] - 1] + (withYear ? " " + p[0] : "");
   }
-  function normStatus(s) { return STATUS[s] ? s : "pending"; }
-  function fmtMin(m) {
-    if (m == null || isNaN(m)) return null;
-    m = Math.round(m);
-    if (m < 60) return m + " min";
-    var hr = Math.floor(m / 60), r = m % 60;
-    return hr + " h" + (r ? " " + r + " min" : "");
+  function fmtTime(hhmm) { if (!hhmm) return ""; var p = hhmm.split(":"), H = +p[0]; return ((H + 11) % 12 + 1) + ":" + p[1] + " " + (H < 12 ? "AM" : "PM"); }
+  function badge(st, extra) { var s = STATUS[st] || STATUS.pending; return h("span", { class: "sd-badge " + s.cls + (extra ? " " + extra : "") }, h("span", { "aria-hidden": "true", text: s.icon }), " " + s.label); }
+  function tbadge(st) { var s = TEST[st] || TEST.none; return h("span", { class: "sd-badge " + s.cls }, h("span", { "aria-hidden": "true", text: s.icon }), " " + s.label); }
+  function meter(pct, label) {
+    return h("span", { class: "sd-meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-label": label || "Progress" },
+      h("span", { style: "width:" + pct + "%" }));
   }
-  function badge(status, extra) {
-    var s = STATUS[normStatus(status)];
-    return h("span", { class: "sd-badge " + s.cls + (extra ? " " + extra : "") },
-      h("span", { class: "sd-badge-ic", "aria-hidden": "true", text: s.icon }), s.label);
-  }
-  function safeUrl(u) {
-    if (!u || typeof u !== "string") return null;
-    var scheme = /^\s*([a-z][a-z0-9+.-]*):/i.exec(u);
-    return !scheme || /^https?$/i.test(scheme[1]) ? u : null; // relative paths or http(s) only
+  function sourceChip(src) {
+    if (!src) return null;
+    return src.kind === "added" ? h("span", { class: "sd-chip sd-chip-added", title: src.note || "Supplementary content", text: "source: added" })
+      : h("span", { class: "sd-chip sd-chip-gfg", title: (src.course || "GfG") + (src.ref ? " · " + src.ref : ""), text: "GfG · " + (src.ref || "mapped") });
   }
 
-  /* "2026-11-22" -> Date at UTC midnight (date-only, no time-zone drift) */
-  function parseISODate(s) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
-    return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;
-  }
-  function fmtDate(dt, long) {
-    if (!dt) return null;
-    try {
-      return dt.toLocaleDateString("en-IN", long ? { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }
-        : { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-    } catch (e) { return dt.toISOString().slice(0, 10); }
-  }
-  /* "21:00" + minutes -> "9:00 PM" */
-  function clock(start, addMin) {
-    var m = /^(\d{1,2}):(\d{2})$/.exec(start || "");
-    if (!m) return null;
-    var t = (+m[1] * 60 + +m[2] + (addMin || 0)) % 1440, hr = Math.floor(t / 60), mi = t % 60;
-    return ((hr % 12) || 12) + ":" + (mi < 10 ? "0" : "") + mi + " " + (hr < 12 ? "AM" : "PM");
-  }
-
-  /* ---------- routing ---------- */
-
-  function parseHash(hash) {
-    var m = /^#day-(\d+)(?:\/([a-z-]+))?\/?$/.exec(hash || "");
-    if (!m) return null;
-    var view = VIEW_BY_SLUG[m[2] || ""];
-    return { day: parseInt(m[1], 10), view: view ? view.id : "plan", validView: !!view };
-  }
-  function hashFor(day, viewId) {
-    var v = VIEWS.filter(function (x) { return x.id === viewId; })[0] || VIEWS[0];
-    return "#day-" + day + (v.slug ? "/" + v.slug : "");
-  }
-
-  /* ---------- mount ---------- */
-
-  function mount(root, options) {
-    if (!root) throw new Error("StudyDesk.mount: root element is required");
-    var opts = Object.assign({ routing: true }, options || {});
-    var data = { curriculum: opts.curriculum || { days: [] }, lessons: opts.lessons || {}, videos: opts.videos || {}, progress: opts.progress || { days: {} } };
-    var state = { day: null, view: "plan", query: "", navOpen: false };
-    var noteTimer = null;
-
-    function days() { return (data.curriculum && data.curriculum.days) || []; }
-    function tracks() { return (data.curriculum && data.curriculum.tracks) || []; }
-    function trackOf(id) { return tracks().filter(function (t) { return t.id === id; })[0] || null; }
-    function trackName(id, short) { var t = trackOf(id); return t ? (short && t.short) || t.name : id; }
-    function dayDate(d) {
-      if (d.date) return parseISODate(d.date);
-      var start = parseISODate(data.curriculum && data.curriculum.startDate);
-      var idx = days().indexOf(d);
-      return start && idx >= 0 ? new Date(start.getTime() + idx * 86400000) : null;
-    }
-    function uniq(a) { return a.filter(function (x, i) { return x && a.indexOf(x) === i; }); }
-    function dayTracks(d) { return d.tracks || uniq((d.blocks || []).map(function (b) { return b.track; })); }
-    function dayTopicIds(d) { return d.topicIds || uniq((d.blocks || []).map(function (b) { return b.topicId; })); }
-    function findDay(n) { return days().filter(function (d) { return d.day === n; })[0]; }
-    function dayProgress(n) { return byKey(data.progress && data.progress.days, n) || {}; }
-    function dayStatus(d) {
-      var p = dayProgress(d.day);
-      if (p.status) return normStatus(p.status);
-      var blocks = d.blocks || [];
-      if (!blocks.length) return "pending";
-      var st = blocks.map(function (b) { return normStatus((p.blocks || {})[b.id]); });
-      if (st.every(function (s) { return s === "complete"; })) return "complete";
-      if (st.some(function (s) { return s !== "pending"; })) return "in-progress";
-      return "pending";
-    }
-    function defaultDay() {
-      var list = days();
-      if (!list.length) return null;
-      var cur = data.progress && data.progress.currentDay;
-      if (cur && findDay(cur)) return cur;
-      var open = list.filter(function (d) { return dayStatus(d) !== "complete"; })[0];
-      return (open || list[0]).day;
-    }
-
-    function emitProgress(change) {
-      if (typeof opts.onProgressChange === "function") opts.onProgressChange(change);
-    }
-
-    /* skeleton */
+  function mount(root, opts) {
+    if (!S) throw new Error("StudyDesk needs StudyDeskSchedule (ui/engine/schedule-engine.js) loaded first");
+    opts = opts || {};
+    var data = { course: opts.course, progress: S.normalize(opts.progress), today: opts.today || S.todayIST(), sync: opts.sync || null };
+    var state = { route: { view: "today" }, query: "", navOpen: false, toast: "", openModules: {}, focusLesson: null, drafts: {} };
+    var derived;
     root.classList.add("sd-root");
-    root.textContent = "";
-    var skip = h("a", { class: "sd-skip", href: "#sd-main" , onclick: function (e) { e.preventDefault(); main.focus(); } }, "Skip to lesson");
-    var navToggle = h("button", { class: "sd-navtoggle", type: "button", "aria-expanded": "false", "aria-controls": "sd-sidebar",
-      onclick: function () { setNav(!state.navOpen); } }, h("span", { "aria-hidden": "true", text: "☰" }), " Days");
-    var titleEl = h("div", { class: "sd-brand" });
-    var overall = h("div", { class: "sd-overall" });
-    var links = (opts.headerLinks || []).filter(function (l) { return l && l.label && safeUrl(l.href); });
-    var linksEl = links.length ? h("nav", { class: "sd-toplinks", "aria-label": "Study Desk pages" },
-      links.map(function (l) { return h("a", { class: "sd-toplink", href: l.href }, l.label); })) : null;
-    var topbar = h("header", { class: "sd-topbar" }, navToggle, titleEl, linksEl, overall);
+    root.innerHTML = "";
 
-    var search = h("input", { type: "search", class: "sd-search", id: "sd-search", placeholder: "Search days, topics, IDs…", autocomplete: "off", "aria-describedby": "sd-search-count" });
+    function derive() {
+      var idx = S.indexCourse(data.course), res = S.resolveSessions(data.course, idx);
+      var cal = S.buildCalendar(data.course, data.progress, { idx: idx, resolved: res, today: data.today });
+      var tp = S.todayPlan(data.course, data.progress, { idx: idx, resolved: res, today: data.today });
+      derived = { idx: idx, res: res, cal: cal, today: tp, cont: S.continueTarget(data.course, data.progress), settings: S.settingsOf(data.course, data.progress) };
+    }
+
+    /* ---------- routing ---------- */
+    function parseHash() {
+      var hs = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+      var m = /^day-(\d+)(?:\/(learn|practice|revision|my-notes|coach|test))?$/.exec(hs);
+      if (m) return { view: m[2] || "plan", day: +m[1] };
+      m = /^lesson\/(.+)$/.exec(hs);
+      if (m) return { view: "lesson", lessonId: m[1] };
+      if (hs === "course" || hs === "calendar" || hs === "today") return { view: hs };
+      if (!hs) return { view: "today" };
+      return { view: "not-found", raw: hs };
+    }
+    function sessionOfLesson(id) {
+      for (var i = 0; i < derived.res.sessions.length; i++) {
+        var r = derived.res.sessions[i];
+        if ((r.warmup && r.warmup.id === id) || r.lessons.concat(r.dsa).some(function (l) { return l.id === id; })) return r.n;
+      }
+      return null;
+    }
+    function onHash() {
+      var r = parseHash();
+      if (r.view === "lesson") {
+        var n = sessionOfLesson(r.lessonId);
+        if (n) { state.focusLesson = r.lessonId; history.replaceState(null, "", "#day-" + n + "/learn"); r = { view: "learn", day: n }; }
+        else r = { view: "not-found", raw: "lesson/" + r.lessonId };
+      }
+      state.route = r; setNav(false); render(true);
+    }
+
+    /* ---------- change plumbing ---------- */
+    function emit(change) {
+      change.date = change.date || data.today;
+      var out = opts.onChange ? opts.onChange(change) : null;
+      Promise.resolve(out).then(function (r) {
+        if (r && r.ok === false) toast(r.reason || "Could not save that change");
+        else if (r && r.result && r.result.total) toast((change.type === "test" ? "Test" : "Lesson check") + ": " + r.result.right + "/" + r.result.total + " (" + r.result.pct + "%). " + (r.result.passed ? "Passed." : "Need " + r.result.passPct + "% to pass."));
+      }, function (e) { toast("Host could not save: " + (e && e.message || e)); });
+    }
+    function toast(msg) { state.toast = msg; toastEl.textContent = msg; toastEl.hidden = !msg; clearTimeout(toast.t); toast.t = setTimeout(function () { toastEl.hidden = true; }, 6000); }
+
+    /* ---------- chrome ---------- */
+    var skip = h("a", { class: "sd-skip", href: "#sd-main", onclick: function (e) { e.preventDefault(); main.focus(); } }, "Skip to content");
+    var navToggle = h("button", { type: "button", class: "sd-navtoggle", "aria-controls": "sd-sidebar", "aria-expanded": "false", onclick: function () { setNav(!state.navOpen); } }, "☰ Course");
+    var brand = h("a", { class: "sd-brand", href: "#today" }, h("span", { class: "sd-logo", "aria-hidden": "true", text: "▤" }), h("span", { class: "sd-brand-txt" }, h("strong", { class: "sd-title" }), h("small", { class: "sd-subtitle" })));
+    var syncEl = h("span", { class: "sd-sync", role: "status" });
+    var overall = h("div", { class: "sd-overall" });
+    var links = h("nav", { class: "sd-toplinks", "aria-label": "Pages" });
+    var topbar = h("header", { class: "sd-topbar" }, navToggle, brand, links, syncEl, overall);
+    var search = h("input", { type: "search", class: "sd-search", id: "sd-search", placeholder: "Search lessons, sessions, IDs…", autocomplete: "off", "aria-describedby": "sd-search-count" });
     var searchCount = h("p", { class: "sd-search-count", id: "sd-search-count", "aria-live": "polite" });
-    var dayList = h("ol", { class: "sd-daylist", "aria-label": "Days" });
-    var sidebar = h("nav", { class: "sd-sidebar", id: "sd-sidebar", "aria-label": "Day index" },
-      h("label", { class: "sd-search-label", for: "sd-search", text: "Find a day" }), search, searchCount, dayList);
+    var sideNav = h("ul", { class: "sd-sidenav" });
+    var tree = h("div", { class: "sd-tree" });
+    var sideSessions = h("ol", { class: "sd-daylist", "aria-label": "Sessions" });
+    var sessionsBox = h("details", { class: "sd-sessions" }, h("summary", { class: "sd-side-h" }, "All sessions"), sideSessions);
+    var sidebar = h("nav", { class: "sd-sidebar", id: "sd-sidebar", "aria-label": "Course navigation" }, sideNav,
+      h("label", { class: "sd-search-label", for: "sd-search", text: "Find a lesson or session" }), search, searchCount,
+      h("h2", { class: "sd-side-h", text: "Subjects" }), tree, sessionsBox);
     var scrim = h("div", { class: "sd-scrim", hidden: true, onclick: function () { setNav(false); } });
     var main = h("main", { class: "sd-main", id: "sd-main", tabindex: "-1" });
-    root.appendChild(h("div", { class: "sd-shell" }, skip, topbar, h("div", { class: "sd-body" }, sidebar, scrim, main)));
+    var toastEl = h("div", { class: "sd-toast", role: "status", "aria-live": "polite", hidden: true });
+    root.appendChild(h("div", { class: "sd-shell" }, skip, topbar, h("div", { class: "sd-body" }, sidebar, scrim, main), toastEl));
 
-    search.addEventListener("input", function () { state.query = search.value; renderDayList(); });
+    search.addEventListener("input", function () { state.query = search.value; renderSidebar(); });
     search.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { var first = dayList.querySelector("a.sd-daylink"); if (first) first.click(); }
-      if (e.key === "ArrowDown") { var f = dayList.querySelector("a"); if (f) { e.preventDefault(); f.focus(); } }
+      if (e.key === "Enter") { var f = sidebar.querySelector(".sd-tree a, .sd-daylist a"); if (f) f.click(); }
+      if (e.key === "ArrowDown") { var g = tree.querySelector("summary, a"); if (g) { e.preventDefault(); g.focus(); } }
     });
-    dayList.addEventListener("keydown", function (e) {
+    sidebar.addEventListener("keydown", function (e) {
       if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      var links = Array.prototype.slice.call(dayList.querySelectorAll("a"));
-      var i = links.indexOf(document.activeElement);
-      if (i < 0) return;
+      if (document.activeElement === search) return;
+      var items = Array.prototype.slice.call(sidebar.querySelectorAll(".sd-sidenav a, summary, .sd-tree a, .sd-daylist a")).filter(function (x) { return x.offsetParent !== null; });
+      var i = items.indexOf(document.activeElement); if (i < 0) return;
       e.preventDefault();
-      var next = links[i + (e.key === "ArrowDown" ? 1 : -1)];
-      if (next) next.focus(); else if (e.key === "ArrowUp") search.focus();
+      var nx = items[i + (e.key === "ArrowDown" ? 1 : -1)];
+      if (nx) nx.focus();
     });
     function onKey(e) { if (e.key === "Escape" && state.navOpen) { setNav(false); navToggle.focus(); } }
     document.addEventListener("keydown", onKey);
-
     function setNav(open) {
-      state.navOpen = open;
-      if (open) root.style.setProperty("--sd-drawer-top", Math.max(0, Math.round(topbar.getBoundingClientRect().bottom)) + "px");
-      root.classList.toggle("sd-nav-open", open);
-      navToggle.setAttribute("aria-expanded", String(open));
-      scrim.hidden = !open;
-      if (open) search.focus();
+      state.navOpen = open; root.classList.toggle("sd-nav-open", open); navToggle.setAttribute("aria-expanded", open ? "true" : "false"); scrim.hidden = !open;
+      if (open) { var f = sidebar.querySelector("a[aria-current], a, input"); if (f) f.focus(); }
     }
 
-    /* ---------- render: chrome ---------- */
+    function render(focus) {
+      derive(); renderChrome(); renderSidebar(); renderMain();
+      if (focus) { var hd = main.querySelector("h1"); if (hd) { hd.setAttribute("tabindex", "-1"); hd.focus({ preventScroll: true }); } window.scrollTo(0, 0); }
+      if (state.focusLesson) { var el = document.getElementById("lesson-" + state.focusLesson); if (el) el.scrollIntoView({ block: "start" }); state.focusLesson = null; }
+    }
 
     function renderChrome() {
-      var c = data.curriculum || {};
-      titleEl.textContent = "";
-      append(titleEl, [h("span", { class: "sd-logo", "aria-hidden": "true", text: "◧" }),
-        h("span", { class: "sd-brand-txt" }, h("strong", { text: c.title || "Study Desk" }), c.subtitle ? h("small", { text: c.subtitle }) : null)]);
-      var list = days(), done = 0, prog = 0;
-      list.forEach(function (d) { var s = dayStatus(d); if (s === "complete") done++; else if (s === "in-progress") prog++; });
-      var pct = list.length ? Math.round(done * 100 / list.length) : 0;
-      overall.textContent = "";
-      append(overall, [
-        h("span", { class: "sd-overall-txt" }, h("strong", { text: done + "/" + list.length }), h("span", { class: "sd-overall-words", text: " days complete" })),
-        h("span", { class: "sd-meter", role: "progressbar", "aria-label": "Days complete", "aria-valuemin": "0", "aria-valuemax": String(list.length), "aria-valuenow": String(done) },
-          h("span", { style: "width:" + pct + "%" }))
-      ]);
+      var c = data.course;
+      brand.querySelector(".sd-title").textContent = c.title || "Study Desk";
+      brand.querySelector(".sd-subtitle").textContent = c.subtitle || "";
+      links.innerHTML = "";
+      (opts.headerLinks || []).forEach(function (l) { links.appendChild(h("a", { class: "sd-toplink", href: l.href, text: l.label })); });
+      var sy = data.sync; syncEl.innerHTML = "";
+      if (sy) { syncEl.className = "sd-sync is-" + (sy.state || "local"); syncEl.appendChild(h("span", { "aria-hidden": "true", text: sy.state === "signed-in" ? "☁" : sy.state === "error" ? "!" : sy.state === "syncing" ? "↻" : "▣" })); syncEl.appendChild(document.createTextNode(" " + (sy.label || sy.state))); }
+      syncEl.hidden = !sy;
+      var done = derived.cal.statuses.filter(function (s) { return s.status === "complete"; }).length, total = derived.res.count;
+      overall.innerHTML = "";
+      overall.appendChild(h("span", { class: "sd-overall-txt", text: done + "/" + total + " sessions" }));
+      overall.appendChild(meter(total ? Math.round(done * 100 / total) : 0, "Sessions complete"));
+      document.title = titleFor() + " · " + (c.title || "Study Desk");
+    }
+    function titleFor() {
+      var r = state.route;
+      if (r.day) { var v = VIEWS.find(function (x) { return x.id === r.view; }); return "Session " + r.day + (v && v.id !== "plan" ? " · " + v.label : ""); }
+      return { today: "Today", course: "Course", calendar: "Calendar" }[r.view] || "Not found";
     }
 
-    function matches(d, q) {
-      if (!q) return true;
-      var hay = ["day " + d.day, "day-" + d.day, d.title, d.summary, dayTracks(d).map(function (t) { return t + " " + trackName(t); }).join(" "), dayTopicIds(d).join(" "), fmtDate(dayDate(d), true) || "",
-        (d.blocks || []).map(function (b) { return b.title + " " + (b.topicId || ""); }).join(" ")].join(" ").toLowerCase();
-      return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (t) { return hay.indexOf(t) >= 0; });
-    }
+    function matchText(q, hay) { return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (t) { return hay.toLowerCase().indexOf(t) >= 0; }); }
 
-    function renderDayList() {
-      var list = days(), q = state.query.trim();
-      dayList.textContent = "";
-      var shown = 0;
-      list.forEach(function (d) {
-        if (!matches(d, q)) return;
-        shown++;
-        var st = dayStatus(d), active = d.day === state.day;
-        var link = h("a", { class: "sd-daylink", href: hashFor(d.day, "plan"), "aria-current": active ? "page" : null, "data-day": d.day },
-          h("span", { class: "sd-daynum " + STATUS[st].cls, "aria-hidden": "true" }, h("span", { text: STATUS[st].icon })),
-          h("span", { class: "sd-daytxt" },
-            h("span", { class: "sd-daylabel", text: "Day " + d.day + (dayDate(d) ? " · " + fmtDate(dayDate(d)) : "") }),
-            h("span", { class: "sd-daytitle", text: d.title || "" })),
-          h("span", { class: "sd-vh", text: ", " + STATUS[st].label }));
-        var li = h("li", { class: "sd-dayitem" + (active ? " is-active" : "") }, link);
-        if (active) {
-          var sub = h("ul", { class: "sd-lessonnav", "aria-label": "Day " + d.day + " lesson sections" });
-          VIEWS.forEach(function (v) {
-            var cur = v.id === state.view;
-            sub.appendChild(h("li", null, h("a", { href: hashFor(d.day, v.id), "aria-current": cur ? "page" : null, class: cur ? "is-current" : null },
-              h("span", { class: "sd-lnic", "aria-hidden": "true", text: v.icon }), v.label)));
+    function renderSidebar() {
+      var r = state.route, q = state.query.trim();
+      sideNav.innerHTML = "";
+      [["today", "Today", "☀"], ["course", "Course", "▦"], ["calendar", "Calendar", "▤"]].forEach(function (x) {
+        sideNav.appendChild(h("li", null, h("a", { href: "#" + x[0], class: "sd-sidelink", "aria-current": r.view === x[0] ? "page" : null }, h("span", { "aria-hidden": "true", text: x[2] + " " }), x[1])));
+      });
+      tree.innerHTML = "";
+      var curLessons = {};
+      var focusN = r.day || (derived.cont && derived.cont.n);
+      if (focusN) { var rs = derived.res.sessions[focusN - 1]; if (rs) (rs.warmup ? [rs.warmup] : []).concat(rs.lessons, rs.dsa).forEach(function (l) { curLessons[l.id] = r.day ? 1 : 2; }); }
+      var hits = 0;
+      derived.idx.subjects.forEach(function (s) {
+        var sp = S.subjectProgress(s, data.progress), anyHit = false;
+        var body = h("div", { class: "sd-tree-body" });
+        s.modules.forEach(function (m) {
+          var mp = S.moduleProgress(m, data.progress);
+          var lis = [];
+          m.lessons.forEach(function (l) {
+            var hay = [l.id, l.title, s.title, m.title, l.source && l.source.kind === "added" ? "added" : "gfg"].join(" ");
+            if (q && !matchText(q, hay)) return;
+            hits++; anyHit = true;
+            var st = S.lessonState(l, data.progress), n = sessionOfLesson(l.id);
+            lis.push(h("li", null, h("a", { class: "sd-treelink " + STATUS[st].cls, href: "#lesson/" + l.id, "aria-current": curLessons[l.id] === 1 ? "true" : null },
+              h("span", { class: "sd-ticon", "aria-hidden": "true", text: STATUS[st].icon }),
+              h("span", { class: "sd-tl-txt" }, l.title, h("small", { text: l.id + (n ? " · S" + n : "") })),
+              h("span", { class: "sd-vh", text: ", " + STATUS[st].label }))));
           });
-          li.appendChild(sub);
-        }
-        dayList.appendChild(li);
+          if (m.test && (!q || matchText(q, m.title + " test " + m.id))) {
+            var ts = S.testState(m, data.progress), tn = derived.res.sessions.find(function (x) { return x.test === m.id; });
+            lis.push(h("li", null, h("a", { class: "sd-treelink sd-testlink " + TEST[ts].cls, href: tn ? "#day-" + tn.n + "/test" : "#course" },
+              h("span", { class: "sd-ticon", "aria-hidden": "true", text: TEST[ts].icon }), h("span", { class: "sd-tl-txt" }, m.test.title || "Module test", h("small", { text: TEST[ts].label })))));
+            anyHit = true;
+          }
+          if (!lis.length) return;
+          var open = q ? true : state.openModules[m.id] != null ? state.openModules[m.id] : lis.length && Object.keys(curLessons).some(function (id) { return m.lessons.some(function (l) { return l.id === id; }); });
+          var det = h("details", { class: "sd-mod", open: !!open },
+            h("summary", null, h("span", { class: "sd-mod-t", text: m.title }), h("span", { class: "sd-mod-c", text: mp.done + "/" + mp.total }), meter(mp.pct, m.title + " progress")),
+            h("ul", null, lis));
+          det.addEventListener("toggle", function () { if (!q) state.openModules[m.id] = det.open; });
+          body.appendChild(det);
+        });
+        if (q && !anyHit) return;
+        tree.appendChild(h("section", { class: "sd-subj" + (s.dsa ? " sd-subj-dsa" : "") },
+          h("div", { class: "sd-subj-h" }, h("span", { class: "sd-dot", style: "background:" + (s.color || "#888"), "aria-hidden": "true" }), h("strong", { text: s.title }),
+            s.daily ? h("span", { class: "sd-chip sd-chip-daily", text: "daily" }) : null, h("span", { class: "sd-subj-pct", text: sp.pct + "%" })),
+          meter(sp.pct, s.title + " progress"), body));
       });
-      searchCount.textContent = q ? (shown ? shown + " of " + list.length + " days match" : "No days match “" + q + "”") : list.length + " days";
-      root.setAttribute("data-visible-days", String(shown));
+      sideSessions.innerHTML = "";
+      var sHits = 0;
+      derived.res.sessions.forEach(function (rs) {
+        var subj = derived.idx.subjectById[rs.subjectId] || {}, ent = (derived.cal.byN[rs.n] || [])[0];
+        var hay = ["session " + rs.n, "day " + rs.n, "day-" + rs.n, subj.title, rs.lessons.concat(rs.dsa).map(function (l) { return l.id + " " + l.title; }).join(" "), ent ? fmtDate(ent.date, true) : ""].join(" ");
+        if (q && !matchText(q, hay)) return;
+        sHits++;
+        var st = derived.cal.statuses[rs.n - 1].status;
+        sideSessions.appendChild(h("li", null, h("a", { class: "sd-daylink " + STATUS[st].cls, href: "#day-" + rs.n, "aria-current": r.day === rs.n ? "page" : null },
+          h("span", { class: "sd-daynum", "aria-hidden": "true", text: rs.n }),
+          h("span", { class: "sd-tl-txt" }, subj.title || rs.subjectId, h("small", { text: (ent ? fmtDate(ent.date) + " · " : "") + rs.lessons.map(function (l) { return l.id; }).join(", ") })),
+          h("span", { class: "sd-vh", text: ", " + STATUS[st].label }))));
+      });
+      if (q) sessionsBox.open = sHits > 0;
+      sessionsBox.querySelector("summary").textContent = "All sessions (" + derived.res.count + ")";
+      searchCount.textContent = q ? hits + " lesson" + (hits === 1 ? "" : "s") + ", " + sHits + " session" + (sHits === 1 ? "" : "s") + " match" : "";
     }
 
-    /* ---------- render: main ---------- */
-
+    /* ---------- main ---------- */
     function renderMain() {
-      main.textContent = "";
-      var d = state.day != null ? findDay(state.day) : null;
-      if (!d) {
-        main.setAttribute("data-view", "not-found");
-        var first = days()[0];
-        append(main, h("section", { class: "sd-empty" },
-          h("h1", { text: days().length ? "Day " + state.day + " is not in this plan" : "No days in the plan yet" }),
-          h("p", { text: days().length ? "The plan has " + days().length + " days." : "Waiting for curriculum data." }),
-          first ? h("a", { class: "sd-btn sd-btn-primary", href: hashFor(first.day, "plan"), text: "Go to Day " + first.day }) : null));
-        return;
+      main.innerHTML = "";
+      var r = state.route;
+      main.dataset.view = r.view; main.dataset.day = r.day || "";
+      if (!derived.res.ok) main.appendChild(h("div", { class: "sd-alert", role: "alert" }, h("strong", { text: "Curriculum check failed: " }), derived.res.errors.slice(0, 5).join(" · ") + (derived.res.errors.length > 5 ? " …" : "")));
+      if (r.view === "today") return viewToday();
+      if (r.view === "course") return viewCourse();
+      if (r.view === "calendar") return viewCalendar();
+      if (r.day && derived.res.sessions[r.day - 1]) return viewSession(derived.res.sessions[r.day - 1], r.view);
+      main.dataset.view = "not-found";
+      add(main, [h("h1", { text: "Not in this plan" }), h("p", { text: "There is no page for “" + (r.raw || "day-" + r.day) + "”. This plan has " + derived.res.count + " sessions." }), h("p", null, h("a", { href: "#today", text: "Go to Today" }))]);
+    }
+
+    function blockList(entry, rs) {
+      var ol = h("ol", { class: "sd-timeline" });
+      entry.blocks.forEach(function (b) {
+        var st = blockState(b, rs);
+        var target = b.kind === "revision" ? "#day-" + rs.n + "/revision" : b.kind === "dsa" || b.kind === "stretch" ? "#day-" + rs.n + "/practice" : "#day-" + rs.n + "/learn";
+        ol.appendChild(h("li", { class: "sd-tblock sd-k-" + b.kind + " " + STATUS[st].cls },
+          h("div", { class: "sd-tb-time" }, b.start ? h("span", { text: fmtTime(b.start) }) : h("span", { text: "Any time" }), h("small", { text: fmtMin(b.minutes) })),
+          h("div", { class: "sd-tb-body" }, h("span", { class: "sd-kind", text: KIND[b.kind] }), h("a", { href: target, class: "sd-tb-title", text: b.title }),
+            b.kind === "stretch" ? h("small", { class: "sd-muted", text: "Extra practice on today’s lessons and DSA. Not needed to finish the session." }) : null,
+            b.lessonIds && b.lessonIds.length && b.kind !== "stretch" ? h("small", { class: "sd-muted" }, b.lessonIds.map(function (id) { return h("code", { text: id }); })) : null),
+          b.kind === "stretch" ? null : badge(st)));
+      });
+      return ol;
+    }
+    function blockState(b, rs) {
+      if (b.kind === "revision") return rs.n > 1 && derived.cal.statuses[rs.n - 2].status === "complete" ? (data.progress.notes["rev-" + rs.id] ? "complete" : "pending") : "pending";
+      var ls = (b.lessonIds || []).map(function (id) { return derived.idx.lessonById[id] && S.lessonState(derived.idx.lessonById[id].lesson, data.progress); }).filter(Boolean);
+      if (!ls.length) return "pending";
+      if (ls.every(function (x) { return x === "complete"; })) return "complete";
+      return ls.some(function (x) { return x !== "pending"; }) ? "in-progress" : "pending";
+    }
+
+    function continueCard() {
+      var c = derived.cont;
+      if (!c) return h("section", { class: "sd-card sd-continue is-complete" }, h("h2", { text: "All sessions complete" }), h("p", { text: "Every session in this plan is done. Time for interview mode." }));
+      var title, href, sub;
+      if (c.kind === "test") { var m = derived.idx.moduleById[c.moduleId].module; title = m.test.title; href = "#day-" + c.n + "/test"; sub = TEST[c.state].label; }
+      else { title = c.lesson.title; href = c.kind === "dsa" ? "#day-" + c.n + "/practice" : "#lesson/" + c.lesson.id; sub = STATUS[c.state].label + " · " + c.lesson.id; }
+      var subj = derived.idx.subjectById[derived.res.sessions[c.n - 1].subjectId];
+      return h("section", { class: "sd-card sd-continue", "aria-labelledby": "sd-cont-h" },
+        h("div", null, h("p", { class: "sd-eyebrow", text: "Continue studying · Session " + c.n + " · " + (c.kind === "dsa" ? "DSA in Java" : subj.title) }),
+          h("h2", { id: "sd-cont-h", text: title }), h("p", { class: "sd-muted", text: sub })),
+        h("a", { class: "sd-btn sd-btn-primary sd-cont-btn", href: href }, c.state === "pending" || c.state === "locked" || c.state === "unlocked" ? "Start ▸" : "Resume ▸"));
+    }
+
+    function viewToday() {
+      var tp = derived.today, e = tp.entry;
+      var head = h("header", { class: "sd-hero" });
+      var dateLine = fmtDate(data.today, true);
+      if (tp.finished) {
+        add(head, [h("p", { class: "sd-eyebrow", text: "Today · " + dateLine }), h("h1", { text: "Plan complete" })]);
+        add(main, [head, continueCard()]); return;
       }
-      main.setAttribute("data-view", state.view);
-      main.setAttribute("data-day", String(d.day));
-      var st = dayStatus(d), list = days(), idx = list.indexOf(d);
-      var totalMin = (d.blocks || []).reduce(function (a, b) { return a + (b.minutes || 0); }, 0);
+      if (!e) { add(main, [h("h1", { text: "Today" }), h("p", { text: "No session is scheduled for " + dateLine + "." })]); return; }
+      var rs = e.n ? derived.res.sessions[e.n - 1] : derived.res.sessions[e.carries - 1];
+      var subj = derived.idx.subjectById[rs.subjectId];
+      var eyebrow = tp.beforeStart ? "Starts " + fmtDate(e.date, true) + " · today is " + fmtDate(data.today) : "Today · " + dateLine;
+      add(head, [h("p", { class: "sd-eyebrow", text: eyebrow }),
+        h("h1", null, (e.unavailable ? "Day off · " : "Session " + e.n + " of " + derived.res.count + " · ") + subj.title + " + DSA"),
+        h("div", { class: "sd-hero-meta" },
+          e.unavailable ? h("span", { class: "sd-badge is-off" }, h("span", { "aria-hidden": "true", text: "⊘" }), " Unavailable") : badge(e.status, "sd-badge-lg"),
+          h("span", { class: "sd-chip sd-chip-budget", text: (e.budget.kind === "sunday" ? "Sunday plan · " : e.budget.dayName + " · ") + fmtMin(e.budget.minutes) + (e.budget.stretch ? " (2h core + " + fmtMin(e.budget.stretch) + " stretch)" : "") }),
+          e.carried ? h("span", { class: "sd-chip sd-chip-carry", text: "Carried forward: unfinished from an earlier date" }) : null,
+          e.budget.short ? h("span", { class: "sd-chip sd-chip-carry", text: "Short day: the core is scaled down; unfinished work carries forward" }) : null)]);
+      main.appendChild(head);
+      main.appendChild(continueCard());
+      if (e.unavailable) {
+        main.appendChild(h("section", { class: "sd-card sd-offcard" }, h("h2", { text: "You marked " + fmtDate(e.date) + " as unavailable" }),
+          h("p", { text: "Session " + e.carries + " stays pending and moves to your next available date. Nothing is skipped." })));
+      } else {
+        main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-tl-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-tl-h", text: "Tonight’s plan" }),
+          h("a", { href: "#day-" + rs.n, class: "sd-link", text: "Open session " + rs.n + " ▸" })), blockList(e, rs),
+          h("p", { class: "sd-muted", text: e.n === 1 ? "Day 1 uses the 12-minute revision slot for Java foundations (" + (rs.warmup ? rs.warmup.id : "warm-up") + ")." : "From Day 2: 12 min revision, 78 min main lesson, 30 min DSA." })));
+      }
+      main.appendChild(dayControls(e));
+      main.appendChild(upcoming(e.date));
+    }
 
-      var head = h("header", { class: "sd-dayhead" },
-        h("div", { class: "sd-crumbs" },
-          h("span", { text: "Day " + d.day + " of " + list.length }),
-          dayDate(d) ? h("time", { class: "sd-date", datetime: dayDate(d).toISOString().slice(0, 10), text: fmtDate(dayDate(d), true) }) : null,
-          dayTracks(d).map(function (t) { return h("span", { class: "sd-chip", title: trackName(t), text: trackName(t, true) }); })),
-        h("div", { class: "sd-dayhead-row" },
-          h("h1", { class: "sd-daytitle-main", text: d.title || "Day " + d.day }),
-          badge(st, "sd-badge-lg")),
-        h("p", { class: "sd-meta" },
-          totalMin ? h("span", { text: "⏱ " + fmtMin(totalMin) + " planned" }) : null,
-          data.curriculum.sessionWindow ? h("span", { text: "🕘 " + data.curriculum.sessionWindow }) : null,
-          dayTopicIds(d).length ? h("span", null, "Topics: ", dayTopicIds(d).map(function (t) { return h("code", { text: t }); })) : null));
+    function dayControls(e) {
+      var d = e.date, set = derived.settings, wd = S.weekday(d);
+      var off = h("input", { type: "checkbox", id: "sd-off", checked: !!set.unavailable[d] });
+      off.addEventListener("change", function () { emit({ type: "unavailable", date: d, value: off.checked }); });
+      var mins = h("input", { type: "number", id: "sd-mins", min: "30", max: "960", step: "15", value: String(e.budget.minutes), class: "sd-num", disabled: !!set.unavailable[d] });
+      var wdMins = h("input", { type: "number", id: "sd-wdmins", min: "30", max: "960", step: "15", value: String(set.dailyMinutes[wd]), class: "sd-num" });
+      return h("section", { class: "sd-card sd-controls", "aria-labelledby": "sd-ctl-h" },
+        h("h2", { id: "sd-ctl-h", text: "Adjust " + fmtDate(d) }),
+        h("div", { class: "sd-ctl-row" }, off, h("label", { for: "sd-off" }, h("strong", { text: "I can’t study on " + fmtDate(d) }), h("small", { class: "sd-muted", text: " The same unfinished session moves to the next available date." }))),
+        h("div", { class: "sd-ctl-row" }, h("label", { for: "sd-mins", text: "Minutes on " + fmtDate(d) }), mins,
+          h("button", { type: "button", class: "sd-btn", onclick: function () { emit({ type: "minutes", date: d, minutes: mins.value }); } }, "Save for this date"),
+          e.budget.overridden ? h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { emit({ type: "minutes", date: d, minutes: "" }); } }, "Reset") : null),
+        h("div", { class: "sd-ctl-row" }, h("label", { for: "sd-wdmins", text: "Default for every " + S.DAY_NAMES[wd] }), wdMins,
+          h("button", { type: "button", class: "sd-btn", onclick: function () { emit({ type: "minutes", weekday: wd, minutes: wdMins.value }); } }, "Save default")),
+        h("p", { class: "sd-muted", text: "Defaults: Sunday 6h 30m (2h core + 4h 30m stretch); other days 2h, 9:00–11:00 PM IST." }));
+    }
 
-      var tabs = h("nav", { class: "sd-tabs", "aria-label": "Lesson views" });
+    function upcoming(fromDate) {
+      var list = derived.cal.entries.filter(function (x) { return x.date > fromDate; }).slice(0, 6);
+      return h("section", { class: "sd-card", "aria-labelledby": "sd-up-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-up-h", text: "Next up" }), h("a", { href: "#calendar", class: "sd-link", text: "Full calendar ▸" })),
+        h("ul", { class: "sd-upcoming" }, list.map(calRow)),
+        h("p", { class: "sd-muted", text: "Projected finish: " + fmtDate(derived.cal.finishDate, true) + "." }));
+    }
+    function calRow(x) {
+      var rs = x.n ? derived.res.sessions[x.n - 1] : null, subj = rs ? derived.idx.subjectById[rs.subjectId] : null;
+      return h("li", { class: "sd-calrow" + (x.unavailable ? " is-off" : "") + (x.isToday ? " is-today" : "") },
+        h("span", { class: "sd-cal-date", text: fmtDate(x.date) }),
+        x.unavailable ? h("span", { class: "sd-cal-main" }, h("strong", { text: "Unavailable" }), h("small", { class: "sd-muted", text: " · session " + x.carries + " moves to the next date" }))
+          : h("a", { class: "sd-cal-main", href: "#day-" + x.n }, h("strong", { text: "Session " + x.n }), " · " + subj.title + " + DSA" + (x.carried ? " (carried)" : "")),
+        h("span", { class: "sd-cal-min", text: x.unavailable ? "—" : fmtMin(x.budget.minutes) }),
+        x.unavailable ? h("span", { class: "sd-badge is-off", text: "⊘ Off" }) : badge(x.status));
+    }
+
+    function viewCalendar() {
+      add(main, [h("header", { class: "sd-hero" }, h("p", { class: "sd-eyebrow", text: "Calendar · starts " + fmtDate(derived.settings.startDate, true) }), h("h1", { text: "Dates and sessions" }),
+        h("p", { class: "sd-muted", text: derived.res.count + " study sessions. Study days are not calendar days: an unavailable or missed date keeps the same session pending and pushes the rest forward. Projected finish: " + fmtDate(derived.cal.finishDate, true) + "." }))]);
+      var ul = h("ul", { class: "sd-upcoming sd-calendar" });
+      derived.cal.entries.forEach(function (x) {
+        var row = calRow(x);
+        var cb = h("input", { type: "checkbox", checked: !!x.unavailable, "aria-label": "Unavailable on " + fmtDate(x.date, true) });
+        cb.addEventListener("change", function () { emit({ type: "unavailable", date: x.date, value: cb.checked }); });
+        row.appendChild(h("label", { class: "sd-cal-off" }, cb, h("span", { "aria-hidden": "true", text: "Off" })));
+        ul.appendChild(row);
+      });
+      main.appendChild(h("section", { class: "sd-card" }, ul));
+    }
+
+    function viewCourse() {
+      add(main, h("header", { class: "sd-hero" }, h("p", { class: "sd-eyebrow", text: "Course · Subject → Module → Lesson" }), h("h1", { text: "Your learning path" }),
+        h("p", { class: "sd-muted", text: "Main subjects run in order; DSA in Java runs every session alongside them. Tests unlock when every lesson in a module is complete." })));
+      main.appendChild(continueCard());
+      derived.idx.subjects.forEach(function (s, i) {
+        var sp = S.subjectProgress(s, data.progress);
+        var sec = h("section", { class: "sd-card sd-subjcard", "aria-labelledby": "sd-s-" + s.id },
+          h("div", { class: "sd-card-h" }, h("h2", { id: "sd-s-" + s.id }, h("span", { class: "sd-dot", style: "background:" + (s.color || "#888"), "aria-hidden": "true" }),
+            (s.dsa ? "Daily · " : (i + 1) + ". ") + s.title), badge(sp.status)),
+          h("div", { class: "sd-progline" }, meter(sp.pct, s.title + " progress"), h("span", { text: sp.done + "/" + sp.total + " items · " + sp.pct + "%" })));
+        s.modules.forEach(function (m) {
+          var mp = S.moduleProgress(m, data.progress);
+          var rows = m.lessons.map(function (l) {
+            var st = S.lessonState(l, data.progress), n = sessionOfLesson(l.id), g = S.quizGate(l, data.progress);
+            return h("li", { class: "sd-lrow " + STATUS[st].cls },
+              h("span", { class: "sd-ticon", "aria-hidden": "true", text: STATUS[st].icon }),
+              h("a", { href: "#lesson/" + l.id, class: "sd-lrow-t" }, l.title), h("code", { text: l.id }), sourceChip(l.source),
+              g.required ? h("span", { class: "sd-chip " + (g.passed ? "sd-chip-ok" : ""), text: g.passed ? "check passed" : "check pending" }) : null,
+              h("span", { class: "sd-muted sd-lrow-n", text: n ? "Session " + n : "unscheduled" }), h("span", { class: "sd-vh", text: STATUS[st].label }));
+          });
+          if (m.test) {
+            var ts = S.testState(m, data.progress), tn = derived.res.sessions.find(function (x) { return x.test === m.id; });
+            rows.push(h("li", { class: "sd-lrow sd-testrow " + TEST[ts].cls }, h("span", { class: "sd-ticon", "aria-hidden": "true", text: TEST[ts].icon }),
+              tn ? h("a", { href: "#day-" + tn.n + "/test", class: "sd-lrow-t", text: m.test.title }) : h("span", { class: "sd-lrow-t", text: m.test.title }), tbadge(ts)));
+          }
+          var hasCont = derived.cont && derived.cont.lesson && m.lessons.some(function (l) { return l.id === derived.cont.lesson.id; });
+          var det = h("details", { class: "sd-modcard", open: state.openModules["c-" + m.id] != null ? state.openModules["c-" + m.id] : (mp.status === "in-progress" || hasCont) },
+            h("summary", null, h("span", { class: "sd-mod-t", text: m.title }), h("span", { class: "sd-mod-c", text: mp.done + "/" + mp.total }), meter(mp.pct, m.title + " progress"), badge(mp.status)),
+            h("ul", { class: "sd-lrows" }, rows));
+          det.addEventListener("toggle", function () { state.openModules["c-" + m.id] = det.open; });
+          sec.appendChild(det);
+        });
+        main.appendChild(sec);
+      });
+    }
+
+    /* ---------- session views ---------- */
+    function sessionEntry(rs) {
+      var list = derived.cal.byN[rs.n] || [];
+      return list.find(function (x) { return x.isToday; }) || list[list.length - 1] || list[0];
+    }
+    function viewSession(rs, view) {
+      var subj = derived.idx.subjectById[rs.subjectId], st = derived.cal.statuses[rs.n - 1], ent = sessionEntry(rs), dates = (derived.cal.byN[rs.n] || []).map(function (x) { return x.date; });
+      var hd = h("header", { class: "sd-dayhead" },
+        h("p", { class: "sd-eyebrow" }, "Session " + rs.n + " of " + derived.res.count + " · " + (dates.length ? dates.map(function (d) { return fmtDate(d, true); }).join(" → ") : "")),
+        h("h1", null, subj.title + ": " + rs.lessons.map(function (l) { return l.title; }).join(" · ")),
+        h("div", { class: "sd-hero-meta" }, badge(st.status, "sd-badge-lg"), h("span", { class: "sd-chip", text: st.done + "/" + st.total + " required items" }),
+          rs.test ? tbadge(S.testState(derived.idx.moduleById[rs.test].module, data.progress)) : null,
+          dates.length > 1 ? h("span", { class: "sd-chip sd-chip-carry", text: "Carried over " + (dates.length - 1) + " date" + (dates.length > 2 ? "s" : "") }) : null));
+      var tabs = h("nav", { class: "sd-tabs", "aria-label": "Session sections" });
       VIEWS.forEach(function (v) {
-        var cur = v.id === state.view;
-        tabs.appendChild(h("a", { class: "sd-tab" + (cur ? " is-current" : ""), href: hashFor(d.day, v.id), "aria-current": cur ? "page" : null, id: "sd-tab-" + v.id },
-          h("span", { "aria-hidden": "true", text: v.icon }), " " + v.label));
+        if (v.optional && !rs.test) return;
+        tabs.appendChild(h("a", { href: "#day-" + rs.n + v.suffix, class: "sd-tab", "aria-current": v.id === view ? "page" : null, text: v.label }));
       });
-
-      var panel = h("section", { class: "sd-panel sd-view-" + state.view, "aria-labelledby": "sd-tab-" + state.view });
-      var lesson = byKey(data.lessons, d.day) || {};
-      ({ plan: viewPlan, learn: viewLearn, practice: viewPractice, revision: viewRevision, "my-notes": viewNotes, coach: viewCoach })[state.view](panel, d, lesson);
-
-      var prev = list[idx - 1], next = list[idx + 1];
-      var pager = h("nav", { class: "sd-pager", "aria-label": "Day navigation" },
-        prev ? h("a", { class: "sd-btn", href: hashFor(prev.day, "plan") }, "← Day " + prev.day) : h("span"),
-        next ? h("a", { class: "sd-btn", href: hashFor(next.day, "plan") }, "Day " + next.day + " →") : h("span"));
-
-      append(main, [head, tabs, panel, pager]);
-      var curTab = tabs.querySelector(".is-current");
-      if (curTab && tabs.scrollWidth > tabs.clientWidth) tabs.scrollLeft = Math.max(0, curTab.offsetLeft - (tabs.clientWidth - curTab.offsetWidth) / 2);
+      var prev = rs.n > 1 ? h("a", { class: "sd-btn sd-btn-ghost", href: "#day-" + (rs.n - 1) + (view === "plan" ? "" : "/" + view) }, "◂ Session " + (rs.n - 1)) : h("span");
+      var next = rs.n < derived.res.count ? h("a", { class: "sd-btn sd-btn-ghost", href: "#day-" + (rs.n + 1) + (view === "plan" || view === "test" ? "" : "/" + view) }, "Session " + (rs.n + 1) + " ▸") : h("span");
+      add(main, [hd, tabs]);
+      var panel = h("section", { class: "sd-panel", "aria-label": (VIEWS.find(function (v) { return v.id === view; }) || {}).label });
+      main.appendChild(panel);
+      if (view === "test" && !rs.test) { panel.appendChild(h("p", { class: "sd-emptynote", text: "This session has no module test." })); }
+      else ({ plan: vPlan, learn: vLearn, practice: vPractice, revision: vRevision, "my-notes": vNotes, coach: vCoach, test: vTest })[view](panel, rs, ent);
+      main.appendChild(h("nav", { class: "sd-pager", "aria-label": "Previous and next session" }, prev, next));
     }
+    function sessionLessons(rs) { return (rs.warmup ? [rs.warmup] : []).concat(rs.lessons, rs.dsa); }
 
-    function sectionTitle(text, sub) {
-      return h("div", { class: "sd-sectitle" }, h("h2", { text: text }), sub ? h("p", { class: "sd-muted", text: sub }) : null);
-    }
-    function emptyNote(text) { return h("p", { class: "sd-emptynote", text: text }); }
-
-    function statusButton(current, label, onChange) {
-      var s = normStatus(current), nx = NEXT_STATUS[s];
-      return h("button", { type: "button", class: "sd-stbtn " + STATUS[s].cls, "aria-label": label + ": " + STATUS[s].label + ". Activate to mark " + STATUS[nx].label.toLowerCase(),
-        title: "Mark " + STATUS[nx].label.toLowerCase(), onclick: function () { onChange(nx); } },
-        h("span", { "aria-hidden": "true", text: STATUS[s].icon }), h("span", { class: "sd-stbtn-txt", text: STATUS[s].label }));
-    }
-
-    /* Session plan */
-    function viewPlan(panel, d, lesson) {
-      var p = dayProgress(d.day), st = dayStatus(d);
-      append(panel, sectionTitle("Session plan", d.summary || null));
-      if (d.revisionOf != null) {
-        var rd = findDay(d.revisionOf);
-        append(panel, h("div", { class: "sd-callout sd-callout-rev" },
-          h("strong", { text: "Start with a quick revision" }), " of Day " + d.revisionOf + (rd && rd.title ? ": " + rd.title : "") + ". ",
-          h("a", { href: hashFor(d.revisionOf, "revision"), text: "Open Day " + d.revisionOf + " revision" })));
+    function vPlan(panel, rs, ent) {
+      if (ent) {
+        panel.appendChild(h("div", { class: "sd-card" }, h("div", { class: "sd-card-h" }, h("h2", { text: (ent.isToday ? "Today · " : ent.projected ? "Planned · " : "") + fmtDate(ent.date, true) }),
+          h("span", { class: "sd-chip sd-chip-budget", text: fmtMin(ent.budget.minutes) + (ent.budget.stretch ? " (2h core + " + fmtMin(ent.budget.stretch) + " stretch)" : "") })), blockList(ent, rs)));
       }
-      var ol = h("ol", { class: "sd-blocks" });
-      var startAt = data.curriculum.sessionStart, elapsed = 0;
-      (d.blocks || []).forEach(function (b, i) {
-        var slot = startAt && b.minutes ? clock(startAt, elapsed) + "–" + clock(startAt, elapsed + b.minutes) : null;
-        elapsed += b.minutes || 0;
-        var course = b.track ? trackName(b.track) : (b.kind === "revision" ? "Quick revision" : null);
-        var bs = normStatus((p.blocks || {})[b.id]);
-        var href = b.kind === "revision" && i === 0 && d.revisionOf != null ? hashFor(d.revisionOf, "revision")
-          : ({ learn: 1, practice: 1, revision: 1, coach: 1 }[b.kind] ? hashFor(d.day, b.kind) : null);
-        ol.appendChild(h("li", { class: "sd-block " + STATUS[bs].cls },
-          h("span", { class: "sd-block-idx", "aria-hidden": "true", text: String(i + 1) }),
-          h("div", { class: "sd-block-body" },
-            course ? h("div", { class: "sd-block-course" + (b.track ? " sd-trk-" + String(b.track).toLowerCase() : "") , text: course }) : null,
-            h("div", { class: "sd-block-title" }, href ? h("a", { href: href, text: b.title }) : h("span", { text: b.title })),
-            h("div", { class: "sd-block-meta" },
-              slot ? h("span", { class: "sd-slot", text: "🕘 " + slot }) : null,
-              b.minutes ? h("span", { text: fmtMin(b.minutes) }) : null,
-              b.kind && !b.track ? h("span", { class: "sd-chip sd-chip-kind", text: b.kind }) : null,
-              b.topicId ? h("code", { text: b.topicId }) : null)),
-          statusButton(bs, b.title, function (nx) { emitProgress({ day: d.day, scope: "block", id: b.id, status: nx }); })));
+      var ul = h("ul", { class: "sd-lrows" });
+      sessionLessons(rs).forEach(function (l) {
+        var e = derived.idx.lessonById[l.id], st = S.lessonState(l, data.progress);
+        ul.appendChild(h("li", { class: "sd-lrow " + STATUS[st].cls }, h("span", { class: "sd-ticon", "aria-hidden": "true", text: STATUS[st].icon }),
+          h("a", { href: "#lesson/" + l.id, class: "sd-lrow-t", text: l.title }), h("code", { text: l.id }), h("span", { class: "sd-chip", text: e.subject.title }), sourceChip(l.source), badge(st)));
       });
-      if (!(d.blocks || []).length) append(panel, emptyNote("No blocks in this day's plan yet."));
-      else {
-        append(panel, ol);
-        var win = data.curriculum.sessionStart && data.curriculum.sessionEnd ? (function () {
-          var a = data.curriculum.sessionStart.split(":"), z = data.curriculum.sessionEnd.split(":");
-          return ((+z[0] * 60 + +z[1]) - (+a[0] * 60 + +a[1]) + 1440) % 1440;
-        })() : null;
-        append(panel, h("p", { class: "sd-total" + (win && elapsed > win ? " sd-total-over" : "") },
-          h("strong", { text: "Total " + fmtMin(elapsed) }),
-          win ? (elapsed > win ? " · ⚠ " + fmtMin(elapsed - win) + " over the " + fmtMin(win) + " session" : " · fits the " + fmtMin(win) + " session") : null));
-      }
-      if ((lesson.objectives || []).length) {
-        append(panel, h("div", { class: "sd-card" }, h("h3", { text: "By the end of this session you can" }),
-          h("ul", { class: "sd-checklist" }, lesson.objectives.map(function (o) { return h("li", { text: o }); }))));
-      }
-      var actions = h("div", { class: "sd-dayactions", role: "group", "aria-label": "Day status" },
-        h("span", { class: "sd-muted", text: "Day status:" }));
-      ["pending", "in-progress", "complete"].forEach(function (s) {
-        actions.appendChild(h("button", { type: "button", class: "sd-btn sd-statechoice " + STATUS[s].cls + (st === s ? " is-on" : ""), "aria-pressed": st === s ? "true" : "false",
-          onclick: function () { emitProgress({ day: d.day, scope: "day", id: null, status: s }); } },
-          h("span", { "aria-hidden": "true", text: STATUS[s].icon + " " }), STATUS[s].label));
-      });
-      append(panel, actions);
+      if (rs.test) { var m = derived.idx.moduleById[rs.test].module, ts = S.testState(m, data.progress); ul.appendChild(h("li", { class: "sd-lrow sd-testrow " + TEST[ts].cls }, h("span", { class: "sd-ticon", "aria-hidden": "true", text: TEST[ts].icon }), h("a", { href: "#day-" + rs.n + "/test", class: "sd-lrow-t", text: m.test.title }), tbadge(ts))); }
+      panel.appendChild(h("div", { class: "sd-card" }, h("h2", { text: "What finishes this session" }), ul,
+        h("p", { class: "sd-muted", text: "A lesson is complete after its lesson check and practice evidence. The session completes when every item above is done; then the next session moves to your next date." })));
     }
 
-    /* Videos & notes: video source + watch time first, then long-form notes */
-    function viewLearn(panel, d, lesson) {
-      var vids = byKey(data.videos, d.day) || [];
-      var watch = vids.reduce(function (a, v) { return a + (v.suggestedWatchMin || 0); }, 0);
-      append(panel, sectionTitle("Watch first", vids.length ? vids.length + " source" + (vids.length > 1 ? "s" : "") + (watch ? " · suggested " + fmtMin(watch) + " total" : "") : null));
-      if (!vids.length) append(panel, emptyNote("No video or reading source attached to this day yet."));
-      var grid = h("div", { class: "sd-videos" });
-      vids.forEach(function (v) {
-        var url = safeUrl(v.url);
-        grid.appendChild(h("article", { class: "sd-video" },
-          h("div", { class: "sd-video-top" },
-            h("span", { class: "sd-source" }, h("span", { "aria-hidden": "true", text: v.kind === "article" ? "📄 " : "▶ " }), v.source || "Source"),
-            v.suggestedWatchMin ? h("span", { class: "sd-watch" }, h("strong", { text: fmtMin(v.suggestedWatchMin) }), v.kind === "article" ? " suggested reading" : " suggested watch") : null),
-          v.track ? h("p", { class: "sd-block-course sd-trk-" + String(v.track).toLowerCase(), text: trackName(v.track) }) : null,
-          h("h3", { class: "sd-video-title", text: v.title || "Untitled" }),
-          h("p", { class: "sd-video-meta" },
-            v.channel ? h("span", { text: v.channel }) : null,
-            v.durationMin ? h("span", { text: "Full length " + fmtMin(v.durationMin) }) : null,
-            v.segment ? h("span", { text: "Watch " + v.segment }) : null),
-          v.note ? h("p", { class: "sd-muted", text: v.note }) : null,
-          url ? h("a", { class: "sd-btn sd-btn-primary", href: url, target: "_blank", rel: "noopener noreferrer" }, (v.kind === "article" ? "Open reading" : "Open video") + " ↗", h("span", { class: "sd-vh", text: " (opens in a new tab)" })) : null));
-      });
-      if (vids.length) append(panel, grid);
-
-      append(panel, sectionTitle("Notes", "Long-form lesson notes"));
-      var art = h("article", { class: "sd-notes" });
-      renderBlocks(art, lesson.notes || []);
-      if (!(lesson.notes || []).length) art.appendChild(emptyNote("Notes for this day haven't been added yet."));
-      append(panel, art);
+    function lessonActions(l) {
+      var st = S.lessonState(l, data.progress), can = S.canCompleteLesson(l, data.progress);
+      var wrap = h("div", { class: "sd-lesson-actions" });
+      if (st !== "complete") {
+        wrap.appendChild(h("button", { type: "button", class: "sd-btn", "aria-pressed": st === "in-progress" ? "true" : "false", disabled: st === "in-progress", onclick: function () { emit({ type: "lesson", id: l.id, status: "in-progress" }); } }, "◐ Mark in progress"));
+        wrap.appendChild(h("button", { type: "button", class: "sd-btn sd-btn-primary", "aria-disabled": can.ok ? null : "true", onclick: function () {
+          if (!can.ok) { toast(can.reasons.join(" · ")); return; } emit({ type: "lesson", id: l.id, status: "complete" }); } }, "✓ Mark complete"));
+        if (!can.ok) wrap.appendChild(h("p", { class: "sd-gate" }, h("span", { "aria-hidden": "true", text: "🔒 " }), can.reasons.join(" · ")));
+      } else {
+        wrap.appendChild(h("button", { type: "button", class: "sd-btn", onclick: function () { emit({ type: "lesson", id: l.id, status: "in-progress" }); } }, "↺ Reopen"));
+        wrap.appendChild(h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { emit({ type: "lesson", id: l.id, status: "pending" }); } }, "Uncheck"));
+      }
+      return wrap;
     }
 
-    function renderBlocks(container, blocks) {
-      blocks.forEach(function (b) {
+    function vLearn(panel, rs) {
+      sessionLessons(rs).forEach(function (l) {
+        var e = derived.idx.lessonById[l.id], st = S.lessonState(l, data.progress);
+        var art = h("article", { class: "sd-card sd-lesson " + STATUS[st].cls, id: "lesson-" + l.id, "aria-labelledby": "lh-" + l.id },
+          h("div", { class: "sd-card-h" }, h("div", null, h("p", { class: "sd-eyebrow", text: (rs.warmup && rs.warmup.id === l.id ? "Java foundations (Day 1 warm-up) · " : e.subject.dsa ? "DSA in Java · " : e.subject.title + " · ") + e.module.title }),
+            h("h2", { id: "lh-" + l.id, text: l.title })), badge(st)),
+          h("div", { class: "sd-meta" }, h("code", { text: l.id }), sourceChip(l.source), l.estMinutes ? h("span", { class: "sd-chip", text: "~" + fmtMin(l.estMinutes) }) : null));
+        // Videos first.
+        (l.videos || []).forEach(function (v) {
+          var w = data.progress.watch[v.id] || { minutes: 0, log: [] };
+          var inp = h("input", { type: "number", min: "1", max: "600", class: "sd-num", "aria-label": "Minutes watched of " + v.title, placeholder: "min" });
+          art.appendChild(h("div", { class: "sd-video" },
+            h("div", { class: "sd-video-h" }, h("span", { class: "sd-source", text: (v.kind === "article" ? "Article · " : "▶ ") + (v.source || "Video") + (v.channel ? " · " + v.channel : "") }),
+              h("span", { class: "sd-watch", text: "Suggested watch: " + fmtMin(v.suggestedWatchMin || v.durationMin) + (v.durationMin ? " of " + fmtMin(v.durationMin) : "") + (v.segment ? " · " + v.segment : "") })),
+            h("a", { href: v.url, target: "_blank", rel: "noopener", class: "sd-video-t", text: v.title + " ↗" }),
+            h("div", { class: "sd-watchlog" }, h("span", { text: "Watched: " + fmtMin(w.minutes) + (w.log.length ? " (" + w.log.map(function (x) { return fmtDate(x.date) + " " + x.minutes + "m"; }).join(", ") + ")" : "") }),
+              inp, h("button", { type: "button", class: "sd-btn sd-btn-sm", onclick: function () { emit({ type: "watch", id: v.id, minutes: inp.value }); } }, "Log minutes"))));
+        });
+        if (l.diagram) art.appendChild(diagram(l.diagram));
+        var notes = h("div", { class: "sd-notes" }); renderBlocks(notes, l.notes || []);
+        art.appendChild(notes);
+        if (l.quiz) art.appendChild(quizForm(l.quiz, "Lesson check", S.quizGate(l, data.progress), function (answers) { emit({ type: "quiz", id: l.id, answers: answers }); }, "q-" + l.id));
+        art.appendChild(lessonActions(l));
+        panel.appendChild(art);
+      });
+    }
+    function diagram(d) {
+      var nodes = d.nodes || [];
+      return h("figure", { class: "sd-diagram" }, h("ol", { class: "sd-flow", "aria-label": "Diagram: " + nodes.join(" then ") }, nodes.map(function (n, i) {
+        return h("li", null, h("span", { class: "sd-node", text: n }), i < nodes.length - 1 ? h("span", { class: "sd-arrow", "aria-hidden": "true", text: "→" }) : null);
+      })), d.title ? h("figcaption", { text: "Diagram: " + d.title }) : null);
+    }
+    function renderBlocks(c, blocks) {
+      (typeof blocks === "string" ? [blocks] : blocks).forEach(function (b) {
         if (typeof b === "string") b = { type: "p", text: b };
         switch (b.type) {
-          case "h": container.appendChild(h("h3", { text: b.text })); break;
-          case "h4": container.appendChild(h("h4", { text: b.text })); break;
-          case "ul": case "ol": container.appendChild(h(b.type, null, (b.items || []).map(function (it) { return h("li", { text: it }); }))); break;
-          case "code": container.appendChild(h("pre", { class: "sd-code", "data-lang": b.lang || null, tabindex: "0" }, h("code", { text: b.text }))); break;
-          case "callout": container.appendChild(h("div", { class: "sd-callout sd-callout-" + (b.tone || "info") }, b.text)); break;
-          default: container.appendChild(h("p", { text: b.text || "" }));
+          case "h": c.appendChild(h("h3", { text: b.text })); break;
+          case "ul": case "ol": c.appendChild(h(b.type, null, (b.items || []).map(function (it) { return h("li", { text: it }); }))); break;
+          case "code": c.appendChild(h("pre", { class: "sd-code" }, h("code", { text: b.text }))); break;
+          case "callout": c.appendChild(h("p", { class: "sd-callout sd-callout-" + (b.tone || "info"), text: b.text })); break;
+          default: c.appendChild(h("p", { text: b.text }));
         }
       });
     }
-
-    /* Practice */
-    function viewPractice(panel, d, lesson) {
-      var items = lesson.practice || [], p = dayProgress(d.day);
-      append(panel, sectionTitle("Practice", items.length ? "Write code yourself first, then paste it for review." : null));
-      if (!items.length) { append(panel, emptyNote("No practice items for this day yet.")); return; }
-      items.forEach(function (it) {
-        var s = normStatus((p.practice || {})[it.id]), url = safeUrl(it.url);
-        append(panel, h("article", { class: "sd-card sd-practice " + STATUS[s].cls },
-          h("div", { class: "sd-practice-head" },
-            h("h3", { text: it.title }),
-            statusButton(s, it.title, function (nx) { emitProgress({ day: d.day, scope: "practice", id: it.id, status: nx }); })),
-          h("p", { class: "sd-block-meta" },
-            it.platform ? h("span", { text: it.platform }) : null,
-            it.difficulty ? h("span", { class: "sd-chip", text: it.difficulty }) : null,
-            it.minutes ? h("span", { text: fmtMin(it.minutes) }) : null),
-          it.prompt ? h("p", { text: it.prompt }) : null,
-          (it.acceptance || []).length ? h("div", null, h("h4", { text: "Acceptance criteria" }), h("ul", { class: "sd-checklist" }, it.acceptance.map(function (a) { return h("li", { text: a }); }))) : null,
-          url ? h("a", { class: "sd-btn", href: url, target: "_blank", rel: "noopener noreferrer" }, "Open on " + (it.platform || "site") + " ↗", h("span", { class: "sd-vh", text: " (opens in a new tab)" })) : null));
+    function quizForm(quiz, label, gate, onSubmit, key) {
+      var form = h("form", { class: "sd-quiz" + (gate.passed ? " is-complete" : "") });
+      form.appendChild(h("h3", null, label + " ", gate.passed ? h("span", { class: "sd-badge is-complete", text: "✓ Passed" + (gate.score != null ? " (" + gate.score + "%)" : "") }) : gate.score != null ? h("span", { class: "sd-badge is-progress", text: "↻ " + gate.score + "% · retry" }) : h("span", { class: "sd-badge is-pending", text: "Needed to complete" })));
+      quiz.questions.forEach(function (q, qi) {
+        var fs = h("fieldset", null, h("legend", { text: (qi + 1) + ". " + q.q }));
+        q.options.forEach(function (o, oi) {
+          var id = key + "-" + qi + "-" + oi;
+          fs.appendChild(h("label", { class: "sd-opt", for: id }, h("input", { type: "radio", name: key + "-" + qi, id: id, value: String(oi) }), " " + o));
+        });
+        form.appendChild(fs);
       });
+      form.appendChild(h("button", { type: "submit", class: "sd-btn" }, gate.passed ? "Retake" : "Check answers"));
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var answers = {};
+        quiz.questions.forEach(function (q, qi) { var c = form.querySelector("input[name='" + key + "-" + qi + "']:checked"); if (c) answers[q.id || qi] = +c.value; });
+        onSubmit(answers);
+      });
+      return form;
     }
 
-    /* Quick revision: My notes first, suggested bullets second */
-    function viewRevision(panel, d, lesson) {
-      var notes = (dayProgress(d.day).notes || "").trim();
-      append(panel, sectionTitle("Quick revision", "Your own notes come first."));
-      var mine = h("section", { class: "sd-card sd-mynotes-card", "aria-labelledby": "sd-rev-mine" },
-        h("div", { class: "sd-card-head" }, h("h3", { id: "sd-rev-mine", text: "✎ My notes" }), h("a", { href: hashFor(d.day, "my-notes"), text: notes ? "Edit" : "Write notes" })));
-      if (notes) mine.appendChild(h("div", { class: "sd-notetext" }, notes.split(/\n+/).map(function (line) { return h("p", { text: line }); })));
-      else mine.appendChild(emptyNote("You haven't written notes for this day. Writing a few lines in your own words helps more than re-reading."));
-      append(panel, mine);
-      var bullets = lesson.revision || [];
-      append(panel, h("section", { class: "sd-card sd-suggested", "aria-labelledby": "sd-rev-sugg" },
-        h("h3", { id: "sd-rev-sugg", text: "Suggested revision points" }),
-        bullets.length ? h("ul", null, bullets.map(function (b) { return h("li", { text: b }); })) : emptyNote("No suggested points for this day.")));
+    function vPractice(panel, rs, ent) {
+      var any = false;
+      sessionLessons(rs).forEach(function (l) {
+        (l.practice || []).forEach(function (p) {
+          any = true;
+          var ps = S.practiceState(p, data.progress), key = p.id;
+          var ev = h("textarea", { class: "sd-evidence", id: "ev-" + p.id, rows: "2", placeholder: "Paste a GitHub / GfG submission link, or a 2-line summary of what you built" });
+          ev.value = state.drafts[key] != null ? state.drafts[key] : ps.evidence;
+          ev.addEventListener("input", function () { state.drafts[key] = ev.value; });
+          function set(s) { var v = ev.value; delete state.drafts[key]; emit({ type: "practice", id: p.id, status: s, evidence: v }); }
+          var btns = h("div", { class: "sd-statechoices", role: "group", "aria-label": "Status of " + p.title });
+          ["pending", "in-progress", "complete"].forEach(function (s) {
+            btns.appendChild(h("button", { type: "button", class: "sd-btn sd-statechoice " + STATUS[s].cls + (ps.status === s ? " is-on" : ""), "aria-pressed": ps.status === s ? "true" : "false", onclick: function () { set(s); } },
+              h("span", { "aria-hidden": "true", text: STATUS[s].icon + " " }), STATUS[s].label));
+          });
+          panel.appendChild(h("article", { class: "sd-card sd-practice " + STATUS[ps.status].cls, id: "practice-" + p.id },
+            h("div", { class: "sd-card-h" }, h("div", null, h("p", { class: "sd-eyebrow", text: (derived.idx.lessonById[l.id].subject.dsa ? "DSA in Java · " : "") + l.id }), h("h2", { text: p.title })), badge(ps.status)),
+            h("p", { class: "sd-meta" }, [p.platform, p.difficulty, p.minutes ? fmtMin(p.minutes) : null].filter(Boolean).join(" · "), p.url ? h("a", { href: p.url, target: "_blank", rel: "noopener", text: " Open ↗" }) : null),
+            p.prompt ? h("p", { text: p.prompt }) : null,
+            (p.acceptance || []).length ? h("ul", { class: "sd-checklist" }, p.acceptance.map(function (a) { return h("li", { text: a }); })) : null,
+            h("label", { class: "sd-ev-label", for: "ev-" + p.id }, "Assignment evidence" + (p.evidenceRequired ? " (needed to mark complete)" : "")), ev,
+            h("div", { class: "sd-ev-actions" }, btns, h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { set(ps.status === "pending" ? "in-progress" : ps.status); } }, "Save evidence"))));
+        });
+      });
+      if (ent && ent.budget.stretch) panel.appendChild(h("p", { class: "sd-callout sd-callout-tip", text: "Stretch practice today: " + fmtMin(ent.budget.stretch) + ". Redo today’s practice without notes, then 2–3 extra DSA problems on the same pattern." }));
+      if (!any) panel.appendChild(h("p", { class: "sd-emptynote", text: "No practice items in this session." }));
     }
 
-    /* My notes */
-    function viewNotes(panel, d) {
-      var current = dayProgress(d.day).notes || "";
-      append(panel, sectionTitle("My notes", "Write in your own words. Hinglish is fine."));
-      var status = h("p", { class: "sd-muted sd-savestate", "aria-live": "polite", text: typeof opts.onNoteChange === "function" ? "" : "Read-only preview: no host is listening for note changes." });
-      var ta = h("textarea", { class: "sd-textarea", id: "sd-note-" + d.day, rows: "14", "aria-label": "My notes for Day " + d.day, placeholder: "What did you learn today? What is still unclear?" });
-      ta.value = current;
+    function vRevision(panel, rs) {
+      var key = rs.id, mine = data.progress.notes[key] || "";
+      var prevRs = rs.n > 1 ? derived.res.sessions[rs.n - 2] : null, prevNotes = prevRs ? data.progress.notes[prevRs.id] || "" : "";
+      var card = h("section", { class: "sd-card sd-mynotes-card", "aria-labelledby": "sd-mn-h" }, h("h2", { id: "sd-mn-h", text: "My notes first" }));
+      if (prevRs) card.appendChild(h("h3", { text: "From session " + prevRs.n }));
+      card.appendChild(prevRs ? (prevNotes ? notesText(prevNotes) : h("p", { class: "sd-emptynote", text: "No notes written for session " + prevRs.n + "." })) : h("p", { class: "sd-emptynote", text: "Day 1 has no previous session; the revision slot is Java foundations." }));
+      if (mine) { card.appendChild(h("h3", { text: "This session" })); card.appendChild(notesText(mine)); }
+      card.appendChild(h("p", null, h("a", { href: "#day-" + rs.n + "/my-notes", text: "Write or edit my notes ▸" })));
+      panel.appendChild(card);
+      var bullets = [];
+      (prevRs ? prevRs.lessons.concat(prevRs.dsa) : rs.warmup ? [rs.warmup] : []).forEach(function (l) { (l.revision || []).forEach(function (b) { bullets.push([l.id, b]); }); });
+      panel.appendChild(h("section", { class: "sd-card sd-suggested" }, h("h2", { text: "Suggested revision points" }), h("p", { class: "sd-muted", text: "12 minutes: say each point out loud, then test yourself with one question." }),
+        bullets.length ? h("ul", null, bullets.map(function (b) { return h("li", null, h("code", { text: b[0] }), " " + b[1]); })) : h("p", { class: "sd-emptynote", text: "No suggested points." })));
+      if (prevRs) {
+        var done = !!data.progress.notes["rev-" + rs.id];
+        panel.appendChild(h("button", { type: "button", class: "sd-btn" + (done ? "" : " sd-btn-primary"), onclick: function () { emit({ type: "note", key: "rev-" + rs.id, text: done ? "" : "done" }); } }, done ? "↺ Revision done (undo)" : "✓ Revision done"));
+      }
+    }
+    function notesText(t) { return h("div", { class: "sd-notetext" }, t.split(/\n+/).map(function (line) { return h("p", { text: line }); })); }
+
+    function vNotes(panel, rs) {
+      var ta = h("textarea", { class: "sd-notes-ta", id: "sd-notes-ta", rows: "12", placeholder: "Your own words: key ideas, mistakes you made, questions for the coach." });
+      ta.value = state.drafts["n-" + rs.id] != null ? state.drafts["n-" + rs.id] : data.progress.notes[rs.id] || "";
+      var status = h("p", { class: "sd-muted", "aria-live": "polite" });
+      var t;
       ta.addEventListener("input", function () {
-        if (typeof opts.onNoteChange !== "function") return;
-        status.textContent = "Typing…";
-        clearTimeout(noteTimer);
-        var val = ta.value, day = d.day;
-        noteTimer = setTimeout(function () {
-          var r = opts.onNoteChange(day, val);
-          status.textContent = "Sent to host";
-          if (r && typeof r.then === "function") r.then(function () { status.textContent = "Saved by host"; }, function () { status.textContent = "Host could not save"; });
-        }, 400);
+        state.drafts["n-" + rs.id] = ta.value; status.textContent = "Saving…"; clearTimeout(t);
+        t = setTimeout(function () { delete state.drafts["n-" + rs.id]; emit({ type: "note", key: rs.id, text: ta.value }); status.textContent = "Saved"; }, 600);
       });
-      append(panel, [h("label", { class: "sd-vh", for: "sd-note-" + d.day, text: "My notes for Day " + d.day }), ta, status]);
+      panel.appendChild(h("section", { class: "sd-card" }, h("label", { for: "sd-notes-ta", class: "sd-h2label", text: "My notes · session " + rs.n }), ta, status,
+        h("p", { class: "sd-muted", text: "These show first in the next session’s quick revision." })));
     }
 
-    /* AI coach */
-    function viewCoach(panel, d, lesson) {
-      var qs = lesson.coach || [];
-      var notes = dayProgress(d.day).notes || "";
-      append(panel, sectionTitle("AI coach", "One question at a time. Answer in your own words."));
-      if (!qs.length) append(panel, emptyNote("No coach questions for this day yet."));
-      qs.forEach(function (q, i) {
-        var box = h("article", { class: "sd-card sd-coachq" },
-          h("p", { class: "sd-muted", text: "Question " + (i + 1) + " of " + qs.length }),
-          h("h3", { text: q.prompt }));
-        var copyText = "Day " + d.day + ": " + (d.title || "") + "\nTopics: " + dayTopicIds(d).join(", ") + "\nQuestion: " + q.prompt + (notes ? "\nMy notes:\n" + notes : "") + "\nMy answer: ";
-        var msg = h("span", { class: "sd-muted", "aria-live": "polite" });
-        var row = h("div", { class: "sd-btnrow" },
-          h("button", { type: "button", class: "sd-btn", onclick: function () {
-            var done = function () { msg.textContent = "Copied"; }, fail = function () { msg.textContent = "Copy failed. Select the text manually."; };
-            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(copyText).then(done, fail); else fail();
-          } }, "Copy prompt for a chat coach"), msg);
-        box.appendChild(row);
-        if (typeof opts.onCoachAsk === "function") {
-          var ans = h("textarea", { class: "sd-textarea", rows: "4", "aria-label": "Your answer to question " + (i + 1), placeholder: "Type your answer…" });
-          var out = h("div", { class: "sd-coachout", "aria-live": "polite" });
-          var ask = h("button", { type: "button", class: "sd-btn sd-btn-primary", onclick: function () {
-            out.textContent = "Waiting for coach…";
-            Promise.resolve(opts.onCoachAsk({ day: d.day, questionId: q.id, question: q.prompt, answer: ans.value })).then(function (r) {
-              out.textContent = typeof r === "string" ? r : (r && r.text) || "";
-            }, function () { out.textContent = "Coach is unavailable right now."; });
-          } }, "Get feedback");
-          append(box, [ans, h("div", { class: "sd-btnrow" }, ask), out]);
-        }
-        append(panel, box);
+    function vCoach(panel, rs) {
+      var qs = [];
+      sessionLessons(rs).forEach(function (l) { (l.coach || []).forEach(function (q) { qs.push(q); }); });
+      if (!qs.length) { panel.appendChild(h("p", { class: "sd-emptynote", text: "No coach prompts for this session." })); return; }
+      qs.forEach(function (q) {
+        var ans = h("textarea", { rows: "3", class: "sd-evidence", "aria-label": "Your answer to: " + q.prompt, placeholder: "Answer as you would in an interview" });
+        var msg = h("p", { class: "sd-muted", "aria-live": "polite" });
+        panel.appendChild(h("article", { class: "sd-card" }, h("h3", { text: q.prompt }), ans,
+          h("div", { class: "sd-ev-actions" },
+            h("button", { type: "button", class: "sd-btn", onclick: function () {
+              var txt = "Interview question: " + q.prompt + "\nMy answer: " + ans.value + "\nPlease review my answer and ask one follow-up.";
+              (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { msg.textContent = "Copied. Paste it to your coach."; }, function () { msg.textContent = "Copy failed. Select the text manually."; });
+            } }, "Copy for coach"),
+            opts.onCoachAsk ? h("button", { type: "button", class: "sd-btn sd-btn-primary", onclick: function () {
+              msg.textContent = "Asking…";
+              Promise.resolve(opts.onCoachAsk({ session: rs.n, questionId: q.id, question: q.prompt, answer: ans.value })).then(function (r) { msg.textContent = typeof r === "string" ? r : (r && r.text) || ""; }, function () { msg.textContent = "Coach unavailable."; });
+            } }, "Ask coach") : null), msg));
       });
-      if (typeof opts.onCoachAsk !== "function") append(panel, h("p", { class: "sd-muted sd-small", text: "No AI coach is connected to this page. Use the copy button and paste the prompt into your chat coach." }));
     }
 
-    /* ---------- routing glue ---------- */
-
-    function applyRoute(r) {
-      if (!r) { state.day = defaultDay(); state.view = "plan"; }
-      else { state.day = r.day; state.view = r.view; }
-      renderAll();
-      setNav(false);
-    }
-    function onHash() {
-      var r = parseHash(location.hash);
-      applyRoute(r);
-      if (r) main.focus({ preventScroll: true });
-      window.scrollTo(0, 0);
-    }
-    function renderAll() { renderChrome(); renderDayList(); renderMain(); updateTitle(); }
-    function updateTitle() {
-      var d = findDay(state.day), v = VIEWS.filter(function (x) { return x.id === state.view; })[0];
-      if (opts.setDocumentTitle !== false) document.title = (d ? "Day " + d.day + " · " + v.label + " · " : "") + ((data.curriculum && data.curriculum.title) || "Study Desk");
+    function vTest(panel, rs) {
+      var me = derived.idx.moduleById[rs.test], m = me.module, ts = S.testState(m, data.progress), rec = data.progress.tests[m.id] || {};
+      var card = h("section", { class: "sd-card sd-testcard " + TEST[ts].cls, id: "test-" + m.id }, h("div", { class: "sd-card-h" }, h("h2", { text: m.test.title }), tbadge(ts)),
+        h("p", { class: "sd-muted", text: me.subject.title + " · " + m.title + " · pass mark " + (m.test.passPct || derived.settings.testPassPct) + "%" + (rec.attempts ? " · attempts: " + rec.attempts + (rec.score != null ? ", last " + rec.score + "%" : "") : "") }));
+      if (ts === "locked") {
+        var left = m.lessons.filter(function (l) { return S.lessonState(l, data.progress) !== "complete"; });
+        card.appendChild(h("p", { class: "sd-gate" }, h("span", { "aria-hidden": "true", text: "🔒 " }), "Unlocks when every lesson in " + m.title + " is complete. Still open: "));
+        card.appendChild(h("ul", null, left.map(function (l) { return h("li", null, h("a", { href: "#lesson/" + l.id, text: l.title }), " ", badge(S.lessonState(l, data.progress))); })));
+      } else {
+        card.appendChild(quizForm(m.test, "Questions", { passed: ts === "passed", score: rec.score }, function (answers) { emit({ type: "test", id: m.id, answers: answers }); }, "t-" + m.id));
+      }
+      panel.appendChild(card);
     }
 
-    if (opts.routing) {
-      window.addEventListener("hashchange", onHash);
-      var initial = parseHash(location.hash);
-      if (!initial && days().length) { var dd = defaultDay(); history.replaceState(null, "", hashFor(dd, "plan")); initial = parseHash(location.hash); }
-      applyRoute(initial);
-    } else {
-      applyRoute({ day: opts.initialDay || defaultDay(), view: opts.initialView || "plan" });
-    }
+    /* ---------- lifecycle ---------- */
+    var routing = opts.routing !== false;
+    if (routing) window.addEventListener("hashchange", onHash);
+    state.route = parseHash();
+    derive();
+    if (state.route.view === "lesson") onHash(); else render(false);
 
     return {
       update: function (next) {
-        ["curriculum", "lessons", "videos", "progress"].forEach(function (k) { if (next && next[k] !== undefined) data[k] = next[k]; });
-        var a = document.activeElement, activeId = a && root.contains(a) && a.id;
-        var sel = activeId && typeof a.selectionStart === "number" ? [a.selectionStart, a.selectionEnd] : null;
-        var y = window.scrollY;
-        renderAll();
-        var b = activeId && document.getElementById(activeId);
-        if (b) { b.focus({ preventScroll: true }); if (sel && b.setSelectionRange) b.setSelectionRange(sel[0], sel[1]); }
+        next = next || {};
+        if (next.course) data.course = next.course;
+        if (next.progress) data.progress = S.normalize(next.progress);
+        if (next.today) data.today = next.today;
+        if ("sync" in next) data.sync = next.sync;
+        var a = document.activeElement, aid = a && a.id, sel = null, y = window.scrollY, sig = null;
+        try { sel = a && a.selectionStart; } catch (e) {}
+        if (a && !aid && root.contains(a)) { var anc = a.parentElement && a.parentElement.closest("[id]"); sig = { anc: anc && anc.id, tag: a.tagName, text: a.textContent.trim(), cls: (a.className || "").split(" ")[1] || "" }; }
+        render(false);
         window.scrollTo(0, y);
+        var el = aid ? document.getElementById(aid) : null;
+        if (!el && sig) {
+          var scope = (sig.anc && document.getElementById(sig.anc)) || main;
+          var cands = Array.prototype.slice.call(scope.querySelectorAll(sig.tag));
+          el = cands.find(function (c) { return c.textContent.trim() === sig.text; }) || (sig.cls ? cands.find(function (c) { return c.classList.contains(sig.cls); }) : null);
+        }
+        if (el) { el.focus({ preventScroll: true }); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (e) {} }
       },
-      navigate: function (day, view) {
-        if (opts.routing) location.hash = hashFor(day, view || "plan");
-        else applyRoute({ day: day, view: view || "plan" });
-      },
-      getRoute: function () { return { day: state.day, view: state.view }; },
-      destroy: function () {
-        window.removeEventListener("hashchange", onHash);
-        document.removeEventListener("keydown", onKey);
-        clearTimeout(noteTimer);
-        root.textContent = "";
-        root.classList.remove("sd-root", "sd-nav-open");
-      }
+      navigate: function (hash) { location.hash = hash; },
+      getRoute: function () { return Object.assign({}, state.route); },
+      getDerived: function () { return derived; },
+      destroy: function () { window.removeEventListener("hashchange", onHash); document.removeEventListener("keydown", onKey); root.innerHTML = ""; root.classList.remove("sd-root"); }
     };
   }
 
-  global.StudyDesk = { mount: mount, VIEWS: VIEWS.map(function (v) { return { id: v.id, slug: v.slug, label: v.label }; }), parseHash: parseHash, hashFor: hashFor, STATUSES: Object.keys(STATUS) };
-})(window);
+  global.StudyDesk = { mount: mount, version: "2.0.0" };
+})(typeof window !== "undefined" ? window : this);

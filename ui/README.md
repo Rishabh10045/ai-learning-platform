@@ -1,195 +1,108 @@
-# Study Desk: presentation layer (`ui/`)
+# Study Desk: presentation layer + schedule engine (`ui/`)
 
-UI-only layer for the Study Desk. It renders whatever lesson, video and progress
-data the host gives it. It **does not** fetch, persist, schedule or publish
-anything. Codex owns `curriculum.js`, `lesson-content.js`, `lesson-videos.js`,
-`progress.js` and `app.js`; this folder never edits them.
+Subject-first Study Desk (v2). The UI renders a course and a progress object that the
+host gives it. It never fetches, stores or publishes anything. Codex owns
+`curriculum.js`, `lesson-content.js`, `lesson-videos.js`, `progress.js` and `app.js`
+(persistence and account sync); this folder never edits them.
 
-Preview with example data: open `ui/index.html` (e.g. `/ui/` on GitHub Pages
-once this branch is merged, or serve the repo root locally with any static server).
-Everything in `ui/fixtures/` is **example data** for the preview only.
+Everything in `ui/fixtures/` is **example data**. `course.fixture.js` is not the real
+54-session curriculum; it is a 20-session stand-in with the agreed shape and order.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| `study-desk.js` | Exposes `window.StudyDesk` (no build step, no dependencies) |
-| `study-desk.css` | Styles, all scoped under `.sd-root`; light + dark, responsive |
-| `index.html` | Demo host that mounts the UI with fixtures, in-memory only |
-| `coverage.js` | Exposes `window.StudyDeskCoverage` (`mount`, `analyze`) |
-| `coverage.html` | Coverage check page: syllabus topics vs scheduled days (same curriculum input) |
-| `fixtures/*.fixture.js` | Example curriculum, lessons, videos and progress |
-| `checks/run-checks.mjs` | Headless Chrome checks + screenshots (desktop 1366×900, mobile 390×844) |
+| `engine/schedule-engine.js` | `window.StudyDeskSchedule` / Node module. Pure functions: session resolution, Sunday/weekday budgets, calendar with carry-forward, lesson/practice/test states, quiz gates, `applyChange` reducer, `migrateProgress` |
+| `study-desk.js` | `window.StudyDesk.mount()` (needs the engine loaded first) |
+| `study-desk.css` | Styles scoped under `.sd-root`; light + dark; responsive |
+| `index.html` | Demo host: fixture + preview-only localStorage (`?today=YYYY-MM-DD`, `?migrate=1`, `?store=0`) |
+| `coverage.html`, `coverage.js` | Do all sessions resolve? Is every lesson scheduled? GfG vs `source: added` counts |
+| `fixtures/course.fixture.js` | Example Subject → Module → Lesson course + sessions + `legacyMap` |
+| `fixtures/legacy-progress.fixture.js` | Example progress in the old day-based (v1) shape, for migration |
+| `checks/engine.test.mjs` | `node --test ui/checks/engine.test.mjs` |
+| `checks/run-checks.mjs` | Headless Chrome: desktop 1366×900, mobile 390×844, keyboard, flows |
 
-## Mounting
+## Course contract v2
 
-```html
-<link rel="stylesheet" href="ui/study-desk.css">
-<div id="study-desk"></div>
-<script src="ui/study-desk.js"></script>
-<script>
-  const desk = StudyDesk.mount(document.getElementById("study-desk"), {
-    curriculum, lessons, videos, progress,          // data (shapes below)
-    onProgressChange(change) { /* host persists, then desk.update({ progress }) */ },
-    onNoteChange(day, text) { /* host persists; may return a Promise */ },
-    onCoachAsk(req) { /* optional; return string | {text} | Promise of either */ },
-    headerLinks: [{ label: "Coverage check", href: "coverage.html" }], // optional top-bar links
-    routing: true,            // default: hash routing on window
-    setDocumentTitle: true    // default
-  });
-  desk.update({ progress });  // re-render with any of curriculum/lessons/videos/progress
-  desk.navigate(3, "learn");  // -> #day-3/learn
-  desk.getRoute();            // { day, view }
-  desk.destroy();
-</script>
+```js
+course = {
+  title, subtitle,
+  schedule: {
+    startDate: "2026-11-22",                 // Day 1 (Sunday)
+    sessionStart: "21:00",                   // core starts 9:00 PM IST
+    core: { revision: 12, lesson: 78, dsa: 30 },
+    dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 120 }, // 0 = Sunday
+    day1WarmupLessonId: "JC-01",             // Day 1 uses the revision slot for Java foundations
+    testPassPct: 70
+  },
+  subjects: [{                               // in learning order; DSA subject has dsa: true
+    id, title, short, color, dsa?, daily?,
+    modules: [{ id, title,
+      lessons: [{
+        id: "JC-03",                         // STABLE: progress is keyed by this
+        title, estMinutes,
+        source: { kind: "gfg", course: "…", ref: "Module 2" } | { kind: "added", note },
+        videos: [{ id, title, source, channel, url, durationMin, suggestedWatchMin, segment, kind }],
+        diagram: { title, nodes: ["A", "B", "C"] },          // optional, rendered as a flow
+        notes: [{ type: "h"|"p"|"ul"|"ol"|"code"|"callout", text|items, tone }],
+        revision: ["…"],
+        practice: [{ id, title, platform, difficulty, minutes, prompt, acceptance: [], url, evidenceRequired }],
+        quiz: { passPct, questions: [{ id, q, options: [], answer: index }] },   // lesson check = gate
+        coach: [{ id, prompt }]
+      }],
+      test: { title, passPct, questions: [...] }             // optional module test
+    }]
+  }],
+  sessions: [{ id: "S01", subject: "java-core", lessons: ["JC-02", "JC-03"], dsa: ["DSA-01"], test?: "jc-basics", warmup?: "JC-01" }],
+  legacyMap: { blocks: { oldBlockId: lessonId }, practice: { oldId: newPracticeId }, days: { "1": "S01" } }
+};
 ```
 
-The UI never mutates the objects you pass in. Status buttons and the notes box
-only call the callbacks; the host decides what to store and calls `update()`.
+The number of sessions is always `sessions.length`. `resolveSessions()` reports unknown
+lesson IDs, a lesson under the wrong subject, a session without DSA, unknown tests,
+duplicate IDs, missing `source`, a main subject going backwards in the learning order,
+and lessons that no session schedules.
+
+## Progress v2 (host stores it; `applyChange` produces it)
+
+```js
+{ schemaVersion: 2,
+  lessons:  { "JC-03": { status: "in-progress"|"complete", completedOn: "2026-11-22" } },
+  practice: { "JC-03-p1": { status, evidence: "link or summary", completedOn } },
+  quizzes:  { "JC-03": { score, passed, takenOn, attempts } },
+  tests:    { "jc-basics": { score, passed, takenOn, attempts } },
+  watch:    { "JC-03-v1": { minutes, log: [{ date, minutes }] } },
+  notes:    { "S01": "my notes", "rev-S02": "done" },
+  schedule: { unavailable: { "2026-11-24": true }, dateMinutes: { "2026-11-25": 90 }, dailyMinutes: { 3: 180 } },
+  legacy?:  { … unmapped v1 entries kept as-is … } }
+```
+
+`mount(el, { course, progress, today, sync, onChange, onCoachAsk, headerLinks })`.
+Every action calls `onChange(change)`; change shapes are documented above
+`applyChange` in the engine. Return `{ ok:false, reason }` to show the learner why it
+was refused. `sync = { state: "local"|"signed-in"|"syncing"|"error", label }` drives
+the top-bar pill; the real account sync stays in Codex's progress.js.
+
+## Rules the engine implements
+
+- Today = one main subject + DSA. Day 2 on: 12 min revision → 78 min lesson → 30 min DSA (9:00–11:00 PM IST).
+- Day 1 (Sun 22 Nov 2026): revision slot = Java foundations; 6h 30m = 2h core + 4h 30m stretch practice.
+- Sundays default to 6h 30m, other days to 2h; per-weekday defaults and per-date minutes are adjustable. A day under 2h scales the core and is flagged.
+- Unavailable or missed date: the same unfinished session moves to the next available date (study days ≠ calendar days). Today and later dates are projected to finish their session.
+- A session completes when its lessons, DSA lesson and module test (if any) are done; the next date then gets the next session.
+- A lesson completes only after its lesson check passes and required practice has evidence. Reopening practice reopens the lesson.
+- A module test is locked until every lesson in the module is complete.
+- `migrateProgress(course, v1, legacyMap)` maps day/block/practice/notes progress to stable IDs; unmapped entries go to `progress.legacy`; v2 input is returned unchanged.
 
 ## Routes
 
-| Hash | View |
-| --- | --- |
-| `#day-N` | Session plan (default) |
-| `#day-N/learn` | Videos & notes |
-| `#day-N/practice` | Practice |
-| `#day-N/revision` | Quick revision |
-| `#day-N/my-notes` | My notes |
-| `#day-N/coach` | AI coach |
-
-No hash: the UI replaces it with `#day-<progress.currentDay>` (or the first day
-that isn't complete). An unknown day shows a "not in this plan" message.
-Direct links, reload and back/forward all work. The number of days always comes
-from `curriculum.days.length`.
-
-## Data contract
-
-```js
-curriculum = {
-  title: "Study Desk", subtitle: "optional",
-  startDate: "2026-11-22",        // Day 1's calendar date (YYYY-MM-DD, read as a plain date in Asia/Kolkata)
-  timeZone: "Asia/Kolkata",       // informational
-  sessionStart: "21:00", sessionEnd: "23:00",   // optional: per-block time slots + "fits the session" check
-  sessionWindow: "9:00–11:00 PM IST",           // optional display text
-  tracks: [{                      // course tracks; used for block labels and coverage.html
-    id: "HLD", name: "System Design (HLD)", short: "HLD",
-    syllabus: [{ id: "H-REQUEST-01", title: "Request lifecycle" }]   // the course's topic list
-  }],
-  days: [{
-    day: 1,                       // number used in #day-N
-    date: "2026-11-22",           // optional; overrides startDate + index (the host shifts dates for skipped days)
-    title: "…", summary: "…",
-    tracks: ["HLD"], topicIds: ["H-REQUEST-01"],   // optional; derived from blocks when missing
-    revisionOf: 0,                // optional: day number to revise first
-    blocks: [{ id: "d1-hld", kind: "learn|practice|revision|coach", track: "HLD", topicId: "H-REQUEST-01", title: "…", minutes: 30 }]
-  }]
-};
-
-lessons = {                       // keyed by day number (number or string key)
-  "1": {
-    objectives: ["…"],
-    notes: [                      // long-form English notes, rendered as text (never raw HTML)
-      { type: "h", text: "Heading" }, { type: "p", text: "Paragraph" },
-      { type: "ul" | "ol", items: ["…"] }, { type: "code", lang: "java", text: "…" },
-      { type: "callout", tone: "info|tip|warn", text: "…" }
-    ],                            // a plain string is treated as a paragraph
-    revision: ["suggested bullet", "…"],
-    practice: [{ id, title, platform, difficulty, minutes, prompt, acceptance: ["…"], url }],
-    coach: [{ id, prompt }]
-  }
-};
-
-videos = {                        // keyed by day number; shown BEFORE the notes
-  "1": [{ id, title, source: "YouTube", channel, url, durationMin, suggestedWatchMin, segment: "00:00–15:00", note, kind: "video|article" }]
-};
-
-progress = {
-  currentDay: 2,                  // optional default route
-  days: {
-    "1": {
-      status: "pending|in-progress|complete",   // optional; else derived from blocks
-      blocks: { "d1-b1": "complete" },
-      practice: { "lab-1-1": "in-progress" },
-      notes: "free text from My notes"
-    }
-  }
-};
-
-// onProgressChange receives:
-{ day: 1, scope: "day" | "block" | "practice", id: "d1-b1" | null, status: "pending" | "in-progress" | "complete" }
-```
-
-Missing pieces render empty-state messages instead of failing.
-
-**Dates.** A day shows `day.date` when it is present; otherwise it shows
-`startDate + (position in days[])`. The UI only displays dates. Moving days
-forward when one is skipped is the host's job (it can write `date` on each day).
-
-**Session plan.** Each block shows its course (`tracks[].name` from
-`block.track`), topic title, topic ID, minutes and a time slot counted from
-`sessionStart`. The plan prints the total and warns when it runs past
-`sessionEnd`.
-
-## Coverage check (`coverage.html`)
-
-`StudyDeskCoverage.mount(root, { curriculum, deskHref: "index.html" })` reads
-the same `curriculum` object. For each `tracks[]` entry it lists every
-`syllabus[]` topic with the day(s) whose blocks carry that `topicId` (linked to
-`index.html#day-N`). It flags topics **not scheduled on any day**, and topics
-scheduled under a track but missing from its syllabus. An overall "All
-unscheduled topics" list closes the page. `StudyDeskCoverage.analyze(curriculum)`
-returns the same result as plain data. The fixture leaves 2 topics per track
-unscheduled on purpose so the report has something to show.
-
-## Status states
-
-Not started (○, dashed grey; status value `"pending"`, also the default for any
-missing progress), In progress (◐, amber), Complete (✓, green). Every
-badge carries an icon and a text label, so state never depends on color alone.
-
-## Views
-
-- **Session plan:** blocks with minutes, kind, topic ID and a status toggle; revision-first callout when `revisionOf` is set; day status buttons.
-- **Videos & notes:** source, suggested watch time, segment and length first, then long-form notes.
-- **Practice:** prompt, acceptance criteria, platform link, status toggle.
-- **Quick revision:** *My notes* card first and emphasised, suggested bullets below.
-- **My notes:** textarea; debounced `onNoteChange(day, text)`.
-- **AI coach:** one question per card, copy-prompt button; answer box + feedback only if the host passes `onCoachAsk`.
-
-## Accessibility
-
-Skip link, visible focus rings, `aria-current="page"` on the active day and
-view in the sidebar and tabs, arrow-key movement in the day list, Enter in the
-search box opens the first match, Esc closes the mobile drawer, live region for
-search counts and note save state, and reduced-motion support.
+`#today` (default), `#course`, `#calendar`, `#day-N` (session plan), `#day-N/learn`,
+`/practice`, `/revision`, `/my-notes`, `/coach`, `/test` (sessions with a module test),
+`#lesson/<ID>` (redirects to that lesson's session, Videos & notes).
 
 ## Checks
 
-```bash
-npm i puppeteer-core            # anywhere; point NODE_PATH at its node_modules
-NODE_PATH=/path/to/node_modules node ui/checks/run-checks.mjs /tmp/study-desk-checks
 ```
-
-It checks every route on desktop and mobile, that there's no horizontal
-overflow, the learn-view order (video before notes) and the revision order
-(My notes before suggestions), back/forward, search filtering, the status
-toggle, the skip link and that no console errors appear, and it saves screenshots.
-
-Keyboard checks (explicit):
-- **Tab order (desktop):** skip link → search → Day 1 → Day 1 lesson sidebar (6 views) → Day 2. Every stop shows a ≥2px `:focus-visible` outline.
-- **Skip link:** Enter moves focus to the lesson content, and the next Tab lands on the view tabs. Enter on a tab opens that view.
-- **Day index arrows:** ArrowDown from search enters the list; ArrowDown/ArrowUp walk the day links and the active day's lesson-sidebar links; ArrowUp from the first day returns to search.
-- **Enter:** in search, it opens the first match. On a day link or lesson-sidebar link, it opens that route and `aria-current` moves.
-- **Space:** toggles a block's status.
-- Desktop Tab order now starts: skip link → Coverage check link → search.
-- **Mobile:** Tab reaches the Days toggle; Enter opens the drawer and focuses search; Esc closes it and returns focus to the toggle.
-
-Other checks: the fixture loads with every day and block "Not started". Day 1 is
-2026-11-22, and the dates run consecutively from there. Day 1 has 4 course blocks
-(9:00–11:00 PM). Day 2 onward starts with a 12-minute revision followed by the 4
-courses, 2 h in total. The header link opens the coverage page, which shows 4
-tracks, 24/32 topics scheduled and 2 unscheduled per track, and its day links
-open the desk.
-
-Content, persistence and publishing to `main` are left to the integration step.
+node --test ui/checks/engine.test.mjs
+NODE_PATH=<dir with puppeteer-core>/node_modules node ui/checks/run-checks.mjs <outDir>
+```
