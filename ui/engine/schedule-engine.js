@@ -5,7 +5,7 @@
  * It reads a subject-first course (Subject -> Module -> Lesson, sessions that
  * reference stable lesson IDs) plus a progress object, and answers:
  *   - do all sessions resolve to real lessons?            resolveSessions()
- *   - how long is a given date (Sunday vs weekday)?       dayBudget()
+ *   - how long is a given date (weekend vs weekday)?      dayBudget()
  *   - what are the blocks of a session on that date?      sessionBlocks()
  *   - which session falls on which date, with unavailable dates carrying the
  *     same unfinished session forward?                    buildCalendar()
@@ -28,7 +28,7 @@
     startDate: "2026-11-22",
     sessionStart: "21:00",
     core: { revision: 12, lesson: 78, dsa: 30 },          // 120 min core (D6)
-    dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 120 }, // Sunday 6h30m, other days 2h
+    dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 390 }, // Sat + Sun long day 6h30m (2h core + 4h30m stretch), Mon–Fri 2h (D7)
     testPassPct: 70,
     horizonDays: 120
   };
@@ -147,7 +147,7 @@
     var wd = weekday(date);
     var minutes = settings.dateMinutes[date] != null ? +settings.dateMinutes[date] : +settings.dailyMinutes[wd];
     var core = settings.core.revision + settings.core.lesson + settings.core.dsa;
-    return { date: date, weekday: wd, dayName: DAY_NAMES[wd], kind: wd === 0 ? "sunday" : "weekday",
+    return { date: date, weekday: wd, dayName: DAY_NAMES[wd], kind: wd === 0 || wd === 6 ? "weekend" : "weekday",
       minutes: minutes, core: Math.min(core, minutes), stretch: Math.max(0, minutes - core), short: minutes < core,
       overridden: settings.dateMinutes[date] != null };
   }

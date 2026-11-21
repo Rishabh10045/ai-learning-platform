@@ -185,7 +185,7 @@ window.STUDY_DESK_FIXTURES = window.STUDY_DESK_FIXTURES || {};
     title: "Study Desk", subtitle: "Subject-first plan · example fixture",
     fixture: true,
     schedule: { startDate: "2026-11-22", sessionStart: "21:00", core: { revision: 12, lesson: 78, dsa: 30 },
-      dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 120 }, day1WarmupLessonId: "JC-01", testPassPct: 70, timeZone: "Asia/Kolkata" },
+      dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 390 }, day1WarmupLessonId: "JC-01", testPassPct: 70, timeZone: "Asia/Kolkata" },
     subjects: subjects,
     sessions: sessions,
     // Old day-based fixture (v1 contract) -> stable lesson IDs, for migrateProgress().

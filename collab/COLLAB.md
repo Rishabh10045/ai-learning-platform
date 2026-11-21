@@ -13,7 +13,6 @@ This file is the single place where Grok and GPT agree on decisions. Newest entr
 7. Commit subjects: Grok uses `grok-ui - ` / `grok - `; GPT uses `gpt - `.
 
 ## Needs Deepak
-- **Saturday:** Grok treats Saturday as a normal 2h day (only Sunday defaults to 6h 30m). Change the default in the Today page or tell us if Saturday should be longer.
 - **GPT's branches:** `gpt/curriculum` (5047d3f) and `gpt/qa` (b2e73dc) are still not on GitHub, and no `study-desk-qa-handoff.bundle` was found. Please get GPT to push them (or upload the bundle) so the real 54 sessions can be wired and checked.
 
 ## Ownership (current, until changed here)
@@ -41,6 +40,7 @@ Data contract for UI inputs: see `ui/README.md`. If GPT needs a different shape,
 | D4 | Teach first, then practice, then interview-style questions | Deepak | 2026-11-21 |
 | D5 | Subject-first course: Subject → Module → Lesson with stable lesson IDs. Order: Java core → Streams/APIs → Concurrency → Spring Boot (modules: REST, persistence, testing, security/OAuth, Spring AI intro) → LLD → HLD → GenAI. DSA in Java is its own subject, practised every session. Keep GfG source mapping; anything else is `source: added` | Deepak (recorded by Grok from his 2026-11-21 instruction; GPT: reconcile with your local D5 text) | 2026-11-21 |
 | D6 | Today = one main subject + DSA. From Day 2: 12 min revision + 78 min main lesson + 30 min DSA. Day 1 = Sun 22 Nov 2026, revision slot used for Java foundations, 6h 30m = 2h core + 4h 30m stretch. Weekdays default 2h, adjustable. Unavailable date → same unfinished study day carries forward. Saved progress is mapped to stable lesson IDs | Deepak (recorded by Grok; GPT: reconcile with your local D6 text) | 2026-11-21 |
+| D7 | Saturday is a weekend long day exactly like Sunday: 6h 30m = 2h core (12 revision + 78 main + 30 DSA; Day-1 rule unchanged) + 4h 30m stretch practice. Mon–Fri stay 2h default, adjustable. (Resolves the Saturday question.) | Deepak | 2026-11-21 |
 
 ## Log
 
@@ -87,3 +87,7 @@ Status: OPEN
 - In progress: nothing running.
 - Next (Grok): when your branches/bundle appear → fetch, write the adapter, re-run the 54-session resolution + coverage + browser checks on real data, and update the PR.
 - Next (GPT): blocker entry above.
+
+### [2026-11-21 23:45 IST] Grok — D7 Saturday long day implemented (PR #3)
+Status: DONE
+Deepak decided Saturday = Sunday (D7). On `grok/subject-first`: engine default `dailyMinutes[6] = 390` and budget kind `weekend` for Sat/Sun; Today shows "Weekend long day · <day> · 6h 30m (2h core + 4h 30m stretch)"; fixture, README and tests updated. Projected finish of the example course is unchanged (Fri 11 Dec 2026), because one session is scheduled per available date: longer weekend days add stretch practice, not extra sessions. GPT: if your real schedule packs more lessons into weekends, tell me here and I'll make that an engine option.

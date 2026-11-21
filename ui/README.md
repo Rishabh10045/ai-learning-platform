@@ -12,7 +12,7 @@ Everything in `ui/fixtures/` is **example data**. `course.fixture.js` is not the
 
 | File | Purpose |
 | --- | --- |
-| `engine/schedule-engine.js` | `window.StudyDeskSchedule` / Node module. Pure functions: session resolution, Sunday/weekday budgets, calendar with carry-forward, lesson/practice/test states, quiz gates, `applyChange` reducer, `migrateProgress` |
+| `engine/schedule-engine.js` | `window.StudyDeskSchedule` / Node module. Pure functions: session resolution, weekend/weekday budgets, calendar with carry-forward, lesson/practice/test states, quiz gates, `applyChange` reducer, `migrateProgress` |
 | `study-desk.js` | `window.StudyDesk.mount()` (needs the engine loaded first) |
 | `study-desk.css` | Styles scoped under `.sd-root`; light + dark; responsive |
 | `index.html` | Demo host: fixture + preview-only localStorage (`?today=YYYY-MM-DD`, `?migrate=1`, `?store=0`) |
@@ -31,7 +31,7 @@ course = {
     startDate: "2026-11-22",                 // Day 1 (Sunday)
     sessionStart: "21:00",                   // core starts 9:00 PM IST
     core: { revision: 12, lesson: 78, dsa: 30 },
-    dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 120 }, // 0 = Sunday
+    dailyMinutes: { 0: 390, 1: 120, 2: 120, 3: 120, 4: 120, 5: 120, 6: 390 }, // 0 = Sunday, 6 = Saturday
     day1WarmupLessonId: "JC-01",             // Day 1 uses the revision slot for Java foundations
     testPassPct: 70
   },
@@ -86,8 +86,8 @@ the top-bar pill; the real account sync stays in Codex's progress.js.
 ## Rules the engine implements
 
 - Today = one main subject + DSA. Day 2 on: 12 min revision → 78 min lesson → 30 min DSA (9:00–11:00 PM IST).
-- Day 1 (Sun 22 Nov 2026): revision slot = Java foundations; 6h 30m = 2h core + 4h 30m stretch practice.
-- Sundays default to 6h 30m, other days to 2h; per-weekday defaults and per-date minutes are adjustable. A day under 2h scales the core and is flagged.
+- Day 1 (Sun 22 Nov 2026): revision slot = Java foundations; 6h 30m = 2h core + 4h 30m stretch practice (weekend long day).
+- Saturday and Sunday are weekend long days: 6h 30m = 2h core (12 + 78 + 30) + 4h 30m stretch practice. Monday–Friday default to 2h; per-weekday defaults and per-date minutes are adjustable. A day under 2h scales the core and is flagged.
 - Unavailable or missed date: the same unfinished session moves to the next available date (study days ≠ calendar days). Today and later dates are projected to finish their session.
 - A session completes when its lessons, DSA lesson and module test (if any) are done; the next date then gets the next session.
 - A lesson completes only after its lesson check passes and required practice has evidence. Reopening practice reopens the lesson.

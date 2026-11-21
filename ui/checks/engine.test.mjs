@@ -71,7 +71,23 @@ test("weekday (Mon 23 Nov) is 2h: 12 revision + 78 lesson + 30 DSA, revising ses
   assert.equal(d2.blocks[0].revisionOf, 1);
   assert.deepEqual(d2.blocks[0].lessonIds, ["JC-02", "JC-03"]);
   const nextSunday = cal.entries.find(e => e.date === "2026-11-29");
-  assert.equal(nextSunday.budget.minutes, 390);
+  assert.equal(nextSunday.budget.minutes, 390); assert.equal(nextSunday.budget.kind, "weekend");
+  for (const d of ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"]) {
+    const e = S.entryFor(cal, d); assert.equal(e.budget.minutes, 120, d); assert.equal(e.budget.kind, "weekday", d); assert.equal(e.budget.stretch, 0, d);
+  }
+});
+
+test("Saturday 28 Nov is a weekend long day: 6h30m = 12 revision + 78 lesson + 30 DSA + 4h30m stretch", () => {
+  const cal = S.buildCalendar(course, {}, { today: "2026-11-21" });
+  const sat = S.entryFor(cal, "2026-11-28");
+  assert.equal(sat.budget.dayName, "Saturday"); assert.equal(sat.budget.kind, "weekend");
+  assert.equal(sat.n, 7);
+  assert.equal(sat.budget.minutes, 390); assert.equal(sat.budget.core, 120); assert.equal(sat.budget.stretch, 270);
+  assert.deepEqual(sat.blocks.map(b => [b.kind, b.minutes, b.start]), [["revision", 12, "21:00"], ["lesson", 78, "21:12"], ["dsa", 30, "22:30"], ["stretch", 270, null]]);
+  assert.equal(sat.blocks[0].revisionOf, 6);
+  // Saturday is adjustable like any day.
+  const p = S.applyChange(course, {}, { type: "minutes", weekday: 6, minutes: 240 }).progress;
+  assert.equal(S.entryFor(S.buildCalendar(course, p, { today: "2026-11-21" }), "2026-11-28").budget.stretch, 120);
 });
 
 test("weekdays are adjustable: weekday default and per-date override; short days scale the core", () => {
@@ -90,6 +106,7 @@ test("unavailable date carries the same unfinished session to the next date", ()
   const mon = S.entryFor(cal, "2026-11-23"), tue = S.entryFor(cal, "2026-11-24"), wed = S.entryFor(cal, "2026-11-25");
   assert.equal(mon.n, 2); assert.equal(tue.unavailable, true); assert.equal(tue.carries, 3); assert.equal(wed.n, 3);
   const base = S.buildCalendar(course, {}, { today: "2026-11-21" });
+  assert.equal(base.finishDate, "2026-12-11", "one session per available date: long weekend days add stretch, not extra sessions");
   assert.equal(S.diffDays(base.finishDate, cal.finishDate), 1, "finish date moves by one day");
   const undo = S.applyChange(course, p, { type: "unavailable", date: "2026-11-24", value: false }).progress;
   assert.equal(S.buildCalendar(course, undo, { today: "2026-11-21" }).finishDate, base.finishDate);
