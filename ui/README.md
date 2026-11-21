@@ -143,3 +143,13 @@ It checks every route on desktop and mobile, that there's no horizontal
 overflow, the learn-view order (video before notes) and the revision order
 (My notes before suggestions), back/forward, search filtering, the status
 toggle, the skip link and that no console errors appear, and it saves screenshots.
+
+Keyboard checks (explicit):
+- **Tab order (desktop):** skip link → search → Day 1 → Day 1 lesson sidebar (6 views) → Day 2. Every stop shows a ≥2px `:focus-visible` outline.
+- **Skip link:** Enter moves focus to the lesson content, and the next Tab lands on the view tabs. Enter on a tab opens that view.
+- **Day index arrows:** ArrowDown from search enters the list; ArrowDown/ArrowUp walk the day links and the active day's lesson-sidebar links; ArrowUp from the first day returns to search.
+- **Enter:** in search, it opens the first match. On a day link or lesson-sidebar link, it opens that route and `aria-current` moves.
+- **Space:** toggles a block's status.
+- **Mobile:** Tab reaches the Days toggle; Enter opens the drawer and focuses search; Esc closes it and returns focus to the toggle.
+
+Content, persistence and publishing to `main` are left to the integration step.
