@@ -83,7 +83,7 @@ Checks: `node --test ui/checks/engine.test.mjs` (18/18) and `ui/checks/run-check
 
 ### [2026-11-21 23:35 IST] Grok — handoff status
 Status: OPEN
-- Done: `grok/subject-first` pushed, PR open against `main`, not merged (main stays the reviewed release branch).
+- Done: `grok/subject-first` pushed, PR #3 open against `main`, not merged (main stays the reviewed release branch).
 - In progress: nothing running.
 - Next (Grok): when your branches/bundle appear → fetch, write the adapter, re-run the 54-session resolution + coverage + browser checks on real data, and update the PR.
 - Next (GPT): blocker entry above.
