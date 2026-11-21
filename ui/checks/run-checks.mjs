@@ -9,6 +9,17 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+let AXE = null; try { AXE = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8"); } catch (e) { /* reported as a failed check below */ }
+// The fixture, read in Node so expectations follow the data instead of hard-coded session numbers.
+globalThis.window = globalThis.window || {};
+const SE = require("../engine/schedule-engine.js");
+require("../fixtures/course.fixture.js");
+const COURSE = window.STUDY_DESK_FIXTURES.course, N = COURSE.sessions.length;
+const RES = SE.resolveSessions(COURSE);
+const sessionOf = id => Math.min(...RES.scheduled[id]);
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmtD = iso => SE.DAY_NAMES[SE.weekday(iso)].slice(0, 3) + ", " + (+iso.slice(8)) + " " + MON[+iso.slice(5, 7) - 1] + " " + iso.slice(0, 4);
+const BASE_FINISH = SE.addDays(COURSE.schedule.startDate, N - 1);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..", "..");
 const outDir = path.resolve(process.argv[2] || "study-desk-checks");
@@ -28,7 +39,8 @@ const url = (q, hash = "") => `${origin}/ui/index.html${q ? "?" + q : ""}${hash}
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME || "/usr/bin/google-chrome", headless: true, args: ["--no-sandbox"] });
 const results = [];
 const check = (name, ok, detail = "") => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  (" + detail + ")" : ""}`); };
-const viewports = { desktop: { width: 1366, height: 900 }, mobile: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
+const viewports = { desktop: { width: 1366, height: 900 }, mobile: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  mobile320: { width: 320, height: 640, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function newPage(vp, errors) {
@@ -43,7 +55,7 @@ async function go(page, q, hash) { await page.goto("about:blank"); await page.go
 const info = page => page.evaluate(() => {
   const m = document.querySelector(".sd-main");
   return { view: m && m.dataset.view, day: m && m.dataset.day, hash: location.hash, h1: (document.querySelector(".sd-main h1") || {}).textContent,
-    overflowX: document.documentElement.scrollWidth > window.innerWidth + 1 };
+    overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth };
 });
 const text = (page, sel) => page.$eval(sel, e => e.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
 const allText = (page, sel) => page.$$eval(sel, es => es.map(e => e.innerText.replace(/\s+/g, " ").trim()));
@@ -62,7 +74,8 @@ async function finishLessonViaHost(page, id) {
 const routes = [
   ["", "today"], ["#today", "today"], ["#course", "course"], ["#calendar", "calendar"],
   ["#day-1", "plan", "1"], ["#day-1/learn", "learn", "1"], ["#day-1/practice", "practice", "1"], ["#day-2/revision", "revision", "2"],
-  ["#day-2/my-notes", "my-notes", "2"], ["#day-2/coach", "coach", "2"], ["#day-2/test", "test", "2"], ["#day-999", "not-found"]
+  ["#day-2/my-notes", "my-notes", "2"], ["#day-2/coach", "coach", "2"], ["#day-3/test", "test", "3"], ["#day-999", "not-found"],
+  ["#day-0", "not-found"], ["#%E0%A4%A", "not-found"], ["#lesson/NOPE", "not-found"]
 ];
 for (const [vpName, vp] of Object.entries(viewports)) {
   const errors = [];
@@ -71,12 +84,12 @@ for (const [vpName, vp] of Object.entries(viewports)) {
     await go(page, "store=0&today=2026-11-22", hash);
     const i = await info(page);
     check(`${vpName} ${hash || "(no hash)"} renders ${view}`, i.view === view && (!day || i.day === day), `view=${i.view} day=${i.day} h1=${i.h1}`);
-    check(`${vpName} ${hash || "(no hash)"} no horizontal overflow`, !i.overflowX);
+    check(`${vpName} ${hash || "(no hash)"} no horizontal overflow (QA M8)`, !i.overflowX, `scrollWidth=${i.sw} clientWidth=${i.cw}`);
     await page.screenshot({ path: path.join(outDir, `${vpName}${(hash || "_default").replace(/[#/]/g, "_")}.png`), fullPage: vpName === "desktop" });
   }
   await go(page, "store=0&today=2026-11-22", "#lesson/SB-07");
   let i = await info(page);
-  check(`${vpName} #lesson/SB-07 opens its session's Videos & notes`, i.view === "learn" && i.hash === "#day-12/learn", i.hash);
+  check(`${vpName} #lesson/SB-07 opens its session's Videos & notes`, i.view === "learn" && i.hash === `#day-${sessionOf("SB-07")}/learn`, i.hash);
   // reload + back/forward on a deep link
   await go(page, "store=0&today=2026-11-22", "#day-3/practice");
   await page.reload({ waitUntil: "load" });
@@ -99,7 +112,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   await go(page, "store=0&today=2026-11-22", "#today");
   const h1 = await text(page, ".sd-main h1"), chip = await text(page, ".sd-chip-budget");
   const blocks = await allText(page, ".sd-timeline .sd-tblock");
-  check("Today (Sun 22 Nov) is Session 1 with Java core + DSA", /Session 1 of 20/.test(h1) && /Java core \+ DSA/.test(h1), h1);
+  check("Today (Sun 22 Nov) is Session 1 with Java core + DSA", new RegExp(`Session 1 of ${N}\\b`).test(h1) && /Java core \+ DSA/.test(h1), h1);
   check("Sunday Day 1 shows Weekend long day 6h 30m (2h core + 4h 30m stretch)", /Weekend long day · Sunday · 6h 30m \(2h core \+ 4h 30m stretch\)/.test(chip), chip);
   check("Day 1 blocks: 9:00 PM Java foundations 12 min, 9:12 PM main lesson 1h 18m, 10:30 PM DSA 30 min, stretch 4h 30m",
     /^9:00 PM 12 min Java foundations/i.test(blocks[0]) && /^9:12 PM 1h 18m Main lesson/i.test(blocks[1]) && /^10:30 PM 30 min DSA practice/i.test(blocks[2]) && /^Any time 4h 30m Stretch practice/i.test(blocks[3]), blocks.map(b => b.slice(0, 40)).join(" | "));
@@ -130,7 +143,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   });
   const sh1 = await text(page, ".sd-main h1"), schip = await text(page, ".sd-chip-budget"), sb = await allText(page, ".sd-timeline .sd-tblock");
   check("Saturday (28 Nov) Today: Weekend long day 6h 30m = 12 revision + 78 lesson + 30 DSA + 4h 30m stretch",
-    /Weekend long day · Saturday · 6h 30m \(2h core \+ 4h 30m stretch\)/.test(schip) && sb.length === 4 && /^9:00 PM 12 min Quick revision/i.test(sb[0]) && /^9:12 PM 1h 18m Main lesson/i.test(sb[1]) && /^10:30 PM 30 min DSA/i.test(sb[2]) && /^Any time 4h 30m Stretch/i.test(sb[3]) && seeded && /Session 7 of 20/.test(sh1) && /6\/20 sessions/.test(await text(page, ".sd-overall")), sh1 + " | " + schip);
+    /Weekend long day · Saturday · 6h 30m \(2h core \+ 4h 30m stretch\)/.test(schip) && sb.length === 4 && /^9:00 PM 12 min Quick revision/i.test(sb[0]) && /^9:12 PM 1h 18m Main lesson/i.test(sb[1]) && /^10:30 PM 30 min DSA/i.test(sb[2]) && /^Any time 4h 30m Stretch/i.test(sb[3]) && seeded && new RegExp(`Session 7 of ${N}\\b`).test(sh1) && new RegExp(`6/${N} sessions`).test(await text(page, ".sd-overall")), sh1 + " | " + schip);
   await page.screenshot({ path: path.join(outDir, "flow-5-saturday-today.png"), fullPage: true });
   await page.setViewport(viewports.mobile);
   await page.screenshot({ path: path.join(outDir, "mobile-saturday-today.png"), fullPage: false });
@@ -141,7 +154,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   // Missed date: today = Mon 23 Nov with nothing done -> session 1 carried forward on a 2h weekday.
   await go(page, "store=0&today=2026-11-23", "#today");
   const mh1 = await text(page, ".sd-main h1"), mchips = await allText(page, ".sd-hero-meta .sd-chip");
-  check("Missed Sunday: Mon 23 Nov still shows Session 1, carried forward, 2h", /Session 1 of 20/.test(mh1) && mchips.some(c => /Carried forward/.test(c)) && mchips.some(c => /Monday · 2h/.test(c)), mh1 + " | " + mchips.join(" | "));
+  check("Missed Sunday: Mon 23 Nov still shows Session 1, carried forward, 2h", new RegExp(`Session 1 of ${N}\\b`).test(mh1) && mchips.some(c => /Carried forward/.test(c)) && mchips.some(c => /Monday · 2h/.test(c)), mh1 + " | " + mchips.join(" | "));
 
   // Unavailable date through the UI.
   await go(page, "store=0&today=2026-11-22", "#today");
@@ -156,7 +169,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   await page.screenshot({ path: path.join(outDir, "flow-2-unavailable-calendar.png"), fullPage: false });
   await page.click(".sd-calendar li:nth-child(1) .sd-cal-off input"); await sleep(50);
   const finishBack = await page.evaluate(() => document.querySelector(".sd-hero .sd-muted").textContent);
-  check("Unchecking the day off restores the original finish date", /Fri, 11 Dec 2026/.test(finishBack) && /Sat, 12 Dec 2026/.test(finishOff), finishOff.match(/finish: (.*)\./)?.[1] + " -> " + finishBack.match(/finish: (.*)\./)?.[1]);
+  check("Unchecking the day off restores the original finish date", finishBack.includes(fmtD(BASE_FINISH)) && finishOff.includes(fmtD(SE.addDays(BASE_FINISH, 1))), finishOff.match(/finish: (.*)\./)?.[1] + " -> " + finishBack.match(/finish: (.*)\./)?.[1]);
 
   // Weekday minutes are adjustable (per date and weekday default).
   await go(page, "store=0&today=2026-11-23", "#today");
@@ -167,6 +180,11 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   await page.$eval("#sd-wdmins", e => e.value = "180"); await page.click("#sd-ctl-h ~ .sd-ctl-row:nth-of-type(3) .sd-btn"); await sleep(50);
   chips = await allText(page, ".sd-hero-meta .sd-chip");
   check("Weekday default: every Monday 3h = 2h core + 1h stretch", chips.some(c => /Monday · 3h \(2h core \+ 1h stretch\)/.test(c)), chips.join(" | "));
+  const sched = await page.evaluate(() => window.__studyDeskProgress().schedule);
+  check("QA H2: Save default stores the Monday default (not a one-date override)", sched.dailyMinutes[1] === 180 && !sched.dateMinutes["2026-11-23"], JSON.stringify(sched));
+  await page.evaluate(() => { location.hash = "#calendar"; }); await sleep(80);
+  const mon30 = (await allText(page, ".sd-calendar li")).find(t => /Mon, 30 Nov/.test(t)) || "";
+  check("QA H2: the default applies to the next Monday too (30 Nov = 3h)", /\b3h\b/.test(mon30), mon30.slice(0, 90));
   check("schedule views: no console errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();
 }
@@ -187,42 +205,43 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   check("Correct lesson-check answer passes the gate", /Passed/.test(await text(page, "#lesson-JC-01 .sd-quiz h3")));
   // Evidence gate on practice
   await page.goto(url("today=2026-11-22", "#day-1/practice"), { waitUntil: "load" });
-  await page.click("#practice-JC-01-p1 .sd-statechoice.is-complete"); await sleep(50);
+  await page.click("#practice-JC-02-p1 .sd-statechoice.is-complete"); await sleep(50);
   check("Practice cannot be completed without assignment evidence", /evidence/.test(await text(page, ".sd-toast")));
-  await page.type("#ev-JC-01-p1", "https://github.com/example/jc01-hello");
-  await page.click("#practice-JC-01-p1 .sd-statechoice.is-complete"); await sleep(50);
-  check("Practice completes with evidence saved", await page.evaluate(() => { const p = window.__studyDeskProgress().practice["JC-01-p1"]; return p && p.status === "complete" && /jc01/.test(p.evidence); }));
+  await page.type("#ev-JC-02-p1", "https://github.com/example/jc02-types");
+  await page.click("#practice-JC-02-p1 .sd-statechoice.is-complete"); await sleep(50);
+  check("Practice completes with evidence saved", await page.evaluate(() => { const p = window.__studyDeskProgress().practice["JC-02-p1"]; return p && p.status === "complete" && /jc02/.test(p.evidence); }));
   await page.goto(url("today=2026-11-22", "#day-1/learn"), { waitUntil: "load" });
   await page.type("#lesson-JC-01 .sd-watchlog input", "12"); await page.click("#lesson-JC-01 .sd-watchlog button"); await sleep(50);
   check("Watch log records minutes with the date", /Watched: 12 min \(Sun, 22 Nov 12m\)/.test(await text(page, "#lesson-JC-01 .sd-watchlog")));
   await page.click("#lesson-JC-01 .sd-lesson-actions .sd-btn-primary"); await sleep(50);
   check("Lesson JC-01 completes once gates are met", /Complete/.test(await text(page, "#lesson-JC-01 .sd-card-h .sd-badge")));
   // Finish the rest of session 1 through the same host reducer the UI uses.
-  const ok1 = (await Promise.all(["JC-02", "JC-03", "DSA-01"].map(() => true))) && await finishLessonViaHost(page, "JC-02") && await finishLessonViaHost(page, "JC-03") && await finishLessonViaHost(page, "DSA-01");
+  const ok1 = await finishLessonViaHost(page, "JC-02") && await finishLessonViaHost(page, "DSA-01");
   await page.goto(url("today=2026-11-22", "#today"), { waitUntil: "load" });
-  check("Session 1 complete on Day 1", ok1 && /Complete/.test(await text(page, ".sd-hero-meta .sd-badge")) && /1\/20 sessions/.test(await text(page, ".sd-overall")));
+  check("Session 1 complete on Day 1", ok1 && /Complete/.test(await text(page, ".sd-hero-meta .sd-badge")) && new RegExp(`1/${N} sessions`).test(await text(page, ".sd-overall")));
   // Next day
   await page.goto(url("today=2026-11-23", "#today"), { waitUntil: "load" });
   const n2 = await text(page, ".sd-main h1"), tl = await allText(page, ".sd-timeline .sd-tblock");
-  check("Next-day progression: Mon 23 Nov shows Session 2 with revision of session 1", /Session 2 of 20/.test(n2) && /Quick revision of session 1/.test(tl[0]), n2);
-  await page.goto(url("today=2026-11-23", "#day-2/test"), { waitUntil: "load" });
+  check("Next-day progression: Mon 23 Nov shows Session 2 with revision of session 1", new RegExp(`Session 2 of ${N}\\b`).test(n2) && /Quick revision of session 1/.test(tl[0]), n2);
+  await finishLessonViaHost(page, "JC-03"); await finishLessonViaHost(page, "DSA-02");   // session 2 on Mon 23 Nov
+  await page.goto(url("today=2026-11-24", "#day-3/test"), { waitUntil: "load" });
   check("Module test is locked while JC-04 is open", /Test locked/.test(await text(page, ".sd-testcard .sd-card-h")) && /Inheritance/.test(await text(page, ".sd-testcard ul")));
-  await finishLessonViaHost(page, "JC-04"); await finishLessonViaHost(page, "DSA-02");
+  await finishLessonViaHost(page, "JC-04"); await finishLessonViaHost(page, "DSA-03");
   await page.reload({ waitUntil: "load" });
   check("Module test unlocks when every lesson in the module is complete", /Test ready/.test(await text(page, ".sd-testcard .sd-card-h")));
   await page.click("#t-jc-basics-0-1"); await page.click("#t-jc-basics-1-0"); await page.click("#t-jc-basics-2-1"); await page.click(".sd-testcard button[type=submit]"); await sleep(50);
-  check("Failing the test (0/3) shows retry and keeps session 2 open", /retry/i.test(await text(page, ".sd-testcard .sd-card-h")) && /In progress/.test(await text(page, ".sd-dayhead .sd-badge")));
+  check("Failing the test (0/3) shows retry and keeps session 3 open", /retry/i.test(await text(page, ".sd-testcard .sd-card-h")) && /In progress/.test(await text(page, ".sd-dayhead .sd-badge")));
   await page.click("#t-jc-basics-0-0"); await page.click("#t-jc-basics-1-1"); await page.click("#t-jc-basics-2-0"); await page.click(".sd-testcard button[type=submit]"); await sleep(50);
-  check("Passing the test completes session 2", /Test passed/.test(await text(page, ".sd-testcard .sd-card-h")) && /Complete/.test(await text(page, ".sd-dayhead .sd-badge")));
+  check("Passing the test completes session 3", /Test passed/.test(await text(page, ".sd-testcard .sd-card-h")) && /Complete/.test(await text(page, ".sd-dayhead .sd-badge")));
   await page.screenshot({ path: path.join(outDir, "flow-3-test-passed.png"), fullPage: false });
-  await page.goto(url("today=2026-11-24", "#today"), { waitUntil: "load" });
-  check("Tue 24 Nov moves on to Session 3", /Session 3 of 20/.test(await text(page, ".sd-main h1")));
-  await page.goto(url("today=2026-11-24", "#course"), { waitUntil: "load" });
+  await page.goto(url("today=2026-11-25", "#today"), { waitUntil: "load" });
+  check("Wed 25 Nov moves on to Session 4", new RegExp(`Session 4 of ${N}\\b`).test(await text(page, ".sd-main h1")));
+  await page.goto(url("today=2026-11-25", "#course"), { waitUntil: "load" });
   const jc = await text(page, "#sd-s-java-core"), bar = await page.$eval("#sd-s-java-core", e => e.closest(".sd-card").querySelector(".sd-progline [role=progressbar]").getAttribute("aria-valuenow"));
-  check("Course view: Java core progress bar = 4 lessons + 1 test done of 8 items (63%)", bar === "63", "aria-valuenow=" + bar + " " + jc);
+  check("Course view: Java core progress bar = 4 lessons + 1 test done of 9 items (56%)", bar === "56", "aria-valuenow=" + bar + " " + jc);
   await page.screenshot({ path: path.join(outDir, "flow-4-course-progress.png"), fullPage: true });
   // Complete -> reopen -> uncheck -> reload (one browser, preview localStorage)
-  await page.goto(url("today=2026-11-24", "#day-1/learn"), { waitUntil: "load" });
+  await page.goto(url("today=2026-11-25", "#day-1/learn"), { waitUntil: "load" });
   await page.click("#lesson-JC-02 .sd-lesson-actions .sd-btn"); await sleep(50); // Reopen
   await page.reload({ waitUntil: "load" });
   const re = await text(page, "#lesson-JC-02 .sd-card-h .sd-badge");
@@ -244,7 +263,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   const page = await newPage(viewports.desktop, errors);
   await go(page, "store=0&migrate=1&today=2026-11-23", "#day-2/revision");
   const mig = await page.evaluate(() => { const p = window.__studyDeskProgress(); return { v: p.schemaVersion, jc03: (p.lessons["JC-03"] || {}).status, dsa01: (p.lessons["DSA-01"] || {}).status, hld: (p.lessons["HLD-01"] || {}).status, jc05: (p.lessons["JC-05"] || {}).status, notes: p.notes.S01 }; });
-  check("Old day-based progress migrates to stable lesson IDs", mig.v === 2 && mig.jc03 === "complete" && mig.dsa01 === "complete" && mig.hld === "in-progress" && mig.jc05 === "in-progress" && /Encapsulation/.test(mig.notes), JSON.stringify(mig));
+  check("Old day-based progress migrates to stable lesson IDs (QA M11: the v1 HLD block stays legacy, no future lesson touched)", mig.v === 2 && mig.jc03 === "complete" && mig.dsa01 === "complete" && mig.hld === undefined && mig.jc05 === "in-progress" && /Encapsulation/.test(mig.notes), JSON.stringify(mig));
   const order = await page.evaluate(() => { const a = document.querySelector(".sd-mynotes-card"), b = document.querySelector(".sd-suggested"); return !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) && /Encapsulation/.test(a.textContent); });
   check("Quick revision: my migrated notes from session 1 come before suggested points", order);
   await go(page, "store=0&today=2026-11-22", "#day-1/learn");
@@ -258,10 +277,15 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   await page.$eval("#sd-search", e => { e.value = ""; e.dispatchEvent(new Event("input")); });
   await page.type("#sd-search", "added"); await sleep(50);
   const added = await allText(page, ".sd-tree .sd-treelink small");
-  check("Search 'added' lists only supplementary lessons", added.length === 2 && added.every(t => /SA-04|GEN-05/.test(t)), added.join(", "));
+  const addedIds = COURSE.subjects.flatMap(x => x.modules.flatMap(m => m.lessons)).filter(l => l.source.kind === "added").map(l => l.id);
+  check("Search 'added' lists only supplementary lessons", added.length === addedIds.length && added.every(t => addedIds.some(id => t.includes(id))), added.join(", "));
   await page.goto(`${origin}/ui/coverage.html`, { waitUntil: "load" });
   const cov = await text(page, "h1");
-  check("Coverage page: all fixture sessions resolve and every lesson is scheduled", /All 20 sessions resolve/.test(cov) && /57\/57 lessons scheduled|\d+\/\d+ lessons scheduled/.test(await text(page, ".sd-hero-meta")), cov + " | " + await text(page, ".sd-hero-meta"));
+  const lc = Object.keys(SE.indexCourse(COURSE).lessonById).length;
+  check("Coverage page: all fixture sessions resolve and every lesson is scheduled", new RegExp(`All ${N} sessions resolve`).test(cov) && new RegExp(`${lc}/${lc} lessons scheduled`).test(await text(page, ".sd-hero-meta")), cov + " | " + await text(page, ".sd-hero-meta"));
+  const refBadge = await text(page, "#cov-ref-badge"), opsState = await page.$eval("[data-ref=ref-ops]", e => e.className).catch(() => "");
+  check("QA M14: coverage shows missing reference topics in red (fixture is not 100% covered; delivery subject missing)", /^✗ \d+\/\d+ reference topics/.test(refBadge) && /cov-missing/.test(opsState) && await page.$$eval("#cov-reference .cov-miss", r => r.length) > 0, refBadge + " | " + opsState);
+  check("QA M13: coverage shows every session fits its time slots", /every session fits/.test(await text(page, "#cov-warn-badge")));
   await page.screenshot({ path: path.join(outDir, "coverage.png"), fullPage: true });
   check("migration/search/coverage: no console errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();
@@ -284,7 +308,7 @@ for (const [vpName, vp] of Object.entries(viewports)) {
   await page.focus("#q-JC-01-0-0"); await page.keyboard.press("ArrowRight"); await page.keyboard.press("Space");
   await page.focus("#lesson-JC-01 .sd-quiz button[type=submit]"); await page.keyboard.press("Enter"); await sleep(60);
   check(`${vpName} kbd: lesson check answered and submitted by keyboard`, /Passed/.test(await text(page, "#lesson-JC-01 .sd-quiz h3")));
-  if (vpName === "mobile") {
+  if (vpName.startsWith("mobile")) {
     await page.focus(".sd-navtoggle"); await page.keyboard.press("Enter"); await sleep(250);
     const open = await page.evaluate(() => document.querySelector(".sd-root").classList.contains("sd-nav-open") && document.querySelector(".sd-sidebar").contains(document.activeElement));
     check("mobile kbd: Enter opens the course drawer and moves focus into it", open);
@@ -298,9 +322,123 @@ for (const [vpName, vp] of Object.entries(viewports)) {
     await page.keyboard.press("Enter"); await sleep(30);
     check("desktop kbd: Enter on a module summary expands it", await page.evaluate(() => document.activeElement.parentElement.open), sum);
     await page.focus("#sd-search"); await page.type("#sd-search", "parking"); await page.keyboard.press("Enter"); await sleep(80);
-    check("desktop kbd: Enter in search opens the first match", (await info(page)).hash === "#day-15/learn", (await info(page)).hash);
+    check("desktop kbd: Enter in search opens the first match", (await info(page)).hash === `#day-${sessionOf("LLD-04")}/learn`, (await info(page)).hash);
   }
   check(`${vpName} kbd: no console errors`, errors.length === 0, errors.slice(0, 3).join(" | "));
+  await page.close();
+}
+
+/* ---------- 6. QA 2026-11-21 regressions (browser) ---------- */
+{
+  const errors = [];
+  const KEY = "studydesk.preview.v2";
+  const page = await newPage(viewports.desktop, errors);
+  const stored = () => page.evaluate(k => JSON.parse(localStorage.getItem(k) || "null"), KEY);
+  const keys = () => page.evaluate(() => Object.keys(localStorage));
+  // M1: malformed hash on a fresh load renders not-found, never a blank page.
+  const fresh = await browser.newPage(); const fe = [];
+  fresh.on("pageerror", e => fe.push(String(e))); await fresh.setViewport(viewports.desktop);
+  await fresh.goto(url("store=0&today=2026-11-22", "#%E0%A4%A"), { waitUntil: "load" });
+  check("QA M1: malformed URL hash on fresh load shows 'not found' (no blank page, no crash)", fe.length === 0 && await fresh.$eval("#study-desk", e => e.textContent.length > 50) && /Not in this plan|no page/i.test(await text(fresh, ".sd-main")), fe.join(" | "));
+  await fresh.close();
+  // L5: #day-01 is canonicalised.
+  await go(page, "store=0&today=2026-11-22", "#day-01");
+  check("QA L5: #day-01 is rewritten to the canonical #day-1", await page.evaluate(() => location.hash) === "#day-1", await page.evaluate(() => location.hash));
+  // H3: study day = IST date with a 04:00 cutoff, re-evaluated without reload.
+  await page.goto(url("", "#today"), { waitUntil: "load" });
+  const ist = (d, t) => Date.parse(d + "T" + t + ":00+05:30");
+  const t1 = await page.evaluate(ms => window.__studyDeskTick(ms), ist("2026-11-23", "00:30"));
+  const h1a = await text(page, ".sd-hero-meta");
+  const t2 = await page.evaluate(ms => window.__studyDeskTick(ms), ist("2026-11-23", "04:01"));
+  const h1b = await text(page, ".sd-hero-meta");
+  check("QA H3: 00:30 IST still counts as the previous study day; 04:01 rolls over without reload", t1 === "2026-11-22" && t2 === "2026-11-23" && h1a !== h1b, `${t1} / ${t2} | ${h1a} -> ${h1b}`);
+  // M7: 0-minute day = day off; 10 minutes is refused with a message.
+  await go(page, "store=0&today=2026-11-23", "#today");
+  await page.$eval("#sd-mins", e => e.value = "10"); await page.click("#sd-ctl-h ~ .sd-ctl-row:nth-of-type(2) .sd-btn"); await sleep(50);
+  check("QA M7: 10 minutes is refused with a reason (0 or 30–960)", /30/.test(await text(page, ".sd-toast")) && !(await page.evaluate(() => window.__studyDeskProgress().schedule.dateMinutes["2026-11-23"])), await text(page, ".sd-toast"));
+  await page.$eval("#sd-mins", e => e.value = "0"); await page.click("#sd-ctl-h ~ .sd-ctl-row:nth-of-type(2) .sd-btn"); await sleep(50);
+  check("QA M7: 0 minutes makes the date a day off (session moves on, no 'short day')", /0 minutes planned .*day off/.test(await text(page, ".sd-main")) && !/Short day/.test(await text(page, ".sd-main")), (await text(page, ".sd-main h2")).slice(0, 80));
+  // L6: revision done is tracked.
+  await go(page, "store=0&today=2026-11-23", "#day-2/revision");
+  await page.evaluate(() => [...document.querySelectorAll(".sd-main button")].find(b => /✓ Revision done/.test(b.textContent)).click()); await sleep(50);
+  check("QA L6: 'Revision done' is recorded and survives re-render", !!(await page.evaluate(() => window.__studyDeskProgress().revisions["S02"])) && /Revision done \(undo\)/.test(await text(page, ".sd-main")));
+  // M2: notes typed and reloaded immediately are not lost.
+  await page.goto(url("today=2026-11-22", "#day-1/my-notes"), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: "load" });
+  await page.type("#sd-notes-ta", "flush me please");
+  await page.reload({ waitUntil: "load" });   // well inside the 600 ms debounce
+  check("QA M2: notes typed then reloaded immediately are saved (flush on pagehide)", ((await stored()) || { notes: {} }).notes.S01 === "flush me please" && await page.$eval("#sd-notes-ta", e => e.value) === "flush me please");
+  // M3: storage full -> visible "Not saved", not a fake "Saved".
+  const filled = await page.evaluate(() => { let i = 0; for (const size of [1 << 20, 1 << 16, 1 << 10, 64, 1]) { const chunk = "x".repeat(size); try { for (;;) localStorage.setItem("filler" + (i++), chunk); } catch (e) {} } return i; });
+  await page.type("#sd-notes-ta", " + more text"); await sleep(800);
+  const st = await text(page, "#sd-notes-status"), alertT = await text(page, ".sd-alert");
+  check("QA M3: storage full shows 'Not saved' (status + alert), never 'Saved'", /Not saved/.test(st) && /full/.test(alertT), st + " | " + alertT + " | fillers " + filled);
+  await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith("filler")).forEach(k => localStorage.removeItem(k)));
+  // M4: corrupt / invalid data is backed up, not wiped.
+  await page.evaluate(k => localStorage.setItem(k, "{not json"), KEY); await page.reload({ waitUntil: "load" });
+  let ks = await keys(); const bk = ks.find(k => k.startsWith(KEY + ".backup."));
+  check("QA M4: corrupt JSON is backed up and a notice is shown", !!bk && await page.evaluate(k => localStorage.getItem(k), bk) === "{not json" && /backup|copy/i.test(await text(page, "#host-notice")), (bk || "no backup") + " | " + await text(page, "#host-notice"));
+  await page.evaluate(k => { Object.keys(localStorage).forEach(x => localStorage.removeItem(x)); localStorage.setItem(k, JSON.stringify({ schemaVersion: 2, schedule: { unavailable: "oops" } })); }, KEY); await page.reload({ waitUntil: "load" });
+  ks = await keys();
+  check("QA M4: structurally invalid progress is backed up instead of crashing later", ks.some(k => k.startsWith(KEY + ".backup.")) && errors.length === 0, ks.join(", "));
+  // M5: two tabs do not overwrite each other.
+  await page.evaluate(() => localStorage.clear()); await page.goto(url("today=2026-11-22", "#day-1/my-notes"), { waitUntil: "load" });
+  const tabB = await newPage(viewports.desktop, errors);
+  await tabB.goto(url("today=2026-11-22", "#day-2/my-notes"), { waitUntil: "load" });
+  await page.type("#sd-notes-ta", "from tab A"); await sleep(800);
+  await tabB.type("#sd-notes-ta", "from tab B"); await sleep(800);
+  const both = (await stored()).notes;
+  check("QA M5: notes from two open tabs are both kept (storage-event sync)", both.S01 === "from tab A" && both.S02 === "from tab B", JSON.stringify(both));
+  await tabB.close();
+  // M6: Reset asks first and keeps a copy.
+  page.once("dialog", d => d.dismiss()); await page.click("#demo-reset"); await sleep(80);
+  check("QA M6: cancelling Reset keeps progress", ((await stored()) || { notes: {} }).notes.S01 === "from tab A");
+  page.once("dialog", d => d.accept()); await page.click("#demo-reset"); await sleep(150);
+  const lastReset = await page.evaluate(k => JSON.parse(localStorage.getItem(k + ".lastReset") || "null"), KEY);
+  check("QA M6: confirming Reset clears progress but keeps a .lastReset copy", lastReset && lastReset.notes.S01 === "from tab A" && !((await stored()) || { notes: {} }).notes.S01);
+  // M10: a failed retake does not reopen a passed lesson check.
+  await page.evaluate(() => localStorage.clear()); await page.goto(url("today=2026-11-22", "#day-1/learn"), { waitUntil: "load" });
+  await page.click("#lesson-JC-01 .sd-quiz input[value='1']"); await page.click("#lesson-JC-01 .sd-quiz button[type=submit]"); await sleep(50);
+  await page.click("#lesson-JC-01 .sd-lesson-actions .sd-btn-primary"); await sleep(50);
+  await page.click("#lesson-JC-01 .sd-quiz input[value='0']"); await page.click("#lesson-JC-01 .sd-quiz button[type=submit]"); await sleep(50);
+  const q = await page.evaluate(() => window.__studyDeskProgress().quizzes["JC-01"]);
+  check("QA M10: failed retake keeps the earlier pass and the lesson stays complete", q.passed && q.best === 100 && q.score === 0 && /Complete/.test(await text(page, "#lesson-JC-01 .sd-card-h .sd-badge")) && /earlier pass/.test(await text(page, ".sd-toast")), JSON.stringify(q));
+  await page.evaluate(() => localStorage.clear());
+  // L1: root index points at the app.
+  await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded" });
+  check("QA L1: root index.html links to the Study Desk", await page.evaluate(() => !!document.querySelector('a[href="ui/"], a[href="ui/index.html"], meta[http-equiv="refresh" i]')));
+  check("QA regressions: no console errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+  await page.close();
+}
+
+/* ---------- 7. drawer focus trap + light-theme contrast (axe) ---------- */
+for (const vpName of ["mobile", "mobile320"]) {
+  const errors = [];
+  const page = await newPage(viewports[vpName], errors);
+  await go(page, "store=0&today=2026-11-22", "#today");
+  await page.click(".sd-navtoggle"); await sleep(80);
+  const inertMain = await page.evaluate(() => document.querySelector(".sd-main").inert || !!document.querySelector(".sd-main").closest("[inert]"));
+  const outside = [];
+  for (let k = 0; k < 220; k++) { await page.keyboard.press("Tab"); const inside = await page.evaluate(() => !!document.activeElement.closest("#sd-sidebar")); if (!inside) outside.push(await page.evaluate(() => document.activeElement.outerHTML.slice(0, 60))); }
+  check(`QA M15 ${vpName}: open drawer traps Tab inside the sidebar and makes the page inert`, inertMain && outside.length === 0, outside.slice(0, 2).join(" | "));
+  await page.keyboard.press("Escape"); await sleep(50);
+  check(`QA M15 ${vpName}: Escape closes the drawer, page is interactive again`, await page.evaluate(() => !document.querySelector(".sd-main").closest("[inert]") && document.activeElement.classList.contains("sd-navtoggle")));
+  await page.close();
+}
+{
+  const errors = [];
+  const page = await newPage(viewports.desktop, errors);
+  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
+  check("axe-core available for the contrast check", !!AXE, "npm i axe-core into NODE_PATH");
+  const bad = [];
+  if (AXE) for (const [q, h] of [["store=0&today=2026-11-22", "#today"], ["store=0&today=2026-11-22", "#day-1/learn"], ["store=0&today=2026-11-22", "#day-1/practice"], ["store=0&today=2026-11-22", "#calendar"], ["store=0&today=2026-11-22", "#course"], ["store=0&today=2026-11-23", "#day-2/revision"], ["store=0&today=2026-11-22", "#day-3/test"]]) {
+    await go(page, q, h); await page.addScriptTag({ content: AXE });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ["color-contrast"] })).violations.flatMap(x => x.nodes.map(n => n.target.join(" ") + " " + (n.any[0] && n.any[0].data ? n.any[0].data.contrastRatio : ""))));
+    v.forEach(x => bad.push(h + " " + x));
+  }
+  if (AXE) { await page.goto(`${origin}/ui/coverage.html`, { waitUntil: "load" }); await page.addScriptTag({ content: AXE });
+    (await page.evaluate(async () => (await window.axe.run(document, { runOnly: ["color-contrast"] })).violations.flatMap(x => x.nodes.map(n => n.target.join(" "))))).forEach(x => bad.push("coverage " + x)); }
+  check("QA M9: light theme has no axe color-contrast violations (Today, Learn, Practice, Calendar, Course, Revision, Test, Coverage)", AXE && bad.length === 0, bad.slice(0, 4).join(" | "));
   await page.close();
 }
 
