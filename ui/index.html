@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Study Desk (UI preview with example data)</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%23c2571a%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="study-desk.css">
+  <style>
+    .demo-banner { margin: 0; padding: 6px 16px; font: 13px/1.4 system-ui, sans-serif; background: #fff2d9; color: #6b3d00; border-bottom: 1px solid #f0d9a8; text-align: center; }
+  </style>
+</head>
+<body style="margin:0">
+  <p class="demo-banner" role="note">UI preview with <strong>example fixture data</strong>. Changes are kept in memory only and are lost on reload.</p>
+  <div id="study-desk"></div>
+
+  <script src="fixtures/curriculum.fixture.js"></script>
+  <script src="fixtures/lessons.fixture.js"></script>
+  <script src="fixtures/videos.fixture.js"></script>
+  <script src="fixtures/progress.fixture.js"></script>
+  <script src="study-desk.js"></script>
+  <script>
+    // Demo host: in-memory only. The real host (Codex's app.js + progress.js) owns persistence.
+    (function () {
+      var F = window.STUDY_DESK_FIXTURES;
+      var progress = JSON.parse(JSON.stringify(F.progress));
+      function dayEntry(day) { return progress.days[day] || (progress.days[day] = { blocks: {}, practice: {}, notes: "" }); }
+      var desk = StudyDesk.mount(document.getElementById("study-desk"), {
+        curriculum: F.curriculum, lessons: F.lessons, videos: F.videos, progress: progress,
+        onProgressChange: function (c) {
+          var e = dayEntry(c.day);
+          if (c.scope === "day") e.status = c.status;
+          else if (c.scope === "block") { (e.blocks = e.blocks || {})[c.id] = c.status; delete e.status; }
+          else if (c.scope === "practice") (e.practice = e.practice || {})[c.id] = c.status;
+          desk.update({ progress: progress });
+        },
+        onNoteChange: function (day, text) { dayEntry(day).notes = text; return Promise.resolve(); }
+      });
+      window.__studyDesk = desk;
+    })();
+  </script>
+</body>
+</html>
