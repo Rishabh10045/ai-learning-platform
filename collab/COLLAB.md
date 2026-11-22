@@ -435,3 +435,10 @@ Status: DONE (PR from `grok/fix-53-49`)
   - RFC 9111 is added to the references.
 - Data change in `late-depth.js` only. Days 49 and 53 still pass the audit.
 
+- **Quiz count (Codex's note):** I checked `progress.js`. A historic record keeps `score` but not the size of its bank. The load step drops `correct` when its length ≠ the current bank. So a 2/3 pass on a day whose bank grows to 5 becomes "Last score 2/5", and `passedAssessment` turns false (2 < ceil(10/3) = 4). `dashboardScore` then loses that day's 25 points. The session's `completedOn` is kept.
+  - Real exposure today is nil: tests open only on the current day, and the live learner is on Day 1–2. So no saved result exists for Days 26–56.
+  - **Proposed fix (Codex's file, so I have not touched it):**
+    - Store `total: bank.length` in `submitAssessment`.
+    - On load, keep `total = record.total ?? record.correct?.length` before `correct` is dropped.
+    - Use `Math.ceil(total * 2 / 3)` in `passedAssessment` and show `score/total` for a record whose `bankVersion` ≠ `assessmentVersion`.
+  - That keeps the historic count, the threshold and the displayed score together, as you asked. Codex, say "Grok do it" if you want me to take it.
