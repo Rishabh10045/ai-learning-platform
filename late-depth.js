@@ -120,6 +120,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/')],
     recall: 'Which assumption makes Dijkstra’s "closest vertex is final" step correct, and what do you use on a DAG with negative edges?'
   },
+  53: {
+    title: 'Matrix rotation for square and rectangular grids',
+    concept: 'Clockwise rotation maps (i, j) of an r × c grid to (j, r − 1 − i) of a c × r grid, so rectangles need a new array. A square grid rotates in place by transposing (swap only j > i) and then reversing every row.',
+    example: '[1,2,3] / [4,5,6] becomes [4,1] / [5,2] / [6,3]. The 3 × 3 grid 1–9 becomes [7,4,1] / [8,5,2] / [9,6,3] in place.',
+    practice: 'Implement rotateClockwise(int[][]) for any r × c grid and rotateSquareInPlace(int[][]). Then add spiralOrder with four shrinking boundaries.',
+    checks: ['Both examples match, and four rotations restore the original.', 'spiralOrder of the 3 × 3 grid is 1,2,3,6,9,8,7,4,5.', 'State O(r · c) time, and O(1) extra space for the square in-place version.'],
+    readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
+    recall: 'Where does cell (i, j) of an r × c grid go after a clockwise rotation, and why can a square grid rotate in place but a rectangle cannot?'
+  },
   // @@lanes
 };
 
@@ -2834,6 +2843,211 @@ cyclic graph: cycle: no topological order`
       ['The route 0 → 2 → 1 → 3 → 4 with total 7 is printed.', 'Bellman-Ford gives [0, 5, 2, 1] on the voucher graph.', 'A negative cycle is reported, not looped on forever.', 'State the time of each algorithm.']],
     references: [['Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/'], ['Princeton Algorithms · Directed graphs and topological sort', 'https://algs4.cs.princeton.edu/42digraph/']]
   },
+  'd-math-01': {
+    notes: [
+      'The greatest common divisor gcd(a, b) is the largest integer that divides both a and b. Euclid’s algorithm rests on one fact: any common divisor of a and b also divides a mod b, so gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Repeating the step shrinks the numbers quickly. EuclidGcd.java traces gcd(252, 105) → gcd(105, 42) → gcd(42, 21) → 21.',
+      'The running time is O(log min(a, b)) steps, because the larger value at least halves every two steps (Lamé’s theorem connects the worst case to consecutive Fibonacci numbers). Handle the edges explicitly. Take absolute values so gcd(−48, 18) = 6. gcd(0, 7) = 7, and by convention gcd(0, 0) = 0. Java’s % keeps the sign of the dividend, which is another reason to normalize signs first.',
+      'The extended Euclidean algorithm also returns coefficients x and y with a·x + b·y = gcd(a, b), known as Bézout’s identity. For 240 and 46 it finds 240·(−9) + 46·47 = 2. It is how you compute a modular inverse when gcd(a, m) = 1, which appears in hashing and cryptography questions. It is also the basis of the "water jug" puzzle: you can measure exactly the multiples of gcd(a, b).',
+      'The least common multiple is lcm(a, b) = |a| / gcd(a, b) · |b|. Divide before multiplying, because a · b can overflow long even when the LCM itself fits. Dividing first keeps the intermediate value no larger than the result. When the result itself does not fit, Math.multiplyExact throws an ArithmeticException instead of silently wrapping around, as the program shows for two large coprime numbers. To fold the LCM over an array, combine left to right with the same function and stop at the first overflow.'
+    ],
+    code: {
+      title: 'EuclidGcd.java · Euclid trace, signs and zero, extended Euclid, LCM with an overflow guard · java EuclidGcd.java',
+      text: String.raw`public class EuclidGcd {
+    // Euclid: gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Each step at least halves the larger value every two steps.
+    static long gcd(long a, long b) {
+        a = Math.abs(a); b = Math.abs(b);
+        while (b != 0) { long r = a % b; a = b; b = r; }
+        return a;
+    }
+
+    static String trace(long a, long b) {
+        StringBuilder sb = new StringBuilder();
+        while (b != 0) { sb.append("gcd(").append(a).append(", ").append(b).append(") -> "); long r = a % b; a = b; b = r; }
+        return sb.append(a).toString();
+    }
+
+    // Extended Euclid: returns {g, x, y} with a*x + b*y = g.
+    static long[] extended(long a, long b) {
+        if (b == 0) return new long[] {a, 1, 0};
+        long[] r = extended(b, a % b);
+        return new long[] {r[0], r[2], r[1] - (a / b) * r[2]};
+    }
+
+    // LCM: divide before multiplying to keep the intermediate small; Math.multiplyExact still guards overflow.
+    static long lcm(long a, long b) {
+        if (a == 0 || b == 0) return 0;
+        return Math.multiplyExact(Math.abs(a) / gcd(a, b), Math.abs(b));
+    }
+
+    public static void main(String[] args) {
+        System.out.println(trace(252, 105));
+        System.out.println("gcd(-48, 18) = " + gcd(-48, 18) + ", gcd(0, 7) = " + gcd(0, 7) + ", gcd(0, 0) = " + gcd(0, 0));
+        long[] e = extended(240, 46);
+        System.out.println("240*(" + e[1] + ") + 46*(" + e[2] + ") = " + e[0]);
+        System.out.println("lcm(4, 6) = " + lcm(4, 6) + ", lcm(21, 6) = " + lcm(21, 6));
+        try {
+            lcm(4_000_000_007L, 4_000_000_009L);
+        } catch (ArithmeticException ex) {
+            System.out.println("lcm of two large coprimes: " + ex.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`gcd(252, 105) -> gcd(105, 42) -> gcd(42, 21) -> 21
+gcd(-48, 18) = 6, gcd(0, 7) = 7, gcd(0, 0) = 0
+240*(-9) + 46*(47) = 2
+lcm(4, 6) = 12, lcm(21, 6) = 42
+lcm of two large coprimes: long overflow`
+    },
+    takeaways: ['gcd(a, b) = gcd(b, a mod b); gcd(a, 0) = |a|; O(log min(a, b)).', 'Normalize signs; gcd(0, 0) = 0 by convention.', 'Extended Euclid gives Bézout coefficients and modular inverses.', 'lcm = |a| / gcd · |b|, with Math.multiplyExact to catch overflow.'],
+    interview: [
+      ['Explain Euclid’s algorithm and why it terminates quickly.', 'gcd(a, b) equals gcd(b, a mod b), because any number that divides both a and b also divides a − q·b, which is the remainder, and the converse also holds. So I replace (a, b) with (b, a mod b) until b becomes 0, and then a is the answer. The remainder is always smaller than b, so the values strictly decrease and the loop ends. It is fast because after two steps the larger value is at most half of what it was: if b ≤ a/2 the remainder is below b, and otherwise a mod b = a − b < a/2. That gives O(log min(a, b)) iterations. The worst inputs are consecutive Fibonacci numbers.'],
+      ['How do you compute the LCM of an array without overflow surprises?', 'I fold from left to right: result = lcm(result, next), where lcm(a, b) = (|a| / gcd(a, b)) · |b|. Dividing by the gcd before multiplying keeps the intermediate value no larger than the final LCM, so I only overflow if the true answer does not fit. To detect that case I use Math.multiplyExact, which throws ArithmeticException instead of wrapping to a wrong value, and I either report it or switch to BigInteger. A zero anywhere makes the LCM 0, so I handle that first. For [4, 6, 21] the fold gives lcm(4, 6) = 12 and then lcm(12, 21) = 84.'],
+      ['What does the extended Euclidean algorithm return, and where is it used?', 'Besides g = gcd(a, b), it returns integers x and y such that a·x + b·y = g. It works recursively: if b is 0, return (a, 1, 0). Otherwise compute (g, x′, y′) for (b, a mod b) and return (g, y′, x′ − (a / b)·y′). The main use is the modular inverse: when gcd(a, m) = 1, the x in a·x + m·y = 1 satisfies a·x ≡ 1 (mod m), which is needed in modular arithmetic problems, some hashing schemes and RSA. It also answers whether a·x + b·y = c has integer solutions: exactly when gcd(a, b) divides c, as in the water-jug puzzle.']
+    ],
+    check: ['What is gcd(252, 105), and how many remainder steps does Euclid take?',
+      ['7, in two steps', '21, after the steps 252 mod 105 = 42, 105 mod 42 = 21, 42 mod 21 = 0', '105, in one step', '42, in two steps'], 1,
+      'The remainders are 42, 21 and 0, so the last non-zero value, 21, is the gcd.'],
+    practice: ['Copy EuclidGcd.java. Add a recursive gcd, lcmOfArray(long[]) that folds with an overflow check, and modInverse(a, m) using the extended algorithm. Test with negative numbers and zeros.',
+      ['lcmOfArray([4, 6, 21]) = 84, and an array containing 0 returns 0.', 'modInverse(3, 11) = 4, and modInverse(2, 4) reports that no inverse exists.', 'The recursive and iterative gcd agree on 20 random pairs.', 'State the time of each method.']],
+    references: [['Java 21 API · Math.multiplyExact and floorMod', jdk + 'java/lang/Math.html'], ['MIT OCW 6.042J · Number Theory I (Euclid)', 'https://www.youtube.com/watch?v=NuY7szYSXSw']]
+  },
+  'd-matrix-01': {
+    notes: [
+      'Rotating a grid 90° clockwise maps the cell in row i, column j of an r × c grid to row j, column r − 1 − i of a c × r grid. The dimensions swap, so a rectangular grid cannot be rotated in place. You allocate a new array of size c × r. RotateGrid.java turns the 2 × 3 grid [1, 2, 3] / [4, 5, 6] into the 3 × 2 grid [4, 1] / [5, 2] / [6, 3], and checks that four rotations give back the original.',
+      'For a square n × n grid, an in-place rotation uses two simple passes: transpose (swap m[i][j] with m[j][i] for j > i), then reverse every row. That gives [7, 4, 1] / [8, 5, 2] / [9, 6, 3] for the 3 × 3 example, in O(n²) time with O(1) extra space. Counter-clockwise is transpose then reverse every column, or reverse each row first and then transpose.',
+      'Most matrix bugs are index bugs. Write the mapping formula first, test a non-square grid so a swapped r and c fails loudly, and loop only over j > i during the transpose, otherwise every pair is swapped twice and nothing changes. Related problems include spiral order (shrink four boundaries), set matrix zeroes (use the first row and column as markers) and searching a row- and column-sorted matrix from the top-right corner in O(r + c).'
+    ],
+    code: {
+      title: 'RotateGrid.java · clockwise rotation for r × c grids and in-place transpose + reverse for squares · java RotateGrid.java',
+      text: String.raw`import java.util.*;
+
+public class RotateGrid {
+    // Clockwise rotation of an r x c grid gives a c x r grid: new[j][r - 1 - i] = old[i][j].
+    static int[][] rotateClockwise(int[][] g) {
+        int r = g.length, c = g[0].length;
+        int[][] out = new int[c][r];
+        for (int i = 0; i < r; i++)
+            for (int j = 0; j < c; j++) out[j][r - 1 - i] = g[i][j];
+        return out;
+    }
+
+    // In place for a square n x n grid: transpose, then reverse every row. O(n^2) time, O(1) extra space.
+    static void rotateSquareInPlace(int[][] m) {
+        int n = m.length;
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++) { int t = m[i][j]; m[i][j] = m[j][i]; m[j][i] = t; }
+        for (int[] row : m)
+            for (int a = 0, b = n - 1; a < b; a++, b--) { int t = row[a]; row[a] = row[b]; row[b] = t; }
+    }
+
+    static String show(int[][] g) {
+        StringJoiner j = new StringJoiner(" / ");
+        for (int[] row : g) j.add(Arrays.toString(row));
+        return j.toString();
+    }
+
+    public static void main(String[] args) {
+        int[][] seats = {{1, 2, 3}, {4, 5, 6}};                     // 2 rows x 3 columns
+        int[][] turned = rotateClockwise(seats);
+        System.out.println("2x3: " + show(seats));
+        System.out.println("rotated 3x2: " + show(turned));
+        System.out.println("four rotations restore it: " + Arrays.deepEquals(seats, rotateClockwise(rotateClockwise(rotateClockwise(turned)))));
+        int[][] square = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        rotateSquareInPlace(square);
+        System.out.println("3x3 in place: " + show(square));
+    }
+}
+`,
+      output: String.raw`2x3: [1, 2, 3] / [4, 5, 6]
+rotated 3x2: [4, 1] / [5, 2] / [6, 3]
+four rotations restore it: true
+3x3 in place: [7, 4, 1] / [8, 5, 2] / [9, 6, 3]`
+    },
+    takeaways: ['Clockwise: new[j][r − 1 − i] = old[i][j]; dimensions swap to c × r.', 'Square in place: transpose, then reverse each row.', 'Transpose only j > i.', 'Test non-square grids to catch swapped indices.'],
+    interview: [
+      ['Rotate an n × n matrix 90° clockwise in place.', 'I do it in two passes. First I transpose: for every i and every j greater than i, I swap m[i][j] and m[j][i]. Then I reverse each row with two pointers. The combination maps the element at (i, j) to (j, n − 1 − i), which is exactly the clockwise rotation. Each element moves a constant number of times, so the time is O(n²), and I only use a temporary variable, so the extra space is O(1). The typical bug is looping j over all columns during the transpose, which swaps every pair twice and leaves the matrix unchanged. An alternative rotates four cells at a time, layer by layer.'],
+      ['How do you rotate a rectangular grid, and why not in place?', 'A clockwise rotation of an r × c grid produces a c × r grid, so the shape changes. In-place rotation would need the same memory layout for a different shape, which a Java int[][] cannot do without reallocating rows. I allocate a new int[c][r] and copy each cell with out[j][r − 1 − i] = in[i][j]. The time and space are both O(r · c). To check correctness I test a 2 × 3 grid, where a swapped index fails immediately, and I check that four rotations return the original grid. For a seat map, the rotation is useful when displaying a venue from a different side.'],
+      ['Print a matrix in spiral order.', 'I keep four boundaries: top, bottom, left and right. While top ≤ bottom and left ≤ right, I walk the top row from left to right and move top down, walk the right column from top to bottom and move right in, then, if a row remains, walk the bottom row from right to left and move bottom up, and, if a column remains, walk the left column from bottom to top and move left in. The two "if remains" checks prevent printing the middle row or column twice in non-square matrices. Every element is printed once, so the time is O(r · c), and the extra space is O(1) besides the output.']
+    ],
+    check: ['Rotating the 2 × 3 grid [1,2,3] / [4,5,6] clockwise gives which grid?',
+      ['[1,4] / [2,5] / [3,6]', '[4,1] / [5,2] / [6,3]', '[3,6] / [2,5] / [1,4]', '[6,5,4] / [3,2,1]'], 1,
+      'Cell (i, j) moves to (j, r − 1 − i), so the bottom row becomes the left column, read top to bottom.'],
+    practice: ['Copy RotateGrid.java. Add rotateCounterClockwise for r × c grids, spiralOrder, and a test that rotating clockwise and then counter-clockwise returns the original for a 3 × 5 grid.',
+      ['Counter-clockwise of [1,2,3] / [4,5,6] is [3,6] / [2,5] / [1,4].', 'spiralOrder of the 3 × 3 grid is 1,2,3,6,9,8,7,4,5.', 'The round trip passes for 3 × 5 and 1 × 4 grids.', 'State the time and space of each method.']],
+    references: [['Java 21 API · Arrays.deepEquals', jdk + 'java/util/Arrays.html']]
+  },
+  'd-dp-02': {
+    notes: [
+      '0/1 subset sum asks whether some subset of the items, each used at most once, adds up to a target. The state is reach[i][s]: can the first i items make sum s? The transition is reach[i][s] = reach[i−1][s] (skip item i) or reach[i−1][s − w] (take it). It needs only the previous row, so you can compress it to one boolean array, reach[s].',
+      'The iteration direction is the whole trick. When you update reach[s] from reach[s − w] in the compressed array, reach[s − w] must still describe the previous item set. Iterating s downward from the target to w guarantees that, because smaller sums are updated later. Iterating upward lets the item feed itself: with one item of weight 3, the ascending loop sets reach[3] and then reach[6] from reach[3], so it wrongly reports that 6 is reachable. SubsetSumDp.java prints [0, 3] for the descending loop and [0, 3, 6] for the buggy ascending one. Ascending is exactly right for the unbounded version, where items may repeat.',
+      'Interval DP solves problems where the answer for a range [i, j] combines answers for smaller ranges inside it. Matrix-chain multiplication is the classic: cost[i][j] = min over k of cost[i][k] + cost[k+1][j] + rows(i) · cols(k) · cols(j). Larger intervals depend on shorter ones, so fill by increasing length, not row by row. For matrices 10 × 30, 30 × 5 and 5 × 60, the best order costs 4,500 scalar multiplications, against 27,000 for the other order.',
+      'Always state the state, the transition, the base case, the order and the complexity. Subset sum is O(n · target) time and O(target) space after compression. It is pseudo-polynomial, because it depends on the numeric value of the target. Matrix chain is O(n³) time and O(n²) space. To reconstruct a solution, store the choice made in each cell, such as the item taken or the best split k, and walk back from the final cell.'
+    ],
+    code: {
+      title: 'SubsetSumDp.java · 0/1 subset sum (descending vs the ascending bug) and matrix-chain interval DP · java SubsetSumDp.java',
+      text: String.raw`import java.util.*;
+
+public class SubsetSumDp {
+    // 0/1 subset sum, compressed to one row: reach[s] = can some subset of the items seen so far sum to s.
+    // Iterate s DOWNWARD so reach[s - w] still describes the state BEFORE this item (each item used at most once).
+    static boolean[] zeroOne(int[] weights, int target, boolean descending) {
+        boolean[] reach = new boolean[target + 1];
+        reach[0] = true;
+        for (int w : weights) {
+            if (descending) { for (int s = target; s >= w; s--) reach[s] |= reach[s - w]; }
+            else            { for (int s = w; s <= target; s++) reach[s] |= reach[s - w]; }   // bug for 0/1: reuses w
+        }
+        return reach;
+    }
+
+    static List<Integer> reachable(boolean[] reach) {
+        List<Integer> out = new ArrayList<>();
+        for (int s = 0; s < reach.length; s++) if (reach[s]) out.add(s);
+        return out;
+    }
+
+    // Matrix-chain multiplication: cost[i][j] = cheapest way to multiply matrices i..j. Fill by increasing length.
+    static long matrixChain(int[] dims) {
+        int n = dims.length - 1;                   // matrix k has shape dims[k] x dims[k+1]
+        long[][] cost = new long[n][n];
+        for (int len = 2; len <= n; len++)
+            for (int i = 0; i + len - 1 < n; i++) {
+                int j = i + len - 1;
+                cost[i][j] = Long.MAX_VALUE;
+                for (int k = i; k < j; k++)
+                    cost[i][j] = Math.min(cost[i][j], cost[i][k] + cost[k + 1][j] + (long) dims[i] * dims[k + 1] * dims[j + 1]);
+            }
+        return cost[0][n - 1];
+    }
+
+    public static void main(String[] args) {
+        System.out.println("one item of weight 3, descending (0/1): " + reachable(zeroOne(new int[] {3}, 6, true)));
+        System.out.println("one item of weight 3, ascending (bug):  " + reachable(zeroOne(new int[] {3}, 6, false)));
+        boolean[] r = zeroOne(new int[] {3, 34, 4, 12, 5, 2}, 9, true);
+        System.out.println("{3,34,4,12,5,2} reaches 9: " + r[9]);
+        System.out.println("matrix chain 10x30, 30x5, 5x60: " + matrixChain(new int[] {10, 30, 5, 60}) + " multiplications");
+    }
+}
+`,
+      output: String.raw`one item of weight 3, descending (0/1): [0, 3]
+one item of weight 3, ascending (bug):  [0, 3, 6]
+{3,34,4,12,5,2} reaches 9: true
+matrix chain 10x30, 30x5, 5x60: 4500 multiplications`
+    },
+    takeaways: ['0/1 compressed DP: iterate the sum downward so each item is used once.', 'Ascending iteration is the unbounded (reuse) version.', 'Interval DP: fill by increasing interval length.', 'Subset sum O(n · target) is pseudo-polynomial; matrix chain is O(n³).'],
+    interview: [
+      ['Explain the state and iteration order for 0/1 subset sum, and how it differs from unbounded reuse.', 'The state is reach[s]: is sum s achievable using the items processed so far? Initially only reach[0] is true. For each item of weight w, I loop s from the target down to w and set reach[s] = reach[s] or reach[s − w]. Going downward means reach[s − w] has not been updated for this item yet, so it reflects the previous items only and each item is used at most once. If items may be reused, the unbounded version, I loop s upward from w instead, so an updated reach[s − w] can feed reach[s] in the same pass. The time is O(n · target) and the space is O(target).'],
+      ['Your 0/1 code says one item of weight 3 can reach sum 6. What went wrong?', 'The compressed loop runs in the wrong direction. With an ascending loop, at s = 3 it sets reach[3] from reach[0], and then at s = 6 it reads the reach[3] it just updated in the same pass and sets reach[6]. The same item was effectively used twice, which is the unbounded version of the problem. The fix is to iterate s from the target down to the weight, so every read of reach[s − w] sees the state before this item. With that change the reachable sums for one item of weight 3 are exactly 0 and 3. A two-row table with an explicit previous row avoids the issue entirely, at the cost of more memory.'],
+      ['Define the DP for matrix-chain multiplication and the fill order.', 'Matrix k has shape dims[k] × dims[k+1]. cost[i][j] is the minimum number of scalar multiplications needed to compute the product of matrices i through j. The base case is cost[i][i] = 0. The transition tries every split k between i and j − 1: cost[i][k] + cost[k+1][j] + dims[i] · dims[k+1] · dims[j+1], the last term being the cost of multiplying the two resulting matrices. Every cell depends on strictly shorter intervals, so I fill by interval length from 2 to n, and within a length by the starting index. That takes O(n³) time and O(n²) space. For 10 × 30, 30 × 5 and 5 × 60 the answer is 4,500.']
+    ],
+    check: ['With one item of weight 3 and target 6, which sums does correct 0/1 subset sum report as reachable?',
+      ['0, 3 and 6', '0 and 3 only', '3 only', '6 only'], 1,
+      'Each item may be used once, so only the empty subset (0) and {3} (3) are possible. Reaching 6 would need the item twice.'],
+    practice: ['Copy SubsetSumDp.java. Add the unbounded version (coin change: number of ways to make 5 from coins 1, 2 and 5), reconstruct one subset that reaches 9 for {3,34,4,12,5,2}, and print the best parenthesization for the matrix chain.',
+      ['Coin change ways(5, [1,2,5]) = 4.', 'A subset summing to 9 is printed, such as [4, 5] or [4, 3, 2].', 'The parenthesization is ((A1 A2) A3) with cost 4,500.', 'State the state, transition, order and complexity for each.']],
+    references: [['Princeton IntroCS · Recursion and dynamic programming', 'https://introcs.cs.princeton.edu/java/23recursion/']]
+  },
   // @@packets
 };
 
@@ -2888,6 +3102,10 @@ export const lateDistractors = {
     ['Only undirected graphs with no isolated vertices.', 'Any graph whose vertices have at most two outgoing edges.'],
     ['A graph with at least one negative edge, to keep distances small.', 'Edge weights that are all distinct.']
   ],
+  53: [
+    ['Running out of memory when the target is large.', 'Visiting items in a different order from the input.'],
+    ['The longest interval first, because it holds the answer.', 'Intervals in random order, since each is independent.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -2915,6 +3133,8 @@ export const lateExplanations = {
     'A legitimate conflict is the service working correctly. The SLI definition normally excludes it deliberately, so the budget reflects real failures.'],
   52: ['A topological order puts every edge forward. A directed cycle makes that impossible, so only DAGs have a complete order.',
     'Dijkstra treats the nearest unfinished vertex as final. That is safe only if no edge can make a later path shorter, which requires nonnegative weights.'],
+  53: ['Going downward keeps reach[s − w] equal to its value before the current item, so an item cannot feed a later sum in the same pass and is used at most once.',
+    'A larger interval combines answers for smaller intervals inside it, so shorter intervals must be solved first: fill by increasing length.'],
   // @@explanations
 };
 
@@ -3015,6 +3235,14 @@ export const lateAssessment = {
     { question: 'What is the time complexity of Dijkstra with a binary heap on V vertices and E edges?',
       choices: ['O(V + E)', 'O((V + E) log V)', 'O(V · E)', 'O(2^V)'], answer: 1,
       explanation: 'Each vertex is extracted once and each edge may push one entry, and each heap operation costs O(log V).' }
+  ],
+  53: [
+    { question: 'Why should lcm(a, b) be computed as (|a| / gcd(a, b)) · |b| rather than |a · b| / gcd(a, b)?',
+      choices: ['It gives a different, more correct answer', 'Dividing first keeps the intermediate value no larger than the result, avoiding needless overflow', 'Division is faster than multiplication', 'gcd is undefined for products'], answer: 1,
+      explanation: 'a · b can overflow even when the LCM fits. Dividing first removes the shared factor before multiplying. Use Math.multiplyExact to catch true overflow.' },
+    { question: 'What is the time complexity of compressed 0/1 subset sum with n items and target T?',
+      choices: ['O(n + T)', 'O(n · T), which is pseudo-polynomial in the input size', 'O(2ⁿ) always', 'O(T log n)'], answer: 1,
+      explanation: 'Each item updates up to T sums. The cost depends on the numeric value of T, which makes it pseudo-polynomial.' }
   ],
   // @@assessment
 };
@@ -3142,6 +3370,11 @@ export const lateInterviewGuides = {
     'Prerequisites form a directed graph where an edge A → B means A must come before B. I would use a topological sort, such as Kahn’s algorithm: count each course’s unmet prerequisites, repeatedly take a course with none, and decrement its successors. If some courses are never taken, there is a cycle and no valid schedule exists, so I report it. Dijkstra is a different tool for weighted shortest paths, for example travel times between venue gates, and it assumes every edge weight is nonnegative. That assumption is what makes the closest unfinished vertex’s distance final. With negative weights I would use DAG relaxation in topological order or Bellman-Ford.',
     'In the dependency graph, the cycle breaks topological sorting’s assumption that the graph is acyclic. Every vertex on the cycle always has an unmet predecessor, so Kahn’s algorithm stops with vertices left over, and the right output is "no complete order" plus the cycle, not a partial order. In the second graph, the negative edge breaks Dijkstra’s assumption of nonnegative weights. Dijkstra may finalize a vertex and later miss a cheaper path through the negative edge, so it returns a wrong distance without any error. If that graph is a DAG, relaxing edges in topological order is correct. Otherwise Bellman-Ford handles negative weights and detects negative cycles.',
     'A pruning rule is safe when I can prove that no completion of the current partial solution can be feasible, so cutting the branch loses nothing. The usual proof is monotonic. With sorted positive prices, if the next price already exceeds the remaining budget, every later price does too, and adding more items only increases the total, so the whole rest of the loop can be skipped. The proof depends on its assumptions: unsorted input or negative values would make the same rule unsound. I verify it by running the pruned and unpruned searches on the same inputs and checking that their solution sets are identical, while only the number of calls changes.'
+  ],
+  53: [
+    'The state is reach[s]: can some subset of the items processed so far add up to exactly s? It starts with reach[0] = true and everything else false. For each item of weight w, I iterate s from the target down to w and set reach[s] = reach[s] || reach[s − w]. The downward order matters because reach[s − w] must still describe the previous items. Otherwise the current item could be counted twice. That is the difference from unbounded reuse, such as coin change with unlimited coins, where I iterate upward on purpose so an item can feed later sums in the same pass. Both versions take O(n · target) time and O(target) space.',
+    'Almost certainly an ascending inner loop in the compressed one-dimensional table. Going upward, the code sets reach[3] from reach[0] and then, in the same pass for the same item, sets reach[6] from the freshly updated reach[3], so the single item was used twice. That is the unbounded recurrence, not 0/1. The fix is to iterate s from the target down to the item’s weight, so every read of reach[s − w] sees the state before this item. Afterwards the reachable sums for one item of weight 3 are exactly 0 and 3. I would add exactly that fixture as a regression test, together with one where reuse is legitimately allowed.',
+    'Matrix i has shape dims[i] × dims[i+1]. The state cost[i][j] is the minimum number of scalar multiplications needed to multiply matrices i through j, with cost[i][i] = 0. The transition tries every split point k from i to j − 1: cost[i][k] + cost[k+1][j] + dims[i] · dims[k+1] · dims[j+1], where the last term multiplies the two partial products. Because every interval depends only on strictly shorter intervals inside it, I fill the table by increasing interval length, from length 2 up to n, and the answer is cost[0][n−1]. Storing the best k in each cell lets me reconstruct the parenthesization. The time is O(n³) and the space O(n²).'
   ],
   // @@guides
 };
