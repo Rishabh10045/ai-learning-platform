@@ -1,4 +1,4 @@
-// node --test ui/checks/late-depth.test.mjs : Grok's Days 41–56 content (late-depth.js) stays complete and in sync.
+// node --test ui/checks/late-depth.test.mjs : Grok's Days 26–56 content (late-depth.js) stays complete and in sync.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
@@ -8,12 +8,12 @@ import { codex } from './codex-load.mjs';
 
 const finished = Object.keys(lateLanes).map(Number);   // a day gets its lane when its whole batch is finished
 
-test('only Days 34–56 are touched by late-depth.js (Codex owns 4–33)', () => {
+test('only Days 26–56 are touched by late-depth.js', () => {
   for (const map of [lateLanes, lateDistractors, lateExplanations, lateAssessment, lateStretchPlans, lateInterviewGuides])
-    for (const k of Object.keys(map)) assert.ok(+k >= 34 && +k <= 56, 'day ' + k);
+    for (const k of Object.keys(map)) assert.ok(+k >= 26 && +k <= 56, 'day ' + k);
   for (const id of Object.keys(lateDepthPackets)) {
     const day = codex.days.find(d => d.topics.some(t => t.toLowerCase() === id.replace(/\.dsa$/, '')));
-    assert.ok(day && day.number >= 34, id + ' is scheduled on Day 34–56');
+    assert.ok(day && day.number >= 26, id + ' is scheduled on Day 26–56');
   }
 });
 
@@ -30,7 +30,7 @@ test('every embedded Java program is a verbatim copy of notes/java-examples/<Cla
 
 test('every finished day meets the content standard (checks/content-audit.mjs)', () => {
   assert.ok(finished.length >= 1);
-  for (const r of auditDays(41, 56).filter(r => finished.includes(r.day))) assert.deepEqual(r.gaps, [], 'Day ' + r.day + ': ' + r.gaps.join('; '));
+  for (const r of auditDays(26, 56).filter(r => finished.includes(r.day))) assert.deepEqual(r.gaps, [], 'Day ' + r.day + ': ' + r.gaps.join('; '));
 });
 
 test('distractors and explanations line up with the two-option pairs; references are https', () => {

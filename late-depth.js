@@ -219,6 +219,60 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Undirected graphs', 'https://algs4.cs.princeton.edu/41graph/')],
     recall: 'Why does BFS give shortest paths only when every step costs the same?'
   },
+  28: {
+    title: 'Linked lists: reverse in place and merge sorted lists',
+    concept: 'Reverse with prev, cur and next, saving next before changing a link. Merge two sorted lists by relinking nodes behind a dummy head.',
+    example: 'A→B→C reverses to C→B→A with A.next = null. Merging A→D→F with B→C→G gives A→B→C→D→F→G.',
+    practice: 'Implement reverse and mergeSorted, then reverseFirstK and removing the k-th node from the end.',
+    checks: ['Empty, one-node and three-node lists work.', 'The new tail’s next is null.', 'State O(n) time and O(1) extra space.'],
+    readings: [reading('Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/')],
+    recall: 'What is lost if you set cur.next = prev before saving cur.next?'
+  },
+  29: {
+    title: 'Queues: two-stack queue and a sliding time window',
+    concept: 'A queue is FIFO. Two stacks make a queue with amortized O(1) operations, and a queue of timestamps counts requests in a time window by expiring old entries from the front.',
+    example: 'Offering 1, 2, 3, polling, then offering 4 yields 1 2 3 4 with 4 moves between stacks. Pings at 1, 100, 3001, 3002 and 7000 return 1, 2, 3, 3, 1.',
+    practice: 'Implement TwoStackQueue and RecentCounter, then a fixed-capacity circular queue.',
+    checks: ['poll on an empty queue returns null.', 'Each item moves between stacks at most once.', 'Explain amortized O(1).'],
+    readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
+    recall: 'Why is a two-stack queue amortized O(1) even though one poll can take O(n)?'
+  },
+  30: {
+    title: 'Binary search trees: validation and range queries',
+    concept: 'Every key in a BST’s left subtree is smaller and every key in its right subtree is larger, so validation must use bounds inherited from all ancestors, and range queries can skip whole subtrees.',
+    example: 'Keys 40, 20, 60, 10, 30, 70 form a valid BST; the range [25, 65] returns 30, 40, 60. Putting 50 under 20 breaks the BST even though 50 > 20.',
+    practice: 'Implement insert, isBst with bounds and a pruned range query, then delete with the inorder successor.',
+    checks: ['A parent-only check is shown to be wrong.', 'Range output is sorted.', 'Explain O(h) and when h = n.'],
+    readings: [reading('Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/')],
+    recall: 'Why must BST validation pass bounds down from all ancestors?'
+  },
+  31: {
+    title: 'Weighted shortest paths with Dijkstra',
+    concept: 'BFS minimizes the number of edges; when edges have non-negative costs, Dijkstra’s algorithm with a priority queue minimizes the total cost.',
+    example: 'S–T costs 5, S–A and A–T cost 1 each. BFS picks S→T (1 hop, cost 5); Dijkstra picks S→A→T (cost 2).',
+    practice: 'Implement Dijkstra with lazy deletion and parent links, then a 0–1 BFS.',
+    checks: ['Stale queue entries are skipped.', 'Route rebuilt from parents.', 'Explain why negative weights break it.'],
+    readings: [reading('Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/')],
+    recall: 'When does BFS give the wrong answer for a cheapest route?'
+  },
+  32: {
+    title: 'Dynamic programming: weighted intervals',
+    concept: 'When bookings have different values, decide for each one whether to skip it or take it plus the best compatible earlier set: best[i] = max(best[i − 1], value[i] + best[p(i)]).',
+    example: '[0,2) and [2,4) worth 1 each against [0,4) worth 10: DP picks the long job for 10; earliest finish gets 2.',
+    practice: 'Implement the recurrence with binary-searched p(i) and reconstruct the chosen jobs; add a reset buffer.',
+    checks: ['Recurrence written before code.', 'Brute force agrees on small inputs.', 'O(n log n) explained.'],
+    readings: [reading('Princeton · Dynamic programming slides', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/06DynamicProgrammingI.pdf')],
+    recall: 'What are the two choices in the weighted interval recurrence?'
+  },
+  33: {
+    title: 'Union-find: grouping venues that share a team',
+    concept: 'Union-find keeps disjoint groups with find (the group root) and union (merge two groups); union by size and path compression make both nearly constant time.',
+    example: 'Joining A–B, B–C and D–E gives groups {A, B, C}, {D, E} and {F}; joining A–C then reports that they are already connected.',
+    practice: 'Implement find with path halving and union by size; use it to count components and detect a cycle edge.',
+    checks: ['union returns false for an existing connection.', 'Groups printed in a deterministic order.', 'Explain why trees stay shallow.'],
+    readings: [reading('Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/')],
+    recall: 'What two optimizations make union-find nearly constant time?'
+  },
   // @@lanes
 };
 
@@ -4959,6 +5013,1200 @@ unreachable   : -1`
       ['The path has 15 cells, from (0,0) to (3,7).', 'With two entrances the distance is the minimum over both.', 'Unreachable targets return an empty path.', 'State the time and space complexity.']],
     references: [['Princeton Algorithms · Undirected graphs (BFS)', 'https://algs4.cs.princeton.edu/41graph/']]
   },
+  'd-sort-01': {
+    notes: [
+      'Merge sort splits the input in half, sorts each half recursively and merges the two sorted halves. Merging walks both halves with two indices and always takes the smaller front item. Every level of recursion does O(n) work and there are about log₂ n levels, so the time is O(n log n) in the best, average and worst case. Sorting an array this way needs an O(n) buffer for merging, plus O(log n) stack for the recursion.',
+      'A sort is stable when items with equal keys keep their original order. That matters when you sort records, for example booking requests by priority where arrival order must still decide ties. In StableMergeSort.java the merge takes the LEFT item when the keys are equal, because the left half came first in the input, so 10B stays before 10E. Taking the right item instead produces 10E before 10B, which silently breaks the arrival-order rule while the keys still look sorted.',
+      'In Java, List.sort and Arrays.sort on objects use TimSort, a stable merge sort, so you can sort by priority and keep arrival order without extra work. Arrays.sort on primitive arrays such as int[] uses a dual-pivot quicksort, which is not stable, but stability does not matter for plain numbers. Choose by need: O(n log n) guaranteed and stable means merge sort; in place with good average speed means quicksort; nearly sorted small inputs suit insertion sort.'
+    ],
+    code: {
+      title: 'StableMergeSort.java · merge sort on records, left-on-tie stability versus right-on-tie, and Java’s stable List.sort · java StableMergeSort.java',
+      text: String.raw`import java.util.*;
+
+// Merge sort on records: taking the LEFT item on equal keys keeps arrival order (stable).
+public class StableMergeSort {
+    record Req(int priority, String arrival) {}
+
+    static List<Req> sort(List<Req> a, boolean leftOnTie) {
+        if (a.size() <= 1) return a;
+        int mid = a.size() / 2;
+        List<Req> l = sort(a.subList(0, mid), leftOnTie), r = sort(a.subList(mid, a.size()), leftOnTie);
+        List<Req> out = new ArrayList<>(a.size());           // O(n) buffer per merge level
+        int i = 0, j = 0;
+        while (i < l.size() && j < r.size()) {
+            int c = Integer.compare(l.get(i).priority(), r.get(j).priority());
+            if (c < 0 || (c == 0 && leftOnTie)) out.add(l.get(i++)); else out.add(r.get(j++));
+        }
+        while (i < l.size()) out.add(l.get(i++));
+        while (j < r.size()) out.add(r.get(j++));
+        return out;
+    }
+
+    static String show(List<Req> xs) {
+        StringBuilder sb = new StringBuilder();
+        for (Req x : xs) sb.append(x.priority()).append(x.arrival()).append(' ');
+        return sb.toString().trim();
+    }
+
+    public static void main(String[] args) {
+        List<Req> in = List.of(new Req(15, "A"), new Req(10, "B"), new Req(15, "C"), new Req(5, "D"), new Req(10, "E"));
+        System.out.println("input            : " + show(in));
+        System.out.println("stable (left tie): " + show(sort(in, true)));
+        System.out.println("right on tie     : " + show(sort(in, false)) + "  <- 10E before 10B, 15C before 15A");
+        List<Req> lib = new ArrayList<>(in);
+        lib.sort(Comparator.comparingInt(Req::priority));   // List.sort on objects is a stable merge sort (TimSort)
+        System.out.println("List.sort        : " + show(lib));
+        System.out.println("empty / one      : [" + show(sort(List.of(), true)) + "] [" + show(sort(List.of(new Req(1, "Z")), true)) + "]");
+    }
+}
+`,
+      output: String.raw`input            : 15A 10B 15C 5D 10E
+stable (left tie): 5D 10B 10E 15A 15C
+right on tie     : 5D 10E 10B 15C 15A  <- 10E before 10B, 15C before 15A
+List.sort        : 5D 10B 10E 15A 15C
+empty / one      : [] [1Z]`
+    },
+    takeaways: ['Merge sort is O(n log n) in every case with an O(n) buffer.', 'Stable: equal keys keep input order.', 'Take the left item on ties.', 'Java’s object sorts are stable; int[] sorting is not.'],
+    interview: [
+      ['How does merge sort work, and what are its time and space costs?', 'Merge sort splits the array into two halves, sorts each half recursively, and merges the two sorted halves by repeatedly taking the smaller front element. A single element is already sorted, which is the base case. Each level of recursion merges n elements in total, and there are about log₂ n levels, so the time is O(n log n) in the best, average and worst cases. The array version needs an O(n) temporary buffer for merging and O(log n) call-stack depth. A linked-list version can merge by relinking nodes with O(1) extra space apart from the recursion. Its main strengths are predictable time and stability.'],
+      ['What does stable sorting mean, and when does it matter?', 'A sort is stable if items that compare equal keep their original relative order. It matters when records have more fields than the sort key, for example booking requests sorted by priority where requests with the same priority must stay in arrival order. It also lets you sort by several keys in passes: sort by the secondary key first, then stably by the primary key. In merge sort, stability comes from one detail: on equal keys, take the element from the left half. Java’s List.sort and Arrays.sort for objects are stable; Arrays.sort for int[] is not, but for plain numbers stability is irrelevant.'],
+      ['When would you choose merge sort over quicksort?', 'I choose merge sort when I need guaranteed O(n log n) time, stability, or I am sorting linked lists or data too big for memory, because merging works well on sequential runs and external files. Quicksort is usually faster in practice on arrays because it sorts in place with good cache behaviour, but its worst case is O(n²) without careful pivot choice and it is not stable. In Java I rarely write either myself: List.sort uses TimSort, which is stable and very fast on partly sorted data, and Arrays.sort on primitives uses a dual-pivot quicksort. Writing merge sort is still a common interview check on recursion and merging.']
+    ],
+    check: ['In StableMergeSort.java, what goes wrong when the merge takes the right item on ties?',
+      ['The keys are no longer sorted', '10E comes before 10B, so arrival order is lost for equal priorities', 'It throws an exception', 'It becomes O(n²)'], 1,
+      'The keys are still in order, but equal keys are swapped, so the sort is no longer stable.'],
+    practice: ['Copy StableMergeSort.java. Add a bottom-up (iterative) version, count comparisons for 8 random items, and sort by arrival then stably by priority.',
+      ['Both versions give the same stable result.', 'Comparison count is at most n·log₂ n.', 'Two-pass sorting keeps arrival order within each priority.', 'Empty and one-item lists work.']],
+    references: [['Princeton Algorithms · Mergesort', 'https://algs4.cs.princeton.edu/22mergesort/'], ['Java 21 API · List.sort', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html']]
+  },
+  'd-stacks-01': {
+    notes: [
+      'A stack is last in, first out: push adds to the top and pop removes from the top, both in O(1). It is the natural structure for anything nested, because the most recently opened thing must be closed first. In Java use ArrayDeque with push, pop and peek; the old Stack class is synchronized and extends Vector, so it is slower and exposes methods that break the stack contract.',
+      'Delimiter validation pushes each opening token and, for each closing token, pops the top and checks that they match. StackTools.java stores the index along with the character, so it can say where the input fails: "([)]" fails because "[" at 1 is closed by ")" at 2; "())" has an unexpected ")" at 2; "(()" leaves "(" at 0 unclosed. A valid input must end with an empty stack. The time is O(n) and the stack can hold up to n openers.',
+      'A min-stack answers "what is the smallest value currently in the stack?" in O(1). Keep a second stack where each entry is the minimum of everything at or below that position: push min(x, current minimum) alongside x, and pop both together. After pushing 5 3 7 3 1 the minimum is 1, and after popping it the minimum is 3 again. Stacks also underlie undo, expression evaluation and depth-first search.'
+    ],
+    code: {
+      title: 'StackTools.java · delimiter validation with error positions and a min-stack with O(1) minimum · java StackTools.java',
+      text: String.raw`import java.util.*;
+
+// Stacks: delimiter validation that reports WHERE it fails, and a min-stack with O(1) minimum.
+public class StackTools {
+    static String validate(String s) {
+        Deque<int[]> stack = new ArrayDeque<>();          // {char, index}
+        String open = "([{", close = ")]}";
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (open.indexOf(c) >= 0) stack.push(new int[]{c, i});
+            else if (close.indexOf(c) >= 0) {
+                if (stack.isEmpty()) return "unexpected '" + c + "' at " + i;
+                int[] top = stack.pop();
+                if (open.indexOf(top[0]) != close.indexOf(c)) return "'" + (char) top[0] + "' at " + top[1] + " closed by '" + c + "' at " + i;
+            }
+        }
+        return stack.isEmpty() ? "valid" : "unclosed '" + (char) stack.peek()[0] + "' at " + stack.peek()[1];
+    }
+
+    static final class MinStack {
+        private final Deque<Integer> values = new ArrayDeque<>(), mins = new ArrayDeque<>();
+        void push(int x) { values.push(x); mins.push(mins.isEmpty() ? x : Math.min(x, mins.peek())); }
+        int pop() { mins.pop(); return values.pop(); }
+        int min() { return mins.peek(); }
+    }
+
+    public static void main(String[] args) {
+        for (String s : List.of("{seat:[A1,(B2)]}", "([)]", "(()", "())", ""))
+            System.out.printf("%-18s %s%n", "\"" + s + "\"", validate(s));
+        MinStack m = new MinStack();
+        for (int x : new int[]{5, 3, 7, 3, 1}) m.push(x);
+        StringBuilder sb = new StringBuilder("min after pushes 5 3 7 3 1: " + m.min());
+        for (int k = 0; k < 3; k++) { m.pop(); sb.append(", after pop: ").append(m.min()); }
+        System.out.println(sb);
+    }
+}
+`,
+      output: String.raw`"{seat:[A1,(B2)]}" valid
+"([)]"             '[' at 1 closed by ')' at 2
+"(()"              unclosed '(' at 0
+"())"              unexpected ')' at 2
+""                 valid
+min after pushes 5 3 7 3 1: 1, after pop: 3, after pop: 3, after pop: 3`
+    },
+    takeaways: ['Stacks fit nesting: last opened, first closed.', 'Use ArrayDeque, not Stack.', 'Valid input ends with an empty stack.', 'A second stack gives O(1) minimum.'],
+    interview: [
+      ['How do you validate nested brackets, and what are the failure cases?', 'I scan the string once. For an opening bracket I push it, together with its index. For a closing bracket I check that the stack is not empty and that the popped opener matches the closer. There are three ways to fail: a closer with an empty stack, a closer that does not match the top opener, and openers left on the stack at the end. Reporting the index of the failing character makes the error useful. Other characters are ignored. It runs in O(n) time with O(n) space in the worst case, all openers. In Java I use ArrayDeque, which is faster than the legacy Stack class.'],
+      ['How do you design a stack that returns its minimum in O(1)?', 'I keep two stacks. The main stack holds the values. The second stack holds, at each level, the minimum of all values at or below that level: when I push x, I push min(x, current minimum) onto it. When I pop, I pop both. The current minimum is always the top of the second stack, so push, pop and min are all O(1), at the cost of O(n) extra space. A space-saving variant only pushes onto the minimum stack when x is less than or equal to the current minimum, and pops from it only when the popped value equals that minimum. Equal values must be handled, or duplicates break it.'],
+      ['Why prefer ArrayDeque over java.util.Stack?', 'java.util.Stack extends Vector, so every method is synchronized, which adds locking overhead that a single-threaded algorithm does not need. Because it is a Vector, it also exposes index-based methods like get and insertElementAt, which let code bypass the last-in-first-out contract. ArrayDeque is unsynchronized, backed by a resizable circular array, and offers push, pop and peek at the head, so it is faster and its interface matches a stack better. It does not allow null elements, which is usually fine. If a stack really must be shared between threads, I would choose a concurrent structure such as ConcurrentLinkedDeque deliberately rather than relying on Stack.']
+    ],
+    check: ['What does StackTools.validate report for "([)]"?',
+      ['valid', '\'[\' at 1 closed by \')\' at 2', 'unclosed \'(\' at 0', 'unexpected \']\' at 3'], 1,
+      'At index 2 the top of the stack is "[", which does not match ")".'],
+    practice: ['Copy StackTools.java. Add evaluation of a postfix expression such as "3 4 + 2 *" and a check that rejects a closing tag </b> that does not match the last opened <i>.',
+      ['"3 4 + 2 *" evaluates to 14.', 'Too few operands is reported as an error.', 'Tag mismatches report both positions.', 'All methods are O(n).']],
+    references: [['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/'], ['Java 21 API · Deque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Deque.html']]
+  },
+  'd-linkedlist-01': {
+    notes: [
+      'A singly linked list is a chain of nodes, each holding a value and a reference to the next node. Inserting or removing after a known node is O(1), but reaching the k-th node is O(k), because there is no index. Most linked-list bugs come from changing a reference before saving what it pointed to.',
+      'Reversal in place uses three references. In ReverseList.java, for each node: first save next = cur.next, then set cur.next = prev, then move prev to cur and cur to next. If you skip the first step on A→B→C, setting B.next to A loses the only reference to C. At the end prev is the new head, and the old head, now the tail, has next = null. Test zero, one and three nodes.',
+      'Merging two sorted lists relinks existing nodes instead of copying them. A dummy head node removes the special case for the first element: keep a tail pointer, attach the smaller front node, advance, and when one list runs out attach the rest of the other. Using <= on ties takes from the first list first, which keeps the merge stable. It is O(n + m) time and O(1) extra space, and it is the merge step of merge sort on linked lists.'
+    ],
+    code: {
+      title: 'ReverseList.java · in-place reversal (save next first), empty and single lists, and merging two sorted lists · java ReverseList.java',
+      text: String.raw`// Iterative reversal (save next first!) and merging two sorted lists by relinking nodes.
+public class ReverseList {
+    static final class Node { final String v; Node next; Node(String v, Node next) { this.v = v; this.next = next; } }
+
+    static Node list(String... vs) { Node h = null; for (int i = vs.length - 1; i >= 0; i--) h = new Node(vs[i], h); return h; }
+    static String show(Node h) { StringBuilder sb = new StringBuilder(); for (Node n = h; n != null; n = n.next) sb.append(n.v).append(n.next != null ? "→" : ""); return sb.length() == 0 ? "(empty)" : sb.toString(); }
+
+    static Node reverse(Node head) {
+        Node prev = null, cur = head;
+        while (cur != null) {
+            Node next = cur.next;   // 1. save the rest of the list
+            cur.next = prev;        // 2. point back
+            prev = cur;             // 3. advance both
+            cur = next;
+        }
+        return prev;
+    }
+
+    static Node mergeSorted(Node a, Node b) {
+        Node dummy = new Node("", null), tail = dummy;
+        while (a != null && b != null) {
+            if (a.v.compareTo(b.v) <= 0) { tail.next = a; a = a.next; } else { tail.next = b; b = b.next; }
+            tail = tail.next;
+        }
+        tail.next = a != null ? a : b;
+        return dummy.next;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("reverse A→B→C : " + show(reverse(list("A", "B", "C"))));
+        System.out.println("reverse A     : " + show(reverse(list("A"))));
+        System.out.println("reverse empty : " + show(reverse(null)));
+        Node r = reverse(list("A", "B", "C"));
+        Node tail = r; while (tail.next != null) tail = tail.next;
+        System.out.println("new tail is " + tail.v + ", tail.next = " + tail.next);
+        System.out.println("merge         : " + show(mergeSorted(list("A", "D", "F"), list("B", "C", "G"))));
+    }
+}
+`,
+      output: String.raw`reverse A→B→C : C→B→A
+reverse A     : A
+reverse empty : (empty)
+new tail is A, tail.next = null
+merge         : A→B→C→D→F→G`
+    },
+    takeaways: ['Save next before changing cur.next.', 'prev is the new head; the old head’s next is null.', 'A dummy head simplifies building a list.', 'Merging relinks nodes in O(n + m) time.'],
+    interview: [
+      ['Which reference must you save before reversing a link, and what breaks if you do not?', 'Before setting cur.next = prev, I must save the original cur.next, because it is the only reference to the unprocessed rest of the list. On A→B→C with cur at B and prev at A, if I set B.next to A first, nothing points to C any more, so the loop stops early and C is lost, and in Java it becomes garbage. The correct order is: save next, point cur back to prev, move prev to cur, move cur to next. At the end prev is the new head. I test empty, one-node and three-node lists and assert that the new tail’s next is null.'],
+      ['How do you merge two sorted linked lists?', 'I create a dummy node and a tail pointer that starts at it. While both lists have nodes, I compare their fronts, attach the smaller one to tail.next, advance that list and move tail forward. When one list runs out, I attach the remainder of the other in one step, because it is already sorted. The result starts at dummy.next. Using <= on ties takes from the first list, which keeps equal values in a stable order. No nodes are copied, so it is O(n + m) time and O(1) extra space. The dummy node avoids a special case for choosing the head.'],
+      ['When would you use a linked list rather than an ArrayList in Java?', 'Rarely for plain sequences. ArrayList gives O(1) indexed access, uses memory compactly and is cache-friendly, and appending is amortized O(1). LinkedList only wins when you insert or remove in the middle at a position you already hold through an iterator, or need a deque, and even then ArrayDeque is usually faster for queue and stack use. Linked structures matter more inside other data structures: an LRU cache links entries in a doubly linked list so it can move one to the front in O(1) given a reference from a hash map, and hash buckets and adjacency lists also use links.']
+    ],
+    check: ['In ReverseList.java, what is the new tail after reversing A→B→C, and what is its next?',
+      ['C, pointing to null', 'A, pointing to null', 'A, pointing to B', 'B, pointing to A'], 1,
+      'The old head A becomes the tail, and its next must be null, or the list would loop.'],
+    practice: ['Copy ReverseList.java. Add a recursive reverse, reverseFirstK(head, k) and removal of the k-th node from the end in one pass with two pointers.',
+      ['Recursive and iterative reversal give the same result.', 'reverseFirstK(A→B→C→D, 2) gives B→A→C→D.', 'Removing the 1st from the end of A→B→C gives A→B.', 'Empty and one-node lists work.']],
+    references: [['Princeton Algorithms · Stacks and queues (linked lists)', 'https://algs4.cs.princeton.edu/13stacks/']]
+  },
+  'd-lru-02': {
+    notes: [
+      'A least-recently-used (LRU) cache keeps at most capacity entries and, when full, evicts the entry that was used longest ago. Both get and put must be O(1). Two structures together give that: a HashMap from key to node finds an entry in O(1), and a doubly linked list keeps the nodes in recency order, most recent at the front. Because the map stores the node itself, not just the value, you can unlink that node in O(1) using its prev and next pointers, with no scan.',
+      'LruNodes.java uses two sentinel nodes, head and tail, so unlinking and adding never need null checks. get moves the node to the front: a read changes recency, which matters for concurrency later. put updates and moves an existing key, or, when the cache is full, removes the node before tail from both the list and the map, then adds the new node at the front. With capacity 2, put(A), put(B), get(A), put(C) evicts B and leaves the order C, A.',
+      'The invariant is that the map and the list contain exactly the same keys and the size never exceeds capacity. The program checks it after every step, which catches the classic bug of removing an evicted node from the list but not from the map. Test a miss, an update of an existing key, capacity 1, and the eviction order. In production Java, LinkedHashMap with access order and removeEldestEntry gives the same behaviour in a few lines.'
+    ],
+    code: {
+      title: 'LruNodes.java · HashMap of nodes plus a doubly linked list with sentinels, and an invariant check after every operation · java LruNodes.java',
+      text: String.raw`import java.util.*;
+
+// LRU cache from a HashMap of node references plus a doubly linked list, with an invariant check after every step.
+public class LruNodes {
+    static final class Node { final String key; int value; Node prev, next; Node(String k, int v) { key = k; value = v; } }
+    private final int capacity;
+    private final Map<String, Node> map = new HashMap<>();
+    private final Node head = new Node("HEAD", 0), tail = new Node("TAIL", 0);   // sentinels: head.next = most recent
+
+    LruNodes(int capacity) { if (capacity < 1) throw new IllegalArgumentException("capacity >= 1"); this.capacity = capacity; head.next = tail; tail.prev = head; }
+
+    private void unlink(Node n) { n.prev.next = n.next; n.next.prev = n.prev; }
+    private void addFront(Node n) { n.next = head.next; n.prev = head; head.next.prev = n; head.next = n; }
+
+    Integer get(String key) {
+        Node n = map.get(key);                 // O(1): the map hands us the node itself
+        if (n == null) return null;
+        unlink(n); addFront(n);                // a read CHANGES recency
+        return n.value;
+    }
+
+    void put(String key, int value) {
+        Node n = map.get(key);
+        if (n != null) { n.value = value; unlink(n); addFront(n); return; }
+        if (map.size() == capacity) { Node lru = tail.prev; unlink(lru); map.remove(lru.key); }   // remove from BOTH
+        n = new Node(key, value); map.put(key, n); addFront(n);
+    }
+
+    List<String> order() { List<String> o = new ArrayList<>(); for (Node n = head.next; n != tail; n = n.next) o.add(n.key); return o; }
+
+    void checkInvariant() {
+        List<String> o = order();
+        if (o.size() != map.size() || !new HashSet<>(o).equals(map.keySet()) || o.size() > capacity)
+            throw new IllegalStateException("map " + map.keySet() + " vs list " + o);
+    }
+
+    public static void main(String[] args) {
+        LruNodes c = new LruNodes(2);
+        c.put("A", 1); c.checkInvariant();
+        c.put("B", 2); c.checkInvariant();
+        System.out.println("get(A) = " + c.get("A") + ", order " + c.order()); c.checkInvariant();
+        c.put("C", 3); c.checkInvariant();
+        System.out.println("after put(C): order " + c.order() + ", get(B) = " + c.get("B"));
+        c.put("A", 10); c.checkInvariant();
+        System.out.println("update A: order " + c.order() + ", get(A) = " + c.get("A"));
+        LruNodes one = new LruNodes(1);
+        one.put("X", 1); one.put("Y", 2); one.checkInvariant();
+        System.out.println("capacity 1: order " + one.order() + ", get(X) = " + one.get("X"));
+    }
+}
+`,
+      output: String.raw`get(A) = 1, order [A, B]
+after put(C): order [C, A], get(B) = null
+update A: order [A, C], get(A) = 10
+capacity 1: order [Y], get(X) = null`
+    },
+    takeaways: ['HashMap finds the node; the linked list keeps recency.', 'get moves the node to the front.', 'Evict from both the list and the map.', 'Check that map keys and list keys always match.'],
+    interview: [
+      ['How do you implement an LRU cache with O(1) get and put?', 'I combine a HashMap from key to node with a doubly linked list ordered by recency, most recent at the front, and use sentinel head and tail nodes to avoid edge cases. get looks up the node in the map; on a hit it unlinks the node using its prev and next pointers and adds it at the front, then returns the value. put updates and moves an existing node, or, when the cache is full, removes the node just before the tail from both the list and the map, then inserts the new node at the front and into the map. Every step is a constant number of pointer changes, so both operations are O(1).'],
+      ['Why does the map store the node rather than just the value?', 'Moving or removing an entry in the list requires access to its neighbours. If the map stored only the value, I would have to walk the list to find the node for that key, which is O(n) and defeats the purpose. Storing the node gives me its prev and next pointers immediately, so I can unlink it in O(1). The node also stores its key, which I need during eviction: the least recent node is found at the tail of the list, and its key tells me which map entry to remove. Without the key in the node, eviction could not clean up the map in O(1).'],
+      ['Two threads call get on the same LRU cache at the same time. What needs coordination?', 'Even get mutates the cache, because a hit moves the node to the front of the recency list. Two concurrent moves, or a move racing with an eviction, can corrupt the prev and next pointers, losing nodes or creating cycles, and the map and list can disagree. So the map lookup and the list change must happen as one atomic operation, for example inside a single lock around get and put. A ConcurrentHashMap alone does not help, because the separate list is still unsynchronized. For high contention, libraries such as Caffeine use striped buffers and approximate recency to avoid one global lock.']
+    ],
+    check: ['With capacity 2, after put(A), put(B), get(A), put(C), what is the order from most to least recent?',
+      ['B, C', 'C, A', 'A, C', 'C, B'], 1,
+      'get(A) makes A most recent, so B is least recent and is evicted when C is added.'],
+    practice: ['Copy LruNodes.java. Add remove(key), a hit/miss counter, and a test that runs 1,000 random operations against a simple reference implementation, checking the invariant each time.',
+      ['remove deletes the key from both structures.', 'Random operations always match the reference.', 'Capacity 1 and a miss on an empty cache work.', 'The invariant check never fails.']],
+    references: [['Java 21 API · LinkedHashMap (access order, removeEldestEntry)', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html']]
+  },
+  'l-machine-01': {
+    notes: [
+      'Machine-coding rounds ask you to build a small, working component in 60–90 minutes, such as a thread-safe cache. Start with the interface, not the data structure: Cache<K, V> with get, put and size. State the invariants out loud: size never exceeds capacity, the least recently used entry is evicted first, and get counts as a use. Then pick the simplest correct implementation and leave extension points, such as a different eviction policy behind the same interface.',
+      'SafeLru.java implements the interface with LinkedHashMap in access order, so get moves an entry, and overrides removeEldestEntry to evict when size() > capacity. That is the whole LRU logic. Thread safety comes from one ReentrantLock around every operation, including get, because get changes the order. The lock is released in finally, so an exception cannot leave it held. A ConcurrentHashMap would not be enough, because the recency order is separate state.',
+      'Prove it with tests the interviewer can watch: the capacity-2 eviction case, and a stress test where 8 threads run 20,000 random gets and puts each, after which the size equals the capacity and the order list agrees with the map. Mention the trade-off: one lock serializes all access, which is fine for a booking service with modest traffic. For heavy contention you would use a library such as Caffeine rather than writing your own concurrent cache.'
+    ],
+    code: {
+      title: 'SafeLru.java · interface first, LinkedHashMap in access order with removeEldestEntry, one lock for every operation, and an 8-thread stress test · java SafeLru.java',
+      text: String.raw`import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.*;
+
+// Machine-coding style: interface first, LinkedHashMap in access order, one lock around every operation
+// (get mutates recency too), and a concurrent stress test that checks the size invariant.
+public class SafeLru {
+    interface Cache<K, V> { V get(K key); void put(K key, V value); int size(); }
+
+    static final class LockedLru<K, V> implements Cache<K, V> {
+        private final Lock lock = new ReentrantLock();
+        private final LinkedHashMap<K, V> map;
+        LockedLru(int capacity) {
+            map = new LinkedHashMap<>(16, 0.75f, true) {              // true = access order: get moves the entry
+                @Override protected boolean removeEldestEntry(Map.Entry<K, V> eldest) { return size() > capacity; }
+            };
+        }
+        public V get(K key) { lock.lock(); try { return map.get(key); } finally { lock.unlock(); } }
+        public void put(K key, V value) { lock.lock(); try { map.put(key, value); } finally { lock.unlock(); } }
+        public int size() { lock.lock(); try { return map.size(); } finally { lock.unlock(); } }
+        List<K> order() { lock.lock(); try { return new ArrayList<>(map.keySet()); } finally { lock.unlock(); } }
+    }
+
+    public static void main(String[] args) throws Exception {
+        LockedLru<String, Integer> c = new LockedLru<>(2);
+        c.put("A", 1); c.put("B", 2); c.get("A"); c.put("C", 3);
+        System.out.println("least -> most recent: " + c.order() + " (B evicted)");
+
+        LockedLru<Integer, Integer> shared = new LockedLru<>(100);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        List<Future<?>> fs = new ArrayList<>();
+        for (int t = 0; t < 8; t++) {
+            final int seed = t;
+            fs.add(pool.submit(() -> {
+                Random r = new Random(seed);
+                for (int i = 0; i < 20_000; i++) { int k = r.nextInt(500); if (r.nextBoolean()) shared.put(k, i); else shared.get(k); }
+            }));
+        }
+        for (Future<?> f : fs) f.get();
+        pool.shutdown();
+        System.out.println("8 threads x 20,000 ops: final size " + shared.size() + " (capacity 100), order list size " + shared.order().size());
+    }
+}
+`,
+      output: String.raw`least -> most recent: [A, C] (B evicted)
+8 threads x 20,000 ops: final size 100 (capacity 100), order list size 100`
+    },
+    takeaways: ['Define the interface and invariants first.', 'LinkedHashMap(access order) + removeEldestEntry is an LRU.', 'Lock get as well as put.', 'Show a correctness test and a stress test.'],
+    interview: [
+      ['How would you approach a machine-coding round for a thread-safe cache?', 'I clarify requirements first: capacity, eviction policy, whether reads count as use, expected concurrency, and whether values can be null. Then I write the interface, Cache<K, V> with get, put and size, and state the invariants: size never exceeds capacity, the least recently used entry is evicted, and get updates recency. I implement the simplest correct version, LinkedHashMap in access order with removeEldestEntry, wrapped in one ReentrantLock. Then I show tests: the eviction order case, a miss, an update, and a concurrent stress test. Finally I discuss extensions, such as time-based expiry or a pluggable policy, and the trade-offs of the single lock.'],
+      ['Why is a ConcurrentHashMap not enough to make an LRU cache thread-safe?', 'ConcurrentHashMap makes each map operation thread-safe, but an LRU cache has a second piece of state, the recency order, that must change together with the map. A get on a hit moves the entry in the order, and a put may evict the eldest entry from both. If those steps are not atomic as a group, two threads can interleave: one evicts a key while another moves it, leaving the list pointing at an entry the map no longer has, or the size above capacity. So the map lookup and the order change need one lock, or a design built for concurrency, such as Caffeine’s buffered approach.'],
+      ['How does LinkedHashMap implement LRU behaviour?', 'LinkedHashMap keeps a doubly linked list through its entries in addition to the hash table. With the constructor flag accessOrder set to true, every get or put of an existing key moves that entry to the end of the list, so iteration goes from least to most recently accessed. After each insertion it calls removeEldestEntry with the first entry in that order; if you override it to return true when size() exceeds the capacity, the eldest, least recently used entry is removed. So an LRU cache is a few lines of code. It is not thread-safe, so it needs external locking, and get must be locked too because it reorders entries.']
+    ],
+    check: ['In SafeLru.java, why is get inside the lock?',
+      ['Because reading a HashMap is never safe', 'Because in access order, get moves the entry, which changes shared state', 'Because removeEldestEntry runs on get', 'It does not need to be'], 1,
+      'With accessOrder = true, get reorders the internal list, so it must be synchronized like put.'],
+    practice: ['Copy SafeLru.java. Add time-based expiry (an entry older than ttlMillis is treated as a miss, using an injected clock), hit and miss counters, and a test with a fake clock.',
+      ['Expired entries return null and are removed.', 'The fake clock makes tests deterministic.', 'Counters are correct after the stress test.', 'The capacity invariant still holds.']],
+    references: [['Java 21 API · LinkedHashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html'], ['Java 21 API · ReentrantLock', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/locks/ReentrantLock.html']]
+  },
+  'd-queues-01': {
+    notes: [
+      'A queue is first in, first out: offer adds at the back and poll removes from the front. In Java, ArrayDeque is the usual queue: offer, poll and peek are amortized O(1), and poll returns null on an empty queue instead of throwing. Queues model waiting lines, such as booking requests processed in arrival order, and they drive breadth-first search.',
+      'A queue can be built from two stacks. QueueOps.java pushes new items onto an in stack. To poll, if the out stack is empty, it moves every item from in to out, which reverses their order so the oldest is on top. Each item is moved at most once in its lifetime, so although one poll can take O(n), the average cost per operation is O(1). That is amortized analysis: 4 items cause exactly 4 moves.',
+      'A queue of timestamps answers "how many requests in the last 3,000 ms?". On each new request, add its time at the back, then remove times from the front while they are older than t − 3000. The queue size is the answer. Each timestamp is added and removed once, so this is amortized O(1) too. The same pattern implements a sliding-window rate limiter.'
+    ],
+    code: {
+      title: 'QueueOps.java · FIFO with ArrayDeque, a queue from two stacks (amortized O(1)) and a recent-hits counter · java QueueOps.java',
+      text: String.raw`import java.util.*;
+
+// Queues: FIFO with ArrayDeque, a queue built from two stacks (amortized O(1)), and a recent-hits counter.
+public class QueueOps {
+    static final class TwoStackQueue<T> {
+        private final Deque<T> in = new ArrayDeque<>(), out = new ArrayDeque<>();
+        int moves = 0;
+        void offer(T x) { in.push(x); }
+        T poll() {
+            if (out.isEmpty()) while (!in.isEmpty()) { out.push(in.pop()); moves++; }   // each item moves at most once
+            return out.poll();
+        }
+    }
+
+    // Count requests in the last 3,000 ms: drop timestamps from the front as they expire.
+    static final class RecentCounter {
+        private final Deque<Long> times = new ArrayDeque<>();
+        int ping(long t) { times.offerLast(t); while (times.peekFirst() < t - 3000) times.pollFirst(); return times.size(); }
+    }
+
+    public static void main(String[] args) {
+        Deque<String> fifo = new ArrayDeque<>();
+        fifo.offer("req-1"); fifo.offer("req-2"); fifo.offer("req-3");
+        System.out.println("FIFO poll: " + fifo.poll() + ", then peek: " + fifo.peek());
+
+        TwoStackQueue<Integer> q = new TwoStackQueue<>();
+        for (int i = 1; i <= 3; i++) q.offer(i);
+        StringBuilder sb = new StringBuilder("two-stack queue: " + q.poll());
+        q.offer(4);
+        Integer x; while ((x = q.poll()) != null) sb.append(' ').append(x);
+        System.out.println(sb + " (moves between stacks: " + q.moves + " for 4 items)");
+
+        RecentCounter rc = new RecentCounter();
+        long[] ts = {1, 100, 3001, 3002, 7000};
+        StringBuilder hits = new StringBuilder("recent hits:");
+        for (long t : ts) hits.append(" t=").append(t).append("->").append(rc.ping(t));
+        System.out.println(hits);
+    }
+}
+`,
+      output: String.raw`FIFO poll: req-1, then peek: req-2
+two-stack queue: 1 2 3 4 (moves between stacks: 4 for 4 items)
+recent hits: t=1->1 t=100->2 t=3001->3 t=3002->3 t=7000->1`
+    },
+    takeaways: ['ArrayDeque is Java’s everyday queue.', 'Two stacks make a queue with amortized O(1).', 'Expire old timestamps from the front.', 'Each item is moved or removed at most once.'],
+    interview: [
+      ['How do you implement a queue with two stacks, and what is its complexity?', 'I keep an in stack and an out stack. offer always pushes onto in. poll pops from out; if out is empty, I first pop everything from in and push it onto out, which reverses the order so the oldest item is on top. Each element is pushed onto in once, moved to out once and popped from out once, so over any sequence of n operations the total work is O(n). A single poll can cost O(n) when it triggers the transfer, but the amortized cost per operation is O(1). It is a classic interview question about amortized analysis.'],
+      ['How would you count requests in the last three seconds efficiently?', 'I keep a queue of request timestamps in arrival order. For each new request at time t, I add t at the back, then remove timestamps from the front while they are older than t − 3000 milliseconds. The size of the queue is the number of requests in the window. Because timestamps arrive in order, expired ones are always at the front. Each timestamp is added once and removed once, so the amortized cost is O(1) per request, and memory is proportional to the requests in the window. For very high rates I would switch to fixed time buckets, which use constant memory at the cost of precision.'],
+      ['Why use ArrayDeque instead of LinkedList for a queue in Java?', 'ArrayDeque stores elements in a resizable circular array, so offer and poll are amortized O(1) with no per-element node objects. That means less memory, less garbage collection and better cache locality than LinkedList, which allocates a node with two extra references for every element. Both implement Deque, so the code using them is the same. ArrayDeque rejects null, which also avoids confusing a null element with poll’s empty-queue result. LinkedList is only useful when you need its List methods. Neither is thread-safe; for a queue shared between threads I use a BlockingQueue such as ArrayBlockingQueue.']
+    ],
+    check: ['In QueueOps.java, the recent counter receives pings at 1, 100, 3001, 3002 and 7000. What does the ping at 3002 return?',
+      ['4', '3', '2', '1'], 1,
+      'At 3002 the window starts at 2, so 1 expires and 100, 3001 and 3002 remain.'],
+    practice: ['Copy QueueOps.java. Add a fixed-capacity circular queue with isFull, a stack built from two queues, and a test of the recent counter with equal timestamps.',
+      ['The circular queue wraps around correctly.', 'The two-queue stack returns items in LIFO order.', 'Equal timestamps are all counted.', 'State the amortized complexity of each.']],
+    references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html'], ['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/']]
+  },
+  'd-recursion-01': {
+    notes: [
+      'A recursive method solves a problem by calling itself on a smaller part of the same problem. It needs a base case that stops the recursion, here an empty subtree (null), and every call must move towards that base case. Trees are recursive by nature: a tree is a node plus a left subtree and a right subtree, so tree methods are often three lines long.',
+      'The three depth-first orders differ only in when the node itself is processed. Preorder processes the node before its children, so it is useful for copying or printing a tree top-down. Inorder processes it between the left and right subtrees, so a binary search tree comes out in sorted key order. Postorder processes it after both children, which suits work that needs the children’s results first, such as height or deleting a tree. TreeWalks.java prints all three for one small tree and computes the height as 1 + max(left height, right height).',
+      'Recursion uses the call stack: each active call holds a frame, so the extra space is O(h) for a tree of height h. A balanced tree with n nodes has h ≈ log n, but a skewed tree, such as one built by inserting sorted keys into a plain BST, has h = n. The program builds a one-million-node skewed tree: the recursive height throws StackOverflowError, while an iterative inorder with an explicit ArrayDeque stack visits every node. In interviews, state the O(h) stack cost and offer the iterative version for deep trees.'
+    ],
+    code: {
+      title: 'TreeWalks.java · preorder, inorder and postorder by recursion, height, and an iterative inorder that survives a one-million-node skewed tree · java TreeWalks.java',
+      text: String.raw`import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+
+public class TreeWalks {
+    record Node(int key, Node left, Node right) {}
+
+    static void preorder(Node n, List<Integer> out) {
+        if (n == null) return;                 // base case
+        out.add(n.key());
+        preorder(n.left(), out);
+        preorder(n.right(), out);
+    }
+
+    static void inorder(Node n, List<Integer> out) {
+        if (n == null) return;
+        inorder(n.left(), out);
+        out.add(n.key());
+        inorder(n.right(), out);
+    }
+
+    static void postorder(Node n, List<Integer> out) {
+        if (n == null) return;
+        postorder(n.left(), out);
+        postorder(n.right(), out);
+        out.add(n.key());
+    }
+
+    static int height(Node n) {
+        return n == null ? 0 : 1 + Math.max(height(n.left()), height(n.right()));
+    }
+
+    // Same inorder result with an explicit stack: no recursion depth limit.
+    static List<Integer> inorderIterative(Node root) {
+        List<Integer> out = new ArrayList<>();
+        Deque<Node> stack = new ArrayDeque<>();
+        Node cur = root;
+        while (cur != null || !stack.isEmpty()) {
+            while (cur != null) { stack.push(cur); cur = cur.left(); }
+            cur = stack.pop();
+            out.add(cur.key());
+            cur = cur.right();
+        }
+        return out;
+    }
+
+    public static void main(String[] args) {
+        //        40
+        //      20    60
+        //    10  30    70
+        Node root = new Node(40,
+            new Node(20, new Node(10, null, null), new Node(30, null, null)),
+            new Node(60, null, new Node(70, null, null)));
+        List<Integer> pre = new ArrayList<>(), in = new ArrayList<>(), post = new ArrayList<>();
+        preorder(root, pre); inorder(root, in); postorder(root, post);
+        System.out.println("preorder  : " + pre);
+        System.out.println("inorder   : " + in);
+        System.out.println("postorder : " + post);
+        System.out.println("height " + height(root) + ", iterative inorder equal: " + in.equals(inorderIterative(root)));
+
+        // A skewed tree (a sorted insert into a plain BST) has height n.
+        Node skewed = null;
+        for (int k = 1_000_000; k >= 1; k--) skewed = new Node(k, null, skewed);
+        System.out.println("skewed height " + 1_000_000 + ", iterative inorder size " + inorderIterative(skewed).size());
+        try {
+            height(skewed);
+            System.out.println("recursive height finished");
+        } catch (StackOverflowError e) {
+            System.out.println("recursive height: StackOverflowError (depth too large)");
+        }
+    }
+}
+`,
+      output: String.raw`preorder  : [40, 20, 10, 30, 60, 70]
+inorder   : [10, 20, 30, 40, 60, 70]
+postorder : [10, 30, 20, 70, 60, 40]
+height 3, iterative inorder equal: true
+skewed height 1000000, iterative inorder size 1000000
+recursive height: StackOverflowError (depth too large)`
+    },
+    takeaways: ['Every recursion needs a base case and progress towards it.', 'Pre, in and post order differ only in when the node is processed.', 'Recursion costs O(h) stack space.', 'Use an explicit stack for very deep trees.'],
+    interview: [
+      ['What are preorder, inorder and postorder traversal, and when would you use each?', 'All three visit every node once in O(n) time and differ only in when the current node is processed. Preorder handles the node before its subtrees, which is natural for copying a tree or serializing it so it can be rebuilt top-down. Inorder handles it between the left and right subtrees; for a binary search tree that produces keys in sorted order, which is useful for validation and range listing. Postorder handles it after both subtrees, which is what you need when a node’s answer depends on its children, such as computing height or size, or freeing nodes. Recursive versions use O(h) stack space.'],
+      ['When can recursion fail on a tree, and how do you avoid it?', 'Each recursive call adds a frame to the thread’s call stack, so the depth of recursion equals the height of the tree. For a balanced tree that is about log n, which is tiny, but a degenerate tree, for example a BST built from sorted input, has height n. With hundreds of thousands of levels the JVM throws StackOverflowError. To avoid it, I rewrite the traversal with an explicit stack such as ArrayDeque, which lives on the heap, or keep the tree balanced with a self-balancing structure such as TreeMap. Java has no tail-call optimization, so rewriting as tail recursion does not help.'],
+      ['How do you compute the height of a binary tree, and what does it cost?', 'I use postorder recursion: the height of an empty tree is 0, and the height of a node is 1 plus the larger of its left and right subtree heights. Each node is visited exactly once, so the time is O(n). The extra space is the recursion stack, O(h), where h is the height: O(log n) when balanced and O(n) when skewed. For a very deep tree I would compute it iteratively with a level-order traversal, counting levels with a queue, which needs space proportional to the widest level instead of the depth. I would also state whether height counts nodes or edges, since conventions differ.']
+    ],
+    check: ['In TreeWalks.java, which traversal gives 10, 30, 20, 70, 60, 40?',
+      ['Preorder', 'Inorder', 'Postorder', 'Level order'], 2,
+      'Postorder visits the left subtree, the right subtree and then the node, so the root 40 comes last.'],
+    practice: ['Copy TreeWalks.java. Add an iterative preorder and postorder with an explicit stack, a level-order traversal with a queue, and a test that all versions agree with the recursive ones on a random tree.',
+      ['Iterative versions match the recursive ones.', 'Level order prints 40, 20, 60, 10, 30, 70.', 'The skewed tree works iteratively.', 'Space of each version stated.']],
+    references: [['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/']]
+  },
+  'd-heaps-01': {
+    notes: [
+      'A binary heap is a complete binary tree stored in an array where every parent ranks before its children. That partial order gives O(1) access to the top item and O(log n) offer and poll, but it does not keep everything sorted. Java’s PriorityQueue is a min-heap by default; pass a comparator, or comparator.reversed(), to change the order.',
+      'To keep the k nearest departures from a stream, keep a heap of at most k items whose root is the worst item you are keeping, which is a max-heap by your ranking. For each new departure, add it while the heap has fewer than k items. Otherwise compare it with the root; if it ranks better, poll the root and offer the new item. TopKNearest.java keeps the three nearest of 7, 2, 6, 1 and 4 minutes and returns 1, 2, 4. The cost is O(n log k) time and O(k) space, which is far better than sorting all n when k is small.',
+      'Two details are often missed. First, a heap is not sorted, so sort the k survivors at the end before returning them. Second, ties need a rule: the comparator here breaks equal minutes by arrival order, so with k = 2 and three departures at 5 minutes, the earliest one, A, is kept. Handle k = 0 (return an empty list) and k larger than the stream (return everything sorted).'
+    ],
+    code: {
+      title: 'TopKNearest.java · a bounded max-heap that keeps the k nearest departures, a stable tie-break by arrival and a final sort · java TopKNearest.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+
+public class TopKNearest {
+    record Departure(String id, int minutesAway, int arrival) {}
+
+    // Rank: fewer minutes first; on a tie, earlier arrival first (stable).
+    static final Comparator<Departure> RANK =
+        Comparator.comparingInt(Departure::minutesAway).thenComparingInt(Departure::arrival);
+
+    // Keep the k best in a max-heap of the current k: the root is the worst kept item.
+    static List<Departure> nearest(List<Departure> stream, int k) {
+        if (k <= 0) return List.of();
+        PriorityQueue<Departure> heap = new PriorityQueue<>(RANK.reversed());
+        for (Departure d : stream) {
+            if (heap.size() < k) heap.offer(d);
+            else if (RANK.compare(d, heap.peek()) < 0) { heap.poll(); heap.offer(d); }
+        }
+        List<Departure> out = new ArrayList<>(heap);
+        out.sort(RANK);                        // a heap is not sorted: sort the k survivors
+        return out;
+    }
+
+    static List<String> ids(List<Departure> ds) {
+        return ds.stream().map(d -> d.id() + "(" + d.minutesAway() + ")").toList();
+    }
+
+    public static void main(String[] args) {
+        int[] mins = {7, 2, 6, 1, 4};
+        List<Departure> stream = new ArrayList<>();
+        for (int i = 0; i < mins.length; i++) stream.add(new Departure("D" + i, mins[i], i));
+        System.out.println("k=3 nearest: " + ids(nearest(stream, 3)));
+
+        List<Departure> ties = List.of(new Departure("A", 5, 0), new Departure("B", 3, 1),
+            new Departure("C", 5, 2), new Departure("D", 5, 3));
+        System.out.println("tie k=2: " + ids(nearest(ties, 2)) + " - A arrived before C and D");
+        System.out.println("k=0: " + nearest(stream, 0) + ", k=10: " + nearest(stream, 10).size() + " items");
+    }
+}
+`,
+      output: String.raw`k=3 nearest: [D3(1), D1(2), D4(4)]
+tie k=2: [B(3), A(5)] - A arrived before C and D
+k=0: [], k=10: 5 items`
+    },
+    takeaways: ['A heap gives the top item fast; it is not sorted.', 'For the k smallest, keep a max-heap of size k.', 'O(n log k) time, O(k) space.', 'Break ties explicitly and sort the result.'],
+    interview: [
+      ['How do you find the k smallest values in a large stream?', 'I keep a max-heap of at most k items, so the root is the largest value I am currently keeping. For each new value, if the heap has fewer than k items I add it; otherwise, if the value is smaller than the root, I remove the root and add the value. At the end the heap holds the k smallest. Each step costs O(log k), so the total is O(n log k) time and O(k) space, and it works on a stream that does not fit in memory. If the output must be ordered, I sort the k survivors at the end, because iterating a heap does not give sorted order.'],
+      ['Why does keeping the smallest k values use a max-heap and not a min-heap?', 'The decision for each new value is whether it should replace the worst value I am keeping, and for the smallest k the worst kept value is the largest one. A max-heap exposes exactly that value at its root in O(1), and replacing it costs O(log k). A min-heap would expose the smallest kept value, which is the one I least want to remove, and finding the largest would need a scan. The same logic, reversed, means the k largest values use a min-heap. In Java I create the max-heap with new PriorityQueue<>(comparator.reversed()).'],
+      ['How do you make top-k results deterministic when values tie?', 'I make the comparator total by adding a tie-breaker, such as arrival index or ID, after the main key, for example comparingInt(minutes).thenComparingInt(arrival). The same comparator is used for the heap, reversed, and for the final sort. Then at the cut-off, a new item that ties on minutes but arrived later does not replace a kept item, and the output order is the same on every run. Without a tie-breaker, which equal item survives depends on the heap’s internal layout, so tests become flaky and users may see results change between requests. I also test a case with several ties at the boundary.']
+    ],
+    check: ['You keep the 3 smallest values. The heap holds 2, 5 and 8, and the next value is 4. What happens?',
+      ['Nothing; 4 is larger than the smallest kept value', 'Remove 8, the max-heap root, and add 4', 'Remove 2 and add 4', 'Add 4 and keep 4 values'], 1,
+      '8 is the worst value kept, so 4 replaces it, giving 2, 4, 5.'],
+    practice: ['Copy TopKNearest.java. Add a k-largest version with a min-heap, a merge of three sorted lists with a heap, and a test with all values equal.',
+      ['k-largest uses a min-heap of size k.', 'The merge outputs one sorted list.', 'Equal values keep arrival order.', 'Complexity written for each.']],
+    references: [['Princeton Algorithms · Priority queues', 'https://algs4.cs.princeton.edu/24pq/'], ['Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html']]
+  },
+  'd-trees-01': {
+    notes: [
+      'A binary search tree keeps every key in the left subtree smaller than the node and every key in the right subtree larger. Search, insert and delete follow one path from the root, so they cost O(h). Inorder traversal returns the keys in sorted order.',
+      'Validation is a classic trap. Checking only that each child is on the correct side of its parent is not enough: BstChecks.java puts 50 as the right child of 20, which is fine for 20 but wrong because 50 is inside the left subtree of 40. The correct check passes down a range (low, high) from all ancestors, and every key must lie strictly inside it.',
+      'A range query visits only subtrees that can contain keys in [lo, hi]: go left only if lo is smaller than the node, go right only if hi is larger. For keys 10–70 and range [25, 65], the result is 30, 40, 60. Note the duplicate policy (here duplicates are ignored) and that a plain BST can become skewed; Java’s TreeMap is a red-black tree that stays balanced.'
+    ],
+    code: {
+      title: 'BstChecks.java · insert, validation with inherited bounds, a pruned range query, and a tree that fools a parent-only check · java BstChecks.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+
+public class BstChecks {
+    static final class Node {
+        final int key; Node left, right;
+        Node(int key) { this.key = key; }
+    }
+
+    static Node insert(Node n, int key) {
+        if (n == null) return new Node(key);
+        if (key < n.key) n.left = insert(n.left, key);
+        else if (key > n.key) n.right = insert(n.right, key);   // duplicates ignored
+        return n;
+    }
+
+    // Every node must lie inside bounds inherited from all its ancestors, not just its parent.
+    static boolean isBst(Node n, long low, long high) {
+        if (n == null) return true;
+        if (n.key <= low || n.key >= high) return false;
+        return isBst(n.left, low, n.key) && isBst(n.right, n.key, high);
+    }
+
+    // Visit only the subtrees that can contain keys in [lo, hi].
+    static void range(Node n, int lo, int hi, List<Integer> out) {
+        if (n == null) return;
+        if (lo < n.key) range(n.left, lo, hi, out);
+        if (lo <= n.key && n.key <= hi) out.add(n.key);
+        if (n.key < hi) range(n.right, lo, hi, out);
+    }
+
+    public static void main(String[] args) {
+        Node root = null;
+        for (int k : new int[] {40, 20, 60, 10, 30, 70, 30}) root = insert(root, k);
+        System.out.println("valid BST: " + isBst(root, Long.MIN_VALUE, Long.MAX_VALUE));
+        List<Integer> r = new ArrayList<>();
+        range(root, 25, 65, r);
+        System.out.println("keys in [25, 65]: " + r);
+
+        // 50 sits in 40's left subtree: fine for its parent 20, wrong for its grandparent 40.
+        root.left.right = new Node(50);
+        System.out.println("after putting 50 under 20: valid BST " + isBst(root, Long.MIN_VALUE, Long.MAX_VALUE));
+        System.out.println("parent-only check would say: " + (root.left.right.key > root.left.key));
+    }
+}
+`,
+      output: String.raw`valid BST: true
+keys in [25, 65]: [30, 40, 60]
+after putting 50 under 20: valid BST false
+parent-only check would say: true`
+    },
+    takeaways: ['BST operations cost O(h).', 'Validate with bounds from all ancestors.', 'Prune range queries by comparing with the node.', 'TreeMap stays balanced; a plain BST may not.'],
+    interview: [
+      ['How do you check whether a binary tree is a valid binary search tree?', 'I recurse with an allowed range. The root may hold any key, so its range is unbounded. When I go left, the upper bound becomes the current key; when I go right, the lower bound becomes the current key. Every node must lie strictly inside its range, assuming no duplicates. This catches the case a parent-only check misses: a node that is larger than its parent but sits in the left subtree of a higher ancestor with a smaller key. It visits each node once, so it is O(n) time and O(h) stack space. An equivalent approach is an inorder traversal that checks the keys are strictly increasing.'],
+      ['How do you list all keys between lo and hi in a BST efficiently?', 'I do an inorder traversal that skips subtrees that cannot contain matches. At each node, I go into the left subtree only if lo is smaller than the node’s key, because otherwise every key there is too small. I add the node’s key if it lies within the range. I go into the right subtree only if hi is larger than the key. The output is sorted because it is an inorder traversal. The cost is O(h + m), where m is the number of keys reported, instead of O(n) for a full scan. In Java, TreeMap.subMap(lo, true, hi, true) gives the same result on a balanced tree.'],
+      ['Why can a plain binary search tree become slow, and how does Java avoid it?', 'Search, insert and delete in a binary search tree cost O(h), where h is the height. If keys arrive in sorted order, each new key becomes the right child of the previous one, so the tree degenerates into a linked list with h = n, and every operation becomes O(n). Recursive traversal of such a tree can also overflow the stack. Self-balancing trees fix this by restructuring with rotations after inserts and deletes so the height stays O(log n). Java’s TreeMap and TreeSet are red-black trees, which guarantee O(log n) for get, put, remove, floorKey and ceilingKey. In an interview I would use TreeMap unless asked to implement the tree.']
+    ],
+    check: ['Why does BstChecks.java report the tree as invalid after 50 is placed under 20?',
+      ['50 is smaller than 20', '50 is in the left subtree of 40, so it must be less than 40', 'Duplicates are not allowed', 'The tree is too tall'], 1,
+      'The bound from the ancestor 40 applies to the whole left subtree, not just to 40’s direct child.'],
+    practice: ['Copy BstChecks.java. Add delete (with the two-children case using the inorder successor), floor and ceiling queries, and a comparison against TreeMap on 1,000 random keys.',
+      ['Delete keeps the tree valid in all three cases.', 'floor and ceiling match TreeMap.', 'The validation runs after every operation.', 'Height of a sorted insert is reported.']],
+    references: [['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/'], ['Java 21 API · TreeMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html']]
+  },
+  'd-graphs-01': {
+    notes: [
+      'A graph is a set of vertices connected by edges. Most interview graphs are sparse, so store them as adjacency lists: a map or list from each vertex to its neighbours, which takes O(V + E) space. Decide early whether edges are directed, whether they have weights, and how vertices are named.',
+      'Breadth-first search (BFS) explores from a source in layers using a queue: first the source, then everything one edge away, then two edges away. In an unweighted graph, the first time BFS discovers a vertex it has found a route with the fewest edges. Mark a vertex as discovered when you enqueue it, and record its parent at that moment; otherwise a vertex reachable from two queued vertices is enqueued twice. BfsRoutes.java finds A → C → D, reports an isolated seat Z as unreachable with an empty route, and runs a multi-source BFS from two entrances by putting both in the queue at distance 0. BFS costs O(V + E) time and O(V) extra space.',
+      'Depth-first search (DFS) follows one path as far as possible before backing up. Components.java counts connected components by starting a DFS from each vertex that has no label yet; with edges 0–1, 1–2 and 3–4 and seven vertices, there are four components, because 5 and 6 are on their own. For directed graphs, DFS with three colours detects a cycle: reaching a vertex that is still on the current path (grey) means a back edge. That is how you check that task dependencies can be ordered. Use an explicit stack for very deep graphs to avoid StackOverflowError.',
+      'BFS minimizes the number of edges, not the total cost. If edges have different non-negative weights, use Dijkstra’s algorithm, covered in today’s lane.'
+    ],
+    code: {
+      title: 'BfsRoutes.java · BFS with marking on enqueue, parent links, an unreachable vertex and multi-source BFS from two entrances · java BfsRoutes.java',
+      text: String.raw`import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+public class BfsRoutes {
+    // Undirected graph as adjacency lists; TreeMap keeps neighbour order deterministic.
+    static Map<String, List<String>> graph(String... edges) {
+        Map<String, List<String>> g = new TreeMap<>();
+        for (String e : edges) {
+            String[] p = e.split("-");
+            g.computeIfAbsent(p[0], k -> new ArrayList<>()).add(p[1]);
+            g.computeIfAbsent(p[1], k -> new ArrayList<>()).add(p[0]);
+        }
+        return g;
+    }
+
+    // Multi-source BFS: every source starts at distance 0. Mark on enqueue.
+    static Map<String, String> bfs(Map<String, List<String>> g, List<String> sources, Map<String, Integer> dist) {
+        Map<String, String> parent = new TreeMap<>();
+        Deque<String> queue = new ArrayDeque<>();
+        for (String s : sources) { dist.put(s, 0); queue.add(s); }
+        int enqueues = sources.size();
+        while (!queue.isEmpty()) {
+            String v = queue.poll();
+            for (String w : g.getOrDefault(v, List.of())) {
+                if (dist.containsKey(w)) continue;      // already discovered
+                dist.put(w, dist.get(v) + 1);
+                parent.put(w, v);
+                queue.add(w);
+                enqueues++;
+            }
+        }
+        dist.put("#enqueues", enqueues);
+        return parent;
+    }
+
+    static List<String> path(Map<String, String> parent, Map<String, Integer> dist, String target) {
+        if (!dist.containsKey(target)) return List.of();   // unreachable
+        List<String> p = new ArrayList<>();
+        for (String v = target; v != null; v = parent.get(v)) p.add(v);
+        Collections.reverse(p);
+        return p;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<String>> g = graph("A-B", "A-C", "C-D", "B-E", "E-D");
+        g.put("Z", new ArrayList<>());                    // isolated seat
+        Map<String, Integer> dist = new TreeMap<>();
+        Map<String, String> parent = bfs(g, List.of("A"), dist);
+        int enq = dist.remove("#enqueues");
+        System.out.println("from A: dist " + dist + ", enqueues " + enq);
+        System.out.println("route A->D: " + path(parent, dist, "D"));
+        System.out.println("route A->Z: " + path(parent, dist, "Z") + " (unreachable)");
+
+        Map<String, Integer> multi = new TreeMap<>();
+        Map<String, String> p2 = bfs(g, List.of("B", "D"), multi);
+        multi.remove("#enqueues");
+        System.out.println("two entrances B and D: dist " + multi + ", E reached via " + p2.get("E"));
+    }
+}
+`,
+      output: String.raw`from A: dist {A=0, B=1, C=1, D=2, E=2}, enqueues 5
+route A->D: [A, C, D]
+route A->Z: [] (unreachable)
+two entrances B and D: dist {A=1, B=0, C=1, D=0, E=1}, E reached via B`
+    },
+    takeaways: ['Adjacency lists: O(V + E) space.', 'BFS gives fewest edges in an unweighted graph.', 'Mark discovered on enqueue and record the parent.', 'DFS finds components and, with colours, directed cycles.'],
+    interview: [
+      ['Why does BFS find the shortest path in an unweighted graph?', 'BFS uses a FIFO queue, so it processes vertices in order of their distance from the source: the source at distance 0, then all vertices at distance 1, then all at distance 2, and so on. A vertex at distance d + 1 can only be discovered from a vertex at distance d, and all distance-d vertices are processed before any at d + 1. So the first time a vertex is discovered, the route through its parent has the fewest possible edges. Recording the parent at discovery lets me rebuild the route by following parents back from the target and reversing. It costs O(V + E) time with adjacency lists.'],
+      ['Why mark a vertex as discovered when it is enqueued rather than when it is dequeued?', 'If I mark only when dequeuing, a vertex can be added to the queue several times before it is processed. In a diamond graph, A connects to B and C, and both B and C connect to D. Processing B enqueues D, and processing C enqueues D again because D is not marked yet. With dense graphs this can blow the queue up to O(E) entries and repeat work, and a later copy could even overwrite D’s parent. Marking on enqueue ensures each vertex enters the queue once, keeps its first parent, which lies on a shortest route, and bounds the queue at V entries.'],
+      ['How do you count connected components, and how do you detect a cycle in a directed graph?', 'For components in an undirected graph, I loop over every vertex; when I find one without a label, I start a DFS or BFS from it and give every vertex it reaches the same new label. The number of starts is the number of components, and isolated vertices count as their own component. The total cost is O(V + E). For a directed graph, I run DFS with three colours: white for unvisited, grey for on the current path, black for finished. Reaching a grey vertex means a back edge, which is a cycle. Reaching a black vertex is fine. A graph with no cycle can be ordered topologically.']
+    ],
+    check: ['In BfsRoutes.java, which route does BFS find from A to D in the graph A–B, A–C, C–D, B–E, E–D?',
+      ['A, B, E, D', 'A, C, D', 'A, D', 'No route'], 1,
+      'A, C, D has two edges, fewer than A, B, E, D, and BFS discovers D first through C.'],
+    practice: ['Copy BfsRoutes.java and Components.java. Add a grid BFS for a venue map with blocked cells, a topological order (Kahn’s algorithm) for task dependencies, and tests for an isolated vertex and a cycle.',
+      ['Grid BFS returns -1 when unreachable.', 'Kahn’s algorithm reports a cycle.', 'Multi-source ties are handled.', 'O(V + E) stated for each.']],
+    references: [['Princeton Algorithms · Undirected graphs', 'https://algs4.cs.princeton.edu/41graph/'], ['Princeton Algorithms · Directed graphs', 'https://algs4.cs.princeton.edu/42digraph/']]
+  },
+  'd-graphs-01.dsa': {
+    notes: [
+      'When edges have different non-negative costs, the route with the fewest edges is not always the cheapest. In DijkstraRoutes.java, S–T costs 5 but S–A–T costs 1 + 1 = 2. BFS would pick the direct edge; Dijkstra’s algorithm finds the cheaper route.',
+      'Dijkstra keeps a priority queue ordered by the best known distance. It repeatedly takes the closest vertex not yet finalized and relaxes its edges: if dist[v] + cost is smaller than the known distance to a neighbour, update it, record the parent and add the neighbour to the queue. Java’s PriorityQueue has no decrease-key, so the program adds a new entry and skips stale ones when they are polled. With a binary heap the cost is O((V + E) log V).',
+      'Dijkstra requires non-negative weights: once a vertex is taken from the queue its distance is final, which is only true if no later edge can reduce it. With negative edges use Bellman–Ford. If all weights are 0 or 1, a deque-based 0–1 BFS is faster.'
+    ],
+    code: {
+      title: 'DijkstraRoutes.java · Dijkstra with a PriorityQueue and lazy deletion, parent links, and a case where the fewest-edge route is not the cheapest · java DijkstraRoutes.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.TreeMap;
+
+public class DijkstraRoutes {
+    record Edge(String to, int cost) {}
+    record Entry(String vertex, int dist) {}
+
+    static void add(Map<String, List<Edge>> g, String a, String b, int cost) {
+        g.computeIfAbsent(a, k -> new ArrayList<>()).add(new Edge(b, cost));
+        g.computeIfAbsent(b, k -> new ArrayList<>()).add(new Edge(a, cost));
+    }
+
+    // Dijkstra with lazy deletion: skip stale queue entries. Needs non-negative costs.
+    static Map<String, Integer> shortest(Map<String, List<Edge>> g, String src, Map<String, String> parent) {
+        Map<String, Integer> dist = new TreeMap<>();
+        PriorityQueue<Entry> pq = new PriorityQueue<>((x, y) -> x.dist() != y.dist()
+            ? Integer.compare(x.dist(), y.dist()) : x.vertex().compareTo(y.vertex()));
+        dist.put(src, 0);
+        pq.add(new Entry(src, 0));
+        while (!pq.isEmpty()) {
+            Entry e = pq.poll();
+            if (e.dist() > dist.get(e.vertex())) continue;   // stale
+            for (Edge edge : g.getOrDefault(e.vertex(), List.of())) {
+                int nd = e.dist() + edge.cost();
+                if (nd < dist.getOrDefault(edge.to(), Integer.MAX_VALUE)) {
+                    dist.put(edge.to(), nd);
+                    parent.put(edge.to(), e.vertex());
+                    pq.add(new Entry(edge.to(), nd));
+                }
+            }
+        }
+        return dist;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<Edge>> g = new TreeMap<>();
+        add(g, "S", "T", 5);
+        add(g, "S", "A", 1);
+        add(g, "A", "T", 1);
+        add(g, "T", "U", 2);
+        Map<String, String> parent = new TreeMap<>();
+        Map<String, Integer> dist = shortest(g, "S", parent);
+        List<String> route = new ArrayList<>();
+        for (String v = "T"; v != null; v = parent.get(v)) route.add(v);
+        Collections.reverse(route);
+        System.out.println("distances from S: " + dist);
+        System.out.println("cheapest S->T: " + route + " cost " + dist.get("T") + " (BFS would pick S->T, 1 hop, cost 5)");
+    }
+}
+`,
+      output: String.raw`distances from S: {A=1, S=0, T=2, U=4}
+cheapest S->T: [S, A, T] cost 2 (BFS would pick S->T, 1 hop, cost 5)`
+    },
+    takeaways: ['Fewest edges is not the lowest cost.', 'Dijkstra: priority queue plus relaxation.', 'Skip stale entries instead of decrease-key.', 'Weights must be non-negative.'],
+    interview: [
+      ['How does Dijkstra’s algorithm work, and what are its limits?', 'It maintains the best known distance to each vertex, starting with 0 for the source, and a priority queue ordered by that distance. It repeatedly removes the vertex with the smallest distance; that distance is now final. It then relaxes each outgoing edge: if the distance through this vertex is smaller than the neighbour’s known distance, it updates it, records the parent and adds the neighbour to the queue. In Java I add duplicate entries and skip stale ones on poll. With a binary heap it costs O((V + E) log V). It requires non-negative weights, because a negative edge could improve a distance already treated as final.']
+    ],
+    check: ['Why can Dijkstra not be used when some edge weights are negative?',
+      ['It becomes O(n²)', 'A vertex’s distance is treated as final when polled, but a later negative edge could still reduce it', 'PriorityQueue rejects negative numbers', 'It only works on trees'], 1,
+      'The finality guarantee relies on all remaining edges adding a non-negative amount. Use Bellman–Ford for negative edges.'],
+    practice: ['Copy DijkstraRoutes.java. Add route reconstruction for every vertex, a 0–1 BFS with ArrayDeque for weights 0 and 1, and a test that compares both on a 0/1 graph.',
+      ['Routes and costs match for every vertex.', '0–1 BFS agrees with Dijkstra.', 'An unreachable vertex is reported.', 'Complexity stated for both.']],
+    references: [['Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/']]
+  },
+  'd-greedy-01': {
+    notes: [
+      'A greedy algorithm builds a solution by making the choice that looks best right now and never revisiting it. It is fast and simple, but it is only correct when you can prove that the local choice is always part of some optimal solution. Always state that proof, or a counterexample, in an interview.',
+      'Interval scheduling is the standard example: given bookings for one room, choose as many non-overlapping bookings as possible. Sort by end time and take each booking that starts no earlier than the previous chosen one ends. IntervalGreedy.java chooses A, C and E from five bookings. The proof is an exchange argument: take any optimal schedule and replace its first booking with the one that finishes earliest. That booking ends no later, so everything after it still fits, and the count is unchanged. Repeat the argument for the rest. Sorting costs O(n log n) and the scan is O(n).',
+      'Requirements change the compatibility rule, not the idea. With a 10-minute reset after each booking, the next booking must start at or after the previous end plus 10 minutes. The program tests bookings starting 9, 10 and 11 minutes after P ends: the one at 9 is rejected, the one at exactly 10 is accepted, and the one at 11 is then skipped because it overlaps the booking just chosen. Intervals are half-open, [start, end).',
+      'Greedy fails when its precondition is missing. Taking the largest coin first gives 4 + 1 + 1 = three coins for 6 with coins 1, 3 and 4, but 3 + 3 uses two. When bookings have different values, earliest finish can also lose, which is why the lane uses dynamic programming.'
+    ],
+    code: {
+      title: 'IntervalGreedy.java · earliest-finish interval selection, a 10-minute reset rule with edge cases, and greedy versus optimal coin change · java IntervalGreedy.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+
+public class IntervalGreedy {
+    record Booking(String id, int start, int end) {}   // half-open [start, end), minutes
+
+    // Earliest finish first: maximizes the NUMBER of non-overlapping bookings.
+    static List<String> select(List<Booking> bookings, int bufferMinutes) {
+        List<Booking> sorted = new ArrayList<>(bookings);
+        sorted.sort(Comparator.comparingInt(Booking::end).thenComparing(Booking::id));
+        List<String> chosen = new ArrayList<>();
+        long freeFrom = Long.MIN_VALUE;
+        for (Booking b : sorted) {
+            if (b.start() >= freeFrom) {
+                chosen.add(b.id());
+                freeFrom = (long) b.end() + bufferMinutes;   // reset time before the next one
+            }
+        }
+        return chosen;
+    }
+
+    static int greedyCoins(int[] coins, int target) {
+        int[] c = coins.clone();
+        Arrays.sort(c);
+        int count = 0;
+        for (int i = c.length - 1; i >= 0; i--) { count += target / c[i]; target %= c[i]; }
+        return target == 0 ? count : -1;
+    }
+
+    static int dpCoins(int[] coins, int target) {
+        int[] best = new int[target + 1];
+        Arrays.fill(best, Integer.MAX_VALUE);
+        best[0] = 0;
+        for (int t = 1; t <= target; t++)
+            for (int c : coins)
+                if (c <= t && best[t - c] != Integer.MAX_VALUE) best[t] = Math.min(best[t], best[t - c] + 1);
+        return best[target] == Integer.MAX_VALUE ? -1 : best[target];
+    }
+
+    public static void main(String[] args) {
+        List<Booking> day = List.of(new Booking("A", 540, 600), new Booking("B", 570, 630),
+            new Booking("C", 600, 660), new Booking("D", 610, 700), new Booking("E", 660, 720));
+        System.out.println("earliest finish: " + select(day, 0));
+        System.out.println("with 10-min reset: " + select(day, 10));
+        List<Booking> edge = List.of(new Booking("P", 0, 60), new Booking("Q", 69, 90),
+            new Booking("R", 70, 100), new Booking("S", 71, 120));
+        System.out.println("reset edge cases (9, 10, 11 min after P ends): " + select(edge, 10));
+        System.out.println("coins [1,3,4] for 6: greedy " + greedyCoins(new int[] {1, 3, 4}, 6)
+            + ", optimal " + dpCoins(new int[] {1, 3, 4}, 6));
+    }
+}
+`,
+      output: String.raw`earliest finish: [A, C, E]
+with 10-min reset: [A, D]
+reset edge cases (9, 10, 11 min after P ends): [P, R]
+coins [1,3,4] for 6: greedy 3, optimal 2`
+    },
+    takeaways: ['Greedy needs a proof or a counterexample.', 'Earliest finish maximizes the count of intervals.', 'A reset buffer changes only the compatibility test.', 'Largest coin first is not always optimal.'],
+    interview: [
+      ['Why does choosing the earliest-finishing interval maximize the number of bookings?', 'I use an exchange argument. Suppose an optimal schedule starts with some booking X, and G is the booking that finishes earliest overall. G ends no later than X, so if I replace X with G, every later booking in the optimal schedule still starts after G ends. The new schedule is valid and has the same number of bookings, so some optimal schedule starts with G. After choosing G, the remaining problem is the same type of problem on the bookings that start after G ends, so the same argument applies again. That proves the greedy choice is safe. It costs O(n log n) for sorting.'],
+      ['How do you know whether a greedy algorithm is correct?', 'I look for a proof that the greedy choice can always be part of an optimal solution, usually an exchange argument, and that the remaining problem has the same structure. If I cannot find one, I try to break it with small counterexamples. For coin change with coins 1, 3 and 4 and target 6, largest-first gives 4, 1, 1, three coins, while 3, 3 uses two, so greedy is wrong for those denominations. For weighted intervals, one long valuable booking beats two short cheap ones that finish earlier. When greedy fails, I usually switch to dynamic programming, which considers both choices for each item.'],
+      ['How does a required 10-minute reset between bookings change the interval algorithm?', 'The greedy idea and the earliest-finish sort stay the same; only the compatibility rule changes. Instead of next.start ≥ previous.end, the rule becomes next.start ≥ previous.end + 10 minutes. I keep a single “free from” time, which is the last chosen end plus the reset. I make units consistent, use half-open intervals, and test boundary cases: a booking starting 9 minutes after the previous end is rejected, one at exactly 10 is accepted, and one at 11 is accepted. The exchange argument still holds because the earliest finish also gives the earliest free time. I would also confirm the reset applies only within the same room.']
+    ],
+    check: ['Coins are 1, 3 and 4. How many coins does largest-first greedy use for 6, and what is the optimum?',
+      ['2 and 2', '3 and 2', '3 and 3', '6 and 2'], 1,
+      'Greedy takes 4, 1, 1 (three coins); 3 + 3 uses two.'],
+    practice: ['Copy IntervalGreedy.java. Add the minimum number of rooms needed for all bookings (sort starts and ends, or use a min-heap of end times), and a test that compares the greedy count with a brute force over all subsets for 10 random bookings.',
+      ['Minimum rooms matches a brute-force check.', 'Greedy count equals brute force every time.', 'Buffer edge cases pass.', 'Complexity stated.']],
+    references: [['Princeton · Greedy algorithms (Kleinberg–Tardos lecture slides)', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/04GreedyAlgorithmsI.pdf']]
+  },
+  'd-dp-01': {
+    notes: [
+      'Dynamic programming solves a problem by combining answers to smaller versions of it, storing each answer once. Weighted interval scheduling is a good first example. Sort jobs by end time. For job i, either skip it, giving best[i − 1], or take it, giving value[i] + best[p(i)], where p(i) is the number of earlier jobs that end before job i starts. best[i] is the larger of the two.',
+      'WeightedIntervals.java finds p(i) with binary search, so the total cost is O(n log n). On [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10, it chooses the long job for 10, where earliest finish would collect 2. To list the chosen jobs, walk back from the end: if taking job i beats skipping it, record it and jump to p(i); otherwise move to i − 1.',
+      'A reset buffer only changes p(i): a job is compatible if its end plus the buffer is at or before the start. With a buffer of 1, the best total for the sample day drops from 13 to 9. Ties can be broken either way, so define the rule if the output must be deterministic.'
+    ],
+    code: {
+      title: 'WeightedIntervals.java · weighted interval scheduling: sort by end, binary-search the compatible predecessor, skip-or-take recurrence and reconstruction · java WeightedIntervals.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+public class WeightedIntervals {
+    record Job(String id, int start, int end, int value) {}   // half-open [start, end)
+
+    // best[i] = max value using only the first i jobs (sorted by end time).
+    static List<String> solve(List<Job> input, int buffer, int[] totalOut) {
+        List<Job> jobs = new ArrayList<>(input);
+        jobs.sort(Comparator.comparingInt(Job::end).thenComparing(Job::id));
+        int n = jobs.size();
+        int[] pred = new int[n];          // number of jobs compatible before job i
+        for (int i = 0; i < n; i++) pred[i] = lastCompatible(jobs, i, buffer);
+        long[] best = new long[n + 1];
+        for (int i = 1; i <= n; i++) {
+            Job j = jobs.get(i - 1);
+            long take = j.value() + best[pred[i - 1]];
+            best[i] = Math.max(best[i - 1], take);            // skip vs take
+        }
+        List<String> chosen = new ArrayList<>();              // reconstruct by walking back
+        for (int i = n; i > 0; ) {
+            Job j = jobs.get(i - 1);
+            if (j.value() + best[pred[i - 1]] > best[i - 1]) { chosen.add(j.id()); i = pred[i - 1]; }
+            else i--;
+        }
+        Collections.reverse(chosen);
+        totalOut[0] = (int) best[n];
+        return chosen;
+    }
+
+    // Binary search: count of jobs (by end order) with end + buffer <= start of job i.
+    static int lastCompatible(List<Job> jobs, int i, int buffer) {
+        int lo = 0, hi = i;
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if ((long) jobs.get(mid).end() + buffer <= jobs.get(i).start()) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    public static void main(String[] args) {
+        int[] total = new int[1];
+        List<Job> simple = List.of(new Job("short1", 0, 2, 1), new Job("short2", 2, 4, 1), new Job("long", 0, 4, 10));
+        System.out.println("chosen " + solve(simple, 0, total) + " total " + total[0] + " (earliest finish would total 2)");
+
+        List<Job> day = List.of(new Job("A", 0, 3, 5), new Job("B", 1, 5, 6), new Job("C", 3, 6, 5),
+            new Job("D", 5, 8, 4), new Job("E", 6, 9, 3));
+        System.out.println("no buffer: " + solve(day, 0, total) + " total " + total[0]);
+        System.out.println("buffer 1 : " + solve(day, 1, total) + " total " + total[0]);
+    }
+}
+`,
+      output: String.raw`chosen [long] total 10 (earliest finish would total 2)
+no buffer: [A, C, E] total 13
+buffer 1 : [A, D] total 9`
+    },
+    takeaways: ['State the recurrence: skip or take.', 'p(i) by binary search gives O(n log n).', 'Reconstruct by walking back through choices.', 'A buffer changes only the compatibility test.'],
+    interview: [
+      ['How do you solve weighted interval scheduling?', 'I sort the jobs by end time and define best[i] as the maximum value using only the first i jobs. For job i there are two options: skip it, which gives best[i − 1], or take it, which gives its value plus best[p(i)], where p(i) counts the jobs that end before job i starts. best[i] is the maximum of those. Because jobs are sorted by end, p(i) can be found with binary search, so the whole algorithm is O(n log n) time and O(n) space. To return the chosen jobs, I walk backwards: if taking job i was better I add it and jump to p(i), otherwise I go to i − 1.'],
+      ['How do you recognize that a problem needs dynamic programming?', 'I look for two properties. Optimal substructure means the best answer can be built from best answers to smaller subproblems, such as the best schedule of the first i jobs. Overlapping subproblems means a plain recursion would solve the same subproblem many times; for weighted intervals, many different choices lead back to the same prefix of jobs. Then I define the state precisely, write the recurrence with its base case, and decide the evaluation order so every state is computed after the states it depends on. A useful signal is that a greedy choice has a counterexample, while trying both options at each step is exponential without caching.'],
+      ['What is the difference between top-down memoization and bottom-up tabulation?', 'Both compute each subproblem once. Top-down memoization keeps the natural recursive formulation and caches results in a map or array, so it only computes states that are actually reached, but it uses the call stack, which can overflow for large inputs in Java. Bottom-up tabulation fills a table in an order where dependencies are already computed, such as best[0] to best[n] after sorting jobs by end time. It avoids recursion, usually has smaller constant factors, and makes it easier to reduce memory when each state depends only on a few earlier ones. For weighted intervals I prefer bottom-up because the order is simple and n can be large.']
+    ],
+    check: ['Jobs [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10. What is the best total value with no overlap?',
+      ['2', '10', '11', '12'], 1,
+      'The long job overlaps both short ones, and 10 is more than 1 + 1.'],
+    practice: ['Copy WeightedIntervals.java. Add a brute-force check over all subsets for 12 random jobs, a top-down memoized version, and a deterministic tie rule that prefers fewer jobs.',
+      ['DP equals brute force on random cases.', 'Memoized and bottom-up results agree.', 'Ties are broken consistently.', 'Complexity stated.']],
+    references: [['Princeton · Dynamic programming (Kleinberg–Tardos lecture slides)', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/06DynamicProgrammingI.pdf']]
+  },
+  'b-security-01': {
+    notes: [
+      'Three checks are often mixed up. Authentication establishes who the caller is, from a password session, a signed JWT or another trusted credential. Authorization decides whether that caller may perform this action on this particular resource. Validation checks that the input is well formed, for example that a seat code has the right shape. A request can pass all three for the wrong reasons if you only check one.',
+      'Authorization has two levels. A role or scope, such as booking:read, grants a category of action. It does not say which bookings. The resource rule does: the caller must own the booking, or be support staff assigned to the booking’s venue. The most common API vulnerability, broken object level authorization (OWASP API1:2023), is checking the scope and forgetting the resource rule, so any signed-in user can read any booking by changing the ID in the URL.',
+      'BookingAccess.java shows the order of decisions. With no authenticated caller, return 401. With a caller who lacks the booking:read scope, return 403. Then load the booking and apply the resource rule. When the booking exists but belongs to someone else, it returns 404, the same as a missing booking, so the response does not reveal which IDs exist; returning 403 is also acceptable if the API documents it. Every refusal body contains no booking data. The caller’s identity and venue assignments come from the verified token and server-side data, never from fields in the request.',
+      'In Spring Boot, a SecurityFilterChain handles authentication and broad URL rules, and method security, enabled with @EnableMethodSecurity, can apply @PreAuthorize rules to service methods. A simple and reliable pattern is to include the ownership condition in the query itself, for example findByIdAndOwnerId(id, userId), so a missing row and a foreign row behave the same way.'
+    ],
+    code: {
+      title: 'BookingAccess.java · 401 for no caller, 403 for a missing scope, and a resource rule for owner or venue-assigned staff that returns the same 404 for foreign and missing bookings · java BookingAccess.java',
+      text: String.raw`import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+public class BookingAccess {
+    record Booking(String id, String ownerId, String venue, String seat) {}
+    // The caller comes from the verified token or session, never from the request body.
+    record Caller(String userId, Set<String> scopes, String role, Set<String> venues) {}
+    record Response(int status, String body) {}
+
+    static final Map<String, Booking> DB = Map.of(
+        "P", new Booking("P", "U1", "venue-A", "12C"),
+        "Q", new Booking("Q", "U3", "venue-B", "4A"));
+
+    // Authentication -> scope (category of action) -> resource rule (this booking).
+    static Response getBooking(Optional<Caller> auth, String bookingId) {
+        if (auth.isEmpty()) return new Response(401, "{\"error\":\"unauthenticated\"}");
+        Caller c = auth.get();
+        if (!c.scopes().contains("booking:read")) return new Response(403, "{\"error\":\"forbidden\"}");
+        Booking b = DB.get(bookingId);
+        boolean allowed = b != null && (b.ownerId().equals(c.userId())
+            || ("SUPPORT".equals(c.role()) && c.venues().contains(b.venue())));
+        // Same answer for "missing" and "not yours": no hint that the booking exists.
+        if (!allowed) return new Response(404, "{\"error\":\"not found\"}");
+        return new Response(200, "{\"id\":\"" + b.id() + "\",\"seat\":\"" + b.seat() + "\"}");
+    }
+
+    public static void main(String[] args) {
+        Caller u1 = new Caller("U1", Set.of("booking:read"), "USER", Set.of());
+        Caller u2 = new Caller("U2", Set.of("booking:read"), "USER", Set.of());
+        Caller noScope = new Caller("U1", Set.of("profile:read"), "USER", Set.of());
+        Caller staffA = new Caller("S1", Set.of("booking:read"), "SUPPORT", Set.of("venue-A"));
+        Object[][] cases = {
+            {"anonymous    -> P", Optional.empty(), "P"},
+            {"U1 (owner)   -> P", Optional.of(u1), "P"},
+            {"U2 (other)   -> P", Optional.of(u2), "P"},
+            {"U1 no scope  -> P", Optional.of(noScope), "P"},
+            {"staff venueA -> P", Optional.of(staffA), "P"},
+            {"staff venueA -> Q", Optional.of(staffA), "Q"},
+            {"U2 missing   -> Z", Optional.of(u2), "Z"}};
+        for (Object[] t : cases) {
+            @SuppressWarnings("unchecked")
+            Response r = getBooking((Optional<Caller>) t[1], (String) t[2]);
+            System.out.println(t[0] + ": " + r.status() + " " + r.body());
+        }
+    }
+}
+`,
+      output: String.raw`anonymous    -> P: 401 {"error":"unauthenticated"}
+U1 (owner)   -> P: 200 {"id":"P","seat":"12C"}
+U2 (other)   -> P: 404 {"error":"not found"}
+U1 no scope  -> P: 403 {"error":"forbidden"}
+staff venueA -> P: 200 {"id":"P","seat":"12C"}
+staff venueA -> Q: 404 {"error":"not found"}
+U2 missing   -> Z: 404 {"error":"not found"}`
+    },
+    takeaways: ['Authentication: who. Authorization: may they, on this resource. Validation: is the input well formed.', 'A scope is not ownership.', 'Take identity and venue assignments from trusted server data.', 'Refusals must not leak resource data.'],
+    interview: [
+      ['What is the difference between authentication, authorization and validation?', 'Authentication establishes the caller’s identity from a trusted credential, such as a session cookie or a signed JWT; failing it should give 401. Authorization decides whether that identity may perform this action on this specific resource, combining broad roles or scopes with resource rules such as ownership; failing it gives 403, or 404 if we do not want to reveal that the resource exists. Validation checks that the input is well formed and within business rules, such as a valid seat code or a date in the future, and failing it gives 400. They are independent: a well-formed request from an authenticated user can still be unauthorized for that booking.'],
+      ['What is broken object level authorization, and how do you prevent it?', 'It is when an API checks that the caller is logged in, and perhaps has the right scope, but not that the specific object belongs to them. Then GET /bookings/123 works for any user who guesses or increments the ID. It is first in the OWASP API Security Top 10 for 2023. I prevent it by enforcing the resource rule on every operation that takes an ID: load the object with the owner condition in the query, such as findByIdAndOwnerId, or check it in the service before returning data. I take the user ID from the verified token, not the request. Then I add regression tests with two users that try to read each other’s objects.'],
+      ['Support staff may view bookings only for their assigned venues. How do you enforce that?', 'The role SUPPORT alone is not enough, because it would grant every venue. I store the staff member’s venue assignments on the server and load them for the authenticated user, rather than trusting a venue value sent by the caller. When a staff member requests a booking, the service checks that the booking’s venue is in their assigned set; for list endpoints, the query filters by those venues so other venues’ data is never loaded. I return the same not-found response for a booking in another venue as for a missing one. Tests cover staff assigned to venue A reading a venue-A booking, which succeeds, and a venue-B booking, which is refused.']
+    ],
+    check: ['A signed-in user with the booking:read scope requests another user’s booking. What should the API do?',
+      ['Return it, because the scope allows reading bookings', 'Refuse with 403 or 404 and return no booking data', 'Return 401', 'Return the booking without the seat number'], 1,
+      'The scope grants the category of action; the resource rule still says this booking belongs to someone else.'],
+    practice: ['Copy BookingAccess.java. Add an update endpoint with the same rules, a list endpoint that returns only the caller’s bookings or the staff member’s venues, and a test proving a caller-supplied venue field is ignored.',
+      ['Update follows the same order of checks.', 'List never includes other users’ bookings.', 'A spoofed venue field has no effect.', 'Every refusal body is free of booking data.']],
+    references: [['OWASP API Security Top 10 2023 · API1 Broken Object Level Authorization', 'https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/'], ['Spring Security · Method security', 'https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html']]
+  },
+  'b-testing-03': {
+    notes: [
+      'Security rules break silently: a refactor removes an ownership check and every normal test still passes, because normal tests use the owner. Security regression tests protect against that by testing the people who should be refused, not only the person who should succeed.',
+      'Use at least three identities against the same resource: the owner U1, another signed-in user U2, and an anonymous caller. Assert the status code for each, and also assert that the refusal body contains no protected data such as the seat or the customer name. Add a test that a booking that does not exist and a booking owned by someone else give the same response, so attackers cannot probe for valid IDs. For roles, test staff in venue A against bookings in venue A and venue B.',
+      'AccessRegressionTest.java runs the same five tests against two handlers. The secure one passes 5/5. The buggy one checks only that the caller is logged in, a classic broken object level authorization bug, and fails 3 of the 5 tests, so the suite catches it. Run the suite in CI so a regression blocks the merge.',
+      'In Spring Boot, write these as MockMvc tests. Spring Security’s test support lets you set the caller per request, for example with @WithMockUser or the jwt() request post-processor for resource servers, so each test can act as U1, U2 or nobody without real tokens.'
+    ],
+    code: {
+      title: 'AccessRegressionTest.java · owner, other user, anonymous, data-leak and existence-probe tests run against a secure and a buggy handler · java AccessRegressionTest.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+public class AccessRegressionTest {
+    record Result(int status, String body) {}
+
+    // System under test: a deliberately simple handler. Swap in the buggy version to see tests fail.
+    static final Map<String, String> OWNER = Map.of("P", "U1");
+    static Result secure(String caller, String id) {
+        if (caller == null) return new Result(401, "unauthenticated");
+        if (!caller.equals(OWNER.get(id))) return new Result(404, "not found");
+        return new Result(200, "booking " + id + " seat 12C");
+    }
+    static Result buggy(String caller, String id) {   // checks login but forgets ownership (IDOR)
+        if (caller == null) return new Result(401, "unauthenticated");
+        return OWNER.containsKey(id) ? new Result(200, "booking " + id + " seat 12C") : new Result(404, "not found");
+    }
+
+    interface Handler { Result call(String caller, String id); }
+
+    static List<String> run(Handler h) {
+        List<String> failures = new ArrayList<>();
+        check(failures, "owner reads own booking", h.call("U1", "P"), r -> r.status() == 200);
+        check(failures, "anonymous gets 401", h.call(null, "P"), r -> r.status() == 401);
+        check(failures, "other user is refused", h.call("U2", "P"), r -> r.status() == 404 || r.status() == 403);
+        check(failures, "refusal leaks no booking data", h.call("U2", "P"), r -> !r.body().contains("12C"));
+        check(failures, "missing and foreign look the same", h.call("U2", "Z"), r -> r.equals(h.call("U2", "P")));
+        return failures;
+    }
+
+    static void check(List<String> failures, String name, Result r, Function<Result, Boolean> ok) {
+        if (!ok.apply(r)) failures.add(name + " (got " + r.status() + ")");
+    }
+
+    public static void main(String[] args) {
+        List<String> secureFailures = run(AccessRegressionTest::secure);
+        List<String> buggyFailures = run(AccessRegressionTest::buggy);
+        System.out.println("secure handler: " + (5 - secureFailures.size()) + "/5 pass");
+        System.out.println("buggy handler : " + (5 - buggyFailures.size()) + "/5 pass");
+        buggyFailures.forEach(f -> System.out.println("  FAIL " + f));
+    }
+}
+`,
+      output: String.raw`secure handler: 5/5 pass
+buggy handler : 2/5 pass
+  FAIL other user is refused (got 200)
+  FAIL refusal leaks no booking data (got 200)
+  FAIL missing and foreign look the same (got 404)`
+    },
+    takeaways: ['Test who must be refused, not just who succeeds.', 'Use owner, other user and anonymous.', 'Assert refusal bodies leak nothing.', 'Run the suite in CI so regressions block merges.'],
+    interview: [
+      ['How do you test that one user cannot access another user’s data?', 'I create fixture data for two users, for example booking P owned by U1, and call the same endpoint as U1, as U2 and with no credentials. I assert 200 with the right data for U1, 401 for the anonymous call and 403 or 404 for U2, matching our documented policy. I also assert that the refusal body contains no protected fields, and that a missing booking and U2’s request for P return the same response, so IDs cannot be probed. In Spring Boot I write these with MockMvc and Spring Security’s test support to set the user per request. They run in CI on every pull request.'],
+      ['Why should security tests include a deliberately broken version or a mutation check?', 'A security test that always passes might be testing nothing, for example if it uses the owner by mistake or asserts only that the status is not 500. Running the suite against a handler with the ownership check removed shows that the tests actually fail when the protection is missing. In AccessRegressionTest.java the buggy handler fails three tests, which proves the suite would catch that regression. In a real project, the same idea is done with mutation testing tools, or by temporarily removing the check in a branch. It gives confidence that a future refactor that drops the rule will be caught in CI rather than in production.'],
+      ['What should a refused request return, and what should it not reveal?', 'An unauthenticated request should return 401, so the client knows to sign in. An authenticated request that is not allowed should return 403, or 404 if the API should not reveal whether the resource exists; for bookings, 404 is often better because it makes a foreign ID and a missing ID look the same. The body should contain a generic error code and message, and nothing from the resource, such as seat numbers, names or the owner ID. It also should not contain stack traces. Logs on the server can record the details, without secrets, so the team can investigate. Tests should assert all of this.']
+    ],
+    check: ['The buggy handler checks that the caller is logged in but not that they own the booking. Which test catches it?',
+      ['owner reads own booking', 'anonymous gets 401', 'other user is refused', 'None of them'], 2,
+      'The owner and anonymous cases behave correctly in both handlers; only a second signed-in user exposes the missing ownership check.'],
+    practice: ['Copy AccessRegressionTest.java. Add tests for a support user in venue A against bookings in venues A and B, for update and delete endpoints, and a table-driven runner that prints each case.',
+      ['Venue-B access is refused for venue-A staff.', 'Update and delete follow the same rules.', 'The buggy handler fails the new tests too.', 'Each case name explains the rule.']],
+    references: [['Spring Security · Testing with MockMvc', 'https://docs.spring.io/spring-security/reference/servlet/test/mockmvc/index.html'], ['Spring Security · Testing OAuth 2.0 with MockMvc', 'https://docs.spring.io/spring-security/reference/servlet/test/mockmvc/oauth2.html']]
+  },
+  'b-security-01.dsa': {
+    notes: [
+      'Union-find, also called disjoint-set union, keeps track of items split into groups and answers “are these two in the same group?” almost in constant time. Each group is a tree, and each item points to a parent; the root names the group.',
+      'find follows parent pointers to the root. Path compression, here path halving, makes nodes point closer to the root as it goes. union links the root of the smaller tree under the larger one. Together these make each operation take amortized nearly O(1) time (inverse Ackermann).',
+      'VenueGroups.java groups venues that share a support team: A–B, B–C and D–E. Joining A and C reports that they are already in one group, which is also how union-find detects a cycle when adding edges, as in Kruskal’s algorithm. The groups are {A, B, C}, {D, E} and {F}.'
+    ],
+    code: {
+      title: 'VenueGroups.java · union-find with path halving and union by size, grouping venues that share a support team · java VenueGroups.java',
+      text: String.raw`import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+public class VenueGroups {
+    // Union-find (disjoint sets) with path compression and union by size.
+    static int[] parent, size;
+
+    static int find(int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];   // path halving
+            x = parent[x];
+        }
+        return x;
+    }
+
+    static boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;          // already connected
+        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra;
+        size[ra] += size[rb];
+        return true;
+    }
+
+    public static void main(String[] args) {
+        String[] venues = {"A", "B", "C", "D", "E", "F"};
+        int n = venues.length;
+        parent = new int[n]; size = new int[n];
+        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+        // Venues that share a support team: staff of one may see bookings of the other.
+        int[][] shared = {{0, 1}, {1, 2}, {3, 4}, {0, 2}};
+        for (int[] s : shared)
+            System.out.println("share " + venues[s[0]] + "-" + venues[s[1]] + ": " + (union(s[0], s[1]) ? "merged" : "already in one group"));
+        Map<Integer, TreeSet<String>> groups = new TreeMap<>();
+        for (int i = 0; i < n; i++) groups.computeIfAbsent(find(i), k -> new TreeSet<>()).add(venues[i]);
+        System.out.println("groups: " + groups.values());
+        System.out.println("A and C same team: " + (find(0) == find(2)) + ", A and D: " + (find(0) == find(3)));
+    }
+}
+`,
+      output: String.raw`share A-B: merged
+share B-C: merged
+share D-E: merged
+share A-C: already in one group
+groups: [[A, B, C], [D, E], [F]]
+A and C same team: true, A and D: false`
+    },
+    takeaways: ['find returns the group root.', 'Union by size keeps trees shallow.', 'Path compression flattens them further.', 'union returning false means already connected.'],
+    interview: [
+      ['How does union-find work, and why is it fast?', 'Each element points to a parent, and a root points to itself, so each group is a tree named by its root. find follows parents to the root, and union links one root under the other. Two optimizations make it fast. Union by size or rank links the smaller tree under the larger, which keeps trees at most logarithmic in height. Path compression makes nodes on a find path point closer to, or directly at, the root, flattening the tree for later calls. Together they give an amortized cost per operation of the inverse Ackermann function, which is at most 4 or 5 for any realistic input, so effectively constant.']
+    ],
+    check: ['After union(A, B), union(B, C) and union(D, E), what does union(A, C) return in VenueGroups.java?',
+      ['true, it merges two groups', 'false, A and C are already in one group', 'It throws an exception', 'true, but only with path compression'], 1,
+      'A and C were connected through B, so they already share a root.'],
+    practice: ['Copy VenueGroups.java. Use it to count the number of connected components in a list of edges, detect the first edge that creates a cycle, and implement Kruskal’s minimum spanning tree.',
+      ['Component count matches a DFS count.', 'The first cycle edge is reported.', 'Kruskal sorts edges and skips cycle edges.', 'Complexity stated.']],
+    references: [['Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/']]
+  },
   // @@packets
 };
 
@@ -5059,6 +6307,30 @@ export const lateDistractors = {
     ['How long the model takes to answer.', 'Which passages retrieval returns.'],
     ['Retry with a higher temperature until something passes.', 'Show the rejected text with a warning icon.']
   ],
+  28: [
+    ['Pick a random side on ties.', 'Sort each half with a different algorithm.'],
+    ['Only the head of the original list.', 'The value stored in the current node.']
+  ],
+  29: [
+    ['Only the hit counter, not the order.', 'The value is copied into a new node.'],
+    ['From the map only; the list cleans itself up.', 'From the list only; the map entry expires later.']
+  ],
+  30: [
+    ['Preorder: the root first, then subtrees.', 'Reverse key order.'],
+    ['The root of a min-heap of all values seen.', 'The most recently added value.']
+  ],
+  31: [
+    ['Fewest edges in any directed graph with negative weights.', 'The route found by DFS is always shortest.'],
+    ['Never; the parent link is enough.', 'After the whole queue is empty.']
+  ],
+  32: [
+    ['Yes, as long as the intervals are sorted by start time.', 'Only if every value is negative.'],
+    ['Its weight times the number of intervals it overlaps.', 'Its weight plus best[i − 1], even if that set overlaps it.']
+  ],
+  33: [
+    ['That the request body is well formed.', 'Which bookings the caller may read.'],
+    ['Return the booking because scope is checked first.', 'Return 401 so the client signs in again.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -5110,6 +6382,18 @@ export const lateExplanations = {
     'A fair comparison uses the same inputs, the same evidence and the same checks. Favourite demos and context size alone say nothing about the task.'],
   36: ['Structured output fixes the fields and types of the reply. Truth, latency and retrieval are separate concerns that need their own checks.',
     'After failed validation the user gets the documented fallback. Retrying with more randomness or showing the rejected text both expose unsupported claims.'],
+  28: ['Taking the left item on equal keys keeps the earlier record first, which is what makes merge sort stable. Random or right-side choices can swap equal keys.',
+    'Reversal needs the next unprocessed node, so the rest of the list is not lost, and the reversed prefix, so the current node can point back to it.'],
+  29: ['A hit makes the entry the most recently used, so get moves its node to the front. That is why even reads need coordination.',
+    'The map and the list must always hold the same keys. Removing from only one leaves a dangling entry that breaks later operations.'],
+  30: ['Inorder visits the left subtree, the node and then the right subtree, and the BST rule puts smaller keys left, so keys come out in sorted order.',
+    'To keep the k smallest, the item to discard is the largest one kept, so it must sit at the root of a max-heap where it can be replaced in O(log k).'],
+  31: ['BFS explores in layers of edge count, so it guarantees the fewest edges only when every edge counts the same. For costs, use Dijkstra.',
+    'Marking on enqueue keeps each vertex in the queue once and preserves its first parent, which lies on a fewest-edge route.'],
+  32: ['The exchange argument only preserves the count of intervals. A single high-value interval can be worth more than several short ones, so weighted cases need a recurrence.',
+    'Taking interval i means nothing that overlaps it can be used, so its value is added to the best total of the jobs that end before it starts, best[p(i)].'],
+  33: ['Authentication only proves who the caller is. What they may do, and to which resources, is authorization; input shape is validation.',
+    'A scope grants a category of action, but the resource rule decides access to this booking. The caller is authenticated, so 401 is wrong; refuse with 403 or 404.'],
   // @@explanations
 };
 
@@ -5291,6 +6575,54 @@ export const lateAssessment = {
       choices: ['Into the system instructions', 'Into the user message, inside delimiters, with < and > escaped', 'Into the example', 'Into the output schema'], answer: 1,
       explanation: 'Untrusted text stays data inside its own tags and never becomes part of the instructions.' }
   ],
+  28: [
+    { question: 'Booking requests must be sorted by priority while keeping arrival order for equal priorities. Which Java call does that?',
+      choices: ['Arrays.sort on an int[] of priorities', 'list.sort(Comparator.comparingInt(Req::priority)), because object sorting is stable', 'Collections.shuffle, then sort', 'A HashSet of requests'], answer: 1,
+      explanation: 'List.sort on objects uses TimSort, which is stable, so equal priorities keep their order.' },
+    { question: 'Which input does a stack-based validator report as unclosed?',
+      choices: ['"()"', '"(()"', '"())"', '"([)]"'], answer: 1,
+      explanation: '"(()" ends with "(" still on the stack. "())" has an unexpected closer and "([)]" a mismatch.' }
+  ],
+  29: [
+    { question: 'Why must get on an LRU cache be inside the same lock as put?',
+      choices: ['Because HashMap.get is slow', 'Because a hit moves the entry in the recency order, which is shared state', 'Because get can throw', 'It does not need to be'], answer: 1,
+      explanation: 'A hit mutates the recency list, so concurrent gets can corrupt it without coordination.' },
+    { question: 'Which Java setup gives LRU eviction in a few lines?',
+      choices: ['TreeMap with a comparator', 'LinkedHashMap with accessOrder = true and removeEldestEntry returning size() > capacity', 'HashMap with a counter', 'ConcurrentHashMap alone'], answer: 1,
+      explanation: 'Access order moves used entries to the end, and removeEldestEntry evicts the least recently used one.' }
+  ],
+  30: [
+    { question: 'A recursive traversal of a BST built by inserting 1, 2, 3, …, 1,000,000 in order throws StackOverflowError. Why?',
+      choices: ['The keys are too large', 'Sorted inserts make the tree a chain of height n, so the recursion is n calls deep', 'Inorder traversal is always O(n²)', 'PriorityQueue is not thread-safe'], answer: 1,
+      explanation: 'Recursion depth equals tree height. Use an explicit stack or a balanced tree such as TreeMap.' },
+    { question: 'What is the time and space cost of keeping the k nearest items from a stream of n with a bounded heap?',
+      choices: ['O(n log n) time, O(n) space', 'O(n log k) time, O(k) space', 'O(k) time, O(1) space', 'O(n²) time, O(k) space'], answer: 1,
+      explanation: 'Each of the n items costs at most O(log k) heap work, and the heap never holds more than k items.' }
+  ],
+  31: [
+    { question: 'An undirected graph has 7 vertices and edges 0–1, 1–2 and 3–4. How many connected components does it have?',
+      choices: ['2', '3', '4', '7'], answer: 2,
+      explanation: '{0,1,2}, {3,4}, {5} and {6}: isolated vertices are components too.' },
+    { question: 'During a DFS of a directed graph, you reach a vertex that is grey (still on the current path). What does that mean?',
+      choices: ['The graph is disconnected', 'There is a cycle', 'The vertex is unreachable', 'BFS would be faster'], answer: 1,
+      explanation: 'An edge to a vertex on the current DFS path is a back edge, which closes a cycle.' }
+  ],
+  32: [
+    { question: 'Bookings must leave a 10-minute reset. Booking P is [0, 60). Which of these can follow P directly?',
+      choices: ['A booking starting at 69', 'A booking starting at 70', 'Any booking that starts after 60', 'None, resets forbid back-to-back bookings'], answer: 1,
+      explanation: 'The next start must be at least 60 + 10 = 70.' },
+    { question: 'What makes weighted interval scheduling O(n log n) rather than O(n²)?',
+      choices: ['Using a HashMap of values', 'Finding each compatible predecessor p(i) by binary search over jobs sorted by end time', 'Greedy selection by value', 'Recursion without memoization'], answer: 1,
+      explanation: 'Sorting is O(n log n) and each p(i) is one binary search; the recurrence itself is O(n).' }
+  ],
+  33: [
+    { question: 'Why might an API return 404 rather than 403 when a signed-in user requests someone else’s booking?',
+      choices: ['404 is faster to compute', 'It makes foreign and missing IDs look the same, so callers cannot probe which bookings exist', '403 is only for anonymous callers', 'Spring Security cannot return 403'], answer: 1,
+      explanation: 'Either can be correct if documented; 404 avoids confirming that the ID exists.' },
+    { question: 'Which test would catch a handler that checks login but not ownership?',
+      choices: ['The owner reads their own booking', 'An anonymous caller gets 401', 'A second signed-in user requests the owner’s booking and is refused', 'The response time is under 200 ms'], answer: 2,
+      explanation: 'Only a different authenticated user exercises the ownership rule.' }
+  ],
   // @@assessment
 };
 
@@ -5388,6 +6720,34 @@ export const lateStretchPlans = {
         acceptance: ['Islands in the sample grid are counted correctly, including a single-cell island.', 'Multi-source BFS returns −1 when an orange can never rot.', 'The word ladder returns the number of words on the shortest path, or 0 if none.', 'Time and space written for all three.'] },
       { id: 'ai-prompting-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · prompts and structured output',
         prompt: 'Answer aloud in 2 minutes each, without notes: how you structure a grounded prompt; what prompt injection is and how you limit it; why a schema-valid reply can be wrong; what the validator does with an unknown source; how you change a prompt safely. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  28: {
+    assign: { 'd-sort-01.packet': 45, 'd-stacks-01.packet': 45, 'd-sort-01.stretch': 40, 'd-linkedlist-01.packet': 30 },
+    extra: [
+      { id: 'd-sort-01.stretch-lab', minutes: 50, title: 'Stretch lab · sort booking requests like production',
+        prompt: 'Build a BookingQueue that sorts requests by priority, then arrival, using your own stable merge sort and List.sort, and compare them on 10,000 random requests with many equal priorities. Then add an insertion sort for the nearly sorted case (each request at most 3 places out of order) and time all three.',
+        acceptance: ['Both stable sorts give identical output, and equal priorities keep arrival order.', 'An unstable variant is shown to break arrival order on the same data.', 'Timings are recorded for random and nearly sorted input with a fixed seed.', 'One sentence explains which sort you would use and why.'] },
+      { id: 'd-sort-01.stretch-set', minutes: 35, title: 'Stretch DSA · three more stack and list problems',
+        prompt: 'In one Java file solve: (1) evaluate a postfix expression; (2) detect whether a linked list is a palindrome in O(1) extra space; (3) the largest rectangle in a histogram with a monotonic stack.',
+        acceptance: ['"3 4 + 2 *" evaluates to 14.', '1→2→2→1 is a palindrome and 1→2→3 is not.', 'Heights 2 1 5 6 2 3 give a largest rectangle of 10.', 'Time and space written for all three.'] },
+      { id: 'd-sort-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · sorting, stacks and lists',
+        prompt: 'Answer aloud in 2 minutes each, without notes: how merge sort works and what it costs; what stability means and when it matters; how you validate brackets; how a min-stack works; which reference you save when reversing a list. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  29: {
+    assign: { 'd-lru-02.packet': 45, 'l-machine-01.packet': 45, 'd-lru-02.stretch': 40, 'd-queues-01.packet': 30 },
+    extra: [
+      { id: 'l-machine-01.stretch-lab', minutes: 50, title: 'Stretch lab · 60-minute machine-coding mock: a seat-hold cache',
+        prompt: 'In 60 minutes, build a SeatHoldCache: put(seat, holder) holds a seat for 10 minutes using an injected clock, get returns the holder or null after expiry, capacity is 500 with LRU eviction of expired holds first, and every method is thread-safe. Write the interface first, then tests, then the implementation.',
+        acceptance: ['A hold expires exactly at 10 minutes with the fake clock.', 'Expired holds are evicted before live ones.', 'An 8-thread stress test keeps size ≤ 500 and the map and order consistent.', 'A short README states the invariants and one trade-off.'] },
+      { id: 'd-lru-02.stretch-set', minutes: 35, title: 'Stretch DSA · three more cache and queue problems',
+        prompt: 'In one Java file solve: (1) an LFU cache with O(1) get and put using a frequency map of linked lists; (2) the first non-repeating character in a stream using a queue; (3) a design for a hit counter over the last 5 minutes using 300 one-second buckets.',
+        acceptance: ['LFU evicts the least frequently used key, and the least recent among ties.', 'Stream "aabc" gives a, -, b, b as first non-repeating characters.', 'The hit counter uses O(300) memory.', 'Time and space written for all three.'] },
+      { id: 'd-lru-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · LRU, machine coding and queues',
+        prompt: 'Answer aloud in 2 minutes each, without notes: how an O(1) LRU works; why the map stores nodes; why get needs a lock; how LinkedHashMap gives LRU; why a two-stack queue is amortized O(1). Then compare with the model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
@@ -5511,6 +6871,36 @@ export const lateInterviewGuides = {
     'A JSON schema checks shape: that answer is a string, answerable is a boolean and sources is a list. The model fills those fields by generating text, so the content can be wrong while the shape is perfect. It can state 24 hours when the policy says 48, cite a passage that was never supplied, or cite the right passage and contradict it. So the application validates meaning after parsing. Every cited ID must belong to the supplied, authorized passages, and each material claim, such as numbers, dates and policy codes, must appear in the cited text. A schema-valid but unsupported reply is replaced by the defined fallback.',
     'The validator first confirms the shape, then checks that every source ID belongs to the passages actually supplied with this request. P9 is not among P1 and P2, so the reply is rejected with the category "unknown source", whether P9 was invented or belongs to another venue or version. The user sees the deterministic fallback, not the rejected text. I log the category with the request ID and prompt version, but not the full prompt, and count it in metrics. A single bounded retry with the same evidence is acceptable; otherwise the fallback stands.',
     'An accepted schema proves only that the reply has the right fields and types. The refund window is a fact that must match the policy, and the model can produce a well-formed reply that cites a real passage, P1, while stating the opposite of what P1 says. Citation existence is not entailment. The validator must compare the claim with the cited text, including quantities, units, date rules and exceptions. I test this with a fixture whose JSON is valid and whose citation ID is correct, but whose refund duration is wrong, and assert that it is rejected and the fallback is shown.'
+  ],
+  28: [
+    'Space depends on the implementation, so I name it first. Array merge sort needs an O(n) buffer for merging, plus O(log n) call-stack depth from the recursion. Iterative linked-list reversal keeps only three references, prev, cur and next, so it uses O(1) extra space whatever the length. Delimiter validation uses a stack that can hold up to n openers in the worst case, such as "((((", so O(n). Merging two sorted linked lists relinks existing nodes and needs only a dummy node and a tail pointer, O(1). I state the peak working memory and do not count the input or the output list.',
+    'The merge step must take the left-half item when the keys compare equal, because the left half holds the records that arrived first. If the merge takes the right item on ties, for example by using < instead of <= on the left side, records with the same key swap places, so arrival order is lost even though the keys still look sorted. I test it with records that share a key but have distinct arrival IDs, such as 10B and 10E, and assert both the order and that every record survives. In Java, List.sort on objects is already stable, which is the safer choice in production.',
+    'Before setting current.next = previous, I must save the original current.next, because it is the only reference to the unprocessed part of the list. On A→B→C with current = B and previous = A, assigning B.next = A first loses the only pointer to C, so the loop stops and C is dropped from the result. The correct order is: save next, point current back to previous, move previous to current, then move current to the saved next. At the end previous is the new head, C→B→A, and I assert that the new tail A has next == null and that zero- and one-node lists work.'
+  ],
+  29: [
+    'The map stores, for each key, a reference to its node in the doubly linked list, not just the value. On get(A), the map returns A’s node in O(1). Because the node knows its prev and next neighbours, I can unlink it by pointing prev.next to next and next.prev to prev, then insert it after the head sentinel as most recent, all in constant time with no scan. On eviction I take the node before the tail sentinel, unlink it, and use the key stored in it to remove the map entry. After every step I check that the map keys and the list keys are exactly the same set.',
+    'Even get mutates the cache, because a hit moves the node to the most-recent end of the list. Two threads moving nodes at once, or one moving a node while another evicts it, can corrupt the prev and next pointers and make the map and the list disagree. So the lookup and the list change must be one atomic operation, for example by taking a single lock around the whole of get and put. A thread-safe map on its own is not enough, because the list is separate, unsynchronized state. With LinkedHashMap in access order the same applies: get reorders entries, so it must be locked too.',
+    'Moving an entry needs its neighbours. If the map held only the value, finding the node for a key would mean walking the list, which is O(n) and defeats the purpose of the cache. Holding the node gives immediate access to its prev and next pointers, so unlinking is O(1). I trace it at capacity 2: put(A), put(B), then get(A) unlinks A’s node from behind B and moves it to the front, giving A, B. Then put(C) evicts the tail-side node, B, from both structures, leaving C, A. A check that get(B) returns null confirms the right key was evicted.'
+  ],
+  30: [
+    'There are two different extra-space costs. A recursive tree traversal keeps one stack frame per level, so it uses O(h) space for height h: about log n for a balanced tree, but n for a skewed tree such as a BST built from sorted keys, which can cause StackOverflowError. A streaming top-k heap holds at most k items, so it uses O(k) space and O(n log k) time, no matter how long the stream is. If the k results are copied into a sorted list at the end, that adds another O(k). I state both costs separately and say which one dominates for the expected input.',
+    'The heap only guarantees that its root is the worst kept item; iterating it does not give sorted order. So after the stream ends I copy the k survivors into a list and sort them with the same comparator. For stable ties the comparator must be total, for example minutes first and then arrival index. Using it in the heap means that at the cut-off a later item with equal minutes does not replace an earlier one, and using it in the final sort means equal items appear in arrival order. I add a test with several equal values at the boundary, plus k = 0 and k larger than the input.',
+    'For the k smallest values, every new value is compared with the worst value I am keeping, which is the largest one. A max-heap keeps that largest value at its root, so the comparison is O(1) and replacing it is O(log k). If the new value is smaller than the root, I poll the root and offer the new value; otherwise I ignore it. A min-heap would put the smallest kept value at the root, which is the one I want to keep, and finding the largest would need a scan of all k. For k = 0 I return an empty result without creating a heap, and I state the tie rule.'
+  ],
+  31: [
+    'BFS uses a FIFO queue, so it processes the source, then every vertex one edge away, then every vertex two edges away. A vertex at distance d + 1 is first discovered from a vertex at distance d, so its first discovery is along a route with the fewest edges. The visited set, marked when a vertex is enqueued, prevents three problems: enqueuing the same vertex several times, overwriting its first parent with a worse one, and looping forever on cycles. To rebuild the route I follow parent links from the target back to the source and reverse them. With adjacency lists BFS costs O(V + E) time and O(V) extra space.',
+    'No. BFS minimizes the number of edges, not the sum of costs. If S–T costs 5 while S–A and A–T cost 1 each, BFS finds S→T first because it is one hop, but S→A→T costs only 2. For non-negative costs I use Dijkstra’s algorithm, which takes the vertex with the smallest known total cost from a priority queue and relaxes its edges. If costs are only 0 or 1, a 0–1 BFS with a deque is faster, and with negative costs I would use Bellman–Ford. First I confirm whether the requirement is the fewest connections or the lowest total cost, because they lead to different algorithms.',
+    'If a vertex is marked only when it is dequeued, it can be added to the queue many times before that happens. Take a diamond: A connects to B and C, and both B and C connect to D. Processing B enqueues D. Processing C checks D, sees it is not marked yet, and enqueues it again. In a dense graph this repeats for many vertices, so the queue can grow to O(E) entries and the same vertex is expanded repeatedly, and its parent may be overwritten. Marking on enqueue keeps a single discovery per vertex, preserves the first parent, which is on a shortest route, and caps the queue at V entries.'
+  ],
+  32: [
+    'Take three bookings: [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10. Earliest finish takes [0,2) first, then [2,4), for a total of 2, and the long booking no longer fits. The best answer is the long booking alone, worth 10. Weighted interval scheduling fixes this with a recurrence over jobs sorted by end time: best[i] = max(best[i − 1], value[i] + best[p(i)]), where p(i) is the number of jobs that end before job i starts. It compares skipping job i with taking it plus the best compatible earlier set. With binary search for p(i), it runs in O(n log n).',
+    'The idea stays the same, but the compatibility rule becomes previous.end + 10 minutes ≤ next.start instead of previous.end ≤ next.start. In greedy selection, I track the time the room is free again, which is the chosen end plus 10. In the weighted DP, the reset changes how p(i) is computed. I keep all times in one unit, such as minutes, and use half-open intervals. Then I test the boundary: with a booking ending at 60, starts at 69, 70 and 71 must be rejected, accepted and accepted. I also confirm the reset applies per room, because two rooms would make it a different problem.',
+    'With equal weights, the goal is to maximize the count. Take any optimal schedule and look at its first booking, X. Let G be the booking that finishes earliest of all. G ends no later than X, so replacing X with G keeps every later booking compatible, and the schedule has the same number of bookings. So there is an optimal schedule that starts with G. After choosing G, what remains is the same problem on bookings that start after G ends, so the argument repeats. The exchange only keeps the count, not the total value, so with weights it can lose value.'
+  ],
+  33: [
+    'Authentication identifies the caller from a trusted credential, such as a session or a signed token; if it fails, the response is 401. Authorization decides whether this caller may perform this action on this particular resource, for example whether U2 may read booking P owned by U1; if it fails, the response is 403, or 404 to avoid revealing that P exists. Validation checks that the input is well formed, such as a correct seat code, and gives 400. I would show three cases against the same booking: no credentials, a signed-in user who does not own it, and the owner, and confirm that the refusals contain no booking details.',
+    'Besides the SUPPORT role, the service must check the booking’s venue against the venues assigned to that staff member. The assignment must come from trusted server-side data loaded for the authenticated user, not from a venue field in the request, because a caller could simply claim a different venue. For a single booking I compare the booking’s venue with the assigned set; for list endpoints I put the venue filter into the query so other venues’ bookings are never loaded. I test the same staff role against bookings in two venues: venue A succeeds and venue B is refused with the same response as a missing booking.',
+    'The resource-level check belongs in the service or data-access code that performs the operation, not only in the URL rules or the token check. A scope such as booking:read says the caller may read bookings in general; it does not say which ones. So the service loads the booking with the ownership or venue condition, for example findByIdAndOwnerId, or checks it before returning data, and refuses otherwise. Putting the rule there means every controller, batch job or new endpoint that uses the service gets the same protection. I test it with a valid token that has the right scope but asks for another owner’s booking.'
   ],
   // @@guides
 };
