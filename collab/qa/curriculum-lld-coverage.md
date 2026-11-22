@@ -11,7 +11,7 @@ The matrix includes the Day 1 repair in this PR. Day numbers refer to existing l
 | GfG 2 · OOP | Inheritance | D5 `j-oop-02` | Partial. Notes explain hierarchy coupling without a subtype behavior fixture. | 15 min, compare a subclass with delegation under a shared contract. |
 | GfG 2 · OOP | Abstraction | D5 `j-oop-02` | Partial. Interface versus abstract class is explained, but the exercise targets failure outcomes. | 15 min, swap two repository implementations and exercise the contract. |
 | GfG 2 · OOP | Polymorphism | D5/D8 | Partial. Repository seams enable substitution. No explicit dispatch trace or acceptance test. | 15 min, call two implementations through the same reference type. |
-| GfG 2 · OOP | Operator overloading | — | Missing as language mapping. Java defines operator behavior, including string concatenation with plus. User-defined operator overloads are outside Java. | 8 min, trace numeric versus string plus and compare method overloading. |
+| GfG 2 · OOP | Operator overloading | D5 `j-strings-01` | Covered for the Java adaptation. Notes distinguish built-in plus from method overloads and state Java’s language limit. A Java 21 fixture shows numeric-first and string-first outcomes. | — |
 | GfG 2 · OOP | Association | D8 `l-uml-01` | Partial. BookingService dependency is drawn, with little explicit association notation. | 10 min, draw a navigable association and label both ends. |
 | GfG 2 · OOP | Aggregation | D8 `l-uml-01` | Missing. Lifecycle and shared part semantics are unmodeled. | 10 min, compare a collection of shared resources with composition. |
 | GfG 2 · OOP | Composition | D5 `j-oop-02` | Partial. Notes favor ownership or delegation when appropriate. UML lifecycle rules and disposal test are absent. | 15 min, separate ownership from use, show a lifecycle trace. |
@@ -66,3 +66,5 @@ The 96-session plan already lists independent cases. Keep Parking Lot, Elevator,
 | 1.7 Trade-off frameworks, CAP and latency versus consistency | D25 `h-consistency-01` traces a partition and stale responses | Partial | 20 min, separate partition decisions from ordinary latency/consistency trade-offs. |
 
 Module 1 locators are from the saved public listing of the [GfG System Design course](https://www.geeksforgeeks.org/courses/system-design-training-program). Next source row is HLD Module 2, vertical and horizontal scaling. Equivalent named HLD cases in the combined syllabus remain separate source obligations.
+
+The Java Strings follow-up moves the operator-language row to covered for the Java adaptation. At the original LLD checkpoint it was missing. The current 42 rows now have 9 covered, 17 partial, 15 missing and 1 source unverified.

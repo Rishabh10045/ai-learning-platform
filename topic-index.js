@@ -13,6 +13,7 @@ const titles = {
   'd-hashing-02': 'Hash collisions and lookup costs',
   'j-oop-02': 'Java method and type contracts',
   'j-exceptions-01': 'Exceptions and failure outcomes',
+  'j-strings-01': 'String values, identity and the string pool',
   'l-responsibilities-01': 'Domain and service responsibilities',
   'j-generics-01': 'Generics and wildcards',
   'j-streams-01': 'Lazy stream pipelines',

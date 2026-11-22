@@ -160,6 +160,17 @@ try {
   await a.goto(base + '#topic/j-oop-01');
   await waitForText(a, 'main', 'implicit no-argument constructor');
   assert.equal(await a.$$eval('main details > summary', items => items.length), 4);
+  await a.goto(base + '#day-5/learn');
+  await waitForText(a, 'main', 'class SeatIdStrings');
+  await a.goto(base + '#topic/j-strings-01');
+  await waitForText(a, 'h1', 'String values, identity and the string pool');
+  assert.equal(await a.$$eval('main details > summary', items => items.length), 5);
+  await a.click('.topic-self-check input[value="1"]');
+  await click(a, 'Check answer');
+  await waitForText(a, '.topic-self-check [role="status"]', 'Correct.');
+  await a.goto(base + '#topic/h-scaling-01');
+  await waitForText(a, 'main', '120 RPS dependency limit');
+  assert.equal(await a.$$eval('main details > summary', items => items.length), 4);
   await a.goto(base + '#topic/d-hashing-01');
   await waitForText(a, 'main', 'dedicated notes and questions are still being written');
   assert.equal(await a.$eval('#topic-takeaway', input => input.value), '');

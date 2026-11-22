@@ -1,11 +1,11 @@
 # Study Desk day and topic readiness matrix
 
-22 November 2026 IST. Compared draft PR #5 at `dbe599b` with the Day 1 repair in this batch. This presence audit counts authored fields and timing blocks. The [LLD source matrix](curriculum-lld-coverage.md) makes separate editorial judgments based on actual notes and practice. Transcript accuracy, per-topic depth, worksheet execution and video playback require individual evidence.
+22 November 2026 IST. Compared draft PR #5 at `dbe599b` with the Day 1 repair and the following Java Strings and scaling batch. This presence audit counts authored fields and timing blocks. The [LLD source matrix](curriculum-lld-coverage.md) makes separate editorial judgments based on actual notes and practice. Transcript accuracy, per-topic depth, worksheet execution and video playback require individual evidence.
 
 - 55 days with typed explanatory notes, a parent worked example, revision prompts and a direct reading field.
 - 167 daily interview questions and model answers, 169 scored quiz items, 26 interactive diagrams, and 51 days under 400 words of explanatory prose.
-- 11 of 116 topics now have dedicated explanations, interview answers, coach takeaways, criteria and readings. Every indexed topic has a learner takeaway field. The remaining topics point to parent lessons and require editorial coverage checks.
-- Three displayed standalone Java programs are on Days 1, 26 and 55. The Java 21 execution results belong to those examples only. Other exercises generally have prompts and acceptance criteria.
+- 13 of 117 topics now have dedicated explanations, interview answers, coach takeaways, criteria and readings. Every indexed topic has a learner takeaway field. The remaining topics point to parent lessons and require editorial coverage checks.
+- Four displayed standalone Java programs are on Days 1, 5, 26 and 55. The Java 21 execution results belong to those examples only. Other exercises generally have prompts and acceptance criteria.
 - Every core sums to 120 minutes. Day 1 allocates 15 explicit DSA minutes. Days 2–55 reserve 12 minutes for recall and do not expose an independent 30-minute DSA lane. DSA-focused sessions teach algorithms as the main subject. The agreed weekday split still needs the v2 scheduler and stable lesson migration.
 - Weekend preferences default to 390 minutes. The long Day 1 adds 270 minutes of named extensions. Other weekends allocate extra time through the generic practice, interview and revision planner. Reminder delivery and cross-device sync need the deployed account API.
 
@@ -19,7 +19,7 @@ Reading and video columns count configured URLs. An exercise prompt or acceptanc
 | 2 | Java thread interleavings | 290 | Yes | — | 1 / 4 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 3 | Visibility and locking | 285 | Yes | — | 1 / 4 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 4 | Equality, hashing and collections | 399 | Yes | — | 1 / 3 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
-| 5 | Java contracts and exceptions | 270 | — | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
+| 5 | Java contracts and exceptions | 353 | — | java | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 6 | Generics, lambdas and streams | 265 | — | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 7 | Executors and bounded work | 362 | — | — | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 8 | UML, SOLID and unit tests | 387 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
@@ -31,7 +31,7 @@ Reading and video columns count configured URLs. An exercise prompt or acceptanc
 | 14 | Atomic SQL updates | 245 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 15 | Pessimistic and optimistic locking | 217 | — | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 16 | JPA mapping and integration tests | 313 | — | — | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
-| 17 | Run two application instances | 186 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
+| 17 | Run two application instances | 287 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 18 | Requirements and capacity estimates | 210 | — | text | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 19 | Temporary holds and expiry | 302 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 20 | Idempotent booking requests | 318 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
@@ -90,6 +90,7 @@ Zero means the topic has no dedicated field of that kind. Open its parent day to
 | 5 | Java | Java method and type contracts | `j-oop-02` | `j-oop-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 5 | Java | Exceptions and failure outcomes | `j-exceptions-01` | `j-oop-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 5 | Low-level design | Domain and service responsibilities | `l-responsibilities-01` | `j-oop-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 5 | Java | String values, identity and the string pool | `j-strings-01` | `j-oop-02` | 272 | 5 / 5 | 4 | 1 | 4 | 4 |
 | 6 | Java | Generics and wildcards | `j-generics-01` | `j-generics-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 6 | Java | Lazy stream pipelines | `j-streams-01` | `j-generics-01` | 169 | 3 / 3 | 3 | 1 | 2 | 1 |
 | 7 | Java | Executors, futures and bounded work | `j-executors-01` | `j-executors-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
@@ -110,7 +111,7 @@ Zero means the topic has no dedicated field of that kind. Open its parent day to
 | 15 | SQL and data | Pessimistic and optimistic locking | `b-transactions-03` | `b-transactions-03` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 16 | Spring Boot & backend | JPA entities, flush and N+1 | `b-jpa-01` | `b-jpa-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 16 | Spring Boot & backend | PostgreSQL integration tests | `b-testing-02` | `b-jpa-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 17 | System design | Multiple application instances | `h-scaling-01` | `h-scaling-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 17 | System design | Multiple application instances | `h-scaling-01` | `h-scaling-01` | 302 | 4 / 4 | 4 | 1 | 4 | 2 |
 | 18 | System design | Functional and non-functional requirements | `h-requirements-01` | `h-requirements-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 18 | System design | Capacity estimates and hot keys | `h-estimates-01` | `h-requirements-01` | 179 | 3 / 3 | 3 | 1 | 2 | 1 |
 | 19 | Low-level design | Hold states and expiry | `l-invariants-02` | `l-invariants-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
@@ -282,3 +283,9 @@ Zero means the topic has no dedicated field of that kind. Open its parent day to
 - The exact displayed Day 1, 26 and 55 Java programs ran on JDK 21. The Day 1 program verifies initial state, first booking, a conflict, repeat, unknown seat, blank user and null user, preserving the owner across the rejections. A separate extension also exercised two independent Seat objects and rejected an invalid constructor argument.
 - Nine Node tests passed, including SQLite restart, account isolation, revision conflicts, planned-session penalties and reminder outbox with a simulated provider. Chromium passed 30 route and layout checks and rendered Learn and Coach for all 55 sessions. The two-browser Chromium check passed account sync, reopening, draft conflict handling and revision.
 - Live cross-device progress still depends on deploying the account API with a persistent database. Reminders still need a configured live provider and opt-in. Handwritten-photo uploads, durable engagement and individually tracked spaced repetition remain open.
+
+### Java Strings and scaling follow-up
+
+Day 5’s displayed Java 21 program verifies constant and runtime String identity, value-based map lookup, immutable String results, a builder snapshot, and the different results of numeric and string concatenation. Day 17’s capacity trace verifies the arithmetic separately from its still-pending two-process infrastructure exercise. The same-browser and two-browser check suite covers the new topic routes.
+
+The six references attached to the two new packets returned HTTP 200. Nine Node tests passed, and Chromium passed 30 route/layout checks plus the two-browser sync and conflict flow. Both new topic pages and the Java Strings example rendered in the browser.

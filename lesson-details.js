@@ -92,6 +92,45 @@ export const lessonDetails = {
       'Generics are invariant. A List<String> cannot be assigned to List<Object>, since the latter would allow inserting an Integer into the former. For a method that only reads names from a source list, use List<? extends CharSequence>. For a method writing Strings to a destination, use List<? super String>. Think producer extends, consumer super. Day 6 revisits bounds, erasure, and typed stream transformations.'],
     source: ['Dev.java · Introducing generics', 'https://dev.java/learn/generics/']
   },
+  5: {
+    section: ['Compare values before testing the booking contract',
+      'Use the first 12 minutes of the existing Learn block for the seat-ID String exercise. Predict the comparison results and run the displayed Java file. Use the remaining time to study exceptions and the service contract before the main assignment.',
+      'String values are immutable and reference identity can vary. The pooled literal A1 and a runtime String containing A1 are equal by value. Choose String.equals for booking IDs. Use a local StringBuilder for repeated appends and finish it at the boundary with toString.'],
+    code: ['Run SeatIdStrings.java to check the ID contract', 'java', `class SeatIdStrings {
+    private static void require(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
+    }
+
+    public static void main(String[] args) {
+        String literal = "A1";
+        String constant = "A" + "1";
+        String runtime = new String("A") + "1";
+        require(literal == constant, "Equal constant expressions share an interned String");
+        require(literal != runtime && literal.equals(runtime), "Check identity and value separately");
+
+        var bookings = new java.util.HashMap<String, String>();
+        bookings.put(literal, "U1");
+        require("U1".equals(bookings.get(runtime)), "Lookup must use string contents");
+
+        String padded = " A1 ";
+        String normalized = padded.strip();
+        require(literal.equals(normalized) && " A1 ".equals(padded), "String values remain immutable");
+
+        var builder = new StringBuilder();
+        require(builder.toString().isEmpty(), "An empty builder produces an empty value");
+        String firstList = builder.append(literal).append(',').append("A2").toString();
+        builder.append(',').append("A3");
+        require("A1,A2".equals(firstList), "Builder mutation must leave its previous result unchanged");
+
+        String numericFirst = 1 + 2 + " seats";
+        String textFirst = "Seats " + 1 + 2;
+        require("3 seats".equals(numericFirst) && "Seats 12".equals(textFirst), "Track operand types");
+        System.out.println("equal by value; booking=U1; labels=" + firstList);
+        System.out.println(numericFirst + " / " + textFirst);
+    }
+}`],
+    source: ['JLS 21 · String concatenation', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.18.1']
+  },
   7: {
     section: ['Separate a timed wait from cancellation',
       'When Future.get times out, control returns to the caller. The worker may still be queued, blocked on I/O, or about to commit a booking. Calling cancel(true) can request interruption. Application code and the driver determine whether blocking work actually stops. Give the driver its own deadline and decide how the client can look up an ambiguous write outcome.',
@@ -136,6 +175,15 @@ export const lessonDetails = {
       'Suppose a query returns four bookings with different owners. It can issue one query for bookings and four more when code accesses the lazy owner objects. Confirm by starting with a fresh persistence context, controlling caches and capturing SQL around the actual read path. A test using one owner per fixture or warm entities can hide the extra queries.',
       'A use-case-specific projection can read exactly the fields the endpoint needs. A fetch join or batch fetching can also help, with different trade-offs. Joining a to-many association may expand database rows and complicate pagination. Compare query counts and assert identical API results, including a representative page boundary.'],
     source: ['Hibernate ORM · Fetching strategies', 'https://docs.hibernate.org/orm/6.6/userguide/html_single/#fetching']
+  },
+  17: {
+    section: ['Identify which layer a scaling decision helps',
+      'Use one measured workload and latency target. If one app instance sustains 80 RPS at that target and the database sustains 120 RPS, a second app process raises the app ceiling to 160 RPS while the system remains bounded by 120 RPS. The effective capacity depends on both budgets and the traffic mix.',
+      'Trace a booking through one instance and query its authoritative result through the other. Then remove one ready instance and repeat through the survivor. Any essential state confined to a lost process can disappear on failover. Confirm the surviving route reads the same authoritative owner before comparing throughput.'],
+    table: {
+      title: 'Trace the capacity ceiling for the same workload', headers: ['Ready app instances', 'App ceiling', 'Database ceiling', 'System ceiling'],
+      rows: [['1', '80 RPS', '120 RPS', '80 RPS'], ['2', '160 RPS', '120 RPS', '120 RPS'], ['3', '240 RPS', '120 RPS', '120 RPS']]
+    }
   },
   18: {
     code: ['Convert assumptions into comparable units', 'text', 'visitors per second = visitors during rush / rush seconds\nread requests per second = visitors per second × reads per visitor\nwrite attempts per second = visitors per second × booking conversion\n\nThen estimate the load on the busiest event or seat separately.']
