@@ -183,6 +183,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/')],
     recall: 'Why must BST validation pass bounds down from all ancestors?'
   },
+  31: {
+    title: 'Weighted shortest paths with Dijkstra',
+    concept: 'BFS minimizes the number of edges; when edges have non-negative costs, Dijkstra’s algorithm with a priority queue minimizes the total cost.',
+    example: 'S–T costs 5, S–A and A–T cost 1 each. BFS picks S→T (1 hop, cost 5); Dijkstra picks S→A→T (cost 2).',
+    practice: 'Implement Dijkstra with lazy deletion and parent links, then a 0–1 BFS.',
+    checks: ['Stale queue entries are skipped.', 'Route rebuilt from parents.', 'Explain why negative weights break it.'],
+    readings: [reading('Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/')],
+    recall: 'When does BFS give the wrong answer for a cheapest route?'
+  },
   // @@lanes
 };
 
@@ -4141,6 +4150,174 @@ parent-only check would say: true`
       ['Delete keeps the tree valid in all three cases.', 'floor and ceiling match TreeMap.', 'The validation runs after every operation.', 'Height of a sorted insert is reported.']],
     references: [['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/'], ['Java 21 API · TreeMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html']]
   },
+  'd-graphs-01': {
+    notes: [
+      'A graph is a set of vertices connected by edges. Most interview graphs are sparse, so store them as adjacency lists: a map or list from each vertex to its neighbours, which takes O(V + E) space. Decide early whether edges are directed, whether they have weights, and how vertices are named.',
+      'Breadth-first search (BFS) explores from a source in layers using a queue: first the source, then everything one edge away, then two edges away. In an unweighted graph, the first time BFS discovers a vertex it has found a route with the fewest edges. Mark a vertex as discovered when you enqueue it, and record its parent at that moment; otherwise a vertex reachable from two queued vertices is enqueued twice. BfsRoutes.java finds A → C → D, reports an isolated seat Z as unreachable with an empty route, and runs a multi-source BFS from two entrances by putting both in the queue at distance 0. BFS costs O(V + E) time and O(V) extra space.',
+      'Depth-first search (DFS) follows one path as far as possible before backing up. Components.java counts connected components by starting a DFS from each vertex that has no label yet; with edges 0–1, 1–2 and 3–4 and seven vertices, there are four components, because 5 and 6 are on their own. For directed graphs, DFS with three colours detects a cycle: reaching a vertex that is still on the current path (grey) means a back edge. That is how you check that task dependencies can be ordered. Use an explicit stack for very deep graphs to avoid StackOverflowError.',
+      'BFS minimizes the number of edges, not the total cost. If edges have different non-negative weights, use Dijkstra’s algorithm, covered in today’s lane.'
+    ],
+    code: {
+      title: 'BfsRoutes.java · BFS with marking on enqueue, parent links, an unreachable vertex and multi-source BFS from two entrances · java BfsRoutes.java',
+      text: String.raw`import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+public class BfsRoutes {
+    // Undirected graph as adjacency lists; TreeMap keeps neighbour order deterministic.
+    static Map<String, List<String>> graph(String... edges) {
+        Map<String, List<String>> g = new TreeMap<>();
+        for (String e : edges) {
+            String[] p = e.split("-");
+            g.computeIfAbsent(p[0], k -> new ArrayList<>()).add(p[1]);
+            g.computeIfAbsent(p[1], k -> new ArrayList<>()).add(p[0]);
+        }
+        return g;
+    }
+
+    // Multi-source BFS: every source starts at distance 0. Mark on enqueue.
+    static Map<String, String> bfs(Map<String, List<String>> g, List<String> sources, Map<String, Integer> dist) {
+        Map<String, String> parent = new TreeMap<>();
+        Deque<String> queue = new ArrayDeque<>();
+        for (String s : sources) { dist.put(s, 0); queue.add(s); }
+        int enqueues = sources.size();
+        while (!queue.isEmpty()) {
+            String v = queue.poll();
+            for (String w : g.getOrDefault(v, List.of())) {
+                if (dist.containsKey(w)) continue;      // already discovered
+                dist.put(w, dist.get(v) + 1);
+                parent.put(w, v);
+                queue.add(w);
+                enqueues++;
+            }
+        }
+        dist.put("#enqueues", enqueues);
+        return parent;
+    }
+
+    static List<String> path(Map<String, String> parent, Map<String, Integer> dist, String target) {
+        if (!dist.containsKey(target)) return List.of();   // unreachable
+        List<String> p = new ArrayList<>();
+        for (String v = target; v != null; v = parent.get(v)) p.add(v);
+        Collections.reverse(p);
+        return p;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<String>> g = graph("A-B", "A-C", "C-D", "B-E", "E-D");
+        g.put("Z", new ArrayList<>());                    // isolated seat
+        Map<String, Integer> dist = new TreeMap<>();
+        Map<String, String> parent = bfs(g, List.of("A"), dist);
+        int enq = dist.remove("#enqueues");
+        System.out.println("from A: dist " + dist + ", enqueues " + enq);
+        System.out.println("route A->D: " + path(parent, dist, "D"));
+        System.out.println("route A->Z: " + path(parent, dist, "Z") + " (unreachable)");
+
+        Map<String, Integer> multi = new TreeMap<>();
+        Map<String, String> p2 = bfs(g, List.of("B", "D"), multi);
+        multi.remove("#enqueues");
+        System.out.println("two entrances B and D: dist " + multi + ", E reached via " + p2.get("E"));
+    }
+}
+`,
+      output: String.raw`from A: dist {A=0, B=1, C=1, D=2, E=2}, enqueues 5
+route A->D: [A, C, D]
+route A->Z: [] (unreachable)
+two entrances B and D: dist {A=1, B=0, C=1, D=0, E=1}, E reached via B`
+    },
+    takeaways: ['Adjacency lists: O(V + E) space.', 'BFS gives fewest edges in an unweighted graph.', 'Mark discovered on enqueue and record the parent.', 'DFS finds components and, with colours, directed cycles.'],
+    interview: [
+      ['Why does BFS find the shortest path in an unweighted graph?', 'BFS uses a FIFO queue, so it processes vertices in order of their distance from the source: the source at distance 0, then all vertices at distance 1, then all at distance 2, and so on. A vertex at distance d + 1 can only be discovered from a vertex at distance d, and all distance-d vertices are processed before any at d + 1. So the first time a vertex is discovered, the route through its parent has the fewest possible edges. Recording the parent at discovery lets me rebuild the route by following parents back from the target and reversing. It costs O(V + E) time with adjacency lists.'],
+      ['Why mark a vertex as discovered when it is enqueued rather than when it is dequeued?', 'If I mark only when dequeuing, a vertex can be added to the queue several times before it is processed. In a diamond graph, A connects to B and C, and both B and C connect to D. Processing B enqueues D, and processing C enqueues D again because D is not marked yet. With dense graphs this can blow the queue up to O(E) entries and repeat work, and a later copy could even overwrite D’s parent. Marking on enqueue ensures each vertex enters the queue once, keeps its first parent, which lies on a shortest route, and bounds the queue at V entries.'],
+      ['How do you count connected components, and how do you detect a cycle in a directed graph?', 'For components in an undirected graph, I loop over every vertex; when I find one without a label, I start a DFS or BFS from it and give every vertex it reaches the same new label. The number of starts is the number of components, and isolated vertices count as their own component. The total cost is O(V + E). For a directed graph, I run DFS with three colours: white for unvisited, grey for on the current path, black for finished. Reaching a grey vertex means a back edge, which is a cycle. Reaching a black vertex is fine. A graph with no cycle can be ordered topologically.']
+    ],
+    check: ['In BfsRoutes.java, which route does BFS find from A to D in the graph A–B, A–C, C–D, B–E, E–D?',
+      ['A, B, E, D', 'A, C, D', 'A, D', 'No route'], 1,
+      'A, C, D has two edges, fewer than A, B, E, D, and BFS discovers D first through C.'],
+    practice: ['Copy BfsRoutes.java and Components.java. Add a grid BFS for a venue map with blocked cells, a topological order (Kahn’s algorithm) for task dependencies, and tests for an isolated vertex and a cycle.',
+      ['Grid BFS returns -1 when unreachable.', 'Kahn’s algorithm reports a cycle.', 'Multi-source ties are handled.', 'O(V + E) stated for each.']],
+    references: [['Princeton Algorithms · Undirected graphs', 'https://algs4.cs.princeton.edu/41graph/'], ['Princeton Algorithms · Directed graphs', 'https://algs4.cs.princeton.edu/42digraph/']]
+  },
+  'd-graphs-01.dsa': {
+    notes: [
+      'When edges have different non-negative costs, the route with the fewest edges is not always the cheapest. In DijkstraRoutes.java, S–T costs 5 but S–A–T costs 1 + 1 = 2. BFS would pick the direct edge; Dijkstra’s algorithm finds the cheaper route.',
+      'Dijkstra keeps a priority queue ordered by the best known distance. It repeatedly takes the closest vertex not yet finalized and relaxes its edges: if dist[v] + cost is smaller than the known distance to a neighbour, update it, record the parent and add the neighbour to the queue. Java’s PriorityQueue has no decrease-key, so the program adds a new entry and skips stale ones when they are polled. With a binary heap the cost is O((V + E) log V).',
+      'Dijkstra requires non-negative weights: once a vertex is taken from the queue its distance is final, which is only true if no later edge can reduce it. With negative edges use Bellman–Ford. If all weights are 0 or 1, a deque-based 0–1 BFS is faster.'
+    ],
+    code: {
+      title: 'DijkstraRoutes.java · Dijkstra with a PriorityQueue and lazy deletion, parent links, and a case where the fewest-edge route is not the cheapest · java DijkstraRoutes.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.TreeMap;
+
+public class DijkstraRoutes {
+    record Edge(String to, int cost) {}
+    record Entry(String vertex, int dist) {}
+
+    static void add(Map<String, List<Edge>> g, String a, String b, int cost) {
+        g.computeIfAbsent(a, k -> new ArrayList<>()).add(new Edge(b, cost));
+        g.computeIfAbsent(b, k -> new ArrayList<>()).add(new Edge(a, cost));
+    }
+
+    // Dijkstra with lazy deletion: skip stale queue entries. Needs non-negative costs.
+    static Map<String, Integer> shortest(Map<String, List<Edge>> g, String src, Map<String, String> parent) {
+        Map<String, Integer> dist = new TreeMap<>();
+        PriorityQueue<Entry> pq = new PriorityQueue<>((x, y) -> x.dist() != y.dist()
+            ? Integer.compare(x.dist(), y.dist()) : x.vertex().compareTo(y.vertex()));
+        dist.put(src, 0);
+        pq.add(new Entry(src, 0));
+        while (!pq.isEmpty()) {
+            Entry e = pq.poll();
+            if (e.dist() > dist.get(e.vertex())) continue;   // stale
+            for (Edge edge : g.getOrDefault(e.vertex(), List.of())) {
+                int nd = e.dist() + edge.cost();
+                if (nd < dist.getOrDefault(edge.to(), Integer.MAX_VALUE)) {
+                    dist.put(edge.to(), nd);
+                    parent.put(edge.to(), e.vertex());
+                    pq.add(new Entry(edge.to(), nd));
+                }
+            }
+        }
+        return dist;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<Edge>> g = new TreeMap<>();
+        add(g, "S", "T", 5);
+        add(g, "S", "A", 1);
+        add(g, "A", "T", 1);
+        add(g, "T", "U", 2);
+        Map<String, String> parent = new TreeMap<>();
+        Map<String, Integer> dist = shortest(g, "S", parent);
+        List<String> route = new ArrayList<>();
+        for (String v = "T"; v != null; v = parent.get(v)) route.add(v);
+        Collections.reverse(route);
+        System.out.println("distances from S: " + dist);
+        System.out.println("cheapest S->T: " + route + " cost " + dist.get("T") + " (BFS would pick S->T, 1 hop, cost 5)");
+    }
+}
+`,
+      output: String.raw`distances from S: {A=1, S=0, T=2, U=4}
+cheapest S->T: [S, A, T] cost 2 (BFS would pick S->T, 1 hop, cost 5)`
+    },
+    takeaways: ['Fewest edges is not the lowest cost.', 'Dijkstra: priority queue plus relaxation.', 'Skip stale entries instead of decrease-key.', 'Weights must be non-negative.'],
+    interview: [
+      ['How does Dijkstra’s algorithm work, and what are its limits?', 'It maintains the best known distance to each vertex, starting with 0 for the source, and a priority queue ordered by that distance. It repeatedly removes the vertex with the smallest distance; that distance is now final. It then relaxes each outgoing edge: if the distance through this vertex is smaller than the neighbour’s known distance, it updates it, records the parent and adds the neighbour to the queue. In Java I add duplicate entries and skip stale ones on poll. With a binary heap it costs O((V + E) log V). It requires non-negative weights, because a negative edge could improve a distance already treated as final.']
+    ],
+    check: ['Why can Dijkstra not be used when some edge weights are negative?',
+      ['It becomes O(n²)', 'A vertex’s distance is treated as final when polled, but a later negative edge could still reduce it', 'PriorityQueue rejects negative numbers', 'It only works on trees'], 1,
+      'The finality guarantee relies on all remaining edges adding a non-negative amount. Use Bellman–Ford for negative edges.'],
+    practice: ['Copy DijkstraRoutes.java. Add route reconstruction for every vertex, a 0–1 BFS with ArrayDeque for weights 0 and 1, and a test that compares both on a 0/1 graph.',
+      ['Routes and costs match for every vertex.', '0–1 BFS agrees with Dijkstra.', 'An unreachable vertex is reported.', 'Complexity stated for both.']],
+    references: [['Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/']]
+  },
   // @@packets
 };
 
@@ -4225,6 +4402,10 @@ export const lateDistractors = {
     ['Preorder: the root first, then subtrees.', 'Reverse key order.'],
     ['The root of a min-heap of all values seen.', 'The most recently added value.']
   ],
+  31: [
+    ['Fewest edges in any directed graph with negative weights.', 'The route found by DFS is always shortest.'],
+    ['Never; the parent link is enough.', 'After the whole queue is empty.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4268,6 +4449,8 @@ export const lateExplanations = {
     'The map and the list must always hold the same keys. Removing from only one leaves a dangling entry that breaks later operations.'],
   30: ['Inorder visits the left subtree, the node and then the right subtree, and the BST rule puts smaller keys left, so keys come out in sorted order.',
     'To keep the k smallest, the item to discard is the largest one kept, so it must sit at the root of a max-heap where it can be replaced in O(log k).'],
+  31: ['BFS explores in layers of edge count, so it guarantees the fewest edges only when every edge counts the same. For costs, use Dijkstra.',
+    'Marking on enqueue keeps each vertex in the queue once and preserves its first parent, which lies on a fewest-edge route.'],
   // @@explanations
 };
 
@@ -4416,6 +4599,14 @@ export const lateAssessment = {
     { question: 'What is the time and space cost of keeping the k nearest items from a stream of n with a bounded heap?',
       choices: ['O(n log n) time, O(n) space', 'O(n log k) time, O(k) space', 'O(k) time, O(1) space', 'O(n²) time, O(k) space'], answer: 1,
       explanation: 'Each of the n items costs at most O(log k) heap work, and the heap never holds more than k items.' }
+  ],
+  31: [
+    { question: 'An undirected graph has 7 vertices and edges 0–1, 1–2 and 3–4. How many connected components does it have?',
+      choices: ['2', '3', '4', '7'], answer: 2,
+      explanation: '{0,1,2}, {3,4}, {5} and {6}: isolated vertices are components too.' },
+    { question: 'During a DFS of a directed graph, you reach a vertex that is grey (still on the current path). What does that mean?',
+      choices: ['The graph is disconnected', 'There is a cycle', 'The vertex is unreachable', 'BFS would be faster'], answer: 1,
+      explanation: 'An edge to a vertex on the current DFS path is a back edge, which closes a cycle.' }
   ],
   // @@assessment
 };
@@ -4617,6 +4808,11 @@ export const lateInterviewGuides = {
     'There are two different extra-space costs. A recursive tree traversal keeps one stack frame per level, so it uses O(h) space for height h: about log n for a balanced tree, but n for a skewed tree such as a BST built from sorted keys, which can cause StackOverflowError. A streaming top-k heap holds at most k items, so it uses O(k) space and O(n log k) time, no matter how long the stream is. If the k results are copied into a sorted list at the end, that adds another O(k). I state both costs separately and say which one dominates for the expected input.',
     'The heap only guarantees that its root is the worst kept item; iterating it does not give sorted order. So after the stream ends I copy the k survivors into a list and sort them with the same comparator. For stable ties the comparator must be total, for example minutes first and then arrival index. Using it in the heap means that at the cut-off a later item with equal minutes does not replace an earlier one, and using it in the final sort means equal items appear in arrival order. I add a test with several equal values at the boundary, plus k = 0 and k larger than the input.',
     'For the k smallest values, every new value is compared with the worst value I am keeping, which is the largest one. A max-heap keeps that largest value at its root, so the comparison is O(1) and replacing it is O(log k). If the new value is smaller than the root, I poll the root and offer the new value; otherwise I ignore it. A min-heap would put the smallest kept value at the root, which is the one I want to keep, and finding the largest would need a scan of all k. For k = 0 I return an empty result without creating a heap, and I state the tie rule.'
+  ],
+  31: [
+    'BFS uses a FIFO queue, so it processes the source, then every vertex one edge away, then every vertex two edges away. A vertex at distance d + 1 is first discovered from a vertex at distance d, so its first discovery is along a route with the fewest edges. The visited set, marked when a vertex is enqueued, prevents three problems: enqueuing the same vertex several times, overwriting its first parent with a worse one, and looping forever on cycles. To rebuild the route I follow parent links from the target back to the source and reverse them. With adjacency lists BFS costs O(V + E) time and O(V) extra space.',
+    'No. BFS minimizes the number of edges, not the sum of costs. If S–T costs 5 while S–A and A–T cost 1 each, BFS finds S→T first because it is one hop, but S→A→T costs only 2. For non-negative costs I use Dijkstra’s algorithm, which takes the vertex with the smallest known total cost from a priority queue and relaxes its edges. If costs are only 0 or 1, a 0–1 BFS with a deque is faster, and with negative costs I would use Bellman–Ford. First I confirm whether the requirement is the fewest connections or the lowest total cost, because they lead to different algorithms.',
+    'If a vertex is marked only when it is dequeued, it can be added to the queue many times before that happens. Take a diamond: A connects to B and C, and both B and C connect to D. Processing B enqueues D. Processing C checks D, sees it is not marked yet, and enqueues it again. In a dense graph this repeats for many vertices, so the queue can grow to O(E) entries and the same vertex is expanded repeatedly, and its parent may be overwritten. Marking on enqueue keeps a single discovery per vertex, preserves the first parent, which is on a shortest route, and caps the queue at V entries.'
   ],
   // @@guides
 };
