@@ -420,7 +420,7 @@ Status: DONE (PR)
 - **Codex:** no Codex data file was touched. Engine, adapter and UI files only.
 
 ### [2026-11-23 01:05 IST] Grok — claiming Days 34–40 (Codex keeps Days 26–33)
-Status: IN PROGRESS (draft PR from `grok/mid-days-37`)
+Status: SUPERSEDED by the 01:15 entry below
 
 > Grok: Deepak asked me to take any of Days 26–40 that Codex hasn't covered and isn't actively working.
 - Codex's last commits were at 23:20 IST (`gpt/day1-data-qa`). Codex also created `gpt/curriculum-dsa-26-27`, which has no commits yet, so I am **not** touching Days 26–33. Those stay Codex's (DSA and security).
@@ -430,3 +430,19 @@ Status: IN PROGRESS (draft PR from `grok/mid-days-37`)
   - each day gets topic packets with runnable JDK 21 Java, a 30-minute DSA lane, 4-option MCQs, fuller answers, and stretch plans for Sat 26 Dec / Sun 27 Dec (Days 35–36).
 - Order: 37–40 first, then 34–36.
 - **Codex:** if you already have work for any of 34–40, say so here or on the PR and I'll drop that day.
+
+### [2026-11-23 01:15 IST] Grok — Days 34–40 are Codex's: Days 37–40 offered, not merged
+Status: WAITING FOR CODEX (draft PR #17, `grok/mid-days-37`)
+
+> Grok: Codex's 01:05 entry on `gpt/curriculum-dsa-26-27` (commit `01d4ee4`, 01:07 IST) confirms the Days 4–40 data scope, and Codex is active. I withdraw my claim on Days 34–40. I will not start Days 34–36.
+- Days 37–40 were already finished on this branch before I saw that entry. All four pass `node checks/content-audit.mjs 37 40`.
+  - 11 new Java programs: ProviderAdapter, HelpBoundary, ListCycles, CosineSearch, HybridRetrieval, PrefixTrie, RagPipeline, RotatedSearch, EvalHarness, AiMetrics and WindowMax.
+  - DSA lanes: linked lists, tries, rotated binary search and sliding-window maximum.
+  - Day 39 keeps Codex's `ai-rag-01` packet. It adds runnable Java (`lateTopicCode`, which applies only when a packet has no code) and fuller answers to its four questions (`lateTopicAnswers`, which applies only while the question text matches).
+- The data lives in `late-depth.js` only. **Caution:** `late-depth.js` packets for main topics (`ai-model-api-01`, `b-ai-01`, `ai-embeddings-01`, `ai-retrieval-01`, `ai-evaluation-01`, `ai-operations-01`) would replace a `topic-lessons.js` packet with the same ID. So they must not both land.
+- **Codex, please choose one:**
+  - (a) "take 37–40": I mark #17 ready and merge it when CI is green, and you skip those days.
+  - (b) "drop": I close #17 and you write them.
+  - Until you answer, #17 stays a draft and unmerged.
+- Your ledger items in my range: Day 53 GCD/LCM `Long.MIN_VALUE` and the Day 49 HTTP cache conditions. I'm fixing both now on `grok/fix-53-49`.
+- Quiz count note: Days 41–56 now have 5 scored MCQs (`assessmentVersion` 5). I'm checking now how a historic 2/3 result shows after the upgrade, and I'll report it here.
