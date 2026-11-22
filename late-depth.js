@@ -192,6 +192,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
     recall: 'Why can a value be removed from the back of the deque as soon as a larger value arrives?'
   },
+  34: {
+    title: 'Monotonic stack: next greater element',
+    concept: 'Keep indices that have not found a greater value yet. When a larger value arrives, pop every smaller index and record the new position as its answer. Each index is pushed and popped once, so it is O(n).',
+    example: 'Loads 73 74 75 71 69 72 76 73 give next greater indices 1 2 6 5 5 6 −1 −1 and days to wait 1 1 4 2 1 1 0 0.',
+    practice: 'Implement nextGreaterIndex and daysToWait, then a circular version, and compare with a brute-force version on random arrays.',
+    checks: ['Values with no greater element get −1.', 'Explain how < versus <= treats equal values.', 'State O(n) time and O(n) space.'],
+    readings: [reading('Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/')],
+    recall: 'Why is every index pushed and popped at most once, and what does that give you?'
+  },
   // @@lanes
 };
 
@@ -4301,6 +4310,208 @@ k=0 -> need 1 <= k <= 8`
       ['minPerWindow matches a naive version on random arrays.', 'k = 1 gives a spread of 0 everywhere.', 'Invalid k is rejected.', 'State the time and space complexity.']],
     references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html']]
   },
+  'b-deployment-01': {
+    notes: [
+      'Packaging turns the booking service into one artefact that runs the same way everywhere. Spring Boot builds an executable jar with ./mvnw package. ./mvnw spring-boot:build-image builds an OCI container image with Cloud Native Buildpacks, so you do not need to write a Dockerfile. Boot also writes the jar in layers (dependencies, Spring Boot loader, snapshot dependencies and application code), so a rebuild after a code change only replaces the small top layer.',
+      'The image holds code and the runtime it needs to start, and nothing environment-specific. Database URLs, credentials, feature flags and the active profile come from environment variables or mounted secrets when the container starts. Spring Boot binds them to properties, for example SPRING_DATASOURCE_URL to spring.datasource.url. That way the same image moves from test to production, and a leaked image does not leak a password. Run the container as a non-root user, pin the base image version, and keep a small image by leaving build tools out.',
+      'Spring Boot Actuator exposes /actuator/health. With probes enabled, which is automatic on Kubernetes, it also exposes /actuator/health/liveness and /actuator/health/readiness. HealthProbes.java shows what each should mean for the booking service. Liveness is about the process itself, so a deadlock makes it fail and the orchestrator restarts that one instance. Readiness is about taking traffic now: while the database is down the instance reports 503 and leaves the load balancer, but it is not restarted, because a restart cannot fix the database.'
+    ],
+    code: {
+      title: 'HealthProbes.java · liveness vs readiness during a database outage and a deadlock, with a correlated log line and bounded metrics · java HealthProbes.java',
+      text: String.raw`import java.util.*;
+
+// Liveness vs readiness for a booking service, with one request traced through a log line and a metric.
+public class HealthProbes {
+    enum Db { UP, DOWN }
+    static Db db = Db.UP;
+    static boolean deadlocked = false;          // the only thing a restart can fix
+    static final Map<String, Integer> metrics = new TreeMap<>();
+
+    // Liveness: can this process still make progress? Never checks shared dependencies.
+    static int liveness() { return deadlocked ? 503 : 200; }
+
+    // Readiness: should the load balancer send booking traffic here right now?
+    static int readiness() { return !deadlocked && db == Db.UP ? 200 : 503; }
+
+    static int book(String requestId, String route, String seat) {
+        int status = db == Db.UP ? 201 : 503;
+        // Structured log: high-cardinality IDs belong here, not in metric labels.
+        System.out.printf("{\"level\":\"%s\",\"requestId\":\"%s\",\"route\":\"%s\",\"seat\":\"%s\",\"status\":%d}%n",
+            status < 500 ? "INFO" : "WARN", requestId, route, seat, status);
+        // Metric: bounded labels only (route template and status class).
+        metrics.merge("http_requests{route=" + route + ",class=" + status / 100 + "xx}", 1, Integer::sum);
+        return status;
+    }
+
+    static void probes(String when) {
+        System.out.println(when + ": liveness=" + liveness() + " readiness=" + readiness());
+    }
+
+    public static void main(String[] args) {
+        probes("normal");
+        book("req-101", "/events/{id}/bookings", "A7");
+        db = Db.DOWN;
+        probes("database down 30 s");
+        book("req-102", "/events/{id}/bookings", "A8");
+        System.out.println("-> instance leaves the load balancer; it is NOT restarted (a restart cannot fix the database)");
+        db = Db.UP;
+        probes("database back");
+        book("req-103", "/events/{id}/bookings", "A8");
+        deadlocked = true;
+        probes("worker threads deadlocked");
+        System.out.println("-> liveness fails, so the orchestrator restarts this one instance");
+        System.out.println("metrics: " + metrics);
+    }
+}
+`,
+      output: String.raw`normal: liveness=200 readiness=200
+{"level":"INFO","requestId":"req-101","route":"/events/{id}/bookings","seat":"A7","status":201}
+database down 30 s: liveness=200 readiness=503
+{"level":"WARN","requestId":"req-102","route":"/events/{id}/bookings","seat":"A8","status":503}
+-> instance leaves the load balancer; it is NOT restarted (a restart cannot fix the database)
+database back: liveness=200 readiness=200
+{"level":"INFO","requestId":"req-103","route":"/events/{id}/bookings","seat":"A8","status":201}
+worker threads deadlocked: liveness=503 readiness=503
+-> liveness fails, so the orchestrator restarts this one instance
+metrics: {http_requests{route=/events/{id}/bookings,class=2xx}=2, http_requests{route=/events/{id}/bookings,class=5xx}=1}`
+    },
+    takeaways: ['One image for every environment; configuration comes at runtime.', 'Credentials never go into the image.', 'Liveness: is the process healthy? Readiness: can it take traffic now?', 'Do not restart instances for a shared dependency outage.'],
+    interview: [
+      ['How do you package a Spring Boot service for deployment, and what stays out of the image?', 'I build an executable jar and then an OCI image, either with ./mvnw spring-boot:build-image, which uses Cloud Native Buildpacks, or with a multi-stage Dockerfile that copies Spring Boot’s jar layers so code changes only rebuild the top layer. The image contains the JRE, dependencies and application code, runs as a non-root user and pins its base image version. Everything environment-specific stays out: database URLs, credentials, API keys, feature flags and profiles. They arrive as environment variables or mounted secrets at start-up, and Spring binds them to properties. The same tested image is then promoted from staging to production unchanged.'],
+      ['The database is down for thirty seconds while the Java process is healthy. What should liveness and readiness report?', 'Liveness should stay up, because the process is fine and a restart would not fix the database. If liveness included the database check, every replica would fail at once and the orchestrator would restart them all, turning a 30-second outage into a longer one with cold starts. Readiness should report not ready if the instance cannot serve its main traffic, so the load balancer stops sending booking requests and clients get a fast, clear error or a retry elsewhere. When the database returns, readiness recovers by itself. In Spring Boot I would keep liveness to the application’s own state and add the database to the readiness group with care.'],
+      ['What is the difference between health checks, logs, metrics and traces?', 'A health check is a yes or no answer for automation: should this instance be restarted, or should it receive traffic? Logs are individual events with detail, such as one booking failing with request ID req-102 and seat A8; they answer what happened to this request. Metrics are numbers aggregated over time, such as request count by route and status class or p95 latency; they are cheap to store and drive dashboards and alerts. Traces follow one request across services as spans, showing where the time went. I connect them with a request or trace ID in logs and traces, while keeping metric labels bounded.']
+    ],
+    check: ['In HealthProbes.java, what happens while the database is down?',
+      ['Liveness fails and the instance restarts', 'Readiness returns 503, so the instance leaves the load balancer, and liveness stays 200', 'Both probes return 200', 'Both probes fail'], 1,
+      'A restart cannot fix a shared database, so only readiness changes.'],
+    practice: ['Copy HealthProbes.java. Add a startup probe that stays 503 until a warm-up flag is set, and a slow-database mode where readiness fails only after three consecutive slow checks.',
+      ['Startup blocks both other probes until warm-up completes.', 'One slow check does not flip readiness; three do.', 'Every booking log line carries its request ID.', 'Metrics keep only route template and status class as labels.']],
+    references: [['Spring Boot · Actuator endpoints and Kubernetes probes', 'https://docs.spring.io/spring-boot/reference/actuator/endpoints.html'], ['Spring Boot · Container images', 'https://docs.spring.io/spring-boot/reference/packaging/container-images/index.html'], ['Kubernetes · Liveness, readiness and startup probes', 'https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/']]
+  },
+  'h-observability-02': {
+    notes: [
+      'Every metric label combination becomes its own time series, so labels must have a small, fixed set of values. A route template such as /events/{id}/bookings and a status class such as 2xx are bounded. A raw path, request ID, user ID, seat ID or email is not: with 4 routes, 3 outcome classes and 50,000 users you would create 600,000 series instead of 12. That makes the monitoring system slow and expensive, and can bring it down. BoundedLabels.java maps raw paths to templates, collapses unknown paths into "other", and rejects forbidden labels.',
+      'High-cardinality values still matter; they just belong somewhere else. Put the request ID, user or booking ID in structured logs and trace attributes, where you look up one request. In HealthProbes.java the log line carries requestId and seat, while the metric carries only route and status class. To go from a metric spike to the failing requests, filter logs by the same route and time window, or follow an exemplar trace.',
+      'For the booking service, a useful minimum is the RED view per route: request rate, error rate and duration (p50 and p95). Add saturation signals such as the database connection pool and JVM memory, and a readiness flag per instance. Alert on symptoms users feel, such as the error rate or p95 above the target for several minutes, not on every single failed request. Record dependency failures as a counter labelled by dependency name, which is bounded.'
+    ],
+    code: {
+      title: 'BoundedLabels.java · route templates for metric labels, an "other" bucket and rejected unbounded labels · java BoundedLabels.java',
+      text: String.raw`import java.util.*;
+import java.util.regex.*;
+
+// Turns raw request paths into bounded metric labels, so a metric never gets one series per user, seat or request.
+public class BoundedLabels {
+    static final List<Map.Entry<Pattern, String>> ROUTES = List.of(
+        Map.entry(Pattern.compile("^/events/\\d+/bookings$"), "/events/{id}/bookings"),
+        Map.entry(Pattern.compile("^/events/\\d+/seats$"), "/events/{id}/seats"),
+        Map.entry(Pattern.compile("^/bookings/[a-z0-9-]+$"), "/bookings/{id}"),
+        Map.entry(Pattern.compile("^/actuator/health(/\\w+)?$"), "/actuator/health"));
+    static final Set<String> FORBIDDEN = Set.of("requestId", "userId", "seatId", "email");
+
+    static String template(String path) {
+        for (var r : ROUTES) if (r.getKey().matcher(path).matches()) return r.getValue();
+        return "other";                                  // unknown paths collapse into one series
+    }
+
+    static Map<String, String> labels(Map<String, String> wanted) {
+        for (String k : wanted.keySet())
+            if (FORBIDDEN.contains(k)) throw new IllegalArgumentException(k + " is unbounded: put it in logs or trace attributes");
+        return new TreeMap<>(wanted);
+    }
+
+    public static void main(String[] args) {
+        Map<String, Integer> series = new TreeMap<>();
+        String[] paths = {"/events/42/bookings", "/events/43/bookings", "/events/42/seats", "/bookings/b-100",
+            "/bookings/b-101", "/actuator/health/readiness", "/wp-admin.php", "/events/42/bookings"};
+        for (String p : paths) series.merge(template(p), 1, Integer::sum);
+        System.out.println(paths.length + " requests -> " + series.size() + " series: " + series);
+        System.out.println("labels ok: " + labels(Map.of("route", "/bookings/{id}", "outcome", "2xx")));
+        try {
+            labels(Map.of("route", "/bookings/{id}", "userId", "u-981"));
+        } catch (IllegalArgumentException e) {
+            System.out.println("rejected: " + e.getMessage());
+        }
+        int users = 50_000, routes = 4, outcomes = 3;
+        System.out.println("series with route x outcome: " + routes * outcomes + "; adding userId would give " + (long) routes * outcomes * users);
+    }
+}
+`,
+      output: String.raw`8 requests -> 5 series: {/actuator/health=1, /bookings/{id}=2, /events/{id}/bookings=3, /events/{id}/seats=1, other=1}
+labels ok: {outcome=2xx, route=/bookings/{id}}
+rejected: userId is unbounded: put it in logs or trace attributes
+series with route x outcome: 12; adding userId would give 600000`
+    },
+    takeaways: ['Each label combination is a separate time series.', 'Use route templates and status classes as labels.', 'Request, user and seat IDs go in logs and traces.', 'RED per route: rate, errors, duration.'],
+    interview: [
+      ['Which labels are too high-cardinality for metrics, and where should those values go?', 'Any label whose values grow with traffic or users is too high-cardinality: request IDs, user IDs, seat or booking IDs, emails, raw URLs with IDs in them, and free-form error messages. Each distinct combination creates a new time series, so 4 routes × 3 outcomes is 12 series, but adding a user ID with 50,000 users makes it 600,000. That overloads the metrics backend and makes queries slow and costly. Labels should be bounded: route template, method, status class, dependency name. The detailed identifiers go into structured logs and trace attributes, where you search for one specific request, protected as personal data where needed.'],
+      ['How do you correlate one failing request across the response, the logs and the metrics?', 'At the edge I assign or accept a request or trace ID, return it in a response header, and put it in the logging context, for example the MDC in Java, so every log line for that request includes it. Distributed tracing propagates the same trace ID to downstream calls. When a user reports an error, I search the logs by that ID and open the trace to see which span failed. Metrics cannot hold the ID, so I go from a metric spike to the requests using the route label and the time window, or an exemplar trace attached to the metric.'],
+      ['What would you put on the first dashboard and alerts for a booking API?', 'Per route I would show the RED signals: request rate, error rate split by status class, and p50 and p95 latency. Next to them, saturation: database connection pool usage, JVM heap and garbage collection time, and how many instances are ready. Business signals help too, such as bookings confirmed per minute and seat-hold conflicts. Alerts should fire on symptoms that users feel and that persist, for example a 5xx rate above 2% for five minutes or p95 above the latency target, with a link to the runbook. I avoid alerting on single failures or on causes that do not affect users, because noisy alerts get ignored.']
+    ],
+    check: ['With 4 route templates, 3 status classes and 50,000 users, how many series appear if userId becomes a label?',
+      ['12', '50,012', '600,000', '200,000'], 2,
+      '4 × 3 × 50,000 = 600,000 series, compared with 12 without the user label.'],
+    practice: ['Copy BoundedLabels.java. Add a method label, a dependency-failure counter labelled by dependency name, and a check that fails when the number of series would exceed 50.',
+      ['Raw IDs never appear in a label.', 'Unknown paths go to "other".', 'The series count is printed and checked.', 'Write one log line for the same request with its request ID.']],
+    references: [['Prometheus · Metric and label naming', 'https://prometheus.io/docs/practices/naming/'], ['Prometheus · Instrumentation practices', 'https://prometheus.io/docs/practices/instrumentation/']]
+  },
+  'b-deployment-01.dsa': {
+    notes: [
+      'The next greater element problem asks, for each position, where the first larger value to its right is. The brute-force answer scans right from every position, which is O(n²). A monotonic stack does it in one pass. Keep indices whose values have not yet found a greater element; their values decrease from the bottom of the stack to the top.',
+      'In NextGreater.java, for each index i: while the stack is not empty and the value at the top is smaller than a[i], pop it and record i as its answer. Then push i. Every index is pushed once and popped at most once, so the total work is O(n) and the stack uses O(n) space in the worst case, a decreasing array. Indices still on the stack at the end have no greater element and keep −1.',
+      'For loads 73 74 75 71 69 72 76 73 the next greater indices are 1 2 6 5 5 6 −1 −1, so the days to wait are 1 1 4 2 1 1 0 0. Decide carefully between < and <= in the pop condition: with <, equal values do not count as greater, so 2 2 3 gives 2 2 −1. The same pattern solves stock spans, daily temperatures and the largest rectangle in a histogram.'
+    ],
+    code: {
+      title: 'NextGreater.java · next greater element and days to wait with a monotonic stack · java NextGreater.java',
+      text: String.raw`import java.util.*;
+
+// Next greater element with a monotonic stack: for each day, how many days until a higher load?
+public class NextGreater {
+    static int[] nextGreaterIndex(int[] a) {
+        int[] ans = new int[a.length];
+        Arrays.fill(ans, -1);
+        Deque<Integer> stack = new ArrayDeque<>();       // indices with values decreasing from bottom to top
+        for (int i = 0; i < a.length; i++) {
+            while (!stack.isEmpty() && a[stack.peek()] < a[i]) ans[stack.pop()] = i;
+            stack.push(i);
+        }
+        return ans;                                      // indices left on the stack have no greater element
+    }
+
+    static int[] daysToWait(int[] a) {
+        int[] idx = nextGreaterIndex(a), out = new int[a.length];
+        for (int i = 0; i < a.length; i++) out[i] = idx[i] < 0 ? 0 : idx[i] - i;
+        return out;
+    }
+
+    public static void main(String[] args) {
+        int[] load = {73, 74, 75, 71, 69, 72, 76, 73};
+        System.out.println("next greater index: " + Arrays.toString(nextGreaterIndex(load)));
+        System.out.println("days to wait     : " + Arrays.toString(daysToWait(load)));
+        System.out.println("decreasing       : " + Arrays.toString(nextGreaterIndex(new int[]{5, 4, 3})));
+        System.out.println("equal values     : " + Arrays.toString(nextGreaterIndex(new int[]{2, 2, 3})));
+        System.out.println("empty            : " + Arrays.toString(nextGreaterIndex(new int[]{})));
+    }
+}
+`,
+      output: String.raw`next greater index: [1, 2, 6, 5, 5, 6, -1, -1]
+days to wait     : [1, 1, 4, 2, 1, 1, 0, 0]
+decreasing       : [-1, -1, -1]
+equal values     : [2, 2, -1]
+empty            : []`
+    },
+    takeaways: ['Keep unresolved indices on a stack.', 'Pop while the top is smaller than the new value.', 'Each index is pushed and popped once: O(n).', 'The comparison decides how equal values are treated.'],
+    interview: [
+      ['How do you find the next greater element for every position in O(n)?', 'I scan left to right with a stack of indices that are still waiting for a greater value; their values decrease from the bottom to the top. For each new index i, I pop every index whose value is smaller than a[i] and record i as its answer, because a[i] is the first greater value to its right. Then I push i. Each index is pushed once and popped at most once, so the total is O(n) time, with O(n) space for the stack and the answer array. Indices left on the stack at the end have no greater element, so they keep −1.'],
+      ['Why store indices rather than values on the stack, and how do you handle equal values?', 'Indices give me everything: the value through a[i], the position to write the answer into, and the distance, such as days to wait, as j − i. With values alone I could not tell which position to fill, especially when values repeat. For equal values the pop condition decides the meaning. With a strict less-than, an equal value is not greater, so it stays on the stack; for 2 2 3 both 2s get index 2. With less-than-or-equal, an equal value pops the previous one, which is what you want for "next greater or equal". I state which one the problem needs before coding.'],
+      ['Which other problems use the monotonic stack pattern?', 'Daily temperatures is the same as days to wait. The stock span problem uses a stack looking left for the previous greater price. Largest rectangle in a histogram keeps increasing heights and, when a lower bar arrives, pops bars and computes the width each one could extend. Trapping rain water can be solved with a stack of decreasing heights. Removing k digits to make the smallest number keeps an increasing stack. The common idea is that an element is popped as soon as a later element decides its answer, so each element is handled a constant number of times and the whole pass is linear.']
+    ],
+    check: ['For loads 73 74 75 71 69 72 76 73, how many days does index 2 (value 75) wait for a higher load?',
+      ['1', '3', '4', '0'], 2,
+      'The next greater value after 75 is 76 at index 6, so it waits 6 − 2 = 4 days.'],
+    practice: ['Copy NextGreater.java. Add previousGreater (scan left to right, the answer is the stack top before pushing), a circular version that scans the array twice, and a check against an O(n²) version on random arrays.',
+      ['The circular version gives 76 as the answer for the final 73.', 'All versions match the brute force with a fixed seed.', 'The empty array works.', 'State the complexity of each.']],
+    references: [['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/']]
+  },
   // @@packets
 };
 
@@ -4389,6 +4600,10 @@ export const lateDistractors = {
     ['The average similarity score of the top k passages.', 'The share of answers that cite at least k passages.'],
     ['A lower average latency on a different set of questions.', 'Positive comments from a demo of the new version.']
   ],
+  34: [
+    ['Liveness, which restarts the instance when it fails.', 'The number of log lines written per second.'],
+    ['The JRE the application needs to start.', 'The compiled application classes.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4434,6 +4649,8 @@ export const lateExplanations = {
     'Without supporting evidence the honest answer is the documented fallback. Invented citations, other venues’ policies and repeated retries all produce unsupported answers.'],
   40: ['hit@k only asks whether a relevant passage is among the top k candidates for each answerable question. Claim support and citation counts are separate measures.',
     'A regression claim needs the same frozen cases and the same scoring rules for both versions. Different examples, sets or demos cannot be compared.'],
+  34: ['Readiness decides whether the load balancer sends traffic to an instance. Liveness only decides restarts, and a build artefact says nothing about the running instance.',
+    'Credentials and environment settings are injected when the container starts. The runtime and the application classes are exactly what the image must contain.'],
   // @@explanations
 };
 
@@ -4590,6 +4807,14 @@ export const lateAssessment = {
     { question: 'v2 is 100% grounded on the answers it gives but refuses 3 of 4 answerable questions. What is the right conclusion?',
       choices: ['v2 is strictly better', 'It is a trade-off: report false refusals next to grounded correctness and decide with the product owner', 'Grounded correctness should be computed over all questions instead', 'Remove the answerable questions from the set'], answer: 1,
       explanation: 'Each measure has its own denominator; a stricter validator can buy correctness with refusals.' }
+  ],
+  34: [
+    { question: 'Which metric label is safe for a booking API?',
+      choices: ['userId', 'The raw path /events/42/bookings', 'The route template /events/{id}/bookings', 'requestId'], answer: 2,
+      explanation: 'Route templates have a small, fixed set of values. IDs and raw paths create a new series per value.' },
+    { question: 'Every replica includes the shared database in its liveness probe. The database is down for 30 seconds. What happens?',
+      choices: ['Nothing, because liveness ignores dependencies', 'All replicas fail liveness and are restarted together, making the outage longer', 'Only one replica restarts', 'Readiness turns off liveness'], answer: 1,
+      explanation: 'A shared dependency in liveness causes restarts everywhere at once. Keep it out of liveness.' }
   ],
   // @@assessment
 };
@@ -4768,6 +4993,11 @@ export const lateInterviewGuides = {
     'One plausible answer shows the system can succeed once, not how often it fails. Generation varies between runs, the example was probably an easy case, and a fluent answer can still contain an unsupported claim. Quality is a rate, so it needs a labelled set: typical, ambiguous and unanswerable questions, each with the gold passage and the expected behaviour, frozen in the repository. Every version is scored on the same cases with the same rules, reporting retrieval hit at k, grounded correctness, false refusals, correct abstention, latency and cost. That turns "it looked good" into numbers that can show a regression.',
     'I would stop relying on one acceptance rate and split the results. On answerable questions: grounded correctness of the answers given, and false refusals, meaning good evidence but a fallback. On unanswerable questions: correct abstention. I would also count truncated answers, since a shorter limit can cut off the claim or the citation and cause the validator to reject it, and compare p50 and p95 latency and tokens per call. Shown side by side on the same frozen cases, these reveal whether the change truly avoided bad answers or simply refused or truncated good ones.',
     'First I keep the judge away from anything a rule can check: schema, citation membership, numbers, dates and policy codes are verified in code. For the rest I write a rubric and ask a human reviewer to label a varied sample independently, including borderline and unsupported answers. I run the judge on the same sample with a pinned model, prompt and temperature, and compare agreement per category rather than one overall figure. I study every disagreement, adjust the rubric, and validate on a fresh sample. Only categories with high agreement are reported from the judge, and I recalibrate whenever the judge model or rubric changes.'
+  ],
+  34: [
+    'A health check is a yes or no answer for automation. Liveness asks whether the process should be restarted, and readiness asks whether it should receive traffic now. Logs are individual events with detail, such as booking req-102 failing for seat A8. Metrics are aggregated numbers over time, such as error rate and p95 latency by route, used for dashboards and alerts. Traces follow one request across services. When a dependency fails, readiness goes false if the instance cannot serve its main traffic, liveness stays up, errors are logged with the request ID, and a counter by dependency name shows the scale. Alerts fire on the user-facing error rate.',
+    'Liveness should stay healthy, because the Java process is fine and restarting it cannot fix the database. If liveness checked the database, every replica would fail together and be restarted, adding cold starts to the outage. Readiness should report not ready if the instance cannot handle booking traffic, so the load balancer stops routing requests to it and clients get a fast error or a retry. When the database comes back, readiness recovers by itself without a restart. In Spring Boot, I keep liveness to the application’s own state and add the database to the readiness group only after considering this shared-failure effect.',
+    'Request ID, user ID, seat ID, booking ID, email and raw URLs containing IDs are all too high-cardinality for metric labels, because every distinct value creates a new time series. With 4 routes, 3 status classes and 50,000 users, adding a user label turns 12 series into 600,000. Metric labels should be bounded: route template, method, status class or dependency name. The detailed identifiers belong in structured logs, using the MDC in Java, and in trace attributes, where you look up a single request. Personal identifiers there still need protection and a retention limit.'
   ],
   // @@guides
 };
