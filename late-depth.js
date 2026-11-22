@@ -318,6 +318,51 @@ export const lateLanes = {
     readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
     recall: 'How does popping restore the previous minimum without a search?'
   },
+  9: {
+    title: 'Binary search: lower and upper bounds',
+    concept: 'On a sorted array, lower bound is the first index with value ≥ key and upper bound the first with value > key; both take O(log n) with a half-open range.',
+    example: 'In [2, 4, 4, 4, 7, 9], key 4 has lower 1 and upper 4, so it occurs 3 times; key 5 would be inserted at 4.',
+    practice: 'Implement lowerBound and upperBound, then count occurrences and compare with a linear scan.',
+    checks: ['Empty and missing-key cases pass.', 'mid computed without overflow.', 'Explain what Arrays.binarySearch returns for a missing key.'],
+    readings: [reading('Java 21 API · Arrays', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html')],
+    recall: 'What is the difference between lower bound and upper bound?'
+  },
+  10: {
+    title: 'Two pointers: merging sorted arrays',
+    concept: 'Compare the current items of two sorted arrays, take the smaller, and advance that pointer; the merge is O(n + m) and stable if ties take from the left.',
+    example: '[1, 3, 5, 5, 9] and [2, 3, 5, 10] merge to [1, 2, 3, 3, 5, 5, 5, 9, 10]; their common values are [3, 5].',
+    practice: 'Implement merge and intersect, then a k-way merge with a PriorityQueue.',
+    checks: ['Empty inputs handled.', 'Ties keep left-first order.', 'Each common value reported once.'],
+    readings: [reading('Princeton Algorithms · Mergesort', 'https://algs4.cs.princeton.edu/22mergesort/')],
+    recall: 'Why is merging two sorted arrays linear?'
+  },
+  11: {
+    title: 'Grid traversal: spiral order',
+    concept: 'Traverse a matrix in spiral order with four shrinking bounds, re-checking the bounds before the bottom and left passes so rectangular grids do not repeat cells.',
+    example: '[[1, 2, 3], [4, 5, 6], [7, 8, 9]] gives 1, 2, 3, 6, 9, 8, 7, 4, 5; [[1, 2, 3, 4], [5, 6, 7, 8]] gives 1, 2, 3, 4, 8, 7, 6, 5.',
+    practice: 'Implement spiral order and grid validation, then in-place 90-degree rotation.',
+    checks: ['Single row and single column work.', 'Jagged input is rejected clearly.', 'O(rows × cols) stated.'],
+    readings: [reading('Java 21 API · Arrays', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html')],
+    recall: 'Why are the two extra bound checks needed in spiral traversal?'
+  },
+  12: {
+    title: 'Hash sets: longest consecutive run',
+    concept: 'Put the numbers in a HashSet and count upwards only from numbers whose predecessor is missing, which finds the longest consecutive run in expected O(n).',
+    example: 'Among 100, 4, 200, 1, 3, 2, 2, 101, 102 the longest run is 1–4 (length 4).',
+    practice: 'Implement the run finder, return the run, and compare with a sort-based version.',
+    checks: ['Duplicates ignored.', 'Ties broken deterministically.', 'Explain why the total work is linear.'],
+    readings: [reading('Java 21 API · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html')],
+    recall: 'Why does counting only from run starts keep the algorithm O(n)?'
+  },
+  13: {
+    title: 'Boyer–Moore majority vote',
+    concept: 'Cancel pairs of different values with a candidate and a counter to find the only possible majority in one pass, then verify it with a second pass.',
+    example: '[2, 2, 1, 1, 1, 2, 2] gives 2; [1, 2, 3] and [1, 1, 2, 2] have no majority.',
+    practice: 'Implement the vote and the verification, then the n/3 variant with two candidates.',
+    checks: ['Verification pass present.', 'Exactly-half case returns no majority.', 'O(1) extra space.'],
+    readings: [reading('Wikipedia · Boyer–Moore majority vote algorithm', 'https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_majority_vote_algorithm')],
+    recall: 'Why must the majority candidate be verified?'
+  },
   // @@lanes
 };
 
@@ -6501,6 +6546,293 @@ min on empty: empty stack`
       ['Both versions agree on 10,000 random operations.', 'Duplicate minimums are handled.', 'Empty-stack behaviour is defined.', 'Space use compared.']],
     references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html']]
   },
+  'j-build-01.dsa': {
+    notes: [
+      'Binary search finds a position in a sorted array in O(log n) by halving the candidate range each step. The most useful forms are lower bound, the first index whose value is at least the key, and upper bound, the first index whose value is greater than the key. Together they answer “how many times does the key occur?” as upper − lower, and “where would it be inserted?” as lower.',
+      'SearchBounds.java keeps a half-open range [lo, hi). If a[mid] is too small, the answer is to the right, so lo = mid + 1; otherwise hi = mid. The loop ends when lo = hi, and returning n means every value is smaller. Compute mid as lo + (hi − lo) / 2 so large indexes cannot overflow.',
+      'Java’s Arrays.binarySearch returns any matching index, not necessarily the first, and returns −(insertion point) − 1 when the key is missing, which is why searching for 5 gives −5.'
+    ],
+    code: {
+      title: 'SearchBounds.java · lower and upper bound with a half-open range, counting duplicates, and what Arrays.binarySearch returns for a missing key · java SearchBounds.java',
+      text: String.raw`import java.util.Arrays;
+
+public class SearchBounds {
+    // First index i with a[i] >= key (n if none). Half-open [lo, hi): O(log n).
+    static int lowerBound(int[] a, int key) {
+        int lo = 0, hi = a.length;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;          // no overflow, unlike (lo + hi) / 2
+            if (a[mid] < key) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    // First index i with a[i] > key.
+    static int upperBound(int[] a, int key) {
+        int lo = 0, hi = a.length;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (a[mid] <= key) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    public static void main(String[] args) {
+        int[] rows = {2, 4, 4, 4, 7, 9};               // sorted seat rows that have bookings
+        System.out.println("rows " + Arrays.toString(rows));
+        for (int key : new int[] {4, 5, 1, 10}) {
+            int lo = lowerBound(rows, key), hi = upperBound(rows, key);
+            System.out.println("key " + key + ": lower " + lo + ", upper " + hi + ", count " + (hi - lo));
+        }
+        System.out.println("Arrays.binarySearch for 5 returns " + Arrays.binarySearch(rows, 5) + " = -(insertion point) - 1");
+        System.out.println("empty array lower bound: " + lowerBound(new int[0], 3));
+    }
+}
+`,
+      output: String.raw`rows [2, 4, 4, 4, 7, 9]
+key 4: lower 1, upper 4, count 3
+key 5: lower 4, upper 4, count 0
+key 1: lower 0, upper 0, count 0
+key 10: lower 6, upper 6, count 0
+Arrays.binarySearch for 5 returns -5 = -(insertion point) - 1
+empty array lower bound: 0`
+    },
+    takeaways: ['Lower bound: first ≥ key. Upper bound: first > key.', 'Count = upper − lower.', 'Use lo + (hi − lo) / 2.', 'Arrays.binarySearch may return any match.'],
+    interview: [
+      ['How do you find the first and last position of a value in a sorted array?', 'I run two binary searches. Lower bound finds the first index whose value is at least the key: with a half-open range [lo, hi), if a[mid] < key I set lo = mid + 1, otherwise hi = mid, until lo equals hi. Upper bound is the same with a[mid] <= key, so it finds the first index greater than the key. If lower equals upper, the key is absent; otherwise the first position is lower and the last is upper − 1, and the count is their difference. Each search is O(log n). I compute mid as lo + (hi − lo) / 2 to avoid overflow and test empty arrays, missing keys and keys beyond both ends.']
+    ],
+    check: ['In [2, 4, 4, 4, 7, 9], what are lower bound and upper bound for 4?',
+      ['0 and 3', '1 and 4', '1 and 3', '2 and 4'], 1,
+      'The first 4 is at index 1 and the first value greater than 4 is at index 4, so there are 3 fours.'],
+    practice: ['Copy SearchBounds.java. Add a search in a rotated sorted array, the smallest x with x² ≥ n using binary search on the answer, and a randomized test against a linear scan.',
+      ['Bounds match a linear scan on random arrays.', 'Rotated search handles duplicates or states the limit.', 'Square-root search avoids overflow with long.', 'All are O(log n).']],
+    references: [['Java 21 API · Arrays.binarySearch', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html']]
+  },
+  'b-http-01.dsa': {
+    notes: [
+      'Merging two sorted sequences is a two-pointer pattern: compare the current items of both, take the smaller, and advance that pointer. When one side runs out, copy the rest of the other. It costs O(n + m) time and is the core step of merge sort and of combining sorted results from two services.',
+      'MergeSorted.java takes from the first array on ties, which keeps the merge stable: equal items keep their original relative order. The same pointers also find values present in both arrays: advance the smaller side, and when the values are equal, record it once and advance both.',
+      'Always test an empty input and duplicates on both sides. These patterns appear in APIs too, for example merging two paginated, sorted result lists into one response.'
+    ],
+    code: {
+      title: 'MergeSorted.java · stable merge of two sorted arrays and their intersection with two pointers · java MergeSorted.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class MergeSorted {
+    // Merge two sorted arrays in O(n + m); on ties take from a first so the merge is stable.
+    static int[] merge(int[] a, int[] b) {
+        int[] out = new int[a.length + b.length];
+        int i = 0, j = 0, k = 0;
+        while (i < a.length && j < b.length) out[k++] = a[i] <= b[j] ? a[i++] : b[j++];
+        while (i < a.length) out[k++] = a[i++];
+        while (j < b.length) out[k++] = b[j++];
+        return out;
+    }
+
+    // Values present in both sorted arrays, each reported once.
+    static List<Integer> intersect(int[] a, int[] b) {
+        List<Integer> out = new ArrayList<>();
+        int i = 0, j = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] < b[j]) i++;
+            else if (a[i] > b[j]) j++;
+            else {
+                if (out.isEmpty() || out.get(out.size() - 1) != a[i]) out.add(a[i]);
+                i++; j++;
+            }
+        }
+        return out;
+    }
+
+    public static void main(String[] args) {
+        int[] morning = {1, 3, 5, 5, 9}, evening = {2, 3, 5, 10};
+        System.out.println("merged: " + Arrays.toString(merge(morning, evening)));
+        System.out.println("in both: " + intersect(morning, evening));
+        System.out.println("merge with empty: " + Arrays.toString(merge(new int[0], evening)));
+    }
+}
+`,
+      output: String.raw`merged: [1, 2, 3, 3, 5, 5, 5, 9, 10]
+in both: [3, 5]
+merge with empty: [2, 3, 5, 10]`
+    },
+    takeaways: ['Take the smaller head and advance.', 'Copy the remainder when one side ends.', 'Take from the left on ties for stability.', 'O(n + m) time.'],
+    interview: [
+      ['How do you merge two sorted arrays, and what does it cost?', 'I keep one index into each array and an output index. While both arrays have items left, I compare the current items, copy the smaller one into the output, and advance that index; on a tie I take from the first array, which keeps the merge stable. When one array is exhausted, I copy the remaining items of the other, which are already sorted. Every item is copied exactly once, so the time is O(n + m), and the output needs O(n + m) space. If I must merge in place into the first array with spare capacity at the end, I fill from the back so nothing is overwritten.']
+    ],
+    check: ['Which values does the intersection of [1, 3, 5, 5, 9] and [2, 3, 5, 10] report?',
+      ['[3, 5, 5]', '[3, 5]', '[1, 2, 3, 5, 9, 10]', '[5]'], 1,
+      'Both arrays contain 3 and 5; the method reports each common value once.'],
+    practice: ['Copy MergeSorted.java. Add a k-way merge of sorted lists with a PriorityQueue, an in-place merge into an array with spare capacity, and tests with duplicates and empty inputs.',
+      ['k-way merge is O(N log k).', 'In-place merge fills from the end.', 'Stability is preserved on ties.', 'Edge cases tested.']],
+    references: [['Princeton Algorithms · Mergesort', 'https://algs4.cs.princeton.edu/22mergesort/']]
+  },
+  'b-validation-01.dsa': {
+    notes: [
+      'Grid traversal problems test careful index handling. To read a matrix in spiral order, keep four bounds, top, bottom, left and right. Walk the top row left to right and move top down; walk the right column top to bottom and move right inwards; then, if rows remain, walk the bottom row right to left; and, if columns remain, walk the left column bottom to top.',
+      'The two “if” checks are what make SpiralGrid.java correct for non-square grids: without them, a 2×4 grid or a single column would repeat cells. Each cell is visited once, so the cost is O(rows × cols).',
+      'As with API input, validate a grid before trusting it. The program rejects a jagged map with a clear message instead of failing later with ArrayIndexOutOfBoundsException.'
+    ],
+    code: {
+      title: 'SpiralGrid.java · spiral order with four shrinking bounds, correct for wide and single-column grids, plus input validation · java SpiralGrid.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+
+public class SpiralGrid {
+    // Walk the outer ring, then shrink the four bounds. Each cell is visited once: O(rows × cols).
+    static List<Integer> spiral(int[][] g) {
+        List<Integer> out = new ArrayList<>();
+        if (g.length == 0) return out;
+        int top = 0, bottom = g.length - 1, left = 0, right = g[0].length - 1;
+        while (top <= bottom && left <= right) {
+            for (int c = left; c <= right; c++) out.add(g[top][c]);
+            top++;
+            for (int r = top; r <= bottom; r++) out.add(g[r][right]);
+            right--;
+            if (top <= bottom) { for (int c = right; c >= left; c--) out.add(g[bottom][c]); bottom--; }
+            if (left <= right) { for (int r = bottom; r >= top; r--) out.add(g[r][left]); left++; }
+        }
+        return out;
+    }
+
+    // Validate a seat map before using it: rectangular, values in range. Fail with a clear message.
+    static void validate(int[][] g) {
+        for (int r = 0; r < g.length; r++) {
+            if (g[r].length != g[0].length) throw new IllegalArgumentException("row " + r + " has " + g[r].length + " seats, expected " + g[0].length);
+            for (int v : g[r]) if (v < 0) throw new IllegalArgumentException("negative seat number in row " + r);
+        }
+    }
+
+    public static void main(String[] args) {
+        int[][] square = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        int[][] wide = {{1, 2, 3, 4}, {5, 6, 7, 8}};
+        int[][] column = {{1}, {2}, {3}};
+        System.out.println("3x3: " + spiral(square));
+        System.out.println("2x4: " + spiral(wide));
+        System.out.println("3x1: " + spiral(column));
+        try {
+            validate(new int[][] {{1, 2}, {3}});
+        } catch (IllegalArgumentException e) {
+            System.out.println("invalid map: " + e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`3x3: [1, 2, 3, 6, 9, 8, 7, 4, 5]
+2x4: [1, 2, 3, 4, 8, 7, 6, 5]
+3x1: [1, 2, 3]
+invalid map: row 1 has 1 seats, expected 2`
+    },
+    takeaways: ['Keep four bounds and shrink after each side.', 'Check bounds again before the bottom and left passes.', 'O(rows × cols).', 'Validate the shape before traversal.'],
+    interview: [
+      ['How do you print a matrix in spiral order without repeating cells?', 'I maintain four boundaries: top, bottom, left and right. Each loop prints the top row from left to right and increments top, then the right column from top to bottom and decrements right. Before printing the bottom row from right to left, I check that top is still at most bottom, and before printing the left column from bottom to top, I check that left is still at most right; then I shrink those bounds. The checks matter for rectangular grids, where the last pass is a single row or column. Every cell is printed once, so it is O(rows × cols) time and O(1) extra space besides the output.']
+    ],
+    check: ['What does SpiralGrid.java print for the 2×4 grid [[1, 2, 3, 4], [5, 6, 7, 8]]?',
+      ['[1, 2, 3, 4, 8, 7, 6, 5]', '[1, 2, 3, 4, 5, 6, 7, 8]', '[1, 5, 6, 2, 3, 7, 8, 4]', '[1, 2, 3, 4, 8, 7, 6, 5, 5]'], 0,
+      'Top row, right column (8), bottom row backwards; the bound checks stop any repeat.'],
+    practice: ['Copy SpiralGrid.java. Add rotation of a square matrix by 90 degrees in place, a search in a row- and column-sorted matrix in O(rows + cols), and tests for 1×1 and empty grids.',
+      ['Rotation works for odd and even sizes.', 'Sorted-matrix search starts at the top-right corner.', 'Edge cases pass.', 'Complexity stated.']],
+    references: [['Java 21 API · Arrays', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html']]
+  },
+  'b-sql-01.dsa': {
+    notes: [
+      'Given unsorted seat numbers, the longest run of consecutive numbers can be found in expected O(n) without sorting. Put every number in a HashSet. A number starts a run only if number − 1 is not in the set; from each start, count upwards while the next number is present.',
+      'Each number is counted inside at most one run, because counting only starts at run starts, so the total work is O(n) expected. Sorting first would be O(n log n). ConsecutiveRun.java finds the run 1, 2, 3, 4 among 100, 4, 200, 1, 3, 2, 2, 101, 102, ignoring the duplicate 2, and breaks ties by the smaller start so the result is deterministic.',
+      'The same idea, a set for membership plus counting only from starting points, appears in database work as well, for example finding gaps or blocks of free seat IDs.'
+    ],
+    code: {
+      title: 'ConsecutiveRun.java · longest run of consecutive seat numbers in expected O(n) with a HashSet, counting only from run starts · java ConsecutiveRun.java',
+      text: String.raw`import java.util.HashSet;
+import java.util.Set;
+
+public class ConsecutiveRun {
+    // Longest run of consecutive seat numbers, in expected O(n): start counting only at run starts.
+    static int[] longestRun(int[] seats) {
+        Set<Integer> set = new HashSet<>();
+        for (int s : seats) set.add(s);
+        int bestLen = 0, bestStart = 0;
+        for (int s : set) {
+            if (set.contains(s - 1)) continue;          // not the start of a run
+            int len = 1;
+            while (set.contains(s + len)) len++;
+            if (len > bestLen || (len == bestLen && s < bestStart)) { bestLen = len; bestStart = s; }
+        }
+        return new int[] {bestStart, bestLen};
+    }
+
+    public static void main(String[] args) {
+        int[] free = {100, 4, 200, 1, 3, 2, 2, 101, 102};
+        int[] r = longestRun(free);
+        System.out.println("longest run starts at " + r[0] + ", length " + r[1]);
+        int[] tie = {10, 11, 1, 2};
+        int[] t = longestRun(tie);
+        System.out.println("tie: starts at " + t[0] + ", length " + t[1]);
+        System.out.println("empty: length " + longestRun(new int[0])[1]);
+    }
+}
+`,
+      output: String.raw`longest run starts at 1, length 4
+tie: starts at 1, length 2
+empty: length 0`
+    },
+    takeaways: ['A HashSet gives O(1) expected membership.', 'Count only from numbers whose predecessor is missing.', 'Expected O(n), no sorting.', 'Break ties explicitly.'],
+    interview: [
+      ['How do you find the longest consecutive sequence in an unsorted array in linear time?', 'I insert every number into a HashSet, which also removes duplicates. Then for each number in the set, I check whether number − 1 is present. If it is, this number is in the middle of a run and I skip it. If it is not, the number starts a run, and I count upwards while number + 1, number + 2 and so on are in the set. Because counting only starts at the beginning of each run, every number is visited by the inner loop at most once, so the total is expected O(n) time and O(n) space. Sorting would also work but costs O(n log n).']
+    ],
+    check: ['Why does ConsecutiveRun.java skip a number when number − 1 is in the set?',
+      ['To save memory', 'Because that number is not the start of a run, so counting from it would repeat work', 'Because duplicates are not allowed', 'To sort the numbers'], 1,
+      'Counting only from run starts keeps the total work linear.'],
+    practice: ['Copy ConsecutiveRun.java. Return the run itself, find all gaps between booked seat numbers in a range, and compare the HashSet version with a sort-based version on 100,000 random numbers.',
+      ['Both versions agree.', 'Gaps are reported as ranges.', 'Duplicates do not change the answer.', 'Timing difference noted.']],
+    references: [['Java 21 API · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html']]
+  },
+  'b-jdbc-01.dsa': {
+    notes: [
+      'The majority element is the value that appears more than half the time. The Boyer–Moore voting algorithm finds the only possible candidate in one pass with O(1) space: keep a candidate and a counter; when the counter is 0, take the current value as the candidate; add 1 for a match and subtract 1 otherwise.',
+      'Pairs of different values cancel each other, and a true majority cannot be fully cancelled, so if a majority exists it is the final candidate. But the algorithm always produces some candidate, so a second pass must count it and confirm it appears more than n / 2 times. MajorityVote.java returns null for [1, 2, 3] and for [1, 1, 2, 2], where exactly half is not a majority.',
+      'Like a database transaction that must re-check its decision inputs, the verification pass is what makes the result trustworthy.'
+    ],
+    code: {
+      title: 'MajorityVote.java · Boyer–Moore majority vote in one pass with O(1) space, plus the verification pass · java MajorityVote.java',
+      text: String.raw`public class MajorityVote {
+    // Boyer–Moore: one pass, O(1) space. The candidate must be verified with a second pass.
+    static Integer majority(int[] votes) {
+        int candidate = 0, count = 0;
+        for (int v : votes) {
+            if (count == 0) candidate = v;
+            count += (v == candidate) ? 1 : -1;
+        }
+        int occurrences = 0;
+        for (int v : votes) if (v == candidate) occurrences++;
+        return occurrences > votes.length / 2 ? candidate : null;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("[2, 2, 1, 1, 1, 2, 2] -> " + majority(new int[] {2, 2, 1, 1, 1, 2, 2}));
+        System.out.println("[3, 3, 4] -> " + majority(new int[] {3, 3, 4}));
+        System.out.println("[1, 2, 3] -> " + majority(new int[] {1, 2, 3}) + " (no majority; the candidate failed verification)");
+        System.out.println("[1, 1, 2, 2] -> " + majority(new int[] {1, 1, 2, 2}) + " (exactly half is not a majority)");
+    }
+}
+`,
+      output: String.raw`[2, 2, 1, 1, 1, 2, 2] -> 2
+[3, 3, 4] -> 3
+[1, 2, 3] -> null (no majority; the candidate failed verification)
+[1, 1, 2, 2] -> null (exactly half is not a majority)`
+    },
+    takeaways: ['Different values cancel in pairs.', 'One pass finds the only possible candidate.', 'Always verify with a second pass.', 'O(n) time, O(1) space.'],
+    interview: [
+      ['How does the Boyer–Moore majority vote algorithm work, and why must you verify the result?', 'I keep a candidate and a count. For each value, if the count is 0 I make the value the candidate; then I add 1 if the value equals the candidate and subtract 1 otherwise. Each decrement cancels one candidate occurrence against one different value. A value occurring more than n / 2 times cannot be cancelled completely, so if a majority exists it is the final candidate. But the algorithm returns a candidate even when no majority exists, for example for [1, 2, 3]. So a second pass counts the candidate and accepts it only if it occurs more than n / 2 times. Both passes are O(n) with O(1) space.']
+    ],
+    check: ['What does MajorityVote.java return for [1, 1, 2, 2]?',
+      ['1', '2', 'null, because exactly half is not more than half', 'It throws an exception'], 2,
+      'A majority needs more than n / 2 occurrences; 2 of 4 is not enough, so verification fails.'],
+    practice: ['Copy MajorityVote.java. Extend it to find all values that appear more than n / 3 times (at most two candidates), and test both versions against a HashMap count on random arrays.',
+      ['The n/3 version keeps two candidates and verifies both.', 'Results match a HashMap count.', 'Empty input handled.', 'Complexity stated.']],
+    references: [['Wikipedia · Boyer–Moore majority vote algorithm', 'https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_majority_vote_algorithm']]
+  },
   // @@packets
 };
 
@@ -6653,6 +6985,26 @@ export const lateDistractors = {
     ['That a log line was printed.', 'That the repository was called exactly once, and nothing else.'],
     ['Use as many design patterns as possible.', 'Put all logic in one class so it changes in one place.']
   ],
+  9: [
+    ['Only after the first HTTP request reaches the controller.', 'When Maven resolves dependencies from the repository.'],
+    ['That the application starts and connects to its database.', 'That all tests in every module were skipped safely.']
+  ],
+  10: [
+    ['404 Not Found, because the seat is no longer free.', '500 Internal Server Error, because two users collided.'],
+    ['POST, because it carries a request body.', 'DELETE, because it removes a hold.']
+  ],
+  11: [
+    ['The HTTP reason phrase, such as "Bad Request".', 'The order of fields in the JSON body.'],
+    ['The database unique constraint, which runs first.', 'The client’s own JavaScript validation only.']
+  ],
+  12: [
+    ['It encrypts the referenced value.', 'It creates an index on every column of the table.'],
+    ['The total number of active bookings across all venues.', 'Whether another transaction committed first.']
+  ],
+  13: [
+    ['Only rows changed by other transactions, even if not committed.', 'A frozen snapshot taken when the connection opened.'],
+    ['The thread pool that runs the request.', 'The JDBC driver’s global singleton.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -6730,6 +7082,16 @@ export const lateExplanations = {
     'Exceptions thrown inside a Callable are captured and rethrown by Future.get as an ExecutionException with the original cause.'],
   8: ['A test should prove the rule: U2’s attempt fails and the owner is still U1. Checking only a return value can miss an incorrect mutation.',
     'A SOLID argument should point to a concrete reason for change, so the design separates code that changes for different reasons.'],
+  9: ['Spring resolves constructor arguments while it creates the bean in the application context, before any request is handled.',
+    'mvn package proves the build lifecycle ran and produced an artifact; it does not prove the application works against real dependencies.'],
+  10: ['The request is valid but conflicts with the seat’s current state, which is exactly what 409 Conflict means.',
+    'GET is a safe method: it should only read the current availability and never reserve anything.'],
+  11: ['Clients should depend on stable, documented fields such as an error code, not on stack traces or wording that may change.',
+    'Request-format validation runs at the boundary first; only a well-formed request reaches the domain conflict check.'],
+  12: ['A foreign key requires that the referenced key exists; it does not make the referencing column unique.',
+    'A check constraint tests a condition on the values of a single row, such as status being one of a fixed set.'],
+  13: ['Under Read Committed, each statement sees data committed before it began, plus its own transaction’s changes.',
+    'In JDBC, transaction state belongs to the Connection: commit and rollback apply to the statements run on it.'],
   // @@explanations
 };
 
@@ -7019,6 +7381,46 @@ export const lateAssessment = {
     { question: 'Which diagram best shows the order of calls when U2’s booking attempt fails?',
       choices: ['Class diagram', 'Sequence diagram', 'Deployment diagram', 'Package diagram'], answer: 1,
       explanation: 'A sequence diagram shows who calls whom, in what order, including alternative branches.' }
+  ],
+  9: [
+    { question: 'Two beans implement SeatRepository and BookingService asks for one by constructor. What happens if nothing selects between them?',
+      choices: ['Spring picks one at random', 'Startup fails with NoUniqueBeanDefinitionException until @Primary, @Qualifier or a profile resolves it', 'Both are injected into a list automatically', 'The first one alphabetically is used'], answer: 1,
+      explanation: 'With two candidates for a single-valued injection point, Spring needs extra information to choose.' },
+    { question: 'Why is constructor injection preferred over field injection for BookingService?',
+      choices: ['It is faster at runtime', 'Required dependencies are explicit and final, and a plain unit test can call new BookingService(fakeRepo)', 'Field injection is not supported by Spring Boot', 'It avoids the need for a repository'], answer: 1,
+      explanation: 'Constructor injection makes dependencies visible and the class testable without starting Spring.' }
+  ],
+  10: [
+    { question: 'Which HTTP methods are idempotent by definition?',
+      choices: ['GET, PUT and DELETE', 'POST and PATCH', 'Only GET', 'All methods'], answer: 0,
+      explanation: 'Repeating GET, PUT or DELETE has the same intended effect as doing it once; POST is not idempotent by default.' },
+    { question: 'A client sends malformed JSON to POST /bookings. Which response fits?',
+      choices: ['409 Conflict', '400 Bad Request with a stable error body', '201 Created', '500 Internal Server Error'], answer: 1,
+      explanation: 'Decoding fails before any business logic runs, so it is a client input error, not a conflict.' }
+  ],
+  11: [
+    { question: 'A batch job calls BookingService directly, bypassing the controller. Which validation still protects the seat?',
+      choices: ['@Valid on the controller’s request DTO', 'Checks inside the service or domain, plus database constraints', 'The browser form validation', 'None is needed for internal callers'], answer: 1,
+      explanation: '@Valid only runs at the MVC entry point; rules that must always hold belong in the service, domain and schema.' },
+    { question: 'Which error body is best for clients?',
+      choices: ['A Java stack trace', '{"code":"SEAT_TAKEN","message":"Seat A1 is already booked"}', 'An HTML error page', 'An empty body with status 200'], answer: 1,
+      explanation: 'A stable code that clients can branch on, with a human-readable message and no internal details.' }
+  ],
+  12: [
+    { question: 'Two application instances write bookings. Which rule must live in the database to stay true?',
+      choices: ['The colour of the seat map', 'One active booking per seat, as a unique (partial) index or constraint', 'The order of JSON fields', 'The log format'], answer: 1,
+      explanation: 'Only the shared database sees every writer, so uniqueness and integrity rules belong there.' },
+    { question: 'You add a NOT NULL column to a table that already has rows. What is the safe sequence?',
+      choices: ['Add it as NOT NULL immediately', 'Add it as nullable, backfill and verify, then add NOT NULL once all writers set it', 'Drop and recreate the table', 'Only change the Java entity'], answer: 1,
+      explanation: 'Expand, backfill, then contract: existing rows and older clients must not break during the migration.' }
+  ],
+  13: [
+    { question: 'The seat update succeeds but the audit insert fails on the same connection with auto-commit off. What should the code do?',
+      choices: ['Commit the seat update and log the audit failure', 'Roll back the transaction so neither change is kept', 'Retry only the audit insert on a new connection', 'Ignore the error'], answer: 1,
+      explanation: 'Both writes form one unit of work; rolling back keeps them consistent.' },
+    { question: 'Why must a column name never be built from user input with string concatenation?',
+      choices: ['It is slower', 'It allows SQL injection; identifiers cannot be bound, so choose them from a whitelist', 'JDBC forbids column names', 'It breaks transactions'], answer: 1,
+      explanation: 'Parameters bind values only. Identifiers must come from a fixed set of allowed options.' }
   ],
   // @@assessment
 };
@@ -7372,6 +7774,31 @@ export const lateInterviewGuides = {
     'Sending email is a new responsibility that belongs outside Seat and outside the booking rule. The service, after the booking is saved, publishes an event such as SeatBooked or calls a Notifier interface. The email adapter implements that interface. The domain model is unchanged and knows nothing about email. In unit tests I pass a fake Notifier and assert that one notification is recorded after a successful booking and none after a conflict. A separate test checks that an email failure does not undo the booking, or that it is retried, depending on the requirement. The real adapter gets an integration test.',
     'I add a pattern only when a real change needs it. Adapter fits when two notification providers expose different APIs and the service should depend on one Notifier interface. Strategy fits when a policy truly varies, for example different hold durations or pricing rules per venue, selected at run time. State fits when a seat gains several states with different allowed transitions, such as free, held, booked and cancelled, and the transition rules start filling methods with conditionals. Before any of these, the single Seat with one claim method is simpler and better. Naming the concrete change is what justifies the extra classes.'
   ],
+  9: [
+    'When the application starts, Spring Boot scans the configured packages and registers bean definitions for classes such as @Service, @Repository and @RestController. To create the controller, Spring looks at its constructor, sees that it needs a BookingService, and finds or creates that bean first, which in turn needs a SeatRepository. It resolves each constructor parameter by type, using qualifiers or @Primary if several beans match, creates the objects in dependency order, and passes them in. By default each bean is a singleton, so the same BookingService instance is shared by every request. If a required bean is missing or ambiguous, startup fails with a clear error.',
+    'I make the choice explicit in configuration rather than relying on luck. With profiles, the JDBC repository is annotated @Profile("prod") and the in-memory one @Profile("test"), and each environment activates one profile, so only one candidate exists. Alternatively, both beans exist and the injection point uses @Qualifier("jdbcSeatRepository"), or one is marked @Primary as the default. In tests, @TestConfiguration or @MockBean can replace the bean, and plain unit tests just pass a fake to the constructor. I add a context test per profile that starts the application and asserts which implementation was injected.',
+    'Startup usually fails with NoUniqueBeanDefinitionException, which names the injection point and the candidate beans. I check which classes are annotated as beans and which @Bean methods return the interface, which profiles are active, and whether component scanning picked up a test or library class by accident. Then I decide whether both beans should exist: if not, remove one or restrict it to a profile; if yes, mark the default with @Primary or use @Qualifier at the injection point. Running with --debug or looking at the actuator beans endpoint shows the registered beans and why each was created.'
+  ],
+  10: [
+    'GET /seats/A1 asks for a representation of the seat’s current state. It is a safe method: it should not change anything, so it can be repeated, cached or prefetched without side effects. POST /bookings asks the server to create a booking, which changes durable state and can fail if someone else got the seat first. So the methods differ in meaning: GET returns 200 with the seat, or 404 if it does not exist, while POST returns 201 Created with a Location header on success, 409 Conflict if the seat is taken, and 400 for invalid input. Clients and proxies rely on these meanings.',
+    'The client sends an Idempotency-Key header with a unique value for the logical operation, such as a UUID generated when the user clicks Book, and reuses it on every retry. The server stores the key with a fingerprint of the request and the final response, inside the same transaction as the booking. On a retry with the same key and the same request, it returns the stored result, for example the same 201 and booking ID, instead of booking again. If the same key comes with a different request body, it returns an error such as 422. Keys are scoped to the caller and expire after a defined period.',
+    'A safe method, such as GET or HEAD, is intended to be read-only. An idempotent method, such as PUT or DELETE, may change state, but doing it several times has the same intended effect as doing it once: deleting booking B7 twice still leaves it deleted. POST is neither by default. Replay is a separate problem because idempotency is about intended effect, not about what the client sees: a retried DELETE may return 404 the second time, and a retried POST would create a second booking. So for POST, the server needs an explicit replay contract, such as idempotency keys, to recognise a repeat and return the original result.'
+  ],
+  11: [
+    'At the HTTP boundary, the controller checks that the request can be decoded and has the right shape: required fields present, seat ID matches the format, user ID not blank. Bean Validation with @Valid does this and produces a 400 with a stable error body. The domain enforces invariants that depend on state and must hold no matter who calls: a seat can be claimed only when free, and the owner never changes on a failed claim. Those checks live in the service and entity, and the database adds constraints such as uniqueness. Keeping both layers means bad input is rejected early and the core rule still protects other entry points.',
+    'Anything that must always be true cannot rely on the controller, because the internal caller never runs @Valid. So the application service validates its own inputs: seat ID and user ID present and well formed, the user exists and may book. The domain transition still enforces that only a free seat can be claimed and that a failed claim leaves the owner unchanged. The database constraints, such as one active booking per seat, protect against both callers at once. I test this by calling the service directly with a blank user ID and asserting that it is rejected and that the seat state did not change.',
+    'A well-formed actor ID only shows that the input has the right shape, not that the caller may use it. The service must resolve the caller from a trusted source, such as the authenticated principal for HTTP or the job’s configured service identity, never from a field the caller sets. Then it checks authorization for this action and resource: may this identity book on behalf of this user, or cancel this booking? Those checks happen before the state change, inside the same operation. Tests cover an internal job with the wrong identity, a valid identity acting on another user’s booking, and the allowed case.'
+  ],
+  12: [
+    'The database enforces rules for every writer, whether it is our Java service, a second instance, a batch import or a person using SQL directly. A primary key guarantees that no two rows have the same identity. A foreign key guarantees that a booking’s seat_id refers to a seat that exists, and blocks deleting a seat that still has bookings unless a cascade rule says otherwise. A unique constraint, possibly limited to active rows, guarantees one active booking per seat. A check constraint keeps values valid, such as status in a fixed set. These hold even under concurrency, because the database checks them inside each transaction.',
+    'I keep every booking as a row with a status such as ACTIVE or CANCELLED and timestamps, so history is never deleted. To allow only one active booking per seat while keeping cancelled ones, PostgreSQL supports a partial unique index: CREATE UNIQUE INDEX one_active_per_seat ON bookings (seat_id) WHERE status = \'ACTIVE\'. Cancelling changes the status, which removes the row from the index, so A1 can be booked again. Two concurrent attempts to create an active booking for A1 cannot both succeed, because the second insert violates the index. I test cancel then rebook, and two active inserts for the same seat.',
+    'Any rule that must hold across all writers belongs in the shared schema: primary keys for identity, foreign keys for references between tables, unique constraints for one active booking per seat, and NOT NULL and check constraints for required and valid values. A Java check alone cannot guarantee these, because another instance, a script or a concurrent transaction can bypass or race it. The application should still check first to give friendly errors, but the database constraint is the final guard, and the application maps a constraint violation to a clear result such as 409. Tests insert an invalid row directly and assert that the database rejects it.'
+  ],
+  13: [
+    'With auto-commit off, connection A updates the owner of A1 but does not commit yet. Connection B, under PostgreSQL’s default Read Committed, still sees the old owner, because uncommitted changes are invisible to other sessions. When A commits, B’s next statement sees the new owner. If A rolls back instead, the change disappears and B never sees it. Inside A’s own transaction, its own statements do see its uncommitted change. I would demonstrate this with two connections in a test, recording each read and the commit or rollback in order, and asserting what B saw at each step.',
+    'Both inserts must succeed or fail together, so they use the same Connection with auto-commit turned off, forming one transaction. I run the seat update, then the audit insert, then commit. If the audit insert throws, the catch block calls rollback, so the seat update is undone as well, and the error propagates or becomes a clear failure result. The service must not report success unless the commit succeeded. Using a separate connection for the audit would create a separate transaction, which could leave a booking without its audit row. In Spring, @Transactional on the service method does the same through one connection.',
+    'Under Serializable isolation, the database guarantees the result is as if transactions ran one at a time. When two concurrent transactions conflict in a way that cannot be ordered, the database aborts one with a serialization failure, SQLSTATE 40001. That transaction’s reads may have been based on a state that is no longer valid, so retrying only the failed statement is wrong. The whole transaction must be rolled back and run again from the start, re-reading every input and re-making every decision. I wrap it in a retry loop with a small limit and backoff, and make external side effects happen only after commit.'
+  ],
   // @@guides
 };
 
@@ -7380,6 +7807,39 @@ export const lateInterviewGuides = {
 // question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
 // Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
 export const lateTopicAnswers = {
+  'j-build-01': {
+    'How does a phase differ from a goal?': 'Maven’s build lifecycle is an ordered list of phases, such as validate, compile, test, package, verify, install and deploy. A phase is a step in that sequence, and running mvn package runs every phase up to and including package. A goal is a concrete task provided by a plugin, such as compiler:compile or surefire:test. Phases do no work themselves; plugins bind their goals to phases, either by default for the packaging type or through the POM. You can also run a goal directly, for example mvn dependency:tree, without running the lifecycle. Knowing this explains why mvn package also runs the unit tests: surefire:test is bound to the test phase.',
+    'What does test scope do?': 'A dependency with <scope>test</scope> is available only when compiling and running tests, not when compiling the main code, and it is not packaged into the application or passed on to projects that depend on it. That is the right scope for JUnit, AssertJ, Mockito and Testcontainers. It keeps the production artifact smaller and prevents production code from accidentally using a test library: an import of a test-scoped class in src/main/java fails to compile. Other scopes include compile, the default; runtime, for things such as JDBC drivers needed only when running; and provided, for APIs the server supplies.'
+  },
+  'b-di-01': {
+    'Does a singleton bean guarantee thread safety?': 'No. Singleton scope only means Spring creates one instance of the bean per application context and shares it with everyone who needs it. In a web application that one instance handles many requests at the same time on different threads. If it has mutable fields, such as a counter or a cached list, those fields are shared, and unsynchronized updates can race exactly as with any shared object. Thread safety comes from the design: keep singleton beans stateless, with only final references to other beans; put per-request data in local variables or method parameters; and when shared state is needed, use thread-safe types or proper locking.'
+  },
+  'b-http-01': {
+    'Why can a valid POST return 409?': 'Validation and conflict are different questions. A POST /bookings with a well-formed body, an existing seat and an authenticated user is a valid request, so 400 would be wrong. But it asks for a state change that conflicts with the seat’s current state, because another user already owns it. HTTP defines 409 Conflict for exactly that: the request could not be completed because of a conflict with the current state of the target resource. The response body should explain the conflict with a stable code, such as SEAT_TAKEN, so the client can show the right message or offer another seat, without revealing who owns the seat.',
+    'How do you handle a lost POST response?': 'When a POST times out or the connection drops, the client does not know whether the booking was created. Blindly retrying could create a second booking. There are two safe approaches. The client can send an idempotency key with the original request and reuse it on retry; the server stores the key with the result and returns the original response for a repeat. Or the client can look up the outcome first, for example GET /bookings?requestId=... or list the user’s bookings, and only retry if nothing was created. The server side must store the key in the same transaction as the booking, so a crash cannot leave one without the other.'
+  },
+  'b-rest-01': {
+    'How does invalid JSON differ from a business conflict?': 'Invalid JSON, such as a missing brace or a string where a number is expected, fails while the framework is decoding the request body, before any controller or business logic runs. It is a client error in the request format, so the response is 400 Bad Request, and nothing in the system has been touched. A business conflict happens later: the request was valid, reached the service, and was rejected because of the current state, for example the seat already has an owner. That is 409 Conflict. Keeping them separate lets clients react correctly: fix the request in the first case, choose another seat in the second.'
+  },
+  'b-validation-01': {
+    'What can @Valid protect?': '@Valid on a controller parameter makes Spring run Bean Validation on the request object before the method body executes, checking annotations such as @NotBlank, @Pattern and @Size. If any constraint fails, Spring throws MethodArgumentNotValidException, which an exception handler turns into a 400 with a stable error body. So it protects that HTTP entry point from badly shaped input. It does not protect calls that bypass the controller, such as a batch job calling the service, and it cannot check rules that depend on current state, such as whether the seat is free. Those need checks in the service or domain and constraints in the database.',
+    'When can a request produce 409?': 'A request produces 409 Conflict when it is valid in format and refers to things that exist, but the change it asks for conflicts with the resource’s current state. For bookings: the seat is already owned by someone else, the booking was already cancelled, or an optimistic-lock version is out of date because another update happened first. The client did nothing wrong in the request itself, so 400 would be misleading. The response body should carry a stable code, such as SEAT_TAKEN or VERSION_CONFLICT, so the client can react, for example by refreshing the seat map or offering an alternative.',
+    'How do you confirm malformed input did no damage?': 'Checking the status code is not enough; I check the state. In an integration test I send the malformed request to the real endpoint and assert the 400 status and the error body. Then I read the seat directly from the database or repository and assert that the owner is unchanged and no booking or audit row was created. I repeat the check for the service called directly, which covers callers that bypass the controller. Testing several kinds of bad input, such as blank user, wrong seat format and invalid JSON, shows that every rejection path leaves the system untouched.'
+  },
+  'b-sql-01': {
+    'Which rule belongs in a foreign key instead of an application-only check?': 'Any rule that says a row must refer to another row that exists, such as a booking’s seat_id pointing at a real seat, belongs in a foreign key when several writers or transactions can touch the data. An application check that first reads the seat and then inserts the booking can race: another transaction can delete the seat in between, or a script can insert a booking without running the check. The foreign key is checked by the database inside every transaction, so the reference can never be broken. ON DELETE rules make the behaviour explicit: RESTRICT to block deleting a seat with bookings, or CASCADE where that is really intended.',
+    'Why inspect database state after a rejected insert?': 'The error tells me the insert failed, but not what else happened. If the code ran several statements, or ran outside a transaction, earlier statements might have been committed before the failure, leaving a partial booking, an orphaned audit row or a changed seat. Reading the tables after the rejected insert proves that the constraint fired and that the transaction rolled back everything it should have. It also catches tests that pass for the wrong reason, such as an error thrown before reaching the database. So my test asserts the error type and then the exact row counts and values.'
+  },
+  'b-schema-01': {
+    'How can you add a required column safely to populated rows?': 'I use an expand, migrate and contract sequence. First add the column as nullable, or with a safe default, so existing rows and the currently deployed application keep working. Then deploy application code that writes the new column on every insert and update. Next backfill existing rows in batches and verify that none are null. Only after that do I add the NOT NULL constraint in a later migration. Each step is backward compatible, so a rollback of the application does not break, and long table locks are avoided on large tables. Migration tools such as Flyway record each step’s version.'
+  },
+  'b-jdbc-01': {
+    'How does a PreparedStatement handle an input value?': 'The SQL text is written with placeholders, for example SELECT * FROM seats WHERE id = ?, and the value is supplied separately with setString(1, seatId). The driver sends the value as data, not as part of the SQL text, so the database never parses it as SQL. That is why a seat ID such as A1\' OR \'1\'=\'1 is treated as a strange but harmless string, and SQL injection is prevented. It also handles quoting and types correctly, and the database can reuse the statement plan. Concatenating user input into SQL strings bypasses all of this and must never be done.',
+    'Can you bind a column name like a value?': 'No. Placeholders in a PreparedStatement can only stand for values, such as a seat ID or a date. Identifiers, such as table names, column names and the direction in ORDER BY, are part of the SQL structure and must be in the SQL text before it is prepared. If the user can choose the sort column, I map their choice to a fixed set of allowed SQL fragments, for example a map from "row" to "row_number" and from "price" to "price_cents", and reject anything else. Concatenating the raw user value would reintroduce SQL injection.'
+  },
+  'b-transactions-01': {
+    'How do you retry a serialization failure safely?': 'A serialization failure, SQLSTATE 40001, means the database aborted my transaction because it conflicted with a concurrent one. The transaction is already invalid, so I roll it back. Then I start a completely new transaction and redo the whole unit of work from the beginning, re-reading every value my decision depended on, because the data may have changed. I retry only for this kind of error, with a small limit such as three attempts and a short random backoff, and give up with a clear error after that. External side effects, such as sending email, happen only after a successful commit, so a retry never repeats them.'
+  },
   'j-equality-01': {
     'Why does HashMap need both equals and hashCode?': 'A HashMap stores entries in an array of buckets. hashCode lets it jump to the right bucket in O(1) instead of searching every entry. But many keys can share a bucket, because different keys can have the same hash code or be reduced to the same index, so the map then calls equals on each key in that bucket to find the exact match. That is why both are needed and must agree: equal keys must return equal hash codes, otherwise an equal key is searched for in the wrong bucket and get returns null. Unequal keys may share a hash code; that only makes the lookup a little slower.',
     'Why can mutating a key break a successful lookup?': 'When an entry is inserted, the map uses the key’s hash code at that moment to place it in a bucket. If the key is mutable and a field used in hashCode or equals changes afterwards, a later lookup computes a different hash and searches a different bucket, or finds the stored key no longer equal. So get, containsKey and remove all miss the entry, even with the very same object, and the entry stays in the map as a leak. The fix is to use immutable keys, such as records or Strings, and keep changing data in the value. If a key really must change, remove the entry, change the key, and put it back.'
@@ -7600,4 +8060,12 @@ bad cite  : Fallback[stage=validation, reason=cites B7 outside context]
 no cite   : Fallback[stage=validation, reason=no citation]
 no evidence: Fallback[stage=retrieval, reason=no authorized evidence]`
   }
+};
+
+// Extra note paragraphs appended to existing Codex topic packets (Days 1–27), so short main lessons reach the 700-word standard.
+export const lateTopicNotes = {
+  'j-build-01': ['A useful habit is to read the effective build before trusting it. mvn help:effective-pom shows the full POM after inheritance from the Spring Boot parent, and mvn dependency:tree shows which library versions were actually chosen, including transitive ones. When two libraries pull different versions of the same dependency, Maven picks the nearest declaration, which can surprise you; the tree makes it visible, and dependencyManagement pins the version explicitly. Commit the Maven wrapper (mvnw) so every machine and CI build uses the same Maven version.'],
+  'b-validation-01': ['Design the error body once and use it everywhere. Spring Boot supports RFC 9457 problem details through ProblemDetail, which gives a standard shape with type, title, status and detail, and you can add your own fields such as a stable code and a list of field errors. A single @RestControllerAdvice can map MethodArgumentNotValidException to 400 with one entry per invalid field, a SeatNotFoundException to 404 and a SeatTakenException to 409. Clients then parse one format, and tests can assert the code and the field names rather than the message text, which may change.'],
+  'b-sql-01': ['Constraints should be named, for example CONSTRAINT bookings_seat_fk FOREIGN KEY (seat_id) REFERENCES seats (id), so that error messages and migrations refer to something meaningful. The application can catch the driver’s constraint-violation error and map it by name: a unique violation on one_active_per_seat becomes 409 SEAT_TAKEN, and a foreign-key violation on bookings_seat_fk becomes 404 SEAT_NOT_FOUND. Indexes matter too: PostgreSQL creates an index for primary keys and unique constraints automatically, but not for the referencing column of a foreign key, so add one on bookings.seat_id if you look bookings up by seat.'],
+  'b-schema-01': ['Use a migration tool such as Flyway or Liquibase rather than running SQL by hand. Each change is a versioned file, for example V3__add_booking_status.sql, applied in order and recorded in a history table, so every environment can be brought to the same schema and you can see exactly which version a database is on. Never edit a migration that has already run; add a new one instead. Run the migrations in CI against a real PostgreSQL, for example with Testcontainers, both on an empty database and on a copy with existing data.']
 };
