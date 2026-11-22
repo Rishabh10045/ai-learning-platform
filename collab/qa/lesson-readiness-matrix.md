@@ -315,6 +315,8 @@ The exact displayed BoundedBookingWork.java ran under JDK 21. The test holds one
 
 All 16 new topic records resolve through their stable IDs, and all 15 attached reference URLs returned HTTP 200. The combined build passed 63 backend and engine/adapter unit tests, two viewport runs of all 56 root Learn and Coach routes, the two-browser root save/reload/reopen flow, and 65 integrated Day 1–2 checks. The standalone TwoSum.java, Foundations.java and Day 56 number algorithms ran on JDK 21. These runs validate local behavior. Redis, Kafka, PostgreSQL labs and the deployed account service remain open.
 
+The original v2 adapter omitted the body of later packets. The merged fix now renders each packet heading and body. The adapter regression and the full root-browser test, including the Day 56 sieve packet, pass at `9f992de`. [Adapter fix](https://github.com/Rishabh10045/ai-learning-platform/pull/7)
+
 The multi-topic display bug was reproduced at that draft revision and fixed in PR #7 before the merge of PR #5. The adapter regression still passes on the current batch. [Merged UI fix](https://github.com/Rishabh10045/ai-learning-platform/pull/7)
 
 ## Days 26–27 verification · 23 November 2026 IST
