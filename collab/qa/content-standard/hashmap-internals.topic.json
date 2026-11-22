@@ -1,0 +1,913 @@
+{
+  "schemaVersion": 1,
+  "id": "JC-HM",
+  "title": "HashMap internals",
+  "subjectId": "java-core",
+  "moduleId": "jc-collections",
+  "weight": "core",
+  "status": "reviewed",
+  "reviewedBy": "GPT (content) + Grok (QA)",
+  "updatedAt": "2026-11-22T09:30:00+05:30",
+  "source": {
+    "kind": "gfg",
+    "course": "GfG Java Backend Development (JBDL)",
+    "ref": "Session 4: Generics, Streams API and HashMap, Hashing algorithms",
+    "url": "https://www.geeksforgeeks.org/courses/java-backend-live"
+  },
+  "prerequisites": [
+    "JC-03",
+    "JC-06",
+    "JC-07"
+  ],
+  "unlocks": [
+    "CC-04",
+    "DSA-03",
+    "DSA-36",
+    "HLD-CONSISTENT-HASHING"
+  ],
+  "learningObjectives": [
+    "Explain how put/get find a bucket: hashCode → spread → (n-1) & hash",
+    "Explain collisions, chaining, treeification (8 / 64) and untreeify (6)",
+    "Explain load factor 0.75, threshold and resize (doubling, lo/hi split)",
+    "Apply the equals/hashCode contract and avoid mutable keys",
+    "Choose HashMap vs LinkedHashMap vs TreeMap vs ConcurrentHashMap"
+  ],
+  "estMinutes": {
+    "video": 15,
+    "notes": 20,
+    "code": 10,
+    "mcq": 8,
+    "interview": 15,
+    "takeaways": 5,
+    "practice": 45,
+    "flashcards": 5,
+    "total": 123
+  },
+  "sessionsNeeded": 2,
+  "sessionSplit": [
+    {
+      "part": 1,
+      "covers": [
+        "video",
+        "notes",
+        "code",
+        "mcq",
+        "takeaways"
+      ]
+    },
+    {
+      "part": 2,
+      "covers": [
+        "practice",
+        "interview",
+        "flashcards"
+      ]
+    }
+  ],
+  "videos": [
+    {
+      "id": "JC-HM-v1",
+      "title": "<picked explainer on HashMap internals>",
+      "channel": "<channel>",
+      "url": "https://www.youtube.com/watch?v=<id>",
+      "startSec": 0,
+      "endSec": 900,
+      "durationMin": 15,
+      "suggestedWatchMin": 15,
+      "language": "en",
+      "verifiedOn": "<YYYY-MM-DD, after opening it>",
+      "_note": "A real video id is required: no search URLs. The backend rejects a video without verifiedOn."
+    }
+  ],
+  "readings": [
+    {
+      "title": "Internal working of HashMap in Java (GfG)",
+      "url": "https://www.geeksforgeeks.org/java/internal-working-of-hashmap-java/",
+      "kind": "article",
+      "verifiedOn": "2026-11-22"
+    },
+    {
+      "title": "HashMap (Java SE 21 API)",
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html",
+      "kind": "official-doc",
+      "verifiedOn": "2026-11-22"
+    },
+    {
+      "title": "OpenJDK HashMap.java source",
+      "url": "https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/java/util/HashMap.java",
+      "kind": "source",
+      "verifiedOn": "2026-11-22"
+    }
+  ],
+  "notes": {
+    "minWords": 1200,
+    "layers": [
+      {
+        "layer": "intuition",
+        "title": "A row of lockers",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Think of a HashMap as a row of numbered lockers. To store a value you turn its key into a locker number (the hash), go straight to that locker and put the entry there. To find it again you compute the same number and open only that locker. That is why get and put are O(1) on average: you never scan the whole row."
+          },
+          {
+            "type": "p",
+            "text": "Two different keys can land on the same locker. That is a collision. The locker then holds a small list of entries, and HashMap uses equals() to pick the right one. Everything that can go wrong with HashMap comes from these two steps: a bad locker number (hashCode) or a bad comparison (equals)."
+          },
+          {
+            "type": "p",
+            "text": "Why does this matter for interviews? HashMap is the most-used data structure in Java backend code: request caches, counters, groupings, deduplication, and indexes built before a join. Interviewers use it to test whether you understand hashing, the equals/hashCode contract, amortised complexity and thread safety in one question. If you can draw the bucket array and walk through put() on the whiteboard, most follow-ups become easy."
+          }
+        ]
+      },
+      {
+        "layer": "how-it-works",
+        "title": "put and get, step by step (Java 8+)",
+        "blocks": [
+          {
+            "type": "ol",
+            "items": [
+              "The table is an array of Node<K,V> buckets. It is created lazily on the first put with capacity 16 (always a power of two).",
+              "hash = h ^ (h >>> 16), where h = key.hashCode(). XOR-ing the high 16 bits into the low bits matters because the index uses only the low bits.",
+              "index = (n - 1) & hash, which equals hash % n when n is a power of two, but is cheaper.",
+              "Empty bucket: store a new Node. Otherwise walk the bucket: if a node has the same hash and (same reference or equals()), replace its value and return the old one.",
+              "No match: append the node at the tail (Java 8; Java 7 inserted at the head).",
+              "If the bucket now has 8 or more nodes (TREEIFY_THRESHOLD) and the table has at least 64 buckets (MIN_TREEIFY_CAPACITY), the bucket becomes a red-black tree, so the worst case is O(log n) instead of O(n). With fewer than 64 buckets, HashMap resizes instead.",
+              "After an insert, if size > threshold (capacity × loadFactor, 16 × 0.75 = 12 by default), the table doubles. Each old bucket splits into a 'lo' list (same index) and a 'hi' list (index + oldCapacity) by checking one bit, hash & oldCap. No full rehash is needed and order is kept.",
+              "A tree bin that shrinks to 6 or fewer nodes during a resize/split turns back into a list (UNTREEIFY_THRESHOLD)."
+            ]
+          },
+          {
+            "type": "p",
+            "text": "get() repeats steps 2-4 without inserting. A null key is allowed once and always hashes to 0 (bucket 0). Null values are allowed too, which is why get() returning null is ambiguous: use containsKey() or getOrDefault()."
+          },
+          {
+            "type": "p",
+            "text": "Inside a bucket the comparison is ordered for speed: first the cached hash int is compared (cheap), then the references (==), and only then equals(). So a fast, well-distributed hashCode() and a correct equals() are both needed: the hash narrows the search to one bucket and one candidate, and equals confirms it. Each Node stores the hash, the key, the value and a next pointer, about 32 bytes of overhead per entry on a 64-bit JVM with compressed pointers, plus the boxed key and value."
+          },
+          {
+            "type": "p",
+            "text": "Useful Java 8 methods build on the same lookup: getOrDefault(k, d) avoids a null check; putIfAbsent(k, v) inserts only when missing; computeIfAbsent(k, f) creates a value lazily (the classic map.computeIfAbsent(dept, x -> new ArrayList<>()).add(emp) for grouping); merge(k, 1, Integer::sum) is the idiomatic counter. Each does one bucket lookup instead of the two you would do with get() followed by put()."
+          },
+          {
+            "type": "p",
+            "text": "Amortised cost: a single put() that triggers a resize is O(n), because every entry is moved. Since the capacity doubles, the total cost of n inserts is still O(n), so each put is O(1) amortised. That is the same argument as ArrayList growth, and interviewers like to hear it named."
+          }
+        ]
+      },
+      {
+        "layer": "code",
+        "title": "See it run",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Run the three programs in `code` with `java File.java` (JDK 21, no build tool). HashIndex prints bucket numbers and shows a real collision (\"Aa\" and \"BB\" both hash to 2112). BrokenKey shows what happens when equals() is overridden without hashCode(), and when a key is mutated after insertion. FailFastAndThreads shows ConcurrentModificationException, the removeIf fix, and lost updates when threads share a HashMap."
+          }
+        ]
+      },
+      {
+        "layer": "edge-cases",
+        "title": "Pitfalls interviewers probe",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "equals() without hashCode(): equal keys land in different buckets, so get() misses.",
+              "Mutable keys: changing a field used in hashCode() after put() strands the entry; get() returns null but size() still counts it.",
+              "A constant hashCode() (return 1) makes every key collide. Java 8 treeifies, so you get O(log n), and only if keys are Comparable; otherwise ordering falls back to class name and identity hash, which is still slow.",
+              "Iteration order is not insertion order and can change after a resize. Use LinkedHashMap if order matters.",
+              "Fail-fast iterators: a structural change during a for-each (except through the iterator) throws ConcurrentModificationException. It is best-effort, not a guarantee.",
+              "Not thread-safe: concurrent puts lose updates and can corrupt a bin. (Java 7's head insertion could even create a cycle during resize, an infinite loop on get.)",
+              "Presizing: to hold n entries without resizing use new HashMap<>((int) (n / 0.75f) + 1), or HashMap.newHashMap(n) in Java 19+."
+            ]
+          }
+        ]
+      },
+      {
+        "layer": "trade-offs",
+        "title": "When to use what",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "HashMap: fastest general-purpose map, no order, one null key, not thread-safe.",
+              "LinkedHashMap: keeps insertion (or access) order with a doubly linked list. Access order + removeEldestEntry gives an LRU cache.",
+              "TreeMap: sorted keys, O(log n), floor/ceiling/range queries, no null keys.",
+              "ConcurrentHashMap: thread-safe, lock-free reads, per-bin locking with CAS on writes, no null keys or values, atomic compute/merge.",
+              "Hashtable / Collections.synchronizedMap: one lock for the whole map, legacy, avoid.",
+              "Load factor: lower means fewer collisions and more memory; higher means less memory and longer chains. 0.75 is the default compromise."
+            ]
+          },
+          {
+            "type": "p",
+            "text": "Memory versus speed: every entry is a separate Node object, so a HashMap of a million Integer → Integer pairs costs tens of megabytes. For huge primitive maps, specialised libraries (fastutil, Eclipse Collections) or arrays indexed by id are far smaller. For a few fixed keys, an EnumMap (for enum keys) or Map.of (immutable, up to 10 pairs inline) is simpler and faster. Pick the structure from the access pattern: point lookups, ordered iteration, range queries or concurrent writes."
+          }
+        ]
+      },
+      {
+        "layer": "real-world",
+        "title": "Where you meet it at work",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "Caches and lookups keyed by id (userId → session) inside a Spring service. Use ConcurrentHashMap if the bean is a singleton shared by request threads.",
+              "Counting / grouping (Collectors.groupingBy builds a HashMap). Use merge() for counters.",
+              "Deduplication with HashSet, which is a HashMap with dummy values.",
+              "HashDoS: untrusted keys crafted to collide degrade a server. Treeification in Java 8 limits the damage; frameworks also cap request parameter counts.",
+              "The same idea scales out as consistent hashing (HLD) and as Redis hash slots."
+            ]
+          },
+          {
+            "type": "p",
+            "text": "A typical production bug: a team caches user permissions in a static HashMap inside a Spring @Service. Under load, two request threads put() at the same time during a resize, one update is lost, and a user intermittently sees 403 errors that nobody can reproduce locally. The fix is a ConcurrentHashMap with computeIfAbsent, or better a real cache (Caffeine locally, Redis across instances) with a TTL so stale permissions expire. When you tell this story in an interview, name the root cause (unsynchronised shared mutable state), the detection (logs plus a load test) and the fix with its trade-off (per-instance cache vs shared Redis)."
+          }
+        ]
+      }
+    ]
+  },
+  "diagrams": [
+    {
+      "id": "JC-HM-d1",
+      "title": "put(key, value) flow",
+      "kind": "mermaid",
+      "alt": "Flowchart: hashCode, spread, index, empty bucket or walk the chain, treeify at 8 when capacity is at least 64, resize when size exceeds the threshold.",
+      "source": "flowchart TD\n A[key.hashCode] --> B[h ^ h>>>16]\n B --> C[index = n-1 & hash]\n C --> D{bucket empty?}\n D -- yes --> E[new Node]\n D -- no --> F{same hash and equals?}\n F -- yes --> G[replace value]\n F -- no --> H[append at tail]\n H --> I{bin >= 8 nodes?}\n I -- yes, table >= 64 --> J[treeify bin]\n I -- yes, table < 64 --> K[resize]\n E --> L{size > threshold?}\n H --> L\n L -- yes --> K[resize: double, lo/hi split]"
+    },
+    {
+      "id": "JC-HM-d2",
+      "title": "Table with a chained bucket and a tree bucket",
+      "kind": "mermaid",
+      "alt": "An array of 16 buckets; bucket 0 holds Aa then BB as a linked chain; bucket 5 holds a red-black tree.",
+      "source": "flowchart LR\n subgraph table[Node array, n = 16]\n b0[0] --- b1[1] --- b5[5] --- b15[15]\n end\n b0 --> n1[Aa:1] --> n2[BB:2]\n b5 --> t1((root)) --> t2((left))\n t1 --> t3((right))"
+    }
+  ],
+  "code": [
+    {
+      "id": "JC-HM-c1",
+      "title": "Bucket index and a real collision",
+      "file": "HashIndex.java",
+      "language": "java",
+      "javaVersion": "21",
+      "runCommand": "java HashIndex.java",
+      "demonstrates": [
+        "spread",
+        "index",
+        "collision",
+        "null key"
+      ],
+      "source": "import java.util.*;\n\npublic class HashIndex {\n    // Same spreading HashMap uses (Java 8+): mix high bits into low bits.\n    static int spread(Object key) {\n        int h;\n        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);\n    }\n    static int bucket(Object key, int capacity) { return (capacity - 1) & spread(key); }\n\n    public static void main(String[] args) {\n        int capacity = 16;                       // default table size\n        for (String k : List.of(\"apple\", \"banana\", \"cherry\", \"Aa\", \"BB\")) {\n            System.out.printf(\"%-7s hashCode=%-11d bucket=%d%n\", k, k.hashCode(), bucket(k, capacity));\n        }\n        // \"Aa\" and \"BB\" have the same hashCode (2112): a real collision, same bucket.\n        Map<String, Integer> m = new HashMap<>();\n        m.put(\"Aa\", 1); m.put(\"BB\", 2); m.put(null, 0); // one null key is allowed (bucket 0)\n        System.out.println(m.get(\"Aa\") + \" \" + m.get(\"BB\") + \" \" + m.get(null));\n        // Threshold = capacity * loadFactor = 16 * 0.75 = 12: the 13th put doubles the table to 32.\n    }\n}\n",
+      "expectedOutput": "apple   hashCode=93029210    bucket=1\nbanana  hashCode=-1396355227 bucket=0\ncherry  hashCode=-1361513063 bucket=1\nAa      hashCode=2112        bucket=0\nBB      hashCode=2112        bucket=0\n1 2 0"
+    },
+    {
+      "id": "JC-HM-c2",
+      "title": "Broken equals/hashCode and mutable keys",
+      "file": "BrokenKey.java",
+      "language": "java",
+      "javaVersion": "21",
+      "runCommand": "java BrokenKey.java",
+      "demonstrates": [
+        "contract",
+        "records",
+        "mutable key"
+      ],
+      "source": "import java.util.*;\n\npublic class BrokenKey {\n    // equals() overridden but hashCode() NOT: breaks the contract.\n    static final class Point {\n        final int x, y;\n        Point(int x, int y) { this.x = x; this.y = y; }\n        @Override public boolean equals(Object o) {\n            return o instanceof Point p && p.x == x && p.y == y;\n        }\n    }\n    // Fixed version: equal objects must have equal hash codes.\n    record FixedPoint(int x, int y) { }\n\n    public static void main(String[] args) {\n        Map<Point, String> broken = new HashMap<>();\n        broken.put(new Point(1, 2), \"A\");\n        System.out.println(\"broken get  -> \" + broken.get(new Point(1, 2)));   // almost always null\n\n        Map<FixedPoint, String> fixed = new HashMap<>();\n        fixed.put(new FixedPoint(1, 2), \"A\");\n        System.out.println(\"record get  -> \" + fixed.get(new FixedPoint(1, 2))); // A\n\n        // Mutable key pitfall: mutate after insert and the entry is \"lost\".\n        List<Integer> key = new ArrayList<>(List.of(1));\n        Map<List<Integer>, String> m = new HashMap<>();\n        m.put(key, \"v\");\n        key.add(2);                                   // hashCode changes\n        System.out.println(\"mutated key -> \" + m.get(key) + \", size=\" + m.size()); // null, size=1\n    }\n}\n",
+      "expectedOutput": "broken get  -> null\nrecord get  -> A\nmutated key -> null, size=1"
+    },
+    {
+      "id": "JC-HM-c3",
+      "title": "Fail-fast iteration and lost updates",
+      "file": "FailFastAndThreads.java",
+      "language": "java",
+      "javaVersion": "21",
+      "runCommand": "java FailFastAndThreads.java",
+      "demonstrates": [
+        "ConcurrentModificationException",
+        "removeIf",
+        "thread safety"
+      ],
+      "source": "import java.util.*;\nimport java.util.concurrent.*;\n\npublic class FailFastAndThreads {\n    public static void main(String[] args) throws Exception {\n        Map<String, Integer> stock = new HashMap<>(Map.of(\"pen\", 0, \"book\", 3, \"bag\", 0));\n        try {\n            for (String k : stock.keySet()) if (stock.get(k) == 0) stock.remove(k); // structural change mid-iteration\n        } catch (ConcurrentModificationException e) {\n            System.out.println(\"fail-fast: \" + e.getClass().getSimpleName());\n        }\n        stock.values().removeIf(v -> v == 0);       // correct way\n        System.out.println(\"after removeIf: \" + stock);\n\n        // Lost updates: HashMap is not thread-safe. ConcurrentHashMap.merge is atomic per key.\n        System.out.println(\"HashMap total = \" + count(new HashMap<>()) + \" (expected 80000; usually less, may even throw)\");\n        System.out.println(\"ConcurrentHashMap total = \" + count(new ConcurrentHashMap<>()));\n    }\n\n    static int count(Map<Integer, Integer> map) throws InterruptedException {\n        ExecutorService pool = Executors.newFixedThreadPool(8);\n        for (int t = 0; t < 8; t++) pool.submit(() -> {\n            for (int i = 0; i < 10_000; i++) map.merge(i % 100, 1, Integer::sum);\n        });\n        pool.shutdown();\n        pool.awaitTermination(10, TimeUnit.SECONDS);\n        return map.values().stream().mapToInt(Integer::intValue).sum();\n    }\n}\n",
+      "expectedOutput": "fail-fast: ConcurrentModificationException\nafter removeIf: {book=3}\nHashMap total = <varies, usually < 80000> (...)\nConcurrentHashMap total = 80000"
+    }
+  ],
+  "commonMistakes": [
+    {
+      "mistake": "Overriding equals() but not hashCode()",
+      "why": "Equal keys get different hashes, so they land in different buckets",
+      "fix": "Override both from the same fields, or use a record"
+    },
+    {
+      "mistake": "Using a mutable object as a key and changing it later",
+      "why": "The stored hash no longer matches, so the entry is unreachable",
+      "fix": "Use immutable keys (String, Integer, records)"
+    },
+    {
+      "mistake": "Saying 'HashMap is O(1) always'",
+      "why": "That is the average case; the worst case is O(n) for a list bin or O(log n) for a tree bin",
+      "fix": "Say 'O(1) average, O(log n) worst case since Java 8'"
+    },
+    {
+      "mistake": "Removing inside for-each",
+      "why": "A structural change bumps modCount, so the iterator throws CME",
+      "fix": "Use iterator.remove() or removeIf()"
+    },
+    {
+      "mistake": "Sharing a HashMap across request threads",
+      "why": "Lost updates and corrupted bins",
+      "fix": "Use ConcurrentHashMap with compute/merge"
+    }
+  ],
+  "cheatSheet": [
+    "index = (n-1) & (h ^ h>>>16); n is a power of 2, default 16",
+    "threshold = n × 0.75 → resize doubles n, lo/hi split by (hash & oldCap)",
+    "treeify: bin ≥ 8 AND n ≥ 64 (else resize); untreeify ≤ 6",
+    "Java 8 tail insert; Java 7 head insert (resize loop bug)",
+    "1 null key (bucket 0), null values OK; CHM allows neither",
+    "equals ⇒ same hashCode; never mutate keys",
+    "for-each + remove → CME; use removeIf / iterator.remove",
+    "Presize: n/0.75 + 1 or HashMap.newHashMap(n)",
+    "Ordered → LinkedHashMap; sorted → TreeMap; threads → ConcurrentHashMap"
+  ],
+  "coachTakeaways": [
+    "Bucket = (n-1) & spread(hashCode); n is always a power of two.",
+    "Collisions chain in a list; a bin turns into a red-black tree at 8 nodes once the table has 64+ buckets.",
+    "Resize happens past 0.75 × capacity, doubles the table, and splits each bin into lo/hi without a full rehash.",
+    "equals and hashCode must agree; keys should be immutable.",
+    "O(1) average, O(log n) worst case (Java 8+), never 'always O(1)'.",
+    "HashMap is not thread-safe or ordered; pick LinkedHashMap, TreeMap or ConcurrentHashMap by need.",
+    "Presize when you know the count to avoid repeated resizes."
+  ],
+  "myTakeaways": {
+    "required": true,
+    "minBullets": 3,
+    "minWords": 30,
+    "revealCoachTakeawaysAfterSave": true,
+    "showFirst": true,
+    "editable": true
+  },
+  "mcqs": {
+    "passPct": 75,
+    "shuffleOptions": true,
+    "showExplanations": "after-submit",
+    "questions": [
+      {
+        "id": "m1",
+        "type": "concept",
+        "difficulty": "basic",
+        "q": "Default initial capacity and load factor of new HashMap<>()?",
+        "options": [
+          {
+            "text": "16 and 0.75",
+            "correct": true,
+            "explanation": "Correct. The table is allocated lazily on the first put; threshold = 12."
+          },
+          {
+            "text": "10 and 0.75",
+            "correct": false,
+            "explanation": "10 is ArrayList's default capacity, not HashMap's."
+          },
+          {
+            "text": "16 and 1.0",
+            "correct": false,
+            "explanation": "1.0 would save memory but give longer chains; the default is 0.75."
+          },
+          {
+            "text": "11 and 0.75",
+            "correct": false,
+            "explanation": "11 is Hashtable's legacy default; HashMap capacities are powers of two."
+          }
+        ]
+      },
+      {
+        "id": "m2",
+        "type": "misconception",
+        "difficulty": "intermediate",
+        "q": "A bucket reaches 8 entries while the table has 16 buckets. What happens?",
+        "options": [
+          {
+            "text": "The bucket becomes a red-black tree",
+            "correct": false,
+            "explanation": "Only when the table has at least 64 buckets (MIN_TREEIFY_CAPACITY)."
+          },
+          {
+            "text": "The table is resized instead",
+            "correct": true,
+            "explanation": "Correct. Below 64 buckets, resizing spreads the entries out more cheaply than a tree."
+          },
+          {
+            "text": "An exception is thrown",
+            "correct": false,
+            "explanation": "HashMap never fails because of collisions."
+          },
+          {
+            "text": "Nothing; buckets are unbounded lists",
+            "correct": false,
+            "explanation": "True before Java 8; Java 8 added treeify/resize."
+          }
+        ]
+      },
+      {
+        "id": "m3",
+        "type": "code-output",
+        "difficulty": "intermediate",
+        "q": "A class overrides equals() but not hashCode(). map.put(new P(1,2), \"A\"); then map.get(new P(1,2)) returns…",
+        "options": [
+          {
+            "text": "\"A\"",
+            "correct": false,
+            "explanation": "The two objects have different identity hash codes, so the lookup goes to a different bucket."
+          },
+          {
+            "text": "null (almost always)",
+            "correct": true,
+            "explanation": "Correct. Different buckets; equals() is never even called."
+          },
+          {
+            "text": "Compilation error",
+            "correct": false,
+            "explanation": "It compiles; the contract is not enforced by the compiler."
+          },
+          {
+            "text": "ClassCastException",
+            "correct": false,
+            "explanation": "No cast is involved."
+          }
+        ]
+      },
+      {
+        "id": "m4",
+        "type": "concept",
+        "difficulty": "basic",
+        "q": "Why does HashMap compute h ^ (h >>> 16)?",
+        "options": [
+          {
+            "text": "To make hash codes positive",
+            "correct": false,
+            "explanation": "The result can still be negative; the & with (n-1) handles the index."
+          },
+          {
+            "text": "To mix high bits into the low bits the index uses",
+            "correct": true,
+            "explanation": "Correct. With small tables only the low bits pick the bucket, so without the mix many keys would collide."
+          },
+          {
+            "text": "For security against HashDoS",
+            "correct": false,
+            "explanation": "Treeification, not spreading, limits HashDoS damage."
+          },
+          {
+            "text": "To encrypt the key",
+            "correct": false,
+            "explanation": "Hashing here is not cryptographic."
+          }
+        ]
+      },
+      {
+        "id": "m5",
+        "type": "scenario",
+        "difficulty": "intermediate",
+        "q": "You need an LRU cache of 1,000 entries in a single thread. Best starting point?",
+        "options": [
+          {
+            "text": "LinkedHashMap with accessOrder=true and removeEldestEntry",
+            "correct": true,
+            "explanation": "Correct. Access order moves hits to the end; removeEldestEntry evicts the oldest."
+          },
+          {
+            "text": "TreeMap",
+            "correct": false,
+            "explanation": "It is sorted by key, not by recency."
+          },
+          {
+            "text": "HashMap plus sorting on every get",
+            "correct": false,
+            "explanation": "O(n log n) per operation."
+          },
+          {
+            "text": "Hashtable",
+            "correct": false,
+            "explanation": "Legacy, synchronized, and keeps no order."
+          }
+        ]
+      },
+      {
+        "id": "m6",
+        "type": "misconception",
+        "difficulty": "intermediate",
+        "q": "Which statement about the Java 8+ HashMap is true?",
+        "options": [
+          {
+            "text": "Iteration order is insertion order",
+            "correct": false,
+            "explanation": "That is LinkedHashMap. HashMap order is by bucket and can change after a resize."
+          },
+          {
+            "text": "It allows one null key and many null values",
+            "correct": true,
+            "explanation": "Correct. The null key hashes to 0."
+          },
+          {
+            "text": "It is safe for concurrent writes",
+            "correct": false,
+            "explanation": "Concurrent puts can lose updates; use ConcurrentHashMap."
+          },
+          {
+            "text": "get() is O(n) in the worst case",
+            "correct": false,
+            "explanation": "A treeified bin gives O(log n) worst case since Java 8."
+          }
+        ]
+      },
+      {
+        "id": "m7",
+        "type": "code-output",
+        "difficulty": "advanced",
+        "q": "List<Integer> k = new ArrayList<>(List.of(1)); map.put(k, \"v\"); k.add(2); What do map.get(k) and map.size() return?",
+        "options": [
+          {
+            "text": "\"v\", 1",
+            "correct": false,
+            "explanation": "k's hashCode changed, so the lookup goes to another bucket."
+          },
+          {
+            "text": "null, 1",
+            "correct": true,
+            "explanation": "Correct. The entry is stranded under the old hash."
+          },
+          {
+            "text": "null, 0",
+            "correct": false,
+            "explanation": "The entry is still stored, so size stays 1."
+          },
+          {
+            "text": "It throws ConcurrentModificationException",
+            "correct": false,
+            "explanation": "Mutating a key is not an iteration over the map."
+          }
+        ]
+      },
+      {
+        "id": "m8",
+        "type": "concept",
+        "difficulty": "advanced",
+        "q": "During a resize from 16 to 32, where does an entry in old bucket 5 go?",
+        "options": [
+          {
+            "text": "Bucket 5 or bucket 21, decided by hash & 16",
+            "correct": true,
+            "explanation": "Correct. One extra bit decides lo (same index) or hi (index + oldCap)."
+          },
+          {
+            "text": "A fully recomputed random bucket",
+            "correct": false,
+            "explanation": "No full rehash is needed in Java 8."
+          },
+          {
+            "text": "Always bucket 10",
+            "correct": false,
+            "explanation": "The index never doubles; it is either unchanged or shifted by oldCap."
+          },
+          {
+            "text": "Bucket 5 always",
+            "correct": false,
+            "explanation": "Half the entries, on average, move to the hi bucket."
+          }
+        ]
+      }
+    ]
+  },
+  "interviewQuestions": [
+    {
+      "id": "iq1",
+      "difficulty": "basic",
+      "frequency": "very-high",
+      "q": "How does HashMap work internally?",
+      "modelAnswer": "It is an array of buckets. put() takes key.hashCode(), spreads it (h ^ h>>>16), and picks the bucket with (n-1) & hash. If the bucket is empty it stores a node; otherwise it walks the bucket comparing hash and equals(), and replaces the value or appends at the tail. When a bin reaches 8 nodes and the table has 64+ buckets it becomes a red-black tree. When size exceeds capacity × 0.75 the table doubles and every bin splits into lo/hi. get() follows the same path without inserting. That gives O(1) average and O(log n) worst case.",
+      "sayItIn30s": "Array of buckets; hash → index; chain on collision, tree at 8; resize at 75% full; O(1) average.",
+      "followUps": [
+        {
+          "q": "Why is the capacity a power of two?",
+          "a": "So (n-1) & hash replaces the modulo and the resize split needs only one bit."
+        },
+        {
+          "q": "What changed in Java 8?",
+          "a": "Treeification, tail insertion, a simpler hash spread, and the lo/hi resize split."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'It is always O(1)'",
+        "'It uses equals() to find the bucket'",
+        "Forgetting the 64-bucket condition for treeify"
+      ]
+    },
+    {
+      "id": "iq2",
+      "difficulty": "basic",
+      "frequency": "very-high",
+      "q": "What is the equals/hashCode contract and what breaks if you violate it?",
+      "modelAnswer": "If a.equals(b) then a.hashCode() == b.hashCode(). Equal hash codes do not imply equality. If you override equals without hashCode, two equal keys hash to different buckets, so get() returns null and duplicates appear in a HashSet. Generate both from the same immutable fields, or use a record.",
+      "sayItIn30s": "Equal objects need equal hashes, or lookups miss and sets hold duplicates.",
+      "followUps": [
+        {
+          "q": "Can two unequal objects have the same hashCode?",
+          "a": "Yes, that is a collision; equals() then separates them."
+        },
+        {
+          "q": "Why do records solve it?",
+          "a": "They generate equals/hashCode/toString from all their components."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'Same hashCode means equal'",
+        "'Only equals matters for HashMap'"
+      ]
+    },
+    {
+      "id": "iq3",
+      "difficulty": "basic",
+      "frequency": "high",
+      "q": "HashMap vs Hashtable vs ConcurrentHashMap?",
+      "modelAnswer": "HashMap is unsynchronized and allows one null key and null values. Hashtable is legacy: every method is synchronized on one lock and no nulls are allowed. ConcurrentHashMap is thread-safe with lock-free reads and CAS/per-bin locking on writes; it allows no nulls and has atomic compute/merge. Use ConcurrentHashMap for shared state, HashMap otherwise.",
+      "sayItIn30s": "HashMap single-thread; Hashtable legacy global lock; CHM fine-grained and the right concurrent choice.",
+      "followUps": [
+        {
+          "q": "Why does CHM forbid null?",
+          "a": "With null, get() returning null is ambiguous (absent or null value), and you cannot re-check atomically under concurrency."
+        },
+        {
+          "q": "Is size() exact in CHM?",
+          "a": "It is an estimate under concurrent updates (it sums counter cells)."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'CHM locks the whole map'",
+        "'Collections.synchronizedMap is the same as CHM'"
+      ]
+    },
+    {
+      "id": "iq4",
+      "difficulty": "intermediate",
+      "frequency": "high",
+      "q": "What are load factor and rehashing? How do you avoid repeated resizes?",
+      "modelAnswer": "The load factor (0.75) sets the threshold = capacity × 0.75. Past it, the table doubles and entries are redistributed with the lo/hi split. Each resize is O(n), so for a known size presize with n / 0.75 + 1, or HashMap.newHashMap(n) in Java 19+.",
+      "sayItIn30s": "75% full → double; presize to skip resizes.",
+      "followUps": [
+        {
+          "q": "What if the load factor is 1.0?",
+          "a": "Less memory, more collisions, slower lookups."
+        },
+        {
+          "q": "Does a resize ever shrink the table?",
+          "a": "No, HashMap never shrinks."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'new HashMap<>(1000) holds 1000 entries without resizing'; its threshold is 768 (capacity rounds to 1024 × 0.75)"
+      ]
+    },
+    {
+      "id": "iq5",
+      "difficulty": "intermediate",
+      "frequency": "high",
+      "q": "Why did Java 8 add treeification, and when does it happen?",
+      "modelAnswer": "To bound the worst case. With many collisions (bad hashCode or HashDoS) a list bin makes lookups O(n). Java 8 converts a bin to a red-black tree when it has 8+ nodes and the table has 64+ buckets (otherwise it resizes first), and back to a list at 6 or fewer. Tree order uses compareTo if keys are Comparable, otherwise a tie-break.",
+      "sayItIn30s": "8 nodes and 64 buckets → tree, so the worst case is O(log n); back to a list at 6.",
+      "followUps": [
+        {
+          "q": "Why 8?",
+          "a": "With a good hash, bin sizes follow a Poisson distribution; 8 is extremely unlikely (~10^-8), so trees appear only in pathological cases."
+        }
+      ],
+      "commonWrongAnswers": [
+        "Forgetting the 64 minimum",
+        "'Trees make HashMap sorted'"
+      ]
+    },
+    {
+      "id": "iq6",
+      "difficulty": "scenario",
+      "frequency": "medium",
+      "q": "A teammate reports that map.get(key) returns null even though map.size() grew after put(key, v). The key is a mutable object. What happened?",
+      "modelAnswer": "The entry stays in the bucket chosen by the old hash. Lookups with the mutated key compute a new hash and miss, so get() returns null while size() still counts the entry: a memory leak and a logic bug. Keys should be immutable.",
+      "sayItIn30s": "The entry gets stranded under the old hash; use immutable keys.",
+      "followUps": [
+        {
+          "q": "Why is String a good key?",
+          "a": "It is immutable and caches its hashCode."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'HashMap rehashes the key automatically'"
+      ]
+    },
+    {
+      "id": "iq7",
+      "difficulty": "intermediate",
+      "frequency": "medium",
+      "q": "What is a fail-fast iterator? How do you remove while iterating?",
+      "modelAnswer": "HashMap iterators check modCount. A structural change not made through the iterator throws ConcurrentModificationException on the next step. It is best-effort, not a thread-safety guarantee. Remove with iterator.remove() or map.entrySet()/values().removeIf(...). Concurrent collections have weakly consistent iterators that never throw CME.",
+      "sayItIn30s": "modCount check → CME; use iterator.remove or removeIf.",
+      "followUps": [
+        {
+          "q": "Does changing a value with put on an existing key throw CME?",
+          "a": "No, replacing a value is not a structural change."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'CME only happens with multiple threads'"
+      ]
+    },
+    {
+      "id": "iq8",
+      "difficulty": "advanced",
+      "frequency": "medium",
+      "q": "What goes wrong when multiple threads write to a HashMap?",
+      "modelAnswer": "Lost updates (two puts race on the same bin or on size), entries vanishing during a resize, and corrupted bins. In Java 7, head insertion during a concurrent resize could create a cycle, so get() looped forever. Java 8 uses tail insertion, which avoids that loop, but it is still not thread-safe. Use ConcurrentHashMap and its atomic merge/compute.",
+      "sayItIn30s": "Races lose data; Java 7 could infinite-loop; use CHM.",
+      "followUps": [
+        {
+          "q": "Is map.put(k, map.get(k) + 1) safe on CHM?",
+          "a": "No, check-then-act is not atomic; use merge(k, 1, Integer::sum)."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'Making the field volatile fixes it'"
+      ]
+    },
+    {
+      "id": "iq9",
+      "difficulty": "advanced",
+      "frequency": "medium",
+      "q": "Design an LRU cache with O(1) get/put.",
+      "modelAnswer": "Use a HashMap from key to node plus a doubly linked list ordered by recency. get moves the node to the head; put inserts at the head and evicts the tail when over capacity. In Java you can extend LinkedHashMap(capacity, 0.75f, true) and override removeEldestEntry. For concurrency, use a lock or Caffeine.",
+      "sayItIn30s": "HashMap + doubly linked list, or LinkedHashMap with accessOrder.",
+      "followUps": [
+        {
+          "q": "How would you make it thread-safe?",
+          "a": "Use a ReentrantLock around operations, segment it, or use Caffeine (W-TinyLFU)."
+        }
+      ],
+      "commonWrongAnswers": [
+        "Using a TreeMap keyed by timestamp (O(log n) and duplicate timestamps)"
+      ]
+    },
+    {
+      "id": "iq10",
+      "difficulty": "scenario",
+      "frequency": "medium",
+      "q": "A service's p99 latency jumps and profiling shows time in HashMap.get on a map keyed by a custom class. What do you check?",
+      "modelAnswer": "Check hashCode() quality: is it constant, does it use few fields, or does it match the input pattern? Check that equals/hashCode agree, whether keys are mutable, and whether the map is shared between threads without synchronization (corruption or contention). Also check the map size against capacity (repeated resizes). Fix the hash (Objects.hash or a record), make keys immutable, presize, or switch to ConcurrentHashMap.",
+      "sayItIn30s": "Bad hashCode → long chains; check the contract, mutability, sharing and presizing.",
+      "followUps": [
+        {
+          "q": "How can you prove it is collisions?",
+          "a": "Count distinct hashCodes against the map size, or run a JMH micro-benchmark."
+        }
+      ],
+      "commonWrongAnswers": [
+        "'Increase the heap'",
+        "'Switch to TreeMap' without fixing the hash"
+      ]
+    }
+  ],
+  "practice": [
+    {
+      "id": "JC-HM-p1",
+      "kind": "guided",
+      "difficulty": "medium",
+      "minutes": 25,
+      "title": "Build a mini HashMap",
+      "prompt": "Implement MyHashMap<K,V> with put/get/remove/size using an array of linked nodes, the same spread + (n-1) & hash indexing, and resize at 0.75 that doubles and redistributes. No java.util maps.",
+      "starter": "https://github.com/<deepak>/study-desk-practice/tree/main/JC-HM",
+      "acceptance": [
+        "All 12 JUnit tests in MyHashMapTest pass (put/get/overwrite/remove/null key/collision/resize)",
+        "Resize happens exactly when size > threshold (test asserts capacity 32 after the 13th put)",
+        "No java.util.Map used inside",
+        "README explains your hash and resize in 5 lines"
+      ],
+      "evidence": {
+        "type": "github-link",
+        "required": true
+      }
+    },
+    {
+      "id": "JC-HM-p2",
+      "kind": "problem",
+      "difficulty": "medium",
+      "minutes": 20,
+      "title": "Design HashMap (GfG Practice)",
+      "url": "https://www.geeksforgeeks.org/problems/design-hashmap/1",
+      "acceptance": [
+        "Accepted on GfG",
+        "State time and space complexity in the evidence note"
+      ],
+      "evidence": {
+        "type": "link-or-screenshot",
+        "required": true
+      }
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "f1",
+      "front": "Bucket index formula?",
+      "back": "(n-1) & (h ^ (h >>> 16)), n = power of two"
+    },
+    {
+      "id": "f2",
+      "front": "Default capacity / load factor / threshold?",
+      "back": "16 / 0.75 / 12"
+    },
+    {
+      "id": "f3",
+      "front": "When does a bin treeify?",
+      "back": "≥ 8 nodes AND table ≥ 64 buckets (else resize); untreeify at ≤ 6"
+    },
+    {
+      "id": "f4",
+      "front": "Resize: where do entries from old bucket i go?",
+      "back": "i or i + oldCap, decided by hash & oldCap"
+    },
+    {
+      "id": "f5",
+      "front": "equals/hashCode contract?",
+      "back": "equals ⇒ same hashCode; same hashCode does not imply equals"
+    },
+    {
+      "id": "f6",
+      "front": "Null rules: HashMap vs ConcurrentHashMap?",
+      "back": "HashMap: 1 null key, null values. CHM: no nulls"
+    },
+    {
+      "id": "f7",
+      "front": "Remove while iterating safely?",
+      "back": "iterator.remove() or removeIf(); for-each + map.remove → CME"
+    },
+    {
+      "id": "f8",
+      "front": "Worst-case get since Java 8?",
+      "back": "O(log n) for tree bins (O(n) for list bins before treeify)"
+    }
+  ],
+  "revision": {
+    "offsetsDays": [
+      1,
+      3,
+      7,
+      21
+    ],
+    "items": [
+      "flashcards",
+      "cheatSheet",
+      "myTakeaways",
+      "missedMcqs",
+      "weakInterviewQuestions"
+    ]
+  },
+  "connections": {
+    "lld": [
+      "LRU cache design (LinkedHashMap)",
+      "In-memory key-value store machine-coding round"
+    ],
+    "hld": [
+      "Consistent hashing for sharding",
+      "Redis hash slots",
+      "Distributed cache design"
+    ],
+    "dsa": [
+      "DSA-03 Hashing and frequency maps",
+      "DSA-36 Design data structures: LRU"
+    ],
+    "concurrency": [
+      "CC-04 ConcurrentHashMap internals"
+    ]
+  },
+  "miniProjectHooks": [
+    {
+      "projectId": "splitwise-backend",
+      "feature": "In-memory balance cache Map<UserId, BigDecimal> as a ConcurrentHashMap, later replaced by Redis",
+      "when": "after SB-03"
+    },
+    {
+      "projectId": "splitwise-backend",
+      "feature": "Idempotency-key store (key → response) with TTL eviction",
+      "when": "after HLD idempotency"
+    }
+  ],
+  "selfRating": {
+    "scale": 5,
+    "askAfter": [
+      "notes",
+      "mcq",
+      "interview"
+    ],
+    "lowThreshold": 3,
+    "onLow": "add an extra revision on day +2 and mark the topic weak"
+  },
+  "tags": [
+    "collections",
+    "hashing",
+    "interview-core",
+    "java-8"
+  ]
+}

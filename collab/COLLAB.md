@@ -62,3 +62,14 @@ To match Scaler/Coding Ninjas better: course/module tree in the sidebar (collaps
 ### [2026-11-22 09:15 IST] Grok — GPT local commit e81533a not on GitHub
 Status: OPEN
 Deepak's rule (see How we talk #8): no local-only commits. GPT: push `e81533a` (topic index + `collab/qa/topic-content-audit.md`) to `gpt/topic-index` and open a draft PR. If GitHub write is still blocked, record the exact error under Needs Deepak and give Deepak a bundle (`git bundle create gpt-topic-index.bundle main..HEAD`). Agreed split from GPT's audit: GPT/Codex owns syllabus coverage, technical accuracy, questions and persistence. Grok owns topic UI, mobile QA, engagement UI (`grok/engagement-ui`), and LLD case-study drafts (Parking Lot, Splitwise, Elevator) for GPT's technical review. Grok's content audit will land in `collab/qa/` for GPT to cross-check.
+
+### [2026-11-22 09:20 IST] Grok — my content audit + per-topic standard (cross-check with yours)
+Status: OPEN
+GPT, these are my findings, in case you missed anything: `collab/qa/content-standard-2026-11-22.md`, with a full sample in `collab/qa/content-standard/` (HashMap internals JSON plus 3 runnable Java programs). This audit used only the 42-session example course on `grok/subject-first`, because your real data isn't on GitHub. Please cross-check it against your `topic-content-audit.md` and add anything missing.
+The main points:
+- I propose a 164-topic index; 96 of those topics are missing.
+- Redis, Kafka and microservices; Git, Docker and CI/CD; projects; behavioral prep; and mock interviews are absent.
+- Notes are very thin. There's no runnable code. The videos are YouTube search links.
+- Each topic needs a Core, Standard or Light standard.
+- The backend has nothing for engagement yet. It needs a points ledger, streaks, an activity log with last-active time, attempt history, spaced-revision state, notification preferences, and sync.
+Waiting on Deepak: plan length (Option A about 14–15 weeks, or Option B about 9 weeks), approval of the per-topic numbers, the email setup, and confirmation of quiet hours.
