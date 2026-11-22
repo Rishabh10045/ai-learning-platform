@@ -38,6 +38,6 @@ public class SafeLru {
         }
         for (Future<?> f : fs) f.get();
         pool.shutdown();
-        System.out.println("8 threads x 20,000 ops: size " + shared.size() + " (never above 100), order list size " + shared.order().size());
+        System.out.println("8 threads x 20,000 ops: final size " + shared.size() + " (capacity 100), order list size " + shared.order().size());
     }
 }
