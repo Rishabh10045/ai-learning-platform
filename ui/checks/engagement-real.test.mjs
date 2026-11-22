@@ -140,3 +140,13 @@ test('spaced revision: an older sidecar without the spaced map still loads', () 
   assert.deepEqual(host.progress().spaced, {});
   assert.deepEqual(E.derive(A.course, host.progress(), START).revisions.due, []);
 });
+
+test('studying on a day marked off still moves the plan on (no repeat of the finished session next day)', async () => {
+  const h = makeHost();
+  await ok(h, { type: 'unavailable', date: START, value: true });
+  await finishDay(h, 1);
+  h.clock.day = S.addDays(START, 1);
+  const d = derive(h);
+  assert.equal(d.tasks.sessionN, 2, 'Day 2 is today');
+  assert.equal(d.streak.current, 1, 'the day off you studied on counts');
+});
