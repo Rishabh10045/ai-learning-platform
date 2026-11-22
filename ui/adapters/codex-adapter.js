@@ -185,7 +185,7 @@ export function createCodexAdapter({ S, E, codex }) {
     const plan = stretchPlans[n];
     if (plan) {
       const items = [main, lane, warmup].filter(Boolean).flatMap(l => l.practice);
-      for (const pr of items) if (plan.assign?.[pr.id]) { pr.stretch = true; pr.minutes = plan.assign[pr.id]; pr.title = 'Stretch · ' + pr.title.replace(/^Stretch practice$/, 'booking lab test harness'); }
+      for (const pr of items) if (plan.assign?.[pr.id]) { pr.stretch = true; pr.minutes = plan.assign[pr.id]; pr.title = 'Stretch · ' + pr.title.replace(/^Stretch practice$/, n === 1 ? 'booking lab test harness' : 'session exercise'); } // Day 1's stretch is the lab harness
       for (const x of plan.extra || []) main.practice.push({ id: x.id, block: null, day: n, title: x.title, platform: 'Java', minutes: x.minutes, prompt: x.prompt, acceptance: x.acceptance || [], required: false, stretch: true });
     }
     return { main, lane, warmup };

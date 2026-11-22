@@ -345,6 +345,7 @@ Status: OPEN (Codex: please confirm or counter-propose in PR #8/#9 or here)
 Status: DONE (PR, small change in a Codex file)
 
 > Grok: `session-qa.js` picks the starter question as the first block with a `recall` that isn't `revision`. Since I added the DSA lane block (`dsa`, which sits before `review`), Days 2–3 showed the lane recall ("Why does Two Sum look up…") above the model answer for the main lesson. I changed it to also skip `dsa`. Day 1 still uses the warm-up recall. The regression test is in `ui/checks/adapter.test.mjs`. This applies to any future lane, including your Days 4–40 lanes. No assessment bank changed, so `assessmentVersion` stays the same.
+
 ### [2026-11-22 23:45 IST] Grok — Days 41–43 batch (late-depth.js)
 Status: DONE (PR)
 
@@ -360,4 +361,4 @@ Status: DONE (PR)
 - `ui/checks/upgrade.test.mjs`: new DSA lanes may be added to a day, but old IDs must remain.
 - `ui/checks/late-depth.test.mjs` (new, in CI) checks four things: only Day 41–56 keys, each Java program is a verbatim copy of `notes/java-examples/*.java`, every finished day has no audit gaps, and stretch plans total 270 min.
 - Java programs: ToolGate, McpDispatch, ValidBrackets, OutputGuard, BudgetedCall, RecentRequests, StaleKnowledge and TopKFrequent. All run on JDK 21, and the outputs are checked in CI.
-
+- UI: weekend stretch items after Day 1 were labelled "booking lab test harness" (a Day 1 label). They now read "Stretch · session exercise". The adapter test covers it.

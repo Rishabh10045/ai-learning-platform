@@ -196,3 +196,11 @@ test('the first interview question is the main lesson recall, never the DSA lane
     if (d.number > 1 && review?.recall) assert.equal(codex.sessionQA[d.number].questions[0], review.recall, 'Day ' + d.number); // Day 1 starts with the warm-up recall
   }
 });
+
+test('weekend stretch items are labelled for their own day (no Day 1 label on later days)', () => {
+  for (const d of codex.days) {
+    const items = A.lessonsByDay[d.number].main.practice.filter(p => p.stretch);
+    if (d.number > 1) assert.ok(!items.some(p => /booking lab test harness/.test(p.title)), 'Day ' + d.number);
+  }
+  assert.ok(A.lessonsByDay[1].main.practice.some(p => p.title === 'Stretch · booking lab test harness'));
+});
