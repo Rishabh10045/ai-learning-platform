@@ -165,6 +165,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Bags, queues and stacks', 'https://algs4.cs.princeton.edu/13stacks/')],
     recall: 'Why must Floyd’s pointers meet when there is a cycle, and how do you then find its first node?'
   },
+  38: {
+    title: 'Tries: exact lookup and prefix search',
+    concept: 'A trie stores strings as paths of characters with an end flag on complete words. Insert and lookup are O(L) in the word length, and prefix search walks to the prefix node and collects words below it.',
+    example: 'With CANCEL-02, CANCEL-04, CANCEL-10 and CAPACITY-01 stored, the prefix CANCEL- returns three codes in sorted order, contains("CANCEL-0") is false, and four codes start with CA.',
+    practice: 'Implement insert, contains, withPrefix(prefix, limit) and countPrefix. Then add delete.',
+    checks: ['A prefix is not reported as a word.', 'Results come out sorted and respect the limit.', 'A missing prefix returns an empty list.'],
+    readings: [reading('Princeton Algorithms · Tries', 'https://algs4.cs.princeton.edu/52trie/')],
+    recall: 'Why is trie lookup O(L) regardless of how many words are stored, and when is a HashSet the better choice?'
+  },
   // @@lanes
 };
 
@@ -3713,6 +3722,267 @@ acyclic list: no cycle`
       ['cycleLength is 3 for the example.', 'reverseBetween(1..5, 2, 4) gives 1 → 4 → 3 → 2 → 5.', 'isPalindrome(1 → 2 → 2 → 1) is true in O(1) extra space.', 'Test the empty and one-node lists.']],
     references: [['Princeton Algorithms · Bags, queues and stacks (linked lists)', 'https://algs4.cs.princeton.edu/13stacks/']]
   },
+  'ai-embeddings-01': {
+    notes: [
+      'An embedding model turns text into a vector of numbers, so that texts with similar meaning end up close together. Cosine similarity measures the angle between two vectors: 1.0 means the same direction, 0 means unrelated. It ignores length, so a short and a long passage about cancellations can still score high. A query and its passages must be embedded by the same model. Vectors from different models live in different spaces, and often have different dimensions, so comparing them is meaningless. CosineSearch.java refuses a 3-dimension vector against a 4-dimension one.',
+      'Filters belong before ranking. CosineSearch.java keeps only passages for the user’s venue whose version is current, then ranks them. Without that filter, the closest vector for "I cannot attend" is refunds-hall-b, which belongs to another venue. A model asked to "ignore" it afterwards might still quote it. Filtering is an authorization and correctness rule enforced in Java or in the database query, not a request to the model.',
+      'Similarity is not correctness. "How long is my hold?" uses refund-like words in the fixture, so its nearest passage is cancellations-v2 instead of hold-expiry. That is a retrieval miss, and you find it by keeping a small labelled set of queries with their expected passage IDs, and recording what came back. Fixes include better chunking, adding the exact term to the passage, hybrid retrieval, or a different embedding model, each measured against the same labelled set.'
+    ],
+    code: {
+      title: 'CosineSearch.java · cosine similarity, filters before ranking, a labelled retrieval miss and a dimension check · java CosineSearch.java',
+      text: String.raw`import java.util.*;
+
+// Ranks help passages by cosine similarity using small fixture vectors.
+// Filters (venue, current version) run BEFORE ranking, so an unauthorized
+// or outdated near-match can never be returned.
+public class CosineSearch {
+    record Passage(String id, String venue, int version, boolean current, double[] vector) {}
+    record Hit(String id, double score) {}
+
+    static double cosine(double[] a, double[] b) {
+        if (a.length != b.length) throw new IllegalArgumentException("dimension mismatch: " + a.length + " vs " + b.length);
+        double dot = 0, na = 0, nb = 0;
+        for (int i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+        if (na == 0 || nb == 0) return 0;
+        return dot / (Math.sqrt(na) * Math.sqrt(nb));
+    }
+
+    static List<Hit> search(List<Passage> index, double[] query, String venue, int k) {
+        return index.stream()
+            .filter(p -> p.venue().equals(venue) && p.current())
+            .map(p -> new Hit(p.id(), cosine(query, p.vector())))
+            .sorted(Comparator.comparingDouble(Hit::score).reversed().thenComparing(Hit::id))
+            .limit(k)
+            .toList();
+    }
+
+    static String fmt(List<Hit> hits) {
+        StringBuilder sb = new StringBuilder();
+        for (Hit h : hits) sb.append(h.id()).append(String.format("(%.3f) ", h.score()));
+        return sb.toString().trim();
+    }
+
+    public static void main(String[] args) {
+        // Fixture dimensions: [cancel/refund, seats/map, payment, time/expiry]
+        List<Passage> index = List.of(
+            new Passage("cancellations-v2", "hall-a", 2, true,  new double[]{0.9, 0.1, 0.3, 0.2}),
+            new Passage("cancellations-v1", "hall-a", 1, false, new double[]{0.95, 0.1, 0.2, 0.1}),
+            new Passage("seat-map",         "hall-a", 1, true,  new double[]{0.1, 0.9, 0.0, 0.1}),
+            new Passage("hold-expiry",      "hall-a", 1, true,  new double[]{0.3, 0.2, 0.1, 0.9}),
+            new Passage("refunds-hall-b",   "hall-b", 3, true,  new double[]{0.92, 0.06, 0.25, 0.15})
+        );
+        double[] cannotAttend = {0.92, 0.05, 0.25, 0.15};
+        System.out.println("cos(identical) = " + String.format("%.3f", cosine(new double[]{1, 2}, new double[]{2, 4})));
+        System.out.println("query 'I cannot attend', hall-a, k=2: " + fmt(search(index, cannotAttend, "hall-a", 2)));
+        System.out.println("without the venue filter, rank 1 would be: " +
+            index.stream().max(Comparator.comparingDouble(p -> cosine(cannotAttend, p.vector()))).get().id());
+
+        // A poor nearest result: "how long is my hold?" is phrased with refund-like words.
+        double[] howLongHold = {0.6, 0.1, 0.1, 0.5};
+        System.out.println("query 'how long is my hold', k=1: " + fmt(search(index, howLongHold, "hall-a", 1))
+            + " (expected hold-expiry -> label as a retrieval miss)");
+        try {
+            cosine(new double[]{1, 0, 0}, new double[]{1, 0, 0, 0});
+        } catch (IllegalArgumentException e) {
+            System.out.println("mixed embedding models -> " + e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`cos(identical) = 1.000
+query 'I cannot attend', hall-a, k=2: cancellations-v2(0.996) hold-expiry(0.474)
+without the venue filter, rank 1 would be: refunds-hall-b
+query 'how long is my hold', k=1: cancellations-v2(0.879) (expected hold-expiry -> label as a retrieval miss)
+mixed embedding models -> dimension mismatch: 3 vs 4`
+    },
+    takeaways: ['Cosine similarity compares direction, not length.', 'Query and passages must use the same embedding model.', 'Filter by venue and version before ranking.', 'Find misses with labelled queries and expected IDs.'],
+    interview: [
+      ['What does cosine similarity measure, and why must queries and documents use the same embedding model?', 'Cosine similarity is the dot product of two vectors divided by the product of their lengths, so it measures the angle between them rather than their size. A score near 1 means the texts point in the same direction in the model’s learned space, which usually means similar meaning. That only works when both vectors come from the same model and version, because each model defines its own space. Vectors from two models can have different dimensions, and even with equal dimensions the axes mean different things. When you change the embedding model you must re-embed every stored passage, usually into a new index, and switch over after evaluating it.'],
+      ['Where do access and version filters go in a retrieval pipeline, and why not let the model ignore unauthorized passages?', 'Filters go before or inside the candidate query, for example a WHERE venue_id = ? AND is_current clause next to the vector search, so unauthorized or outdated passages are never candidates. Asking the model to ignore them afterwards is unsafe: once text is in the prompt it can be quoted, and prompt instructions are not an access control. Filtering after top-k is also wrong, because it can leave you with fewer than k results, or none, even when good allowed passages exist. I test this with a fixture containing a very close passage from another venue and assert that it never appears in the results.'],
+      ['How would you diagnose a retrieval miss before changing the prompt or the model?', 'First I identify the gold passage, the one a correct answer needs. Then I check each step in order: is it in the index, with the right venue, version and current flag; does the filter let it through; and where does it rank for this query? If it is missing or filtered, that is an ingestion or metadata bug. If it ranks low, I look at the chunk, because a boundary can split the key sentence, and at the query wording. I keep the case in a labelled set and compare fixes, such as re-chunking, hybrid retrieval or another embedding model, by recall at k. Only when the gold passage is retrieved and the answer is still wrong do I look at generation.']
+    ],
+    check: ['In CosineSearch.java, why is refunds-hall-b not returned for a hall-a user even though it is the closest vector?',
+      ['Its cosine score is below 0.5', 'The venue filter removes it before ranking', 'The model rejects it after reading it', 'Top-k is 1'], 1,
+      'Filters run before ranking, so passages from other venues are never candidates.'],
+    practice: ['Copy CosineSearch.java. Add three labelled queries with expected IDs, compute recall at 1 and at 2, and fix the hold-expiry miss by changing only that passage’s fixture vector or text.',
+      ['Print recall at 1 and at 2 before and after the fix.', 'The hall-b passage never appears for hall-a.', 'Outdated versions never appear.', 'A dimension mismatch fails loudly.']],
+    references: [['Spring AI · Embeddings Model API', 'https://docs.spring.io/spring-ai/reference/api/embeddings.html'], ['Spring AI · Vector databases', 'https://docs.spring.io/spring-ai/reference/api/vectordbs.html']]
+  },
+  'ai-retrieval-01': {
+    notes: [
+      'Vector search is good at paraphrases, such as "I cannot attend" finding a passage titled Cancellations. It is weak at exact identifiers. A code like CANCEL-04 is not "meaning", so its vector can sit near other cancellation passages and lose. HybridRetrieval.java shows this: the vector path returns cancel-02 and refund-faq and misses cancel-04, while an exact match on the code field finds it immediately.',
+      'Hybrid retrieval runs both paths and merges their ranked lists. Reciprocal rank fusion (RRF) adds weight / (60 + rank) for each list a document appears in, so documents near the top of either list rise, and no raw scores need to be compared. In the example, the exact list has weight 2, so the literal code match ranks first, and the paraphrase still works through the vector path. Document the weights and the constant, and treat them as settings you evaluate, not magic numbers.',
+      'Every candidate path must apply the same metadata filters. The example has a CANCEL-04 for hall-b and an outdated CANCEL-04 for hall-a; both are excluded from the exact path and the vector path. A common bug is filtering the vector query but forgetting the keyword query, so an unauthorized document comes back through the side door. In PostgreSQL you can keep the passage text, code, venue, version and embedding (with pgvector) in one table, so one WHERE clause guards both searches.'
+    ],
+    code: {
+      title: 'HybridRetrieval.java · exact code path plus vector path, weighted reciprocal rank fusion, the same filter on both · java HybridRetrieval.java',
+      text: String.raw`import java.util.*;
+
+// Combines an exact policy-code path with a vector path using reciprocal rank fusion.
+// The same venue and version filter guards both candidate paths.
+public class HybridRetrieval {
+    record Doc(String id, String code, String venue, boolean current, double[] vector) {}
+
+    static double cosine(double[] a, double[] b) {
+        double dot = 0, na = 0, nb = 0;
+        for (int i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+        return dot / (Math.sqrt(na) * Math.sqrt(nb));
+    }
+
+    static boolean allowed(Doc d, String venue) { return d.venue().equals(venue) && d.current(); }
+
+    static List<String> exact(List<Doc> docs, String query, String venue) {
+        String q = query.toUpperCase(Locale.ROOT);
+        return docs.stream().filter(d -> allowed(d, venue) && q.contains(d.code())).map(Doc::id).toList();
+    }
+
+    static List<String> vector(List<Doc> docs, double[] q, String venue, int k) {
+        return docs.stream().filter(d -> allowed(d, venue))
+            .sorted(Comparator.comparingDouble((Doc d) -> cosine(q, d.vector())).reversed())
+            .limit(k).map(Doc::id).toList();
+    }
+
+    // Weighted reciprocal rank fusion: score = sum of weight / (60 + rank) across lists.
+    // The exact-code list gets weight 2, so a literal code match outranks a paraphrase hit.
+    static List<String> fuse(List<String> exactIds, List<String> vectorIds, int k) {
+        Map<String, Double> score = new HashMap<>();
+        for (int r = 0; r < exactIds.size(); r++) score.merge(exactIds.get(r), 2.0 / (60 + r + 1), Double::sum);
+        for (int r = 0; r < vectorIds.size(); r++) score.merge(vectorIds.get(r), 1.0 / (60 + r + 1), Double::sum);
+        return score.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
+            .limit(k).map(Map.Entry::getKey).toList();
+    }
+
+    public static void main(String[] args) {
+        List<Doc> docs = List.of(
+            new Doc("cancel-04",  "CANCEL-04", "hall-a", true,  new double[]{0.4, 0.6, 0.1}),
+            new Doc("cancel-02",  "CANCEL-02", "hall-a", true,  new double[]{0.9, 0.1, 0.1}),
+            new Doc("refund-faq", "REFUND-01", "hall-a", true,  new double[]{0.85, 0.2, 0.1}),
+            new Doc("cancel-04b", "CANCEL-04", "hall-b", true,  new double[]{0.9, 0.2, 0.1}),
+            new Doc("cancel-04o", "CANCEL-04", "hall-a", false, new double[]{0.9, 0.1, 0.1})
+        );
+        String query = "what does CANCEL-04 mean";
+        double[] qv = {0.9, 0.15, 0.1};
+        List<String> ex = exact(docs, query, "hall-a");
+        List<String> vec = vector(docs, qv, "hall-a", 2);
+        System.out.println("exact  : " + ex);
+        System.out.println("vector : " + vec + "  (misses the code)");
+        System.out.println("hybrid : " + fuse(ex, vec, 3));
+        System.out.println("paraphrase 'I cannot attend' hybrid: " +
+            fuse(exact(docs, "I cannot attend", "hall-a"), vector(docs, qv, "hall-a", 2), 2));
+        System.out.println("hall-b and outdated CANCEL-04 excluded: " + !fuse(ex, vec, 5).contains("cancel-04b")
+            + " " + !fuse(ex, vec, 5).contains("cancel-04o"));
+    }
+}
+`,
+      output: String.raw`exact  : [cancel-04]
+vector : [cancel-02, refund-faq]  (misses the code)
+hybrid : [cancel-04, cancel-02, refund-faq]
+paraphrase 'I cannot attend' hybrid: [cancel-02, refund-faq]
+hall-b and outdated CANCEL-04 excluded: true true`
+    },
+    takeaways: ['Vectors find paraphrases; exact match finds codes.', 'RRF merges ranked lists without comparing raw scores.', 'Apply the same filters to every candidate path.', 'Evaluate weights on labelled queries.'],
+    interview: [
+      ['A user searches for an exact cancellation code and vector search misses it. How do you fix retrieval?', 'I add an exact or lexical path next to the vector path, because identifiers carry no semantic meaning an embedding can capture reliably. For known code formats I match the code field directly; for general text I use full-text search such as PostgreSQL tsvector or BM25. Then I merge the two ranked lists, for example with reciprocal rank fusion, giving the exact list a higher weight so a literal code match wins. Both paths use the same venue and version filters. I prove it with three labelled cases: the exact code, a paraphrase without the code, and a similar code from another venue, which must not appear.'],
+      ['Explain reciprocal rank fusion and why it is useful for hybrid search.', 'Reciprocal rank fusion merges ranked lists using only positions. Each document gets the sum of 1 / (k + rank) over the lists it appears in, with k commonly 60. Documents ranked high in any list rise, and documents in both lists rise further. It is useful because vector similarity scores and lexical scores such as BM25 are on different scales and cannot be added directly; RRF avoids calibrating them. You can weight lists, for example doubling the exact-match list. Its limits are that it ignores how much better the first result is than the second, and that k and the weights still need checking against labelled queries.'],
+      ['What is a common security bug in hybrid retrieval, and how do you prevent it?', 'The common bug is applying the authorization filter to one candidate path but not the other, for example filtering the vector query by venue while the keyword query searches every venue. The merged result then includes a passage the user should not see, and the model may quote it. I prevent it by building every path from one query object that already contains the venue, version and current flag, or by keeping all fields in one table so one WHERE clause guards both searches. I add a test fixture with a matching code from another venue and an outdated version, and assert neither appears in exact, vector or merged results.']
+    ],
+    check: ['In HybridRetrieval.java, why does cancel-04 rank first in the hybrid list?',
+      ['It has the highest cosine score', 'It appears at rank 1 in the exact list, which has weight 2 in the fusion', 'It is the only current document', 'RRF sorts alphabetically'], 1,
+      'Weighted RRF gives the exact-code list double weight, so its first result outranks the vector list’s first result.'],
+    practice: ['Copy HybridRetrieval.java. Add a simple lexical path that scores word overlap, fuse three lists, and build a table of five labelled queries showing which path found the gold passage.',
+      ['The exact code query finds cancel-04 at rank 1.', 'A paraphrase still finds a cancellation passage.', 'hall-b and outdated documents never appear in any list.', 'Print recall at 2 for vector-only and for hybrid.']],
+    references: [['Elasticsearch · Reciprocal rank fusion', 'https://www.elastic.co/guide/en/elasticsearch/reference/current/rrf.html'], ['pgvector · Vector similarity search for PostgreSQL', 'https://github.com/pgvector/pgvector']]
+  },
+  'ai-embeddings-01.dsa': {
+    notes: [
+      'A trie stores strings character by character in a tree, so all words with the same prefix share a path. Inserting or looking up a word of length L takes O(L) time, no matter how many words are stored. PrefixTrie.java stores policy codes such as CANCEL-02 and CAPACITY-01. Each node has a map from character to child, an end flag that marks a complete word, and a count of words passing through it.',
+      'contains("CANCEL-04") walks the path and checks the end flag, so the prefix "CANCEL-0" is not reported as a word. withPrefix walks to the prefix node and then does a depth-first search, collecting words in sorted order because the children are in a TreeMap, and it stops at the limit. countPrefix reads the stored count in O(L), which is how autocomplete shows "4 codes start with CA" without visiting them.',
+      'Tries trade memory for speed: every node holds a map. For a small alphabet, an array of 26 children is faster but larger. Use a trie for prefix search, autocomplete and exact identifier lookup; use a HashSet when you only need exact membership. Edge cases to test are the empty prefix, a prefix that is itself a word, a missing prefix and a limit smaller than the number of matches.'
+    ],
+    code: {
+      title: 'PrefixTrie.java · insert, exact contains, prefix search with a limit and prefix counts · java PrefixTrie.java',
+      text: String.raw`import java.util.*;
+
+// A trie for exact lookup and prefix search over policy codes and words.
+public class PrefixTrie {
+    static final class Node {
+        final Map<Character, Node> next = new TreeMap<>();
+        boolean end;
+        int count; // words passing through this node
+    }
+    private final Node root = new Node();
+
+    void insert(String word) {
+        Node n = root;
+        for (char c : word.toCharArray()) {
+            n = n.next.computeIfAbsent(c, x -> new Node());
+            n.count++;
+        }
+        n.end = true;
+    }
+
+    private Node walk(String s) {
+        Node n = root;
+        for (char c : s.toCharArray()) {
+            n = n.next.get(c);
+            if (n == null) return null;
+        }
+        return n;
+    }
+
+    boolean contains(String word) { Node n = walk(word); return n != null && n.end; }
+    int countPrefix(String prefix) { Node n = walk(prefix); return n == null ? 0 : n.count; }
+
+    List<String> withPrefix(String prefix, int limit) {
+        List<String> out = new ArrayList<>();
+        Node n = walk(prefix);
+        if (n != null) collect(n, new StringBuilder(prefix), out, limit);
+        return out;
+    }
+
+    private void collect(Node n, StringBuilder sb, List<String> out, int limit) {
+        if (out.size() >= limit) return;
+        if (n.end) out.add(sb.toString());
+        for (var e : n.next.entrySet()) {
+            sb.append(e.getKey());
+            collect(e.getValue(), sb, out, limit);
+            sb.deleteCharAt(sb.length() - 1);
+        }
+    }
+
+    public static void main(String[] args) {
+        PrefixTrie t = new PrefixTrie();
+        for (String w : List.of("CANCEL-02", "CANCEL-04", "CANCEL-10", "CAPACITY-01", "REFUND-01")) t.insert(w);
+        System.out.println("contains CANCEL-04 = " + t.contains("CANCEL-04"));
+        System.out.println("contains CANCEL-0  = " + t.contains("CANCEL-0"));
+        System.out.println("prefix CANCEL-     = " + t.withPrefix("CANCEL-", 10));
+        System.out.println("count  CA          = " + t.countPrefix("CA"));
+        System.out.println("prefix CANCEL-, limit 2 = " + t.withPrefix("CANCEL-", 2));
+        System.out.println("prefix XYZ         = " + t.withPrefix("XYZ", 5));
+    }
+}
+`,
+      output: String.raw`contains CANCEL-04 = true
+contains CANCEL-0  = false
+prefix CANCEL-     = [CANCEL-02, CANCEL-04, CANCEL-10]
+count  CA          = 4
+prefix CANCEL-, limit 2 = [CANCEL-02, CANCEL-04]
+prefix XYZ         = []`
+    },
+    takeaways: ['Insert and lookup are O(L) in the word length.', 'An end flag separates words from prefixes.', 'Store counts for O(L) prefix counting.', 'Use a HashSet when only exact membership matters.'],
+    interview: [
+      ['How does a trie work, and when would you choose it over a HashSet?', 'A trie stores each string as a path from the root, one character per edge, with a flag on the node where a complete word ends. Words with a shared prefix share nodes. Insert and lookup cost O(L) for a word of length L, independent of the number of words. I choose a trie when I need prefix operations, such as autocomplete, listing all codes that start with CANCEL-, or counting them, because a HashSet would have to scan every entry for that. If I only need exact membership, a HashSet is simpler and uses less memory, since a trie holds a map or array in every node.'],
+      ['How do you return the first k words with a given prefix in sorted order?', 'I walk from the root along the prefix characters; if any is missing, the answer is empty. From the prefix node I run a depth-first search with a StringBuilder, appending a character before visiting a child and removing it afterwards. When a node has its end flag set, I add the current string. Children are kept in sorted order, with a TreeMap or a 26-slot array visited in order, so words come out alphabetically. I stop as soon as I have k results, so the cost is O(P + output size) for a prefix of length P, rather than visiting the whole subtree.'],
+      ['What are the memory costs of a trie, and how can you reduce them?', 'Each node holds a children structure and flags, so a trie can use far more memory than the strings themselves, especially with long, unshared suffixes. A HashMap per node is flexible but heavy; a fixed array of 26 or 128 references is fast but mostly empty for sparse data. To reduce memory, I can use a compressed trie, also called a radix tree, where chains of single-child nodes are merged into one edge labelled with a string, or a ternary search trie. For a fixed dictionary, a sorted array with binary search also supports prefix ranges with much less memory, at the cost of slower inserts.']
+    ],
+    check: ['After inserting CANCEL-02, CANCEL-04, CANCEL-10, CAPACITY-01 and REFUND-01, what does contains("CANCEL-0") return?',
+      ['true, because the path exists', 'false, because no word ends at that node', 'It throws an exception', '2, the number of matches'], 1,
+      'The path exists, but the end flag is false, so it is only a prefix.'],
+    practice: ['Copy PrefixTrie.java. Add delete(word) that removes unused nodes and updates counts, and longestCommonPrefix() for all stored words.',
+      ['After deleting CANCEL-10, countPrefix("CANCEL-") is 2.', 'Deleting a missing word changes nothing.', 'The longest common prefix of the CANCEL codes is "CANCEL-".', 'Test the empty trie.']],
+    references: [['Princeton Algorithms · Tries', 'https://algs4.cs.princeton.edu/52trie/']]
+  },
   // @@packets
 };
 
@@ -3789,6 +4059,10 @@ export const lateDistractors = {
     ['The help controller, because users see its answer first.', 'The model provider, because it stores the conversation.'],
     ['It removes the need for any contract tests.', 'It makes the live provider faster.']
   ],
+  38: [
+    ['Any model’s vectors can be compared as long as they have the same length.', 'Cosine similarity works across models because it ignores length.'],
+    ['For paraphrased questions that share no words with the passage.', 'Whenever the embedding model is expensive.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -3828,6 +4102,8 @@ export const lateExplanations = {
     'Every composite n has a divisor d with d × d ≤ n. Once d > n / d, no unchecked divisor can exist, so n is prime.'],
   37: ['Booking rules are enforced by the domain and the database constraint. Generated text has no authority over seats.',
     'A fixture returns the same responses every time, including failures, so tests of parsing and fallbacks are repeatable. It says nothing about real model quality.'],
+  38: ['Each embedding model defines its own space. Equal dimensions do not make two models’ axes mean the same thing, so stored passages must be re-embedded when the model changes.',
+    'Identifiers such as CANCEL-04 carry no meaning an embedding captures reliably. Exact or lexical matching finds them; vectors handle paraphrases.'],
   // @@explanations
 };
 
@@ -3960,6 +4236,14 @@ export const lateAssessment = {
     { question: 'Where should the model API key be stored?',
       choices: ['In application.yml committed to the repo', 'In a secret store or environment variable injected at runtime', 'In the frontend JavaScript', 'In the system prompt'], answer: 1,
       explanation: 'Secrets are injected at runtime and never committed, logged or sent to the browser.' }
+  ],
+  38: [
+    { question: 'Your vector query is filtered by venue, but the keyword query is not. What can go wrong?',
+      choices: ['Nothing, because the vector path already filtered', 'A passage from another venue can enter the merged results through the keyword path', 'The keyword path becomes slower', 'RRF will remove unauthorized passages automatically'], answer: 1,
+      explanation: 'Every candidate path needs the same filter; fusion does not know about authorization.' },
+    { question: 'Your team switches to a new embedding model. What must happen to the stored passages?',
+      choices: ['Nothing; old vectors stay valid', 'Re-embed them with the new model, ideally into a new index, and evaluate before switching', 'Only normalize the old vectors', 'Only re-embed new passages'], answer: 1,
+      explanation: 'Query and passage vectors must come from the same model to be comparable.' }
   ],
   // @@assessment
 };
@@ -4123,6 +4407,11 @@ export const lateInterviewGuides = {
     'Help degrades and booking keeps working. The help service calls the model through one adapter with a time budget. When the provider times out, returns an error or sends malformed output, the adapter returns a fallback value, and the API answers within the budget with a short message and links to the policy pages, not a 500. Fallbacks are counted by reason, so a dashboard shows the outage and can alert. Retries are limited to one with jitter. The booking path never calls the adapter, so seat claims return 201 and conflicts return 409 as usual. I prove that with a test that switches the fixture adapter to "down" and then books a seat.',
     'The adapter absorbs it. It is the only class that knows the provider’s wire format and maps it to our Java contract, such as a HelpAnswer record. The test that should catch the change is an adapter contract test fed with a recorded response in the new format. It should fail with a clear fallback reason before the fix and produce the same HelpAnswer afterwards. I would keep the old recorded response too, so both shapes stay covered while the provider migrates. Application tests should be unaffected, because they use a fixture that returns the Java contract directly. If they break, the wire format has leaked out of the adapter, and that is the real bug.',
     'The model provider belongs behind a fixture: it is slow, costs money, is non-deterministic and can fail, none of which a unit or application test should depend on. The fixture implements the same port and can return good answers, malformed answers, errors and slow responses on demand. The real database usually should not be mocked for booking tests. I use Testcontainers PostgreSQL, because the unique constraint is part of correctness. Credentials live in environment variables or a secret store and are bound to Spring properties at startup. They are never in source code, committed configuration, fixtures or logs. CI runs without a key, except an opt-in live smoke job with a restricted key.'
+  ],
+  38: [
+    'Vector similarity measures how close two texts are in a learned space, usually by cosine similarity, which compares the direction of the vectors. It is good at paraphrases: "I cannot attend" finds a passage titled Cancellations without sharing words. Keyword or exact lookup is preferable when the literal string must match, such as a policy code, a booking reference or a product SKU, because identifiers carry no meaning an embedding captures reliably. In both cases candidates are filtered by venue and current version first. I would compare exact, vector and hybrid retrieval on a small labelled set and pick by recall at k, not by intuition.',
+    'I add an exact-match path on the code field, or a lexical path like PostgreSQL full-text search, next to the vector path, and merge the two lists with reciprocal rank fusion. I give the exact list a higher weight, so a literal code match ranks first while paraphrases still work through vectors. The venue and version filters are applied to every path, because forgetting them on one path lets unauthorized passages back in. I prove the change with three labelled tests: the exact code, a paraphrase without the code, and a close match from another venue or an outdated version that must never appear.',
+    'I start from the gold passage that a correct answer needs and follow it through the pipeline. Was it ingested and indexed with the right venue, version and current flag? Did the filters let it through? Where did it rank for this query, and did a chunk boundary split the key sentence? If retrieval is the problem, I fix chunking, metadata or add a hybrid path, and measure recall at k on a labelled set. To isolate generation, I pass the correct passage directly to the model: if the answer is now right, the fault was retrieval; if it is still wrong, I look at the prompt or validation.'
   ],
   // @@guides
 };
