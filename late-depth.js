@@ -3924,7 +3924,7 @@ public class HybridRetrieval {
         List<String> ex = exact(docs, query, "hall-a");
         List<String> vec = vector(docs, qv, "hall-a", 2);
         System.out.println("exact  : " + ex);
-        System.out.println("vector : " + vec + "  (misses the code)");
+        System.out.println("vector : " + vec + " - misses the code");
         System.out.println("hybrid : " + fuse(ex, vec, 3));
         System.out.println("paraphrase 'I cannot attend' hybrid: " +
             fuse(exact(docs, "I cannot attend", "hall-a"), vector(docs, qv, "hall-a", 2), 2));
@@ -3934,7 +3934,7 @@ public class HybridRetrieval {
 }
 `,
       output: String.raw`exact  : [cancel-04]
-vector : [cancel-02, refund-faq]  (misses the code)
+vector : [cancel-02, refund-faq] - misses the code
 hybrid : [cancel-04, cancel-02, refund-faq]
 paraphrase 'I cannot attend' hybrid: [cancel-02, refund-faq]
 hall-b and outdated CANCEL-04 excluded: true true`

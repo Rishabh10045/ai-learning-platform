@@ -48,7 +48,7 @@ public class HybridRetrieval {
         List<String> ex = exact(docs, query, "hall-a");
         List<String> vec = vector(docs, qv, "hall-a", 2);
         System.out.println("exact  : " + ex);
-        System.out.println("vector : " + vec + "  (misses the code)");
+        System.out.println("vector : " + vec + " - misses the code");
         System.out.println("hybrid : " + fuse(ex, vec, 3));
         System.out.println("paraphrase 'I cannot attend' hybrid: " +
             fuse(exact(docs, "I cannot attend", "hall-a"), vector(docs, qv, "hall-a", 2), 2));
