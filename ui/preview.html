@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Study Desk · integrated preview (real curriculum)</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%2314462a%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="study-desk.css">
+  <style>
+    .pv-banner { margin: 0; padding: 6px 16px; font: 13px/1.4 system-ui, sans-serif; background: #e6f2ea; color: #14462a; border-bottom: 1px solid #b9dcc6; text-align: center; }
+    .pv-banner button, .pv-banner a { font: inherit; background: none; border: 0; color: #0d3d22; text-decoration: underline; cursor: pointer; padding: 0 2px; }
+    .pv-notice { margin: 0; padding: 8px 16px; font: 14px/1.4 system-ui, sans-serif; background: #f8e4e4; color: #6e2020; border-bottom: 1px solid #ecc; }
+    .pv-account { max-width: 720px; margin: 12px auto; padding: 0 16px; font: 14px/1.45 system-ui, sans-serif; }
+    .pv-account summary { cursor: pointer; font-weight: 600; }
+    .pv-account .study-form { display: grid; gap: 8px; margin-top: 8px; }
+    .pv-account .study-field { display: grid; gap: 2px; }
+    .pv-account input { font: inherit; padding: 6px 8px; min-width: 0; }
+  </style>
+</head>
+<body style="margin:0">
+  <p class="pv-banner" role="note"><strong>Integrated preview · real curriculum</strong> from Codex (<code>gpt/topic-index</code>), rendered by the v2 UI through <code>ui/adapters/codex-adapter.js</code>. <span id="pv-mode">Progress: this browser (Codex storage key).</span></p>
+  <p class="pv-notice" id="pv-notice" role="alert" hidden></p>
+  <details class="pv-account" id="pv-account"><summary>Study account (Codex account sync)</summary><div id="pv-account-body"></div></details>
+  <div id="study-desk"></div>
+  <script src="engine/schedule-engine.js"></script>
+  <script src="engine/engagement-engine.js"></script>
+  <script src="study-desk.js"></script>
+  <script type="module" src="preview.js"></script>
+</body>
+</html>

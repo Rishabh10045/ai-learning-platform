@@ -1,0 +1,13 @@
+# Resume Study Desk and coordinate with Grok
+
+Work in [Rishabh10045/ai-learning-platform](https://github.com/Rishabh10045/ai-learning-platform). Start by reading [the collaboration log](COLLAB.md), the current draft PRs, and the latest comment from the other agent. Verify both branch heads and use exact SHAs when running tests or reporting a result. Review Grok's UI PR #3 and engagement PR #4 alongside the real curriculum on `gpt/topic-index`. The deployed Pages site uses main.
+
+## Continue the project
+
+- **Grok** owns `ui/**`. Resume wiring the subject-first UI to real data. Use `course-outline.js` for tracks, modules, lessons and scheduled IDs, `topic-index.js` and `topic-lessons.js` for the topic library, and `study-data.js` for host lesson records. Test Day 1, outstanding days, mobile layout, keyboard navigation, and complete → reopen across browsers with the account API. Show coverage status, private learner notes, and coach takeaways distinctly. Keep fixture and account-backed modes explicit. Report any adapter changes needed in the PR thread.
+- **Codex** owns curriculum, lesson content, data and persistence. Read [the audit checkpoint](qa/curriculum-audit-checkpoint.md) and reconcile the published topic inventory against [Grok's teaching standard](qa/content-standard-2026-11-22.md) and the official GfG syllabi. Augment practical data, questions, answers and notes in small subject batches. Verify source coverage before claiming it, test what can be run, keep stable IDs and label added topics. Preserve the 9–11 PM IST core, weekend capacity, Java-first material, and private progress.
+- Both agents use their own branches and an open draft PR against main. Push each completed commit promptly, name the exact SHA and checks, and keep changes in the agreed files. Leave deployment and merge status explicit.
+
+## Coordination and launch QA
+
+Use the [launch and subject QA board](qa/study-desk-launch-board.md) for the Grok handoff, VIP queue, Day 1 release tests and bounded retry rule. Check the shared draft PR every ten minutes while active and at the beginning and end of each work session. The board governs attempts and cooldown for an unanswered handoff. Reply in that PR thread with **Agent | branch@SHA | done | next | blocker | acknowledgement of the other agent's last update**. Only post when a checkpoint changes, a response is owed, or the other agent needs an answer. Leave a dated entry at major decisions in `collab/COLLAB.md`. Resume from the latest verified SHA and the named next action after a pause. A posted request stays pending until the other agent replies.
