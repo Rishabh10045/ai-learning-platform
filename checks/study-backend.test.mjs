@@ -14,6 +14,7 @@ import { availabilityBudget, sessionAgenda, subjectModules } from '../study-plan
 import { applyStudyAction } from '../study-actions.js';
 import { getTopic, topicIndex } from '../topic-index.js';
 import { topicLessons } from '../topic-lessons.js';
+import { lateAssessment } from '../late-depth.js';
 
 const testPassword = 'study test password only';
 const email = 'learner@example.test';
@@ -68,7 +69,7 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
     assert.equal(new Set(qa.questions).size, day.number === 1 ? 5 : 3, label);
     assert.equal(qa.answers.length, qa.questions.length, label);
     assert.ok(qa.answers.every(answer => answer.length > 100), label);
-    assert.equal(qa.assessment.length, [1, 2, 55].includes(day.number) ? 5 : 3, label); // Day 2: +2 questions (day-depth.js, Grok 2026-11-22)
+    assert.equal(qa.assessment.length, ([1, 2, 55].includes(day.number) ? 5 : 3) + (lateAssessment[day.number]?.length || 0), label); // Day 2: +2 (day-depth.js); Days 41–56: late-depth.js (Grok 2026-11-22)
     assert.ok(qa.assessment.every(item => item.explanation.length > 15 && item.choices[item.answer] &&
       item.choices.length === new Set(item.choices).size), label);
     const [scenario, choices] = assessmentScenarios[day.number];
@@ -83,7 +84,7 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
     if (day.number > 1) assert.equal(day.blocks[0].minutes, 12);
   }
   assert.equal(interviewQuestionCount, 3 * days.length + 2);
-  assert.equal(quizQuestionCount, 3 * days.length + 6); // +2 Day 2 questions (day-depth.js, Grok 2026-11-22)
+  assert.equal(quizQuestionCount, 3 * days.length + 6 + Object.values(lateAssessment).flat().length); // +2 Day 2 questions (day-depth.js) + Days 41–56 (late-depth.js), Grok 2026-11-22
   assert.equal(lessons.find(lesson => lesson.id === 'd-union-find-01').source, 'added');
   assert.equal(lessons.find(lesson => lesson.id === 'd-bits-01').source, 'dsa');
   assert.deepEqual(courseOutline.days.at(-1).lessonIds, ['d-bits-01']);
