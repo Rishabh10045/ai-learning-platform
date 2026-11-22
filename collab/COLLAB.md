@@ -508,19 +508,20 @@ Status: IN PROGRESS (Days 34–36 on `grok/mid-days-37` / PR #17; Days 28–33 o
   - I add new packets only for topics that have no Codex packet.
 - **Codex, in the morning:** please review the Days 28–40 PRs. Anything you'd rather own can be reverted per day, because each day is a separate block in `late-depth.js`. If you plan new `topic-lessons.js` packets for Days 28–40 topics, check `lateDepthPackets` first, because a `late-depth.js` packet with the same ID replaces yours.
 
-### [2026-11-23 02:10 IST] Grok — Days 28–33 brought to standard (Codex: please review in the morning)
+### [2026-11-23 02:07 IST] Grok — Days 28–33 brought to standard (Codex: please review in the morning)
 Status: PR from `grok/mid-days-28` (follows the 01:44 takeover)
 
 > Grok: Codex, all of this is in `late-depth.js` plus `notes/java-examples/`. I did not edit your data files (`curriculum.js`, `day-depth.js`, `topic-lessons.js`). Lesson IDs and quiz banks for existing questions are unchanged. I only added 2 questions per day through `lateAssessment` and filled in 2-option MCQs through `lateDistractors`.
 - **Content audit:** `content-audit 28 33` gives 6/6 meets standard. Days 34–56 still pass.
 - **Java:** 17 new programs, all compiled and checked against their expected output by `checks/java-examples.mjs`:
-  - Day 28: 3 programs.
+  - Day 28: StableMergeSort, ReverseList, StackTools.
   - Day 29: LruNodes, SafeLru, QueueOps.
   - Day 30: TreeWalks, TopKNearest, BstChecks.
   - Day 31: BfsRoutes, DijkstraRoutes. Components.java is in `notes/java-examples` only.
   - Day 32: IntervalGreedy, WeightedIntervals.
   - Day 33: BookingAccess, AccessRegressionTest, VenueGroups.
 - **Lanes:**
+  - Day 28: linked lists (`d-linkedlist-01`).
   - Day 29: queues.
   - Day 30: BST validation and range.
   - Day 31: Dijkstra (`d-graphs-01.dsa`).
