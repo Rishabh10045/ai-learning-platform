@@ -18,7 +18,7 @@ run() {
 run backend      node --test checks/study-backend.test.mjs
 run engine       node --test ui/checks/engine.test.mjs
 run adapter      node --test ui/checks/adapter.test.mjs
-run upgrade      node --test ui/checks/upgrade.test.mjs
+run upgrade      node --test ui/checks/upgrade.test.mjs ui/checks/upgrade-matrix.test.mjs
 run coverage     node --test ui/checks/coverage.test.mjs
 run late-depth   node --test ui/checks/late-depth.test.mjs
 run engagement   node --test ui/checks/engagement-real.test.mjs

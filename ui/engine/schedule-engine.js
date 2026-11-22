@@ -302,6 +302,10 @@
       var budget = dayBudget(d, settings), past = cmp(d, today) < 0, isToday = d === today, future = cmp(d, today) > 0;
       if (settings.unavailable[d] || budget.off) {
         // A date marked unavailable, or with 0 minutes, gets no session; the same unfinished session moves on (QA M7).
+        // A session finished on that date anyway (studied on a day off) counts for that date, so it doesn't reappear
+        // as "today" on the next available date (found in Phase 7 QA with profiles from the pre-cf892c4 host).
+        advancePast(d);
+        if (ptr >= sessions.length) { entries.push({ date: d, unavailable: true, reason: settings.unavailable[d] ? "off" : "zero-minutes", n: null, carries: null, budget: budget, past: past, isToday: isToday, projected: future }); d = addDays(d, 1); break; }
         entries.push({ date: d, unavailable: true, reason: settings.unavailable[d] ? "off" : "zero-minutes", n: null, carries: sessions[ptr].n, budget: budget, past: past, isToday: isToday, projected: future });
       } else {
         var r = sessions[ptr], prevEntry = null;
