@@ -1,1 +1,26 @@
-<!doctype html><html><head><meta charset="utf-8"><title>AI Learning Platform</title></head><body><h1>AI Learning Platform</h1><p>Setting up: Deepak's study plan and tracker.</p></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A Java-first study platform for backend engineering, system design, DSA and Generative AI.">
+  <title>Study Desk · Java Backend & AI</title>
+  <link rel="stylesheet" href="./ui/study-desk.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./ui/study-desk.js" defer></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <nav class="site-nav" aria-label="Course navigation">
+    <a class="site-skip" href="#app">Skip to study desk</a>
+    <a href="#today" data-nav="today">Today</a>
+    <a href="#roadmap" data-nav="roadmap">Roadmap</a>
+    <a href="#subjects" data-nav="subjects">Subjects</a>
+    <a href="#progress" data-nav="progress">Progress</a>
+    <a href="#sources" data-nav="sources">Sources</a>
+  </nav>
+  <div id="app" tabindex="-1"></div>
+  <div id="notice" class="study-notice" role="status" aria-live="polite"></div>
+  <noscript>Enable JavaScript to open the study tracker and save progress in this browser.</noscript>
+</body>
+</html>
