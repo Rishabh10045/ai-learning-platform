@@ -55,3 +55,16 @@ test('fuller session answers: three per day, 80–200 words each', () => {
     for (const a of answers) { const w = a.split(/\s+/).length; assert.ok(w >= 80 && w <= 200, 'Day ' + day + ': ' + w + ' words'); }
   }
 });
+
+test('fuller topic answers match an existing Codex question and are 80–200 words', async () => {
+  const { lateTopicAnswers } = await import('../../late-depth.js');
+  const { topicLessons } = await import('../../topic-lessons.js');
+  for (const [id, answers] of Object.entries(lateTopicAnswers)) {
+    const questions = (topicLessons[id]?.interview || []).map(([q]) => q);
+    for (const [q, a] of Object.entries(answers)) {
+      assert.ok(questions.includes(q), id + ': question not found (Codex may have reworded it): ' + q);
+      assert.equal(topicLessons[id].interview.find(([x]) => x === q)[1], a, id + ': fuller answer applied');
+      const w = a.split(/\s+/).length; assert.ok(w >= 80 && w <= 200, id + ': ' + w + ' words');
+    }
+  }
+});

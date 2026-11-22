@@ -392,3 +392,19 @@ Status: DONE (PRs)
 - **PR #13 (merged):** `run-checks.mjs` hard-coded "Last study activity: Sun, 22 Nov". That value is the wall-clock `lastActiveAt`, so the check failed on every branch after 00:00 IST 23 Nov. It now accepts any IST date.
 - **PR #9 (Codex):** reviewed. Tests pass on top of main, apart from that clock check, which is now fixed. Day 1 progress and IDs are unchanged. The content edits are accurate. It is a draft and conflicts in COLLAB.md. As I said on the PR, if Codex has not updated it by about 02:00 IST (Codex last committed at 23:20 IST), I will land ddcea6b unchanged through `grok/land-pr9`.
 
+### [2026-11-23 00:35 IST] Grok — Days 51–56 batch; Grok's claimed Days 41–56 complete
+Status: DONE (PR)
+
+> Grok: Days 51–56 now meet the standard (`node checks/content-audit.mjs 41 56` → 16/16). The data is in `late-depth.js`. I made three small hook edits in shared files, each one line and labelled:
+- `lesson-videos.js`: Day 55 and 56 videos (MIT OCW 6.046J MST and 6.042J Number Theory I; both checked with YouTube oEmbed).
+- `topic-lessons.js`: `lateTopicAnswers` gives fuller answers to 6 existing **Codex** questions (d-union-find-01 ×3, d-bits-01, d-primes-01, d-sieve-01). It replaces an answer only while the question text still matches exactly, so if Codex rewords a question, Codex's answer wins. `ui/checks/late-depth.test.mjs` fails if a key stops matching, so we both see it.
+- No Codex question, MCQ or ID changed.
+- Packets:
+  - Day 51: SLOs and canary gates.
+  - Day 52: d-backtracking-01.
+  - Day 53: d-math-01 and d-dp-02.
+  - Day 54: ai-operations-03, ai-review-02 and b-deployment-02.
+  - Lane packets: d-graphs-02, d-matrix-01, ai-operations-03.dsa (two-heap median) and d-mst-01. Day 56 uses Codex's d-bases-01 packet with a new lane card.
+- Java programs: CanaryGate, ErrorBudget, PrefixWindows, PrunedSearch, WeightedPaths, EuclidGcd, RotateGrid, SubsetSumDp, ModelChoice, GroundingGate, SmokeRun, StreamMedian and KruskalForest.
+- Day 56 (Sat) has a 270-minute stretch plan.
+- Known overlap: Day 50's lane (union-find) previews Day 55. I kept it as reinforcement.

@@ -102,6 +102,60 @@ export const lateLanes = {
     readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
     recall: 'What do find and union do in a disjoint set, and what does it mean when union returns false?'
   },
+  51: {
+    title: 'Prefix sums for range counts and worst windows',
+    concept: 'Store prefix[i], the total of the first i values, with prefix[0] = 0. Any half-open range [from, to) is prefix[to] − prefix[from], so each query is O(1) after O(n) setup. The worst k-window is the maximum of those subtractions.',
+    example: 'Bad requests per minute 0,1,0,0,7,9,4,0,1,0,0,2 give prefix …,1,8,17,21,…. Minutes [4, 7) contain 21 − 1 = 20, and the worst 3-minute window starts at minute 4.',
+    practice: 'Implement long[] prefix(int[]), range(p, from, to) and worstWindowStart(p, k). Then solve subarray sum equals k with a HashMap of prefix counts.',
+    checks: ['range(p, 4, 7) = 20, and the total = 24.', 'subarraySum([1,1,1], 2) = 2, including with negative numbers.', 'State O(n) setup, O(1) per query, and why long is used.'],
+    readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
+    recall: 'Why does a prefix-sum array start with 0, and how do you compute the sum of [from, to) from it?'
+  },
+  52: {
+    title: 'Weighted shortest paths: Dijkstra vs DAG relaxation',
+    concept: 'Dijkstra finalizes the closest unfinished vertex using a priority queue, which is correct only for nonnegative weights. In a DAG, relaxing edges in topological order gives shortest paths in O(V + E), even with negative weights. A cycle means there is no topological order.',
+    example: 'Gates 0 → 2 (1), 2 → 1 (2), 1 → 3 (1), 3 → 4 (3) give distances [0, 3, 1, 4, 7]. With a −4 voucher edge, Dijkstra wrongly reports 3, while DAG relaxation finds 1.',
+    practice: 'Implement dijkstra with PriorityQueue and lazy deletion, and dagShortest with Kahn’s algorithm. Add a parent array to print the route.',
+    checks: ['Both give [0, 3, 1, 4, 7] on the gate graph.', 'The voucher graph gives [0, 5, 2, 1] with DAG relaxation, and a cyclic graph throws.', 'State O((V + E) log V) for Dijkstra and O(V + E) for DAG relaxation.'],
+    readings: [reading('Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/')],
+    recall: 'Which assumption makes Dijkstra’s "closest vertex is final" step correct, and what do you use on a DAG with negative edges?'
+  },
+  53: {
+    title: 'Matrix rotation for square and rectangular grids',
+    concept: 'Clockwise rotation maps (i, j) of an r × c grid to (j, r − 1 − i) of a c × r grid, so rectangles need a new array. A square grid rotates in place by transposing (swap only j > i) and then reversing every row.',
+    example: '[1,2,3] / [4,5,6] becomes [4,1] / [5,2] / [6,3]. The 3 × 3 grid 1–9 becomes [7,4,1] / [8,5,2] / [9,6,3] in place.',
+    practice: 'Implement rotateClockwise(int[][]) for any r × c grid and rotateSquareInPlace(int[][]). Then add spiralOrder with four shrinking boundaries.',
+    checks: ['Both examples match, and four rotations restore the original.', 'spiralOrder of the 3 × 3 grid is 1,2,3,6,9,8,7,4,5.', 'State O(r · c) time, and O(1) extra space for the square in-place version.'],
+    readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
+    recall: 'Where does cell (i, j) of an r × c grid go after a clockwise rotation, and why can a square grid rotate in place but a rectangle cannot?'
+  },
+  54: {
+    title: 'Running median with two heaps',
+    concept: 'A max-heap holds the smaller half and a min-heap the larger half, and their sizes differ by at most one. The median is the larger heap’s top, or the average of both tops. Insert is O(log n) and reading the median is O(1).',
+    example: 'Latencies 120, 95, 400, 110, 105, 2600, 98 give medians 120, 107.5, 120, 115, 110, 115, 110. The 2,600 ms outlier barely moves the median, but it pulls the mean to 504.',
+    practice: 'Implement add and median with two PriorityQueues. Then add slidingMedian for window k with two TreeMaps that keep counts.',
+    checks: ['The running medians match the example exactly.', 'For k = 3 the window medians are 120, 110, 110, 110, 105.', 'State O(log n) per insert and O(n log k) for the sliding window.'],
+    readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
+    recall: 'Which invariant links the two heaps, and when is the median the average of both tops?'
+  },
+  55: {
+    title: 'Kruskal and minimum spanning forests',
+    concept: 'Sort the edges by weight and keep an edge only when union-find joins two different components. The cut property makes each kept edge safe. A disconnected graph yields a forest with V − C edges, and negative weights are allowed.',
+    example: 'The six-vertex example keeps 3–4(−3), 0–2(1), 1–2(2) and 1–3(5) for a cost of 5. A brute-force search agrees, and the maximum spanning forest costs 22.',
+    practice: 'Implement Kruskal with a deterministic tie-break and a brute-force checker. Then add Prim, run once per component.',
+    checks: ['The cost is 5 with 4 edges, and vertex 5 stays alone.', 'Prim and Kruskal agree on 50 random graphs.', 'State O(E log E) time.'],
+    readings: [reading('Princeton Algorithms · Minimum spanning trees', 'https://algs4.cs.princeton.edu/43mst/')],
+    recall: 'State the cut property, and say what Kruskal returns for a graph with an isolated vertex.'
+  },
+  56: {
+    title: 'Number bases: parse, format and round-trip',
+    concept: 'A radix gives each digit a place value. Parse left to right with value = value × radix + digit, validating every digit. Format by repeated division, collecting remainders in reverse. Integer.toString(n, radix) and Integer.parseInt(s, radix) do both for radixes 2 to 36.',
+    example: '2A in base 16 is 2 × 16 + 10 = 42, which is 101010 in binary and 52 in octal. Parsing "102" in base 2 must fail, because 2 is not a binary digit.',
+    practice: 'Write parse(String s, int radix) and format(int n, int radix) by hand, then compare them with Integer.parseInt and Integer.toString for every radix from 2 to 36.',
+    checks: ['42 round-trips through bases 2, 8 and 16.', 'An invalid digit, an empty string and a radix of 37 are all rejected.', 'Values near Integer.MAX_VALUE and negative numbers match the JDK.'],
+    readings: [reading('Java 21 API · Integer.parseInt and toString(int, int)', jdk + 'java/lang/Integer.html')],
+    recall: 'How do you convert 2A from hexadecimal to decimal by hand, and which inputs must a base parser reject?'
+  },
   // @@lanes
 };
 
@@ -2466,6 +2520,940 @@ union(2, 5) adds a link: false`
       ['Provinces for [[1,1,0],[1,1,0],[0,0,1]] = 2.', 'Accounts sharing any email are merged, and emails are sorted.', 'count() equals the number of groups after every union.', 'State the amortized time per operation.']],
     references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
   },
+  'h-cloud-01': {
+    notes: [
+      'A release pipeline turns a commit into running software the same way every time. For the booking service: on every pull request, CI compiles, runs unit and integration tests (with Testcontainers PostgreSQL) and builds the artifact. On merge to main, it builds one immutable container image tagged with the commit SHA, scans it, and pushes it to a registry. That same image is promoted through staging and then production, so production runs exactly what was tested. Never rebuild per environment. Configuration such as database URLs and secrets comes from the environment at runtime, following the twelve-factor rule.',
+      'Deploy gradually and decide automatically. A rolling update replaces instances a few at a time, while readiness probes (Spring Boot Actuator’s /actuator/health/readiness) keep traffic away from instances that are not ready. A canary sends a small share of traffic, say 5%, to the new version and compares it with the stable fleet before going further. CanaryGate.java encodes a promotion rule written before the release: wait until the canary has at least 500 attempts, roll back if its bad-request rate is more than 0.5 percentage points worse than the baseline, or if its p95 latency is more than 20% higher, otherwise promote to the next step.',
+      'Plan the rollback before you deploy. Rolling back the code is easy if the previous image is still in the registry and the database schema still works with it. Use expand-and-contract migrations. First add new columns or tables in a backward-compatible way and deploy code that writes both shapes. Switch reads later. Remove old columns only in a later release, once no running version needs them. A migration that renames a column in the same release as the code change makes rollback impossible.',
+      'Data placement is part of deployment. Keep the database in the same region as the application instances, because each booking claim makes several round trips. Use read replicas only for reads that tolerate lag, such as seat maps, and send claims to the primary. Keep backups with tested restores and a known recovery point objective (RPO) and recovery time objective (RTO). For a free-tier demo the same ideas apply at small scale: one region, a managed database with automated backups, and an image built by CI.'
+    ],
+    code: {
+      title: 'CanaryGate.java · an automatic promote, wait or rollback decision for a canary release · java CanaryGate.java',
+      text: String.raw`import java.util.*;
+
+public class CanaryGate {
+    // Metrics for one 10-minute window, for the stable fleet (baseline) and the new version (canary).
+    record Window(String name, long attempts, long bad, int p95Millis) {
+        double badRate() { return attempts == 0 ? 0 : (double) bad / attempts; }
+    }
+
+    // Promotion rule, decided before the release: enough traffic, bad rate not worse than baseline by more than
+    // 0.5 percentage points, and p95 within 20% of baseline. Anything else rolls back automatically.
+    static String decide(Window baseline, Window canary) {
+        if (canary.attempts() < 500) return "WAIT (only " + canary.attempts() + " canary attempts, need 500)";
+        double extra = canary.badRate() - baseline.badRate();
+        if (extra > 0.005) return String.format("ROLLBACK (bad rate %.2f%% vs %.2f%%)", 100 * canary.badRate(), 100 * baseline.badRate());
+        if (canary.p95Millis() > baseline.p95Millis() * 1.2) return "ROLLBACK (p95 " + canary.p95Millis() + " ms vs " + baseline.p95Millis() + " ms)";
+        return "PROMOTE to the next traffic step";
+    }
+
+    public static void main(String[] args) {
+        Window baseline = new Window("v41", 19_000, 38, 240);
+        List<Window> canaries = List.of(
+                new Window("v42 at 5% for 2 min", 210, 0, 230),
+                new Window("v42 at 5% for 10 min", 1_000, 3, 250),
+                new Window("v43 at 5% for 10 min", 1_000, 14, 245),
+                new Window("v44 at 5% for 10 min", 1_000, 2, 410));
+        for (Window c : canaries) System.out.println(c.name() + ": " + decide(baseline, c));
+    }
+}
+`,
+      output: String.raw`v42 at 5% for 2 min: WAIT (only 210 canary attempts, need 500)
+v42 at 5% for 10 min: PROMOTE to the next traffic step
+v43 at 5% for 10 min: ROLLBACK (bad rate 1.40% vs 0.20%)
+v44 at 5% for 10 min: ROLLBACK (p95 410 ms vs 240 ms)`
+    },
+    takeaways: ['Build one immutable image per commit and promote it unchanged.', 'Readiness probes plus rolling or canary deploys; the promotion rule is written before the release.', 'Expand-and-contract migrations keep rollback possible.', 'Claims go to the primary in the app’s region; replicas only for lag-tolerant reads.'],
+    interview: [
+      ['Describe a CI/CD pipeline for a Spring Boot booking service.', 'On every pull request CI compiles, runs unit tests and integration tests against a real PostgreSQL in Testcontainers, checks formatting and dependencies, and must pass before merge. On merge to main it builds a container image once, tags it with the commit SHA, scans it and pushes it to a registry. Deployment promotes that exact image to staging, runs smoke tests, then rolls it out to production gradually: a 5% canary compared against the stable version on error rate and p95 latency, then wider steps. Configuration and secrets come from the environment. Database migrations are backward compatible, so the previous image can be redeployed in minutes if a check fails.'],
+      ['How do you make a release safe to roll back when it includes a schema change?', 'I split the schema change into backward-compatible steps, often called expand and contract. In release one I add the new column or table without removing anything, and deploy code that writes both the old and new shape and still reads the old one. Then I backfill existing rows in batches. In release two I switch reads to the new shape. Only in a later release, once no running version uses it, do I drop the old column. At every point the previous application version still works with the current schema, so rolling back the code is just redeploying the previous image. Destructive changes, such as renames or drops, never ship together with the code that needs them.'],
+      ['What should decide whether a canary is promoted or rolled back?', 'A rule written before the release, evaluated automatically against metrics from the same time window for the canary and the stable baseline. I require a minimum amount of canary traffic first, because a few requests cannot show a difference. Then I compare the SLI-related signals that matter to users: the rate of bad booking attempts (5xx and timeouts, not legitimate 409s) and tail latency, with thresholds such as no more than 0.5 percentage points worse and p95 within 20%. If either fails, the pipeline rolls back without waiting for a human. If both pass, it promotes to the next traffic step and repeats. Saturation metrics, such as connection-pool waits, are useful secondary checks.']
+    ],
+    check: ['In CanaryGate.java, v44 has a normal error rate but p95 410 ms against a 240 ms baseline. What is the decision?',
+      ['PROMOTE, because errors are fine', 'ROLLBACK, because p95 is more than 20% above baseline', 'WAIT for more traffic', 'PROMOTE, because latency is not part of the rule'], 1,
+      'The rule has three parts. 410 ms is far above 240 × 1.2 = 288 ms, so the canary fails on latency.'],
+    practice: ['Write the deployment plan for your lab as a checklist: pipeline stages, image tag, the readiness probe, the canary rule from CanaryGate.java with your own thresholds, and an expand-and-contract plan for adding a hold_expires_at column. Then extend CanaryGate.java with a second check on connection-pool wait time.',
+      ['Every stage names its command and its pass condition.', 'The schema plan has three releases, and each can be rolled back.', 'The new pool-wait check rolls back a canary whose p95 pool wait doubles.', 'Thresholds are written before any test run.']],
+    references: [['Google SRE Workbook · Canarying releases', 'https://sre.google/workbook/canarying-releases/'], ['Spring Boot · Actuator (health, readiness)', 'https://docs.spring.io/spring-boot/reference/actuator/index.html'], ['Kubernetes · Deployments and rolling updates', 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/'], ['The Twelve-Factor App · Config', 'https://12factor.net/config']]
+  },
+  'h-observability-03': {
+    notes: [
+      'A service level indicator (SLI) is a measured ratio of good events to eligible events, chosen to reflect what users care about. For booking: eligible events are booking attempts, excluding ones the user caused, such as invalid input, expired tokens and legitimate 409 conflicts when the seat was already taken. Good events are eligible attempts that succeeded within 1 second. A service level objective (SLO) is a target for that SLI over a window, for example 99% over 28 days. The error budget is what the SLO allows to fail: 1% of eligible attempts.',
+      'Write the definitions before looking at data, and be careful with the denominator. ErrorBudget.java classifies 1,000 log entries. 25 legitimate 409s and 5 expired-token 401s are not eligible, so 970 attempts remain. Of those, 960 are good: 6 database timeouts returned 503, and 4 bookings succeeded but took 2.4 seconds, so they count as bad. The SLI is 98.97%, below the 99% SLO, and the budget is 103% used. Counting 409s as failures would punish correct behavior, and counting slow successes as good would hide the timeout problem.',
+      'Burn rate is the observed bad fraction divided by the allowed bad fraction. A burn rate of 1 spends the budget exactly over the SLO window, 2 spends it in half the time, and 14.4 sustained for one hour spends 2% of a 30-day budget. The Google SRE Workbook recommends alerting on burn rate over two windows, for example a page when the 1-hour burn rate is above 14.4 and the 5-minute rate confirms it, another page when the 6-hour burn rate is above 6, and a ticket when a burn rate around 1 is sustained over 3 days. That catches both sudden outages and slow leaks without paging on every blip.',
+      'Use the budget to make decisions. If the budget is healthy, the team can release faster and take more risk. If it is exhausted, releases slow down and reliability work takes priority. Tie releases to it: a canary that burns budget faster than the baseline rolls back. Measure the SLI where users experience it, at the load balancer or gateway, rather than only inside the application, which cannot see requests that never reached it.'
+    ],
+    code: {
+      title: 'ErrorBudget.java · SLI numerator and denominator, error budget used and burn rate from a request log · java ErrorBudget.java',
+      text: String.raw`import java.util.*;
+
+public class ErrorBudget {
+    // One booking attempt as seen by the load balancer / service logs.
+    record Attempt(int status, int millis) {}
+
+    // SLI definition, written down before looking at data:
+    //   eligible  = every booking attempt except client errors the user caused (400, 401, 403) and legitimate 409 conflicts
+    //   good      = eligible AND status 2xx AND answered within 1000 ms
+    static boolean eligible(Attempt a) { return !(a.status() == 400 || a.status() == 401 || a.status() == 403 || a.status() == 409); }
+    static boolean good(Attempt a) { return a.status() >= 200 && a.status() < 300 && a.millis() <= 1000; }
+
+    public static void main(String[] args) {
+        List<Attempt> log = new ArrayList<>();
+        for (int i = 0; i < 960; i++) log.add(new Attempt(201, 180));     // fast successful bookings
+        for (int i = 0; i < 25; i++) log.add(new Attempt(409, 90));       // seat already taken: correct behaviour
+        for (int i = 0; i < 6; i++) log.add(new Attempt(503, 30));        // database timeouts surfaced as 503
+        for (int i = 0; i < 4; i++) log.add(new Attempt(201, 2400));      // succeeded, but too slow to count as good
+        for (int i = 0; i < 5; i++) log.add(new Attempt(401, 10));        // expired tokens: the client's problem
+
+        long eligibleCount = log.stream().filter(ErrorBudget::eligible).count();
+        long goodCount = log.stream().filter(a -> eligible(a) && good(a)).count();
+        double sli = 100.0 * goodCount / eligibleCount;
+        System.out.printf("SLI = %d good / %d eligible = %.2f%%%n", goodCount, eligibleCount, sli);
+
+        double slo = 99.0;                                     // target over a 28-day window
+        double allowedBadFraction = (100 - slo) / 100;          // 1% of eligible attempts may be bad
+        long bad = eligibleCount - goodCount;
+        double budgetUsed = bad / (allowedBadFraction * eligibleCount);
+        System.out.printf("SLO %.1f%%: error budget allows %.1f bad of %d, used %d = %.0f%% of the budget%n",
+                slo, allowedBadFraction * eligibleCount, eligibleCount, bad, 100 * budgetUsed);
+
+        // Burn rate = observed bad fraction / allowed bad fraction. 1.0 spends the budget exactly over the window.
+        double burn = ((double) bad / eligibleCount) / allowedBadFraction;
+        System.out.printf("burn rate %.2f -> %s%n", burn, burn >= 14.4 ? "page now" : burn >= 1 ? "budget will run out early: ticket" : "within budget");
+    }
+}
+`,
+      output: String.raw`SLI = 960 good / 970 eligible = 98.97%
+SLO 99.0%: error budget allows 9.7 bad of 970, used 10 = 103% of the budget
+burn rate 1.03 -> budget will run out early: ticket`
+    },
+    takeaways: ['SLI = good / eligible; define both before looking at data.', 'Exclude user-caused errors and legitimate 409s; count slow successes as bad.', 'Error budget = 1 − SLO; burn rate = observed bad fraction / allowed bad fraction.', 'Alert on multi-window burn rates; let the budget steer release speed.'],
+    interview: [
+      ['Define an availability SLI for booking. Which failures burn the error budget?', 'The SLI is the ratio of good booking attempts to eligible ones, measured at the load balancer. Eligible means every POST /bookings except requests the client caused: invalid payloads (400), missing or expired credentials (401), forbidden actions (403) and legitimate 409 conflicts where the seat was already taken, because rejecting a double booking is correct behavior. Good means a 2xx response within the latency threshold, for example 1 second. So 5xx responses, timeouts, dropped connections and slow successes all burn the budget. Correct rejections do not. I write this down before collecting data, so the definition cannot be bent to make a bad week look good.'],
+      ['The service returns fast responses, but database timeouts make many eligible bookings fail. Which SLI exposes it?', 'An availability SLI whose numerator only counts eligible attempts that actually succeeded. A latency-only SLI would look fine, because timeouts that fail fast, or fast 503s, are quick, and a "responses served" SLI would count the failures as served. With good = 2xx within 1 second and eligible = all booking attempts except user errors and legitimate conflicts, every database timeout that surfaces as a 503 or a client-side timeout counts as bad, and the SLI drops immediately. I would add a supporting signal, such as connection-pool wait time or database timeout counts, to diagnose the cause, but the user-facing availability SLI is what reveals the impact.'],
+      ['How would you turn the booking SLI into a release rollback condition?', 'During a canary, I compute the same SLI for canary traffic and for the stable baseline over the same window, for example 10 minutes, after a minimum number of eligible attempts, say 500. The rule says roll back if the canary’s bad fraction exceeds the baseline’s by more than a set margin, or if its burn rate would exhaust the remaining monthly budget early. In practice that is a burn rate above about 10 over the window. I need evidence that the measurement is valid: enough traffic in both groups, the same eligibility rules, and requests attributed to the right version through a version label on metrics. The pipeline evaluates the rule automatically and records the numbers with the decision.']
+    ],
+    check: ['1,000 eligible booking attempts: 30 time out and all others succeed fast. With a 99% SLO, how much of the budget did this window use?',
+      ['30%', '300%: 30 bad against 10 allowed', '3%', '97%'], 1,
+      'The budget allows 1% of 1,000 = 10 bad attempts. 30 bad attempts use three times the budget, so the burn rate is 3.'],
+    practice: ['Copy ErrorBudget.java. Add per-hour buckets over a simulated day, compute the 1-hour and 6-hour burn rates, and print when the fast alert (1 h burn ≥ 14.4, 2% of a 30-day budget) or the slower alert (6 h burn ≥ 6, 5% of the budget) would fire. Then change the SLI to count 409s as bad and explain why the result is misleading.',
+      ['A sharp outage hour triggers the 1-hour alert, and a smaller sustained problem triggers only the 6-hour alert.', 'Counting 409s inflates the bad count, and the explanation names why that is wrong.', 'The SLI definition is written above the code.']],
+    references: [['Google SRE Workbook · Implementing SLOs', 'https://sre.google/workbook/implementing-slos/'], ['Google SRE Workbook · Alerting on SLOs (burn rates)', 'https://sre.google/workbook/alerting-on-slos/'], ['Google SRE Book · Service level objectives', 'https://sre.google/sre-book/service-level-objectives/']]
+  },
+  'h-cloud-01.dsa': {
+    notes: [
+      'Prefix sums turn repeated range-sum queries into O(1) lookups after O(n) preparation. Store prefix[i], the total of the first i elements, with prefix[0] = 0. The sum of the half-open range [from, to) is prefix[to] − prefix[from]. Monitoring uses this idea constantly: "how many bad requests between minute 4 and minute 7?" becomes one subtraction instead of a loop.',
+      'PrefixWindows.java builds prefix sums over bad requests per minute, answers a range query (20 bad in minutes [4, 7)) and finds the worst 3-minute window by evaluating every window with a subtraction, which is O(n) overall. The extra leading 0 removes the special case for ranges starting at 0. Use long for the sums, because many large counts can overflow int.',
+      'Related problems reuse the idea: subarray sum equals k, which uses prefix sums plus a HashMap counting earlier prefix values (O(n)); 2-D prefix sums for rectangle queries on a grid; and difference arrays, the inverse operation, for applying many range increments and then reading the final values. If the underlying values change between queries, a Fenwick tree (binary indexed tree) supports both updates and prefix queries in O(log n).'
+    ],
+    code: {
+      title: 'PrefixWindows.java · prefix sums for O(1) range counts and the worst k-minute window · java PrefixWindows.java',
+      text: String.raw`import java.util.*;
+
+public class PrefixWindows {
+    // prefix[i] = total bad requests in minutes 0..i-1, so any range [from, to) costs O(1) after O(n) setup.
+    static long[] prefix(int[] perMinute) {
+        long[] p = new long[perMinute.length + 1];
+        for (int i = 0; i < perMinute.length; i++) p[i + 1] = p[i] + perMinute[i];
+        return p;
+    }
+
+    static long range(long[] p, int from, int to) { return p[to] - p[from]; }
+
+    // Worst (largest) total over any window of k consecutive minutes, using the same prefix sums.
+    static int worstWindowStart(long[] p, int k) {
+        int best = 0;
+        for (int s = 1; s + k < p.length; s++) if (range(p, s, s + k) > range(p, best, best + k)) best = s;
+        return best;
+    }
+
+    public static void main(String[] args) {
+        int[] badPerMinute = {0, 1, 0, 0, 7, 9, 4, 0, 1, 0, 0, 2};
+        long[] p = prefix(badPerMinute);
+        System.out.println("prefix: " + Arrays.toString(p));
+        System.out.println("bad in minutes [4, 7): " + range(p, 4, 7));
+        System.out.println("bad in all 12 minutes: " + range(p, 0, badPerMinute.length));
+        int s = worstWindowStart(p, 3);
+        System.out.println("worst 3-minute window starts at minute " + s + " with " + range(p, s, s + 3) + " bad");
+    }
+}
+`,
+      output: String.raw`prefix: [0, 0, 1, 1, 1, 8, 17, 21, 21, 22, 22, 22, 24]
+bad in minutes [4, 7): 20
+bad in all 12 minutes: 24
+worst 3-minute window starts at minute 4 with 20 bad`
+    },
+    takeaways: ['prefix[0] = 0; sum[from, to) = prefix[to] − prefix[from].', 'O(n) setup, O(1) per query; use long.', 'Subarray sum = k: prefix sums plus a HashMap of counts.', 'Updates between queries: use a Fenwick tree.'],
+    interview: [
+      ['Count the subarrays whose sum equals k.', 'I scan once, keeping the running prefix sum and a HashMap from each prefix value seen so far to how many times it occurred, starting with {0: 1} for the empty prefix. At each index, a subarray ending here sums to k exactly when an earlier prefix equals current − k, so I add the count of current − k from the map, then record the current prefix. This handles negative numbers, which break a sliding-window approach because the window sum is no longer monotonic. The time is O(n) and the space is O(n). For [1, 1, 1] with k = 2 the answer is 2.'],
+      ['Why store a leading zero in the prefix array?', 'With prefix[0] = 0 and prefix[i] equal to the sum of the first i elements, every half-open range [from, to) is simply prefix[to] − prefix[from], including ranges that start at index 0. Without the leading zero, ranges starting at 0 need a special case, and off-by-one bugs creep in when switching between inclusive and exclusive ends. The same trick appears in the subarray-sum-equals-k solution, where seeding the map with {0: 1} counts subarrays that start at the beginning. The array is one element longer than the input, which is a small price for removing a whole class of boundary errors.'],
+      ['How would you support updates as well as range sums?', 'Plain prefix sums need O(n) work to rebuild after a single update, which is too slow if updates and queries interleave. A Fenwick tree, or binary indexed tree, stores partial sums over ranges determined by the lowest set bit of each index. Both a point update and a prefix query walk O(log n) entries, and a range sum is two prefix queries. A segment tree also gives O(log n) for both and supports other operations, such as range minimum or lazy range updates, at the cost of more code and memory. For monitoring data that only appends, a ring buffer of per-minute counts with running totals is often enough.']
+    ],
+    check: ['prefix = [0, 0, 1, 1, 1, 8, 17, 21]. How many bad requests are in minutes [4, 7)?',
+      ['17', '20: prefix[7] − prefix[4] = 21 − 1', '21', '16'], 1,
+      'A half-open range uses prefix[to] − prefix[from].'],
+    practice: ['Copy PrefixWindows.java. Add subarraySumEqualsK with a HashMap, and a 2-D prefix sum for a 3×3 grid with one rectangle query. Then write a difference-array version that applies three range increments.',
+      ['subarraySum([1,1,1], 2) = 2, and subarraySum([1,-1,0], 0) = 3.', 'The rectangle query matches a brute-force sum.', 'Difference-array results match applying the increments one by one.', 'State the time of each method.']],
+    references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
+  },
+  'd-backtracking-01': {
+    notes: [
+      'Backtracking explores a tree of choices depth-first. At each step you choose an option, recurse, and then undo the choice before trying the next one. It enumerates every valid solution to problems such as subsets, permutations, combination sums, N-Queens and seat assignments with constraints. The template is always the same: if the current partial solution is complete, record it. Otherwise loop over the remaining choices, and for each one choose, recurse and un-choose.',
+      'Pruning makes backtracking practical. A pruning rule stops exploring a branch as soon as you can prove it cannot lead to a valid solution. The rule must be sound, meaning it never discards a feasible completion. In PrunedSearch.java the ticket prices are sorted, so when a price is larger than the remaining budget, every later price is too, and the loop can break. Both versions find the same 5 combinations for a budget of 10, but the pruned search needs 23 calls instead of 52. Without sorting, the same break would be unsound, because a smaller price could appear later.',
+      'Control duplicates through the start index. Passing i, not i + 1, into the recursion allows the same price to be reused, and never going back to earlier indices means [2, 3, 5] is produced once instead of in all its orders. For permutations you instead track a used[] array. For N-Queens, boolean arrays for columns and the two diagonal directions (row − col + n − 1 and row + col) make each safety check O(1). The program counts 2, 4 and 92 solutions for n = 4, 6 and 8.',
+      'Complexity is exponential in the worst case: subsets O(2ⁿ · n), permutations O(n! · n). Pruning improves typical behavior, not the worst-case bound, so state both. Always undo every change made before the recursive call, including list additions, boolean flags and running sums. A missing undo is the most common backtracking bug, and it shows up as missing or corrupted solutions.'
+    ],
+    code: {
+      title: 'PrunedSearch.java · combination sum with and without sound pruning, and N-Queens counts · java PrunedSearch.java',
+      text: String.raw`import java.util.*;
+
+public class PrunedSearch {
+    static int calls;
+
+    // Combination sum: every multiset of ticket prices (reuse allowed) that adds up to the budget exactly.
+    static void combine(int[] prices, int start, int remaining, Deque<Integer> chosen, List<List<Integer>> out, boolean prune) {
+        calls++;
+        if (remaining == 0) { out.add(new ArrayList<>(chosen)); return; }
+        if (remaining < 0) return;                         // dead end, discovered only after stepping into it
+        for (int i = start; i < prices.length; i++) {
+            if (prune && prices[i] > remaining) break;      // prices are sorted: every later price is too big as well
+            chosen.addLast(prices[i]);
+            combine(prices, i, remaining - prices[i], chosen, out, prune);   // i, not i + 1: a price may repeat
+            chosen.removeLast();                            // undo the choice before trying the next one
+        }
+    }
+
+    // N-Queens count: place one queen per row; prune any column or diagonal already attacked.
+    static int queens(int n, int row, boolean[] col, boolean[] diag, boolean[] anti) {
+        if (row == n) return 1;
+        int count = 0;
+        for (int c = 0; c < n; c++) {
+            if (col[c] || diag[row - c + n - 1] || anti[row + c]) continue;
+            col[c] = diag[row - c + n - 1] = anti[row + c] = true;
+            count += queens(n, row + 1, col, diag, anti);
+            col[c] = diag[row - c + n - 1] = anti[row + c] = false;
+        }
+        return count;
+    }
+
+    public static void main(String[] args) {
+        int[] prices = {2, 3, 5, 7};                         // sorted, so the pruning rule is valid
+        for (boolean prune : new boolean[] {false, true}) {
+            calls = 0;
+            List<List<Integer>> out = new ArrayList<>();
+            combine(prices, 0, 10, new ArrayDeque<>(), out, prune);
+            System.out.println((prune ? "pruned:   " : "unpruned: ") + out + " in " + calls + " calls");
+        }
+        for (int n : new int[] {4, 6, 8}) System.out.println(n + "-queens solutions: " + queens(n, 0, new boolean[n], new boolean[2 * n - 1], new boolean[2 * n - 1]));
+    }
+}
+`,
+      output: String.raw`unpruned: [[2, 2, 2, 2, 2], [2, 2, 3, 3], [2, 3, 5], [3, 7], [5, 5]] in 52 calls
+pruned:   [[2, 2, 2, 2, 2], [2, 2, 3, 3], [2, 3, 5], [3, 7], [5, 5]] in 23 calls
+4-queens solutions: 2
+6-queens solutions: 4
+8-queens solutions: 92`
+    },
+    takeaways: ['Choose, recurse, un-choose; record complete solutions.', 'A pruning rule must never discard a feasible completion (sorting makes the break sound).', 'The start index controls reuse and duplicate orderings.', 'Worst case stays exponential; state it.'],
+    interview: [
+      ['Find all combinations of candidates that sum to a target, with reuse allowed.', 'I sort the candidates and backtrack with a start index, the remaining target and a list of chosen numbers. If the remaining target is 0, I add a copy of the list to the results. Otherwise I loop from start to the end. If candidates[i] exceeds the remaining target, I break, because every later candidate is larger, which is sound only because I sorted. Otherwise I append candidates[i], recurse with the same index i so the number can repeat, and remove it afterwards. Starting from i rather than 0 prevents permutations of the same combination. For [2,3,5,7] and target 10 the results are [2,2,2,2,2], [2,2,3,3], [2,3,5], [3,7] and [5,5]. The worst case is exponential.'],
+      ['How do you know a pruning rule is safe?', 'I state the rule as a claim about every completion of the current partial solution and prove it, usually with a monotonic argument. In combination sum with sorted positive candidates, if candidates[i] is greater than the remaining target, then candidates[i] and every later candidate overshoot, and adding more positive numbers only makes it worse, so no completion through those choices can hit the target. If candidates could be negative, or were unsorted, that argument fails and the rule would be unsound. I also test it: the pruned and unpruned searches must produce identical solution sets on many inputs, and only the call counts may differ.'],
+      ['How does N-Queens check whether a square is safe in O(1)?', 'I place exactly one queen per row, so rows never conflict. For columns I keep a boolean array of size n. For diagonals I use the fact that squares on the same down-right diagonal share row − col, and squares on the same up-right diagonal share row + col. So I keep two boolean arrays of size 2n − 1, indexing the first with row − col + n − 1 to keep it non-negative. A square is safe if all three flags are false. When I place a queen I set the three flags, recurse to the next row and clear them afterwards. That turns an O(n) scan of earlier queens into an O(1) check.']
+    ],
+    check: ['Ticket prices are NOT sorted. Is "break when price > remaining" still a sound pruning rule?',
+      ['Yes, because any price larger than the remaining budget is always useless', 'No: a smaller, usable price may come later in the array, so breaking can discard feasible completions', 'Yes, but only for budgets above 10', 'No, because pruning is never sound'], 1,
+      'Skipping that one price (continue) is fine, but breaking out of the loop assumes every later price is at least as large, which needs sorting.'],
+    practice: ['Copy PrunedSearch.java. Add subsets of [1,2,3] and permutations of [1,2,3] using the same choose, recurse, un-choose template, and a combination-sum variant where each price may be used at most once and the input contains duplicates.',
+      ['Subsets returns 8 sets, and permutations returns 6 orderings.', 'Combination sum II for [10,1,2,7,6,1,5] with target 8 gives [1,1,6], [1,2,5], [1,7], [2,6], with no duplicates.', 'Pruned and unpruned versions produce identical results.', 'State the worst-case time of each.']],
+    references: [['Princeton IntroCS · Recursion', 'https://introcs.cs.princeton.edu/java/23recursion/']]
+  },
+  'd-graphs-02': {
+    notes: [
+      'Choose a shortest-path algorithm by the graph’s properties. With no weights, or all weights equal, BFS is enough. With nonnegative weights, use Dijkstra’s algorithm. In a directed acyclic graph (DAG), relax edges in topological order, which is linear time and works even with negative weights. With negative weights and possible cycles, use Bellman-Ford, which also detects negative cycles.',
+      'Dijkstra keeps a priority queue of tentative distances. It repeatedly removes the closest unfinished vertex, marks its distance final and relaxes its outgoing edges. Finality is only correct if no later path can be shorter, and that requires nonnegative weights. WeightedPaths.java shows the failure: with a voucher edge of −4, Dijkstra finalizes vertex 3 at distance 3 before it finishes vertex 1, and reports 3. DAG relaxation in topological order correctly finds 1 (0 → 1 → 3 = 5 − 4). The program uses lazy deletion: it pushes a new queue entry on every improvement and skips entries for vertices that are already done.',
+      'Topological order exists only for DAGs. Kahn’s algorithm repeatedly removes vertices with in-degree 0, and if some vertices are never removed, the graph has a cycle and no complete order exists. That is exactly the failure for a prerequisite graph A → B → C → A, and WeightedPaths reports "cycle: no topological order" for it. For prerequisites, report the cycle to the user instead of producing a partial order that looks valid.',
+      'Complexities to state: BFS O(V + E). Dijkstra with a binary heap O((V + E) log V). DAG relaxation O(V + E). Bellman-Ford O(V · E). Keep a parent array during relaxation to reconstruct the actual path, not just its length, and use long for distances so large weights cannot overflow.'
+    ],
+    code: {
+      title: 'WeightedPaths.java · Dijkstra, DAG relaxation in topological order, a negative edge and a cycle · java WeightedPaths.java',
+      text: String.raw`import java.util.*;
+
+public class WeightedPaths {
+    record Edge(int to, int w) {}
+
+    static List<List<Edge>> graph(int n, int[][] edges) {
+        List<List<Edge>> g = new ArrayList<>();
+        for (int i = 0; i < n; i++) g.add(new ArrayList<>());
+        for (int[] e : edges) g.get(e[0]).add(new Edge(e[1], e[2]));
+        return g;
+    }
+
+    // Dijkstra: correct only when every edge weight is >= 0. Lazy deletion skips stale queue entries.
+    static long[] dijkstra(List<List<Edge>> g, int src) {
+        long[] dist = new long[g.size()];
+        Arrays.fill(dist, Long.MAX_VALUE);
+        dist[src] = 0;
+        PriorityQueue<long[]> pq = new PriorityQueue<>(Comparator.comparingLong(a -> a[1]));
+        pq.add(new long[] {src, 0});
+        boolean[] done = new boolean[g.size()];
+        while (!pq.isEmpty()) {
+            int u = (int) pq.poll()[0];
+            if (done[u]) continue;
+            done[u] = true;                                   // dist[u] is final, assuming no negative edges
+            for (Edge e : g.get(u))
+                if (!done[e.to()] && dist[u] + e.w() < dist[e.to()]) {
+                    dist[e.to()] = dist[u] + e.w();
+                    pq.add(new long[] {e.to(), dist[e.to()]});
+                }
+        }
+        return dist;
+    }
+
+    // DAG shortest paths: relax edges in topological order. Works with negative weights, needs no cycles.
+    static long[] dagShortest(List<List<Edge>> g, int src) {
+        int n = g.size();
+        int[] indeg = new int[n];
+        for (List<Edge> es : g) for (Edge e : es) indeg[e.to()]++;
+        Deque<Integer> ready = new ArrayDeque<>();
+        for (int i = 0; i < n; i++) if (indeg[i] == 0) ready.add(i);
+        List<Integer> order = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            int u = ready.poll();
+            order.add(u);
+            for (Edge e : g.get(u)) if (--indeg[e.to()] == 0) ready.add(e.to());
+        }
+        if (order.size() < n) throw new IllegalArgumentException("cycle: no topological order");
+        long[] dist = new long[n];
+        Arrays.fill(dist, Long.MAX_VALUE);
+        dist[src] = 0;
+        for (int u : order) {
+            if (dist[u] == Long.MAX_VALUE) continue;
+            for (Edge e : g.get(u)) dist[e.to()] = Math.min(dist[e.to()], dist[u] + e.w());
+        }
+        return dist;
+    }
+
+    public static void main(String[] args) {
+        // Travel minutes between venue gates (directed): 0 entrance, 1 lobby, 2 hall A, 3 hall B, 4 seats.
+        List<List<Edge>> venue = graph(5, new int[][] {{0, 1, 4}, {0, 2, 1}, {2, 1, 2}, {1, 3, 1}, {2, 3, 5}, {3, 4, 3}});
+        System.out.println("Dijkstra from 0:     " + Arrays.toString(dijkstra(venue, 0)));
+        System.out.println("DAG relaxation:      " + Arrays.toString(dagShortest(venue, 0)));
+
+        // Same shape, but a voucher makes edge 1->3 cost -4 (a negative weight).
+        List<List<Edge>> withVoucher = graph(4, new int[][] {{0, 1, 5}, {0, 2, 2}, {1, 3, -4}, {2, 3, 1}});
+        System.out.println("negative edge, DAG:  " + Arrays.toString(dagShortest(withVoucher, 0)));
+        System.out.println("negative edge, Dijkstra (wrong): " + Arrays.toString(dijkstra(withVoucher, 0)));
+        try {
+            dagShortest(graph(3, new int[][] {{0, 1, 1}, {1, 2, 1}, {2, 0, 1}}), 0);
+        } catch (IllegalArgumentException e) {
+            System.out.println("cyclic graph: " + e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`Dijkstra from 0:     [0, 3, 1, 4, 7]
+DAG relaxation:      [0, 3, 1, 4, 7]
+negative edge, DAG:  [0, 5, 2, 1]
+negative edge, Dijkstra (wrong): [0, 5, 2, 3]
+cyclic graph: cycle: no topological order`
+    },
+    takeaways: ['Unweighted: BFS. Nonnegative: Dijkstra. DAG: topological relaxation. Negative with cycles: Bellman-Ford.', 'Dijkstra’s finality needs nonnegative weights.', 'Topological order exists only without cycles; report the cycle.', 'Keep parents for paths; use long distances.'],
+    interview: [
+      ['Which algorithm would you use for course prerequisites, and which for travel times between gates?', 'Prerequisites form a directed graph where an edge means "must come before", so I need a topological order. I would use Kahn’s algorithm: compute in-degrees, repeatedly take a course with in-degree 0 and decrement its successors. If some courses never reach 0, there is a cycle and I report it instead of a schedule. Travel times between gates are weighted shortest paths. If all times are nonnegative, which they are for walking minutes, I use Dijkstra with a priority queue in O((V + E) log V), keeping a parent array so I can show the route. If the gate graph were a DAG, relaxing edges in topological order would be even simpler and linear.'],
+      ['A dependency graph contains a cycle and another graph has a negative edge. Which assumption fails for each algorithm?', 'Topological sorting assumes the graph is acyclic. With a cycle, every vertex on it always has an unmet predecessor, so Kahn’s algorithm stops early and no complete order exists. The correct output is a cycle report. Dijkstra assumes nonnegative edge weights, because it treats the closest unfinished vertex’s distance as final. A negative edge discovered later could make that distance smaller, so Dijkstra may return a wrong answer without any error. With a negative edge I would use topological relaxation if the graph is a DAG, or Bellman-Ford, which handles negative weights in O(V · E) and detects negative cycles.'],
+      ['Why does Dijkstra use lazy deletion with Java’s PriorityQueue?', 'Java’s PriorityQueue has no efficient decrease-key operation: removing an arbitrary element is O(n). So when I find a shorter distance to a vertex, I simply push a new entry with the new distance and leave the old one in the queue. When I poll, I skip entries for vertices already marked done, or entries whose distance is larger than the vertex’s current best. The queue can hold up to O(E) entries, so the time is O(E log E), which is the same as O(E log V) asymptotically because E is at most V². It is simple and fast in practice, and it avoids the complexity of an indexed heap.']
+    ],
+    check: ['In WeightedPaths.java, why does Dijkstra report distance 3 to vertex 3 when the true shortest distance is 1?',
+      ['Because the priority queue is broken', 'Because vertex 3 was finalized before the path through the −4 edge was relaxed; Dijkstra assumes nonnegative weights', 'Because the graph has a cycle', 'Because long overflowed'], 1,
+      'Dijkstra treats the closest unfinished vertex as final. A negative edge found later could still shorten it.'],
+    practice: ['Copy WeightedPaths.java. Add a parent array and print the actual shortest route from 0 to 4. Then implement Bellman-Ford, run it on the voucher graph, and add a negative cycle to show that it is detected.',
+      ['The route 0 → 2 → 1 → 3 → 4 with total 7 is printed.', 'Bellman-Ford gives [0, 5, 2, 1] on the voucher graph.', 'A negative cycle is reported, not looped on forever.', 'State the time of each algorithm.']],
+    references: [['Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/'], ['Princeton Algorithms · Directed graphs and topological sort', 'https://algs4.cs.princeton.edu/42digraph/']]
+  },
+  'd-math-01': {
+    notes: [
+      'The greatest common divisor gcd(a, b) is the largest integer that divides both a and b. Euclid’s algorithm rests on one fact: any common divisor of a and b also divides a mod b, so gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Repeating the step shrinks the numbers quickly. EuclidGcd.java traces gcd(252, 105) → gcd(105, 42) → gcd(42, 21) → 21.',
+      'The running time is O(log min(a, b)) steps, because the larger value at least halves every two steps (Lamé’s theorem connects the worst case to consecutive Fibonacci numbers). Handle the edges explicitly. Take absolute values so gcd(−48, 18) = 6. gcd(0, 7) = 7, and by convention gcd(0, 0) = 0. Java’s % keeps the sign of the dividend, which is another reason to normalize signs first.',
+      'The extended Euclidean algorithm also returns coefficients x and y with a·x + b·y = gcd(a, b), known as Bézout’s identity. For 240 and 46 it finds 240·(−9) + 46·47 = 2. It is how you compute a modular inverse when gcd(a, m) = 1, which appears in hashing and cryptography questions. It is also the basis of the "water jug" puzzle: you can measure exactly the multiples of gcd(a, b).',
+      'The least common multiple is lcm(a, b) = |a| / gcd(a, b) · |b|. Divide before multiplying, because a · b can overflow long even when the LCM itself fits. Dividing first keeps the intermediate value no larger than the result. When the result itself does not fit, Math.multiplyExact throws an ArithmeticException instead of silently wrapping around, as the program shows for two large coprime numbers. To fold the LCM over an array, combine left to right with the same function and stop at the first overflow.'
+    ],
+    code: {
+      title: 'EuclidGcd.java · Euclid trace, signs and zero, extended Euclid, LCM with an overflow guard · java EuclidGcd.java',
+      text: String.raw`public class EuclidGcd {
+    // Euclid: gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Each step at least halves the larger value every two steps.
+    static long gcd(long a, long b) {
+        a = Math.abs(a); b = Math.abs(b);
+        while (b != 0) { long r = a % b; a = b; b = r; }
+        return a;
+    }
+
+    static String trace(long a, long b) {
+        StringBuilder sb = new StringBuilder();
+        while (b != 0) { sb.append("gcd(").append(a).append(", ").append(b).append(") -> "); long r = a % b; a = b; b = r; }
+        return sb.append(a).toString();
+    }
+
+    // Extended Euclid: returns {g, x, y} with a*x + b*y = g.
+    static long[] extended(long a, long b) {
+        if (b == 0) return new long[] {a, 1, 0};
+        long[] r = extended(b, a % b);
+        return new long[] {r[0], r[2], r[1] - (a / b) * r[2]};
+    }
+
+    // LCM: divide before multiplying to keep the intermediate small; Math.multiplyExact still guards overflow.
+    static long lcm(long a, long b) {
+        if (a == 0 || b == 0) return 0;
+        return Math.multiplyExact(Math.abs(a) / gcd(a, b), Math.abs(b));
+    }
+
+    public static void main(String[] args) {
+        System.out.println(trace(252, 105));
+        System.out.println("gcd(-48, 18) = " + gcd(-48, 18) + ", gcd(0, 7) = " + gcd(0, 7) + ", gcd(0, 0) = " + gcd(0, 0));
+        long[] e = extended(240, 46);
+        System.out.println("240*(" + e[1] + ") + 46*(" + e[2] + ") = " + e[0]);
+        System.out.println("lcm(4, 6) = " + lcm(4, 6) + ", lcm(21, 6) = " + lcm(21, 6));
+        try {
+            lcm(4_000_000_007L, 4_000_000_009L);
+        } catch (ArithmeticException ex) {
+            System.out.println("lcm of two large coprimes: " + ex.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`gcd(252, 105) -> gcd(105, 42) -> gcd(42, 21) -> 21
+gcd(-48, 18) = 6, gcd(0, 7) = 7, gcd(0, 0) = 0
+240*(-9) + 46*(47) = 2
+lcm(4, 6) = 12, lcm(21, 6) = 42
+lcm of two large coprimes: long overflow`
+    },
+    takeaways: ['gcd(a, b) = gcd(b, a mod b); gcd(a, 0) = |a|; O(log min(a, b)).', 'Normalize signs; gcd(0, 0) = 0 by convention.', 'Extended Euclid gives Bézout coefficients and modular inverses.', 'lcm = |a| / gcd · |b|, with Math.multiplyExact to catch overflow.'],
+    interview: [
+      ['Explain Euclid’s algorithm and why it terminates quickly.', 'gcd(a, b) equals gcd(b, a mod b), because any number that divides both a and b also divides a − q·b, which is the remainder, and the converse also holds. So I replace (a, b) with (b, a mod b) until b becomes 0, and then a is the answer. The remainder is always smaller than b, so the values strictly decrease and the loop ends. It is fast because after two steps the larger value is at most half of what it was: if b ≤ a/2 the remainder is below b, and otherwise a mod b = a − b < a/2. That gives O(log min(a, b)) iterations. The worst inputs are consecutive Fibonacci numbers.'],
+      ['How do you compute the LCM of an array without overflow surprises?', 'I fold from left to right: result = lcm(result, next), where lcm(a, b) = (|a| / gcd(a, b)) · |b|. Dividing by the gcd before multiplying keeps the intermediate value no larger than the final LCM, so I only overflow if the true answer does not fit. To detect that case I use Math.multiplyExact, which throws ArithmeticException instead of wrapping to a wrong value, and I either report it or switch to BigInteger. A zero anywhere makes the LCM 0, so I handle that first. For [4, 6, 21] the fold gives lcm(4, 6) = 12 and then lcm(12, 21) = 84.'],
+      ['What does the extended Euclidean algorithm return, and where is it used?', 'Besides g = gcd(a, b), it returns integers x and y such that a·x + b·y = g. It works recursively: if b is 0, return (a, 1, 0). Otherwise compute (g, x′, y′) for (b, a mod b) and return (g, y′, x′ − (a / b)·y′). The main use is the modular inverse: when gcd(a, m) = 1, the x in a·x + m·y = 1 satisfies a·x ≡ 1 (mod m), which is needed in modular arithmetic problems, some hashing schemes and RSA. It also answers whether a·x + b·y = c has integer solutions: exactly when gcd(a, b) divides c, as in the water-jug puzzle.']
+    ],
+    check: ['What is gcd(252, 105), and how many remainder steps does Euclid take?',
+      ['7, in two steps', '21, after the steps 252 mod 105 = 42, 105 mod 42 = 21, 42 mod 21 = 0', '105, in one step', '42, in two steps'], 1,
+      'The remainders are 42, 21 and 0, so the last non-zero value, 21, is the gcd.'],
+    practice: ['Copy EuclidGcd.java. Add a recursive gcd, lcmOfArray(long[]) that folds with an overflow check, and modInverse(a, m) using the extended algorithm. Test with negative numbers and zeros.',
+      ['lcmOfArray([4, 6, 21]) = 84, and an array containing 0 returns 0.', 'modInverse(3, 11) = 4, and modInverse(2, 4) reports that no inverse exists.', 'The recursive and iterative gcd agree on 20 random pairs.', 'State the time of each method.']],
+    references: [['Java 21 API · Math.multiplyExact and floorMod', jdk + 'java/lang/Math.html'], ['MIT OCW 6.042J · Number Theory I (Euclid)', 'https://www.youtube.com/watch?v=NuY7szYSXSw']]
+  },
+  'd-matrix-01': {
+    notes: [
+      'Rotating a grid 90° clockwise maps the cell in row i, column j of an r × c grid to row j, column r − 1 − i of a c × r grid. The dimensions swap, so a rectangular grid cannot be rotated in place. You allocate a new array of size c × r. RotateGrid.java turns the 2 × 3 grid [1, 2, 3] / [4, 5, 6] into the 3 × 2 grid [4, 1] / [5, 2] / [6, 3], and checks that four rotations give back the original.',
+      'For a square n × n grid, an in-place rotation uses two simple passes: transpose (swap m[i][j] with m[j][i] for j > i), then reverse every row. That gives [7, 4, 1] / [8, 5, 2] / [9, 6, 3] for the 3 × 3 example, in O(n²) time with O(1) extra space. Counter-clockwise is transpose then reverse every column, or reverse each row first and then transpose.',
+      'Most matrix bugs are index bugs. Write the mapping formula first, test a non-square grid so a swapped r and c fails loudly, and loop only over j > i during the transpose, otherwise every pair is swapped twice and nothing changes. Related problems include spiral order (shrink four boundaries), set matrix zeroes (use the first row and column as markers) and searching a row- and column-sorted matrix from the top-right corner in O(r + c).'
+    ],
+    code: {
+      title: 'RotateGrid.java · clockwise rotation for r × c grids and in-place transpose + reverse for squares · java RotateGrid.java',
+      text: String.raw`import java.util.*;
+
+public class RotateGrid {
+    // Clockwise rotation of an r x c grid gives a c x r grid: new[j][r - 1 - i] = old[i][j].
+    static int[][] rotateClockwise(int[][] g) {
+        int r = g.length, c = g[0].length;
+        int[][] out = new int[c][r];
+        for (int i = 0; i < r; i++)
+            for (int j = 0; j < c; j++) out[j][r - 1 - i] = g[i][j];
+        return out;
+    }
+
+    // In place for a square n x n grid: transpose, then reverse every row. O(n^2) time, O(1) extra space.
+    static void rotateSquareInPlace(int[][] m) {
+        int n = m.length;
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++) { int t = m[i][j]; m[i][j] = m[j][i]; m[j][i] = t; }
+        for (int[] row : m)
+            for (int a = 0, b = n - 1; a < b; a++, b--) { int t = row[a]; row[a] = row[b]; row[b] = t; }
+    }
+
+    static String show(int[][] g) {
+        StringJoiner j = new StringJoiner(" / ");
+        for (int[] row : g) j.add(Arrays.toString(row));
+        return j.toString();
+    }
+
+    public static void main(String[] args) {
+        int[][] seats = {{1, 2, 3}, {4, 5, 6}};                     // 2 rows x 3 columns
+        int[][] turned = rotateClockwise(seats);
+        System.out.println("2x3: " + show(seats));
+        System.out.println("rotated 3x2: " + show(turned));
+        System.out.println("four rotations restore it: " + Arrays.deepEquals(seats, rotateClockwise(rotateClockwise(rotateClockwise(turned)))));
+        int[][] square = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        rotateSquareInPlace(square);
+        System.out.println("3x3 in place: " + show(square));
+    }
+}
+`,
+      output: String.raw`2x3: [1, 2, 3] / [4, 5, 6]
+rotated 3x2: [4, 1] / [5, 2] / [6, 3]
+four rotations restore it: true
+3x3 in place: [7, 4, 1] / [8, 5, 2] / [9, 6, 3]`
+    },
+    takeaways: ['Clockwise: new[j][r − 1 − i] = old[i][j]; dimensions swap to c × r.', 'Square in place: transpose, then reverse each row.', 'Transpose only j > i.', 'Test non-square grids to catch swapped indices.'],
+    interview: [
+      ['Rotate an n × n matrix 90° clockwise in place.', 'I do it in two passes. First I transpose: for every i and every j greater than i, I swap m[i][j] and m[j][i]. Then I reverse each row with two pointers. The combination maps the element at (i, j) to (j, n − 1 − i), which is exactly the clockwise rotation. Each element moves a constant number of times, so the time is O(n²), and I only use a temporary variable, so the extra space is O(1). The typical bug is looping j over all columns during the transpose, which swaps every pair twice and leaves the matrix unchanged. An alternative rotates four cells at a time, layer by layer.'],
+      ['How do you rotate a rectangular grid, and why not in place?', 'A clockwise rotation of an r × c grid produces a c × r grid, so the shape changes. In-place rotation would need the same memory layout for a different shape, which a Java int[][] cannot do without reallocating rows. I allocate a new int[c][r] and copy each cell with out[j][r − 1 − i] = in[i][j]. The time and space are both O(r · c). To check correctness I test a 2 × 3 grid, where a swapped index fails immediately, and I check that four rotations return the original grid. For a seat map, the rotation is useful when displaying a venue from a different side.'],
+      ['Print a matrix in spiral order.', 'I keep four boundaries: top, bottom, left and right. While top ≤ bottom and left ≤ right, I walk the top row from left to right and move top down, walk the right column from top to bottom and move right in, then, if a row remains, walk the bottom row from right to left and move bottom up, and, if a column remains, walk the left column from bottom to top and move left in. The two "if remains" checks prevent printing the middle row or column twice in non-square matrices. Every element is printed once, so the time is O(r · c), and the extra space is O(1) besides the output.']
+    ],
+    check: ['Rotating the 2 × 3 grid [1,2,3] / [4,5,6] clockwise gives which grid?',
+      ['[1,4] / [2,5] / [3,6]', '[4,1] / [5,2] / [6,3]', '[3,6] / [2,5] / [1,4]', '[6,5,4] / [3,2,1]'], 1,
+      'Cell (i, j) moves to (j, r − 1 − i), so the bottom row becomes the left column, read top to bottom.'],
+    practice: ['Copy RotateGrid.java. Add rotateCounterClockwise for r × c grids, spiralOrder, and a test that rotating clockwise and then counter-clockwise returns the original for a 3 × 5 grid.',
+      ['Counter-clockwise of [1,2,3] / [4,5,6] is [3,6] / [2,5] / [1,4].', 'spiralOrder of the 3 × 3 grid is 1,2,3,6,9,8,7,4,5.', 'The round trip passes for 3 × 5 and 1 × 4 grids.', 'State the time and space of each method.']],
+    references: [['Java 21 API · Arrays.deepEquals', jdk + 'java/util/Arrays.html']]
+  },
+  'd-dp-02': {
+    notes: [
+      '0/1 subset sum asks whether some subset of the items, each used at most once, adds up to a target. The state is reach[i][s]: can the first i items make sum s? The transition is reach[i][s] = reach[i−1][s] (skip item i) or reach[i−1][s − w] (take it). It needs only the previous row, so you can compress it to one boolean array, reach[s].',
+      'The iteration direction is the whole trick. When you update reach[s] from reach[s − w] in the compressed array, reach[s − w] must still describe the previous item set. Iterating s downward from the target to w guarantees that, because smaller sums are updated later. Iterating upward lets the item feed itself: with one item of weight 3, the ascending loop sets reach[3] and then reach[6] from reach[3], so it wrongly reports that 6 is reachable. SubsetSumDp.java prints [0, 3] for the descending loop and [0, 3, 6] for the buggy ascending one. Ascending is exactly right for the unbounded version, where items may repeat.',
+      'Interval DP solves problems where the answer for a range [i, j] combines answers for smaller ranges inside it. Matrix-chain multiplication is the classic: cost[i][j] = min over k of cost[i][k] + cost[k+1][j] + rows(i) · cols(k) · cols(j). Larger intervals depend on shorter ones, so fill by increasing length, not row by row. For matrices 10 × 30, 30 × 5 and 5 × 60, the best order costs 4,500 scalar multiplications, against 27,000 for the other order.',
+      'Always state the state, the transition, the base case, the order and the complexity. Subset sum is O(n · target) time and O(target) space after compression. It is pseudo-polynomial, because it depends on the numeric value of the target. Matrix chain is O(n³) time and O(n²) space. To reconstruct a solution, store the choice made in each cell, such as the item taken or the best split k, and walk back from the final cell.'
+    ],
+    code: {
+      title: 'SubsetSumDp.java · 0/1 subset sum (descending vs the ascending bug) and matrix-chain interval DP · java SubsetSumDp.java',
+      text: String.raw`import java.util.*;
+
+public class SubsetSumDp {
+    // 0/1 subset sum, compressed to one row: reach[s] = can some subset of the items seen so far sum to s.
+    // Iterate s DOWNWARD so reach[s - w] still describes the state BEFORE this item (each item used at most once).
+    static boolean[] zeroOne(int[] weights, int target, boolean descending) {
+        boolean[] reach = new boolean[target + 1];
+        reach[0] = true;
+        for (int w : weights) {
+            if (descending) { for (int s = target; s >= w; s--) reach[s] |= reach[s - w]; }
+            else            { for (int s = w; s <= target; s++) reach[s] |= reach[s - w]; }   // bug for 0/1: reuses w
+        }
+        return reach;
+    }
+
+    static List<Integer> reachable(boolean[] reach) {
+        List<Integer> out = new ArrayList<>();
+        for (int s = 0; s < reach.length; s++) if (reach[s]) out.add(s);
+        return out;
+    }
+
+    // Matrix-chain multiplication: cost[i][j] = cheapest way to multiply matrices i..j. Fill by increasing length.
+    static long matrixChain(int[] dims) {
+        int n = dims.length - 1;                   // matrix k has shape dims[k] x dims[k+1]
+        long[][] cost = new long[n][n];
+        for (int len = 2; len <= n; len++)
+            for (int i = 0; i + len - 1 < n; i++) {
+                int j = i + len - 1;
+                cost[i][j] = Long.MAX_VALUE;
+                for (int k = i; k < j; k++)
+                    cost[i][j] = Math.min(cost[i][j], cost[i][k] + cost[k + 1][j] + (long) dims[i] * dims[k + 1] * dims[j + 1]);
+            }
+        return cost[0][n - 1];
+    }
+
+    public static void main(String[] args) {
+        System.out.println("one item of weight 3, descending (0/1): " + reachable(zeroOne(new int[] {3}, 6, true)));
+        System.out.println("one item of weight 3, ascending (bug):  " + reachable(zeroOne(new int[] {3}, 6, false)));
+        boolean[] r = zeroOne(new int[] {3, 34, 4, 12, 5, 2}, 9, true);
+        System.out.println("{3,34,4,12,5,2} reaches 9: " + r[9]);
+        System.out.println("matrix chain 10x30, 30x5, 5x60: " + matrixChain(new int[] {10, 30, 5, 60}) + " multiplications");
+    }
+}
+`,
+      output: String.raw`one item of weight 3, descending (0/1): [0, 3]
+one item of weight 3, ascending (bug):  [0, 3, 6]
+{3,34,4,12,5,2} reaches 9: true
+matrix chain 10x30, 30x5, 5x60: 4500 multiplications`
+    },
+    takeaways: ['0/1 compressed DP: iterate the sum downward so each item is used once.', 'Ascending iteration is the unbounded (reuse) version.', 'Interval DP: fill by increasing interval length.', 'Subset sum O(n · target) is pseudo-polynomial; matrix chain is O(n³).'],
+    interview: [
+      ['Explain the state and iteration order for 0/1 subset sum, and how it differs from unbounded reuse.', 'The state is reach[s]: is sum s achievable using the items processed so far? Initially only reach[0] is true. For each item of weight w, I loop s from the target down to w and set reach[s] = reach[s] or reach[s − w]. Going downward means reach[s − w] has not been updated for this item yet, so it reflects the previous items only and each item is used at most once. If items may be reused, the unbounded version, I loop s upward from w instead, so an updated reach[s − w] can feed reach[s] in the same pass. The time is O(n · target) and the space is O(target).'],
+      ['Your 0/1 code says one item of weight 3 can reach sum 6. What went wrong?', 'The compressed loop runs in the wrong direction. With an ascending loop, at s = 3 it sets reach[3] from reach[0], and then at s = 6 it reads the reach[3] it just updated in the same pass and sets reach[6]. The same item was effectively used twice, which is the unbounded version of the problem. The fix is to iterate s from the target down to the weight, so every read of reach[s − w] sees the state before this item. With that change the reachable sums for one item of weight 3 are exactly 0 and 3. A two-row table with an explicit previous row avoids the issue entirely, at the cost of more memory.'],
+      ['Define the DP for matrix-chain multiplication and the fill order.', 'Matrix k has shape dims[k] × dims[k+1]. cost[i][j] is the minimum number of scalar multiplications needed to compute the product of matrices i through j. The base case is cost[i][i] = 0. The transition tries every split k between i and j − 1: cost[i][k] + cost[k+1][j] + dims[i] · dims[k+1] · dims[j+1], the last term being the cost of multiplying the two resulting matrices. Every cell depends on strictly shorter intervals, so I fill by interval length from 2 to n, and within a length by the starting index. That takes O(n³) time and O(n²) space. For 10 × 30, 30 × 5 and 5 × 60 the answer is 4,500.']
+    ],
+    check: ['With one item of weight 3 and target 6, which sums does correct 0/1 subset sum report as reachable?',
+      ['0, 3 and 6', '0 and 3 only', '3 only', '6 only'], 1,
+      'Each item may be used once, so only the empty subset (0) and {3} (3) are possible. Reaching 6 would need the item twice.'],
+    practice: ['Copy SubsetSumDp.java. Add the unbounded version (coin change: number of ways to make 5 from coins 1, 2 and 5), reconstruct one subset that reaches 9 for {3,34,4,12,5,2}, and print the best parenthesization for the matrix chain.',
+      ['Coin change ways(5, [1,2,5]) = 4.', 'A subset summing to 9 is printed, such as [4, 5] or [4, 3, 2].', 'The parenthesization is ((A1 A2) A3) with cost 4,500.', 'State the state, transition, order and complexity for each.']],
+    references: [['Princeton IntroCS · Recursion and dynamic programming', 'https://introcs.cs.princeton.edu/java/23recursion/']]
+  },
+  'ai-operations-03': {
+    notes: [
+      'One Java interface, several adapters. The help feature calls a ModelClient (or Spring AI’s ChatModel), never a vendor SDK directly. Behind it sit three implementations: a deterministic fixture, a local model served by Ollama, and a hosted provider. Retrieval, prompt building, the grounding check, authorization and the timeout belong to your code and stay identical across adapters, so a comparison measures the model rather than three different pipelines.',
+      'Each option proves something different. The fixture proves control flow: parsing, citation checks, timeouts and the fallback path, all reproducibly in CI. It proves nothing about answer quality. A local model keeps policy text inside your network and has no per-call fee, but you own the hardware, capacity and upgrades, and on a CPU the tail latency can be several seconds. A hosted model usually gives better quality and latency, but the request leaves your network, so the data policy and cost decide whether it is allowed at all.',
+      'Decide with measurements on the same evaluation set. Run the identical questions through every adapter and record the grounded-correct rate, correct refusals, p95 latency under your timeout, and fallback count. Then apply the hard rules first: an option that breaks the data policy or the latency budget is out, however fluent it is. ModelChoice.java encodes this. With a 2,500 ms p95 budget and no permission to send policy text outside, only the GPU-backed local model is eligible. When the policy allows external calls, the hosted model becomes eligible too.',
+      'With Spring AI, switching to Ollama is configuration rather than code: add spring-ai-starter-model-ollama, point spring.ai.ollama.base-url at the server (http://localhost:11434 by default) and name the model with spring.ai.ollama.chat.model. Keep model-specific setup in the README, and report the environment you actually tested, for example "8B model on a CPU laptop", next to every number.'
+    ],
+    code: {
+      title: 'ModelChoice.java · one adapter interface, a deterministic fixture, and a rule-based eligibility check over measured numbers · java ModelChoice.java',
+      text: String.raw`import java.util.*;
+
+public class ModelChoice {
+    // One interface, three adapters. The booking path never depends on any of them.
+    interface ModelClient { String name(); Optional<String> answer(String question, List<String> passages, long deadlineMs); }
+
+    // Deterministic fixture: proves parsing, citation checks and the fallback path in CI. Says nothing about quality.
+    static final class FixtureClient implements ModelClient {
+        public String name() { return "fixture"; }
+        public Optional<String> answer(String q, List<String> p, long d) { return Optional.of("Refunds up to 24h before the show [POL-1]"); }
+    }
+
+    // Measured characteristics of the real adapters on the same 40-question evaluation set (recorded earlier).
+    record Measured(String name, double groundedPct, int p95Ms, boolean dataMayLeaveNetwork) {}
+
+    static String verdict(Measured m, int p95BudgetMs, boolean policyAllowsExternal) {
+        List<String> fails = new ArrayList<>();
+        if (m.groundedPct() < 90) fails.add("grounded " + m.groundedPct() + "% < 90%");
+        if (m.p95Ms() > p95BudgetMs) fails.add("p95 " + m.p95Ms() + " ms > " + p95BudgetMs + " ms");
+        if (m.dataMayLeaveNetwork() && !policyAllowsExternal) fails.add("data policy forbids external calls");
+        return fails.isEmpty() ? "eligible" : "rejected: " + String.join(", ", fails);
+    }
+
+    public static void main(String[] args) {
+        ModelClient fixture = new FixtureClient();
+        System.out.println(fixture.name() + " -> " + fixture.answer("Can I get a refund?", List.of("[POL-1] Refunds up to 24h before the show."), 2000).orElse("fallback"));
+
+        List<Measured> options = List.of(
+                new Measured("local 8B model (Ollama, CPU)", 91.0, 6200, false),
+                new Measured("local 8B model (Ollama, GPU)", 91.0, 1700, false),
+                new Measured("hosted model", 96.5, 1300, true));
+        for (boolean external : new boolean[] {false, true}) {
+            System.out.println("policy allows sending policy text to an external provider: " + external);
+            for (Measured m : options) System.out.println("  " + m.name() + ": " + verdict(m, 2500, external));
+        }
+    }
+}
+`,
+      output: String.raw`fixture -> Refunds up to 24h before the show [POL-1]
+policy allows sending policy text to an external provider: false
+  local 8B model (Ollama, CPU): rejected: p95 6200 ms > 2500 ms
+  local 8B model (Ollama, GPU): eligible
+  hosted model: rejected: data policy forbids external calls
+policy allows sending policy text to an external provider: true
+  local 8B model (Ollama, CPU): rejected: p95 6200 ms > 2500 ms
+  local 8B model (Ollama, GPU): eligible
+  hosted model: eligible`
+    },
+    takeaways: ['Call one interface; keep retrieval, grounding and timeouts in your code.', 'Fixtures prove control flow, not answer quality.', 'Apply hard rules (data policy, p95 budget) before comparing quality.', 'Report the tested environment next to every measurement.'],
+    interview: [
+      ['How would you structure a Java application so it can switch between a fixture, a local model and a hosted model?', 'I define one port, such as a ModelClient interface or Spring AI’s ChatModel, that takes the question, the retrieved passages and a deadline, and returns an optional answer. Each provider is an adapter behind that port, selected by configuration or a Spring profile. Everything that must not vary lives outside the adapters: retrieval, prompt templates, the grounding validator, authorization, the timeout and the fallback message. The fixture adapter returns canned answers, including malformed and slow ones, so CI can test parsing, citation checks and the outage path deterministically. Because the pipeline is shared, an evaluation run compares the models fairly and a provider switch never touches booking code.'],
+      ['The local model is too slow on a CPU, and the hosted model is fast but sends data outside. How do you decide?', 'I start from the hard constraints, not preferences. First, the data policy: if policy text or user questions may not leave the network, the hosted option is out regardless of speed, unless legal approves a contract that changes that. Second, the latency budget at p95, measured on representative questions under the real timeout. If the local model misses it, I look at cheaper fixes: shorter retrieved context, a smaller qualified model, a GPU host, or caching frequent answers. Only options that pass both rules are compared on grounded correctness and correct refusals. If none pass, the feature ships with the documented fallback and booking is unaffected.'],
+      ['What exactly does a passing fixture test suite tell you, and what does it not?', 'It tells me the control flow is right. Requests are built correctly, responses are parsed, citations are validated, a timeout triggers the fallback within the deadline, and a provider outage leaves booking and conflict handling working. Because the fixture is deterministic, those tests are reliable in CI. It tells me nothing about a real model’s quality, refusals or latency, because the fixture never generates anything. For that I need an evaluation set run against each real adapter, with grounded-correct rate, refusal accuracy and p95 latency recorded together with the environment. Treating green fixture tests as evidence of quality is a common mistake in demos.']
+    ],
+    check: ['With a 2,500 ms p95 budget and no permission to send data outside, which option in ModelChoice.java is eligible?',
+      ['The hosted model, because it has the best grounded rate', 'Only the local model on a GPU', 'The local model on a CPU, because it is free', 'None of them'], 1,
+      'The CPU model misses the latency budget and the hosted model breaks the data rule. Hard rules come before quality.'],
+    practice: ['Copy ModelChoice.java. Add a SlowFixture whose answer arrives after the deadline and make the caller return the fallback. Add correct-refusal rate as a third rule.',
+      ['A slow fixture produces the fallback within the deadline.', 'An option with a refusal rate below your threshold is rejected with a clear reason.', 'The output lists every rule each option failed, not only the first.', 'Write two sentences naming the environment the numbers came from.']],
+    references: [['Spring AI · Ollama Chat', 'https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.html'], ['Spring AI · ChatClient API', 'https://docs.spring.io/spring-ai/reference/api/chatclient.html']]
+  },
+  'ai-review-02': {
+    notes: [
+      'A model answer is a claim, not a fact. Before showing it, check it against the evidence you supplied for this request. GroundingGate.java runs four cheap checks in order. Reject any answer that claims a booking outcome. Require at least one citation. Every cited ID must be one of the passages retrieved for this request. Every number in the answer must appear in a cited passage. In the example, "48 hours" is rejected because the refund policy says 24.',
+      'The booking check is the most important rule. Whether seat A2 is yours is decided by the booking service and the database constraint, never by generated text. The help feature may explain the policy, but it must not say "confirmed", "booked" or "reserved for you". The UI shows booking state only from the booking API response. That is why the gate rejects "Seat A2 is confirmed" even though it cites a real passage.',
+      'These checks are deliberately simple and deterministic, so they can run in unit tests and on every response. They catch fabricated sources, changed numbers and outcome claims. They do not prove that a sentence is entailed by the passage. A paraphrase can still distort meaning. So combine them with an evaluation set reviewed by a person, and when a check fails, show a safe fallback with links to the policy pages rather than the rejected text.'
+    ],
+    code: {
+      title: 'GroundingGate.java · reject booking claims, missing or unknown citations and numbers not found in the cited passage · java GroundingGate.java',
+      text: String.raw`import java.util.*;
+import java.util.regex.*;
+
+public class GroundingGate {
+    record Passage(String id, String text) {}
+
+    // Accept an answer only if (0) it does not claim a booking outcome (booking state comes from the booking service,
+    // never from the model), (1) it cites at least one passage, (2) every cited ID was supplied for THIS request,
+    // (3) every number in the answer appears in a cited passage.
+    static String check(String answer, List<Passage> supplied) {
+        Map<String, String> byId = new HashMap<>();
+        for (Passage p : supplied) byId.put(p.id(), p.text());
+        Matcher cite = Pattern.compile("\\[(POL-\\d+)]").matcher(answer);
+        List<String> cited = new ArrayList<>();
+        while (cite.find()) cited.add(cite.group(1));
+        if (answer.toLowerCase().matches(".*\\b(confirmed|booked|reserved for you)\\b.*")) return "REJECT claims a booking outcome";
+        if (cited.isEmpty()) return "REJECT no citation";
+        for (String id : cited) if (!byId.containsKey(id)) return "REJECT cites " + id + ", which was not supplied";
+        String evidence = String.join(" ", cited.stream().map(byId::get).toList());
+        Matcher num = Pattern.compile("\\d+").matcher(answer.replaceAll("\\[POL-\\d+]", ""));
+        while (num.find()) if (!evidence.contains(num.group())) return "REJECT number " + num.group() + " not in cited text";
+        return "ACCEPT";
+    }
+
+    public static void main(String[] args) {
+        List<Passage> supplied = List.of(new Passage("POL-1", "Refunds are allowed up to 24 hours before the show."),
+                new Passage("POL-4", "Wheelchair seats are in row A."));
+        Map<String, String> answers = new LinkedHashMap<>();
+        answers.put("grounded", "You can get a refund up to 24 hours before the show [POL-1].");
+        answers.put("no citation", "Refunds are allowed up to 24 hours before.");
+        answers.put("unknown source", "Refunds are allowed up to 48 hours before [POL-9].");
+        answers.put("wrong number", "Refunds are allowed up to 48 hours before the show [POL-1].");
+        answers.put("booking claim", "Seat A2 is confirmed for you in row A [POL-4].");
+        answers.forEach((k, a) -> System.out.println(k + ": " + check(a, supplied)));
+    }
+}
+`,
+      output: String.raw`grounded: ACCEPT
+no citation: REJECT no citation
+unknown source: REJECT cites POL-9, which was not supplied
+wrong number: REJECT number 48 not in cited text
+booking claim: REJECT claims a booking outcome`
+    },
+    takeaways: ['Treat the answer as a claim to verify.', 'Booking state comes only from the booking service.', 'Cited IDs must belong to this request’s retrieved passages.', 'Numbers must appear in the cited text; fall back on failure.'],
+    interview: [
+      ['How do you check that a RAG answer is grounded before showing it to a user?', 'I make the model cite passage IDs and then verify mechanically. Each cited ID must belong to the set retrieved for this request, which catches invented sources. Facts that are easy to check, such as numbers, dates and durations, must appear in the cited passages, which catches "48 hours" when the policy says 24. Answers with no citation are rejected. These checks are deterministic, cheap and testable, so they run on every response. They cannot prove entailment for paraphrased sentences, so I complement them with a human-reviewed evaluation set and track the rejection rate. On failure the user gets a safe fallback with links to the policy pages.'],
+      ['Why must the help assistant never confirm a booking, even when it is right?', 'Because the assistant has no authority over booking state. The seat belongs to whoever won the conditional write in the database, and the booking API is the only component that knows that. A model that says "confirmed" might be repeating stale context, guessing, or describing another user’s seat, and the user would act on it. So the rule is structural: the help path can explain policy, while booking outcomes are shown only from the booking API response, with its idempotency key and status code. The grounding gate also rejects outcome words as defence in depth, and a model outage cannot change booking behaviour.'],
+      ['A grounded answer passes your checks but still misleads users. How do you find and fix that?', 'Simple checks prove that sources exist and numbers match. They do not prove the sentence means what the passage means, so a paraphrase can drop an exception such as "except premium shows". I would find these cases through an evaluation set that includes questions about exceptions, a sample of production answers reviewed by a person, and user feedback such as "this was wrong". To fix it, I would add those questions as regression cases, retrieve passages that keep the exception text together, tighten the prompt to quote the conditions, and add a check that refuses when a retrieved passage contains a condition the answer omits. Then I would re-run the whole evaluation before release.']
+    ],
+    check: ['Which answer does GroundingGate reject because of the number rule?',
+      ['"You can get a refund up to 24 hours before the show [POL-1]."', '"Refunds are allowed up to 48 hours before the show [POL-1]."', '"Seat A2 is confirmed for you in row A [POL-4]."', '"Refunds are allowed up to 24 hours before."'], 1,
+      'POL-1 says 24, so 48 is not in the cited text. The seat answer fails the booking rule, and the last one has no citation.'],
+    practice: ['Copy GroundingGate.java. Add a date check (dates in the answer must appear in cited text) and a rule that rejects an answer citing more than three passages.',
+      ['A new fixture with a changed date is rejected with a clear reason.', 'Every existing case keeps the same verdict.', 'Write a JUnit test per rule with one passing and one failing answer.', 'List one misleading answer these checks would still accept.']],
+    references: [['Spring AI · Retrieval Augmented Generation', 'https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html'], ['Java 21 API · Pattern', jdk + 'java/util/regex/Pattern.html']]
+  },
+  'b-deployment-02': {
+    notes: [
+      'A reproducible demonstration is a script, not a story. Start the packaged app from a clean state, run a fixed list of checks over HTTP, compare each result with an expected value, and exit with a pass or fail summary. SmokeRun.java does this end to end with only the JDK. It starts a tiny stand-in app, then checks health, a first claim (201), a competing claim on the same seat (409), a grounded help answer, help during a provider outage (fallback), and a booking during that outage (still 201).',
+      'In the real project the same checks run against the Spring Boot jar with a fresh PostgreSQL container. Build with mvn -q package or ./gradlew build, start with java -jar, wait for /actuator/health to report UP, then run the checks. Spring Boot’s health endpoint also offers liveness and readiness groups for orchestrators. Keep the commands in the README or a script so anyone can repeat them, and record the versions you used: JDK, database and model.',
+      'Each check should state its expected value. "It looked fine" is not evidence. The outage checks matter most: switch the model provider off and show that help degrades to a fallback while booking still succeeds. Add a replay check too: resend the same idempotency key after a simulated lost response and expect the original result, not a second booking. Save the output with a timestamp as the evidence for the final review.'
+    ],
+    code: {
+      title: 'SmokeRun.java · start an app, run six expected-value checks over HTTP including a provider outage, print PASS/FAIL · java SmokeRun.java',
+      text: String.raw`import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class SmokeRun {
+    // A tiny stand-in for the packaged app: health, claim (conditional write) and help with a provider switch.
+    static final Map<String, String> owners = new ConcurrentHashMap<>();
+    static volatile boolean providerUp = true;
+
+    static HttpServer start() throws Exception {
+        HttpServer s = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        s.createContext("/actuator/health", ex -> reply(ex, 200, "{\"status\":\"UP\"}"));
+        s.createContext("/bookings", ex -> {
+            String[] kv = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8).split("&");
+            String seat = kv[0].split("=")[1], user = kv[1].split("=")[1];
+            boolean won = owners.putIfAbsent(seat, user) == null;
+            reply(ex, won ? 201 : 409, won ? seat + " -> " + user : seat + " taken");
+        });
+        s.createContext("/help", ex -> reply(ex, 200, providerUp ? "Refunds up to 24h [POL-1]" : "fallback: see /policies/refunds"));
+        s.start();
+        return s;
+    }
+
+    static void reply(com.sun.net.httpserver.HttpExchange ex, int status, String body) throws java.io.IOException {
+        byte[] b = body.getBytes(StandardCharsets.UTF_8);
+        ex.sendResponseHeaders(status, b.length);
+        try (var out = ex.getResponseBody()) { out.write(b); }
+    }
+
+    public static void main(String[] args) throws Exception {
+        HttpServer app = start();
+        String base = "http://127.0.0.1:" + app.getAddress().getPort();
+        HttpClient http = HttpClient.newHttpClient();
+        List<String[]> results = new ArrayList<>();   // {check, expected, actual}
+
+        results.add(new String[] {"health", "200", String.valueOf(get(http, base + "/actuator/health").statusCode())});
+        results.add(new String[] {"first claim A1", "201", String.valueOf(post(http, base + "/bookings", "seat=A1&user=ana").statusCode())});
+        results.add(new String[] {"competing claim A1", "409", String.valueOf(post(http, base + "/bookings", "seat=A1&user=ben").statusCode())});
+        results.add(new String[] {"help cites a policy", "true", String.valueOf(get(http, base + "/help").body().contains("[POL-1]"))});
+        providerUp = false;                                      // simulate a provider outage
+        results.add(new String[] {"help falls back", "true", String.valueOf(get(http, base + "/help").body().startsWith("fallback"))});
+        results.add(new String[] {"booking during outage", "201", String.valueOf(post(http, base + "/bookings", "seat=A2&user=cy").statusCode())});
+        app.stop(0);
+
+        int failed = 0;
+        for (String[] r : results) {
+            boolean ok = r[1].equals(r[2]);
+            if (!ok) failed++;
+            System.out.printf("%-4s %-22s expected %-5s got %s%n", ok ? "PASS" : "FAIL", r[0], r[1], r[2]);
+        }
+        System.out.println(failed == 0 ? "smoke run passed: 6/6" : "smoke run FAILED: " + failed + " checks");
+    }
+
+    static HttpResponse<String> get(HttpClient c, String url) throws Exception {
+        return c.send(HttpRequest.newBuilder(URI.create(url)).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    static HttpResponse<String> post(HttpClient c, String url, String form) throws Exception {
+        return c.send(HttpRequest.newBuilder(URI.create(url)).POST(HttpRequest.BodyPublishers.ofString(form)).build(), HttpResponse.BodyHandlers.ofString());
+    }
+}
+`,
+      output: String.raw`PASS health                 expected 200   got 200
+PASS first claim A1         expected 201   got 201
+PASS competing claim A1     expected 409   got 409
+PASS help cites a policy    expected true  got true
+PASS help falls back        expected true  got true
+PASS booking during outage  expected 201   got 201
+smoke run passed: 6/6`
+    },
+    takeaways: ['A demo is a script with expected values.', 'Start clean, wait for health UP, then check.', 'Prove booking works while the model is down.', 'Record versions and save the timestamped output.'],
+    interview: [
+      ['Walk me through how you would demonstrate your booking system end to end.', 'I run one script from a clean state, so anyone can repeat it. It builds the jar, starts PostgreSQL in a container, launches the app and waits until /actuator/health reports UP. Then it runs fixed checks with expected values: a valid booking returns 201, a competing claim on the same seat returns 409, and resending the same idempotency key after a simulated lost response returns the original booking instead of creating a second one. A help question returns an answer that cites a policy. Finally it switches the model provider off and shows that help falls back while a new booking still succeeds. The script prints PASS or FAIL per check and saves the output with versions and a timestamp.'],
+      ['What is the difference between liveness and readiness, and which should gate traffic?', 'Liveness answers "is this process broken beyond recovery?" If it fails, the orchestrator restarts the container. It should depend only on the application’s internal state, not on the database or the model provider, otherwise a provider outage would cause restarts that fix nothing. Readiness answers "can this instance serve requests right now?" If it fails, the instance is removed from load balancing but not restarted. That is the right signal to gate traffic, for example while the app warms up or loses its database. Spring Boot exposes both as health groups. For this app, losing the model provider should affect neither, because booking must keep working without it.'],
+      ['Your demo passed yesterday and fails today without code changes. How do you investigate?', 'First I compare the recorded environment with today’s: JDK, database image tag, model version and configuration. Unpinned versions such as a latest image tag are the usual cause. Then I look at the first failing check and its actual value, not just the summary. A 409 where 201 was expected suggests leftover state, meaning the run did not start clean. A help failure suggests a provider or model change. A timeout points to the network or capacity. I rerun from a truly fresh container to separate state problems from environment problems. Finally I pin whatever changed and add the missing assumption, such as "database is empty", as an explicit check at the start of the script.']
+    ],
+    check: ['In SmokeRun.java, what proves that booking does not depend on the model provider?',
+      ['The health check returns 200', 'A booking made after providerUp = false still returns 201', 'The help answer cites [POL-1]', 'The competing claim returns 409'], 1,
+      'Only the check that books during the simulated outage shows the two paths are independent.'],
+    practice: ['Copy SmokeRun.java. Add an idempotency key to /bookings so a replayed request returns the original result, and add that replay as a seventh check.',
+      ['Replaying the same key returns the first response, not a 409 or a second booking.', 'The summary prints 7/7 and exits with a non-zero status on failure.', 'The script prints the JDK version at the start.', 'Write the three commands you would use to run it against the real jar.']],
+    references: [['Spring Boot · Actuator endpoints (health, liveness, readiness)', 'https://docs.spring.io/spring-boot/reference/actuator/endpoints.html'], ['Java 21 API · HttpClient', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.net.http/java/net/http/HttpClient.html']]
+  },
+  'ai-operations-03.dsa': {
+    notes: [
+      'Latency reports use medians and percentiles because averages hide outliers. To keep the median of a stream up to date, use two heaps: a max-heap "low" for the smaller half and a min-heap "high" for the larger half. Insert into low if the value is at most low’s top, otherwise into high, then move one element across if the sizes differ by more than one. The median is low’s top when the sizes differ, or the average of both tops when they are equal.',
+      'Each insert costs O(log n) and each median read costs O(1). StreamMedian.java feeds model-call latencies 120, 95, 400, 110, 105, 2600 and 98 ms. The medians are 120, 107.5, 120, 115, 110, 115 and finally 110. The 2,600 ms outlier moves the median by just 5 ms, while it would pull the average up to about 504 ms.',
+      'In Java, a max-heap is new PriorityQueue<>(Comparator.reverseOrder()). Watch for integer overflow when averaging two large tops: use (a + b) / 2.0 with long or double. For a sliding-window median you also need deletions, which a PriorityQueue does in O(n). Use lazy deletion or two TreeMaps with counts instead. For p95 rather than the median, production systems use histograms or sketches (such as HdrHistogram or t-digest) instead of keeping every value.'
+    ],
+    code: {
+      title: 'StreamMedian.java · running median of model latencies with a max-heap and a min-heap · java StreamMedian.java',
+      text: String.raw`import java.util.*;
+
+public class StreamMedian {
+    // Two heaps: "low" (max-heap) holds the smaller half, "high" (min-heap) the larger half; low may hold one extra.
+    private final PriorityQueue<Integer> low = new PriorityQueue<>(Comparator.reverseOrder());
+    private final PriorityQueue<Integer> high = new PriorityQueue<>();
+
+    void add(int x) {
+        if (low.isEmpty() || x <= low.peek()) low.add(x); else high.add(x);
+        if (low.size() > high.size() + 1) high.add(low.poll());     // rebalance so sizes differ by at most one
+        else if (high.size() > low.size()) low.add(high.poll());
+    }
+
+    double median() {
+        if (low.isEmpty()) throw new IllegalStateException("no values yet");
+        return low.size() > high.size() ? low.peek() : (low.peek() + high.peek()) / 2.0;
+    }
+
+    public static void main(String[] args) {
+        StreamMedian m = new StreamMedian();
+        int[] latenciesMs = {120, 95, 400, 110, 105, 2600, 98};      // model call latencies as they arrive
+        StringBuilder out = new StringBuilder();
+        for (int x : latenciesMs) { m.add(x); out.append(x).append("->").append(m.median()).append("  "); }
+        System.out.println(out.toString().trim());
+        System.out.println("median after 7 calls: " + m.median() + " ms (the 2600 ms outlier barely moves it)");
+    }
+}
+`,
+      output: String.raw`120->120.0  95->107.5  400->120.0  110->115.0  105->110.0  2600->115.0  98->110.0
+median after 7 calls: 110.0 ms (the 2600 ms outlier barely moves it)`
+    },
+    takeaways: ['low = max-heap of the smaller half; high = min-heap of the larger half.', 'Rebalance so sizes differ by at most one.', 'O(log n) insert, O(1) median.', 'Medians resist outliers; averages do not.'],
+    interview: [
+      ['Design a data structure that returns the median of a stream at any time.', 'I keep two heaps. The max-heap holds the smaller half and the min-heap holds the larger half, and I maintain the invariant that every value in the max-heap is at most every value in the min-heap, with sizes differing by at most one. To add x, I push it into the max-heap if it is at most that heap’s top, otherwise into the min-heap. Then I rebalance by moving one top across if needed. The median is the max-heap’s top when it is larger, or the average of the two tops when the sizes are equal. Adds are O(log n), the median is O(1), and the space is O(n).'],
+      ['How would you change the design for the median of the last k values only?', 'Now values must leave the window, and PriorityQueue.remove(Object) is O(k), so the two-heap design needs lazy deletion. I record outgoing values in a hash map of pending deletions and discard them only when they reach a heap top, while tracking the logical sizes separately for rebalancing. A simpler alternative in Java is two TreeMaps with counts, a multiset for each half, which support insert and delete in O(log k). Each slide then costs O(log k), so n values take O(n log k). For approximate percentiles over large windows in production, I would use a histogram per time bucket instead of storing values.'],
+      ['Why report p50 and p95 latency instead of the mean for a model call?', 'Latency distributions for remote calls are skewed. Most requests are quick, and a few are very slow because of queueing, cold starts or retries. The mean mixes both, so one 2,600 ms call can double it while users mostly saw about 110 ms. The median describes the typical experience and the p95 or p99 describes the slow tail that users actually complain about and that timeouts must cover. That is why latency budgets and SLOs are stated as percentiles. Computing exact percentiles needs all values, so production systems use bucketed histograms, and two heaps are the interview-sized version for the median.']
+    ],
+    check: ['After adding 120, 95, 400 and 110 to the two-heap structure, what is the median?',
+      ['107.5', '115.0', '120.0', '181.25'], 1,
+      'Sorted, the values are 95, 110, 120 and 400. The two middle values average to 115.'],
+    practice: ['Copy StreamMedian.java. Add slidingMedian(int[] values, int k) using two TreeMaps with counts, and test it against a brute-force sort of each window.',
+      ['For k = 3 over the latency array, the medians are 120, 110, 110, 110, 105.', 'It matches brute force on 100 random arrays.', 'Averaging two values near Integer.MAX_VALUE does not overflow.', 'State O(n log k) time and O(k) space.']],
+    references: [['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html'], ['Google SRE book · Monitoring distributed systems (worry about your tail)', 'https://sre.google/sre-book/monitoring-distributed-systems/']]
+  },
+  'd-mst-01': {
+    notes: [
+      'A minimum spanning tree connects all vertices of a connected, undirected, weighted graph with the lowest total edge weight. It has exactly V − 1 edges and no cycle. If the graph is disconnected, no spanning tree exists, and the right output is a minimum spanning forest: one tree per component, with V − C edges, where C is the number of components. Kruskal’s algorithm produces the forest naturally.',
+      'Why greedy works: the cut property. Split the vertices into two groups. The lightest edge crossing that split belongs to some minimum spanning tree. When Kruskal takes the next lightest edge whose endpoints are in different components, that edge is the lightest one crossing the cut between its endpoint’s component and the rest, so it is safe. An edge whose endpoints already share a root would close a cycle, and it is the heaviest edge on that cycle seen so far, so skipping it never loses optimality.',
+      'KruskalForest.java runs on six vertices, with vertex 5 isolated, a duplicate 0–2 edge, a tie at weight 5 and a negative edge 3–4 (−3). It keeps 3–4, 0–2, 1–2 and 1–3 for a cost of 5. That is 4 edges = 6 vertices − 2 components. A brute-force search over all edge subsets confirms 5. Negative weights are fine, because only the order of weights matters, unlike Dijkstra. Negating all weights gives a maximum spanning forest, which costs 22 here.',
+      'Ties mean several optimal trees can exist. 2–4 could replace 1–3 at the same cost. Tests should therefore assert the total cost, the edge count V − C and that the result is acyclic. Assert an exact edge set only if you define a tie-break, as the program does by sorting on weight, then u, then v. The cost is O(E log E) for sorting plus nearly linear union-find work. Prim’s algorithm, which grows one tree from a start vertex with a priority queue, is the usual alternative for dense graphs.'
+    ],
+    code: {
+      title: 'KruskalForest.java · Kruskal with a deterministic tie-break, a brute-force check, a negative edge and a maximum spanning forest · java KruskalForest.java',
+      text: String.raw`import java.util.*;
+
+public class KruskalForest {
+    record Edge(int u, int v, int w) {
+        public String toString() { return u + "-" + v + "(" + w + ")"; }
+    }
+
+    static int[] parent, size;
+
+    static int find(int x) {
+        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }   // path halving
+        return x;
+    }
+
+    static boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;                       // same component: this edge would close a cycle
+        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra; size[ra] += size[rb];
+        return true;
+    }
+
+    // Kruskal: sort by weight (ties by endpoints, so the output is deterministic), keep each edge whose union succeeds.
+    static List<Edge> kruskal(int n, List<Edge> edges) {
+        parent = new int[n]; size = new int[n];
+        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+        List<Edge> sorted = new ArrayList<>(edges);
+        sorted.sort(Comparator.comparingInt(Edge::w).thenComparingInt(Edge::u).thenComparingInt(Edge::v));
+        List<Edge> kept = new ArrayList<>();
+        for (Edge e : sorted) if (union(e.u(), e.v())) kept.add(e);
+        return kept;
+    }
+
+    static int cost(List<Edge> es) { return es.stream().mapToInt(Edge::w).sum(); }
+
+    // Brute force for small graphs: the cheapest acyclic edge subset with the maximum possible number of edges.
+    static int bruteForce(int n, List<Edge> edges) {
+        int best = Integer.MAX_VALUE, bestCount = -1;
+        for (int mask = 0; mask < (1 << edges.size()); mask++) {
+            parent = new int[n]; size = new int[n];
+            for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+            boolean acyclic = true; int count = 0, c = 0;
+            for (int i = 0; i < edges.size() && acyclic; i++) if ((mask >> i & 1) == 1) {
+                Edge e = edges.get(i);
+                acyclic = union(e.u(), e.v()); count++; c += e.w();
+            }
+            if (!acyclic) continue;
+            if (count > bestCount || (count == bestCount && c < best)) { bestCount = count; best = c; }
+        }
+        return best;
+    }
+
+    public static void main(String[] args) {
+        // 6 vertices: 0..4 connected, 5 isolated; a duplicate edge, a tie and one negative weight.
+        List<Edge> edges = List.of(new Edge(0, 1, 4), new Edge(0, 2, 1), new Edge(1, 2, 2), new Edge(1, 3, 5),
+                new Edge(2, 3, 8), new Edge(3, 4, -3), new Edge(2, 4, 5), new Edge(0, 2, 1));
+        List<Edge> forest = kruskal(6, edges);
+        Set<Integer> roots = new TreeSet<>();
+        for (int v = 0; v < 6; v++) roots.add(find(v));
+        System.out.println("kept " + forest + " cost " + cost(forest));
+        System.out.println("edges " + forest.size() + " = V - components = 6 - " + roots.size());
+        System.out.println("brute force minimum: " + bruteForce(6, edges));
+
+        // Maximum spanning tree: same algorithm on negated weights.
+        List<Edge> negated = edges.stream().map(e -> new Edge(e.u(), e.v(), -e.w())).toList();
+        System.out.println("maximum spanning forest cost: " + -cost(kruskal(6, negated)));
+        System.out.println("empty graph: " + kruskal(0, List.of()) + " cost " + cost(kruskal(0, List.of())));
+    }
+}
+`,
+      output: String.raw`kept [3-4(-3), 0-2(1), 1-2(2), 1-3(5)] cost 5
+edges 4 = V - components = 6 - 2
+brute force minimum: 5
+maximum spanning forest cost: 22
+empty graph: [] cost 0`
+    },
+    takeaways: ['Sort edges; keep an edge only when union succeeds.', 'A disconnected graph gives a forest with V − C edges.', 'The cut property makes the greedy choice safe; negative weights are fine.', 'With ties, test cost, edge count and acyclicity rather than one edge set.'],
+    interview: [
+      ['Explain Kruskal’s algorithm and prove that the greedy choice is safe.', 'Sort the edges by weight and start with every vertex in its own union-find set. For each edge in order, if its endpoints have different roots, union them and keep the edge. Otherwise skip it, because it would close a cycle. Correctness comes from the cut property: for any split of the vertices into two sides, a lightest edge crossing the split belongs to some minimum spanning tree. When Kruskal keeps edge (u, v), consider the cut between u’s current component and everything else. No lighter crossing edge remains, because any lighter one was already processed and either kept or skipped inside a component. So the edge is safe. The time is O(E log E), dominated by sorting.'],
+      ['How do you test an MST implementation when the optimal tree is not unique?', 'I assert properties that every correct answer shares, not one particular edge list. The total weight must equal the known minimum, which I get from a brute-force search on small graphs. The number of edges must be V − C, where C is the number of components. The kept edges must form no cycle and must connect every vertex within each component. I include a tie, a duplicate edge, a negative weight, an isolated vertex and an empty graph. If the API promises a deterministic result, for example sorting ties by endpoints, then I also assert the exact edges. Otherwise an exact list would make a correct implementation fail.'],
+      ['When would you use Prim’s algorithm instead of Kruskal’s?', 'Both are correct by the cut property and both handle negative weights. Kruskal sorts all edges and uses union-find, costing O(E log E). It is simple when the edges arrive as a list, it works naturally on disconnected graphs and it produces a forest. Prim grows one tree from a start vertex, repeatedly adding the lightest edge leaving the tree with a priority queue, in O(E log V). With an adjacency matrix and a simple array it costs O(V²), which wins on dense graphs where E is close to V². Prim needs a restart per component to build a forest. In an interview I pick Kruskal for edge lists and sparse graphs, and Prim for dense adjacency matrices.']
+    ],
+    check: ['In KruskalForest.java, why are there 4 kept edges for 6 vertices?',
+      ['Kruskal stops early to save time', 'Vertex 5 is isolated, so there are 2 components and V − C = 4 edges', 'The duplicate edge was counted twice', 'The negative edge is excluded'], 1,
+      'A spanning forest has V − C edges. Vertex 5 forms its own component.'],
+    practice: ['Copy KruskalForest.java. Add prim(int n, List<Edge>) with a PriorityQueue and run it once per component. Compare its cost with Kruskal on 50 random small graphs.',
+      ['Prim and Kruskal give the same cost on every graph, including disconnected ones.', 'Both match the brute-force minimum when there are at most 12 edges.', 'Swapping the tie-break changes the edges but not the cost.', 'State O(E log E) for Kruskal and O(E log V) for Prim.']],
+    references: [['Princeton Algorithms · Minimum spanning trees', 'https://algs4.cs.princeton.edu/43mst/'], ['MIT OCW 6.046J · Greedy Algorithms: Minimum Spanning Tree', 'https://www.youtube.com/watch?v=tKwnms5iRBU']]
+  },
   // @@packets
 };
 
@@ -2512,6 +3500,32 @@ export const lateDistractors = {
     ['The broker’s acknowledgement and the consumer’s offset commit.', 'Every service’s database write in one distributed transaction.'],
     ['Each event is delivered exactly once, so no check is needed.', 'Events always arrive in global timestamp order across partitions.']
   ],
+  51: [
+    ['A promise that every request will succeed within the window.', 'The highest latency observed during the last deployment.'],
+    ['Count every 409 only on weekends, when traffic is low.', 'Count it as a failure only if the user retries.']
+  ],
+  52: [
+    ['Only undirected graphs with no isolated vertices.', 'Any graph whose vertices have at most two outgoing edges.'],
+    ['A graph with at least one negative edge, to keep distances small.', 'Edge weights that are all distinct.']
+  ],
+  53: [
+    ['Running out of memory when the target is large.', 'Visiting items in a different order from the input.'],
+    ['The longest interval first, because it holds the answer.', 'Intervals in random order, since each is independent.']
+  ],
+  54: [
+    ['Replace the evaluation set, because fixtures already measure quality.', 'Show that the hosted provider is used for every request.'],
+    ['Yes. Booking should pause until the provider recovers.', 'Only if the outage lasts longer than the request timeout.']
+  ],
+  55: [
+    ['The edge weight is negative.', 'The vertex IDs are adjacent numbers.'],
+    ['An error, because a spanning tree does not exist.', 'A single tree that leaves out isolated vertices.'],
+    ['It sorts the edges again so the next union is cheaper.', 'It guarantees each root has exactly one child.'],
+    ['Weights must be distinct, otherwise Kruskal fails.', 'Only positive integer weights are supported by union-find.']
+  ],
+  56: [
+    ['The sign bit, which tells whether n is negative.', 'Whether n is a power of two.'],
+    ['After checking every odd number below n / 2.', 'As soon as one odd candidate fails to divide n.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -2535,6 +3549,20 @@ export const lateExplanations = {
     'A live update reports something that happened at the source. It reserves nothing and guarantees nothing about future requests or other clients.'],
   50: ['The outbox makes one database’s state change and its event record commit together. Publication and remote side effects stay separate, and they are at least once.',
     'Relays retry, and brokers redeliver after failures. Consumers must treat a repeated event ID as already handled.'],
+  51: ['An SLO is a target for a defined indicator over a window, such as 99% of eligible bookings good over 28 days. It is not an observation of one request or a guarantee.',
+    'A legitimate conflict is the service working correctly. The SLI definition normally excludes it deliberately, so the budget reflects real failures.'],
+  52: ['A topological order puts every edge forward. A directed cycle makes that impossible, so only DAGs have a complete order.',
+    'Dijkstra treats the nearest unfinished vertex as final. That is safe only if no edge can make a later path shorter, which requires nonnegative weights.'],
+  53: ['Going downward keeps reach[s − w] equal to its value before the current item, so an item cannot feed a later sum in the same pass and is used at most once.',
+    'A larger interval combines answers for smaller intervals inside it, so shorter intervals must be solved first: fill by increasing length.'],
+  54: ['A fixture is deterministic, so it reliably tests parsing, timeouts and fallbacks. It says nothing about the quality of a real model.',
+    'Booking state is owned by the booking service and database. The model only powers help, so its outage must leave booking working.'],
+  55: ['union returns false when find gives the same root for both endpoints, because they are already connected and the edge would close a cycle.',
+    'Each component gets its own minimum spanning tree, so Kruskal returns a forest with V − C edges.',
+    'Path halving points nodes at their grandparents during find, which shortens later searches. It never changes which component a vertex belongs to.',
+    'Kruskal only compares weights, so negative and equal weights are fine. The nonnegative rule belongs to Dijkstra.'],
+  56: ['n & 1 keeps only bit 0. In two’s complement that bit is 1 for odd values and 0 for even values, including negative ones.',
+    'Every composite n has a divisor d with d × d ≤ n. Once d > n / d, no unchecked divisor can exist, so n is prime.'],
   // @@explanations
 };
 
@@ -2620,6 +3648,46 @@ export const lateAssessment = {
       choices: ['It restores the database to its exact earlier state, invisibly', 'It is a new, visible business action, such as a refund or a hold release, that must be idempotent', 'It is only needed when the database supports two-phase commit', 'It runs in the same order as the original steps'], answer: 1,
       explanation: 'Each saga step commits locally. Undoing it means a new compensating action, run in reverse order and safe to repeat.' }
   ],
+  51: [
+    { question: 'Why should a release that renames a database column ship in several steps (expand and contract)?',
+      choices: ['Because databases cannot rename columns', 'So the previous application version keeps working with the schema and rollback stays possible', 'To make the migration run faster', 'Because CI cannot test renames'], answer: 1,
+      explanation: 'Add the new shape first, switch code, and remove the old shape only later. Every intermediate schema works with both the current and previous code.' },
+    { question: 'The booking SLO is 99% over 28 days. What does a burn rate of 2 mean?',
+      choices: ['2% of requests failed in total', 'The budget is being spent twice as fast as allowed and would run out in about 14 days', 'Two incidents happened', 'The SLO was met twice over'], answer: 1,
+      explanation: 'Burn rate = observed bad fraction / allowed bad fraction. At 2, a 28-day budget lasts about half the window.' }
+  ],
+  52: [
+    { question: 'In PrunedSearch.java, why is "break when price > remaining" sound?',
+      choices: ['Because the budget is always 10', 'Because the prices are sorted and positive, so every later price also overshoots', 'Because break is faster than continue', 'Because duplicates are not allowed'], answer: 1,
+      explanation: 'Sorting makes the rule monotonic: once one price is too big, all later ones are too. Without sorting, breaking could discard valid combinations.' },
+    { question: 'What is the time complexity of Dijkstra with a binary heap on V vertices and E edges?',
+      choices: ['O(V + E)', 'O((V + E) log V)', 'O(V · E)', 'O(2^V)'], answer: 1,
+      explanation: 'Each vertex is extracted once and each edge may push one entry, and each heap operation costs O(log V).' }
+  ],
+  53: [
+    { question: 'Why should lcm(a, b) be computed as (|a| / gcd(a, b)) · |b| rather than |a · b| / gcd(a, b)?',
+      choices: ['It gives a different, more correct answer', 'Dividing first keeps the intermediate value no larger than the result, avoiding needless overflow', 'Division is faster than multiplication', 'gcd is undefined for products'], answer: 1,
+      explanation: 'a · b can overflow even when the LCM fits. Dividing first removes the shared factor before multiplying. Use Math.multiplyExact to catch true overflow.' },
+    { question: 'What is the time complexity of compressed 0/1 subset sum with n items and target T?',
+      choices: ['O(n + T)', 'O(n · T), which is pseudo-polynomial in the input size', 'O(2ⁿ) always', 'O(T log n)'], answer: 1,
+      explanation: 'Each item updates up to T sums. The cost depends on the numeric value of T, which makes it pseudo-polynomial.' }
+  ],
+  54: [
+    { question: 'A model answer cites [POL-1] correctly but says "Seat A2 is confirmed for you". What should the grounding gate do?',
+      choices: ['Accept it, because the citation is valid', 'Reject it: booking outcomes come only from the booking API, never from generated text', 'Accept it if the seat exists in row A', 'Retry the model until it stops saying confirmed'], answer: 1,
+      explanation: 'The assistant has no authority over booking state. Only the booking API response, backed by the database write, can say a seat is yours.' },
+    { question: 'Which health signal should remove an instance from load balancing without restarting it?',
+      choices: ['Liveness', 'Readiness', 'The model provider’s status page', 'The JVM uptime'], answer: 1,
+      explanation: 'A failing readiness check takes the instance out of rotation. A failing liveness check triggers a restart, so it should not depend on external services.' }
+  ],
+  56: [
+    { question: 'Why does a sieve up to 30 only need outer passes for p = 2, 3 and 5?',
+      choices: ['Because 7 is not prime', 'Every composite up to 30 has a prime factor of at most √30 ≈ 5.48, so passes for 7 and above mark nothing new', 'Because the array has only 30 entries', 'Larger primes are removed afterwards'], answer: 1,
+      explanation: 'The first multiple a pass for 7 would mark is 49, which is above 30. Primes up to 30 that are larger than 5 are still collected as unmarked values.' },
+    { question: 'What does Integer.parseInt("1F", 16) return, and what does Integer.parseInt("12", 2) do?',
+      choices: ['31, and it returns 3', '31, and it throws NumberFormatException because 2 is not a binary digit', '15, and it throws', '1F cannot be parsed, and it returns 12'], answer: 1,
+      explanation: '1F is 1 × 16 + 15 = 31. In radix 2 only the digits 0 and 1 are valid, so "12" is rejected.' }
+  ],
   // @@assessment
 };
 
@@ -2681,6 +3749,17 @@ export const lateStretchPlans = {
         acceptance: ['Five paragraphs written before opening notes.', 'At least one missed point marked per paragraph.'] }
     ]
   },
+  56: {
+    assign: { 'd-bits-01.packet': 30, 'd-primes-01.packet': 30, 'd-sieve-01.packet': 30, 'd-lcm-01.packet': 25, 'd-bits-01.stretch': 40, 'd-bases-01.packet': 25 },
+    extra: [
+      { id: 'd-bits-01.stretch-lab', minutes: 50, title: 'Stretch lab · a tested number toolkit',
+        prompt: 'Combine NumberAlgorithms.java and EuclidGcd.java into one NumberToolkit class with isPrime, sieve, gcd, extendedGcd, lcmOfArray, toBase and fromBase. Write a main method that runs table-driven checks and prints PASS or FAIL for each case.',
+        acceptance: ['isPrime agrees with the sieve for every n from 0 to 10,000.', 'fromBase(toBase(n, r), r) == n for 1,000 random n and every radix from 2 to 36.', 'lcmOfArray reports overflow instead of wrapping.', 'Every check prints PASS, and a deliberately broken case prints FAIL.'] },
+      { id: 'd-bits-01.stretch-review', minutes: 40, title: 'Stretch review · course recap without notes',
+        prompt: 'This is the last day of the course. Without opening notes, list the 10 topics from Days 1–56 you would least like to be asked about in an interview. For each, write one sentence explaining it and the Java class you would sketch. Then open the notes, correct each answer and schedule the three weakest for revision.',
+        acceptance: ['Ten topics are listed before opening notes.', 'Each has one corrected sentence and a Java class name.', 'Three weakest topics are scheduled for revision.'] }
+    ]
+  },
   // @@stretch
 };
 
@@ -2737,5 +3816,56 @@ export const lateInterviewGuides = {
     'The relay will publish the same event again, with the same event ID, because the row still looks unsent. The consumer protects its effect by making the deduplication record and the effect part of one local transaction. It inserts the event ID into a processed_events table with a unique key and performs its write, for example queueing the confirmation email, in the same commit. On replay the insert fails, or a lookup finds the ID, so the consumer skips the effect and acknowledges the message. If the consumer crashed before its commit, neither the marker nor the effect exists, so reprocessing is correct. For external calls, the event ID becomes the idempotency key of that call.',
     'The saga should mark the payment step as failed and run the compensation for every step that already committed, in reverse order. Here it releases the seat hold, then marks the booking saga as cancelled and informs the user. This differs from rolling back a transaction. A rollback discards uncommitted changes, so it is as if they never happened, and nobody else could have seen them. The hold did commit, so other users may have seen the seat as unavailable. Releasing it is a new, committed business action that is logged, may be retried, and must be idempotent in case the release message is delivered twice. The hold’s expiry is a safety net if compensation is delayed.'
   ],
+  51: [
+    'Failures that users experience as the service not doing its job should burn the budget: 5xx responses, timeouts, dropped connections, and successful bookings that were slower than the latency threshold in the SLI, for example 1 second. The denominator is eligible attempts, so requests the client caused are excluded: malformed input, missing or expired credentials, forbidden actions, and legitimate 409 conflicts when the seat was already taken. A 409 there is the invariant working correctly, so counting it would punish correct behavior and push the team to weaken the rule. I write the definition before collecting data, measure at the load balancer so requests that never reached the app still count, and review the rules when the API changes.',
+    'An availability SLI defined as good eligible attempts divided by eligible attempts, where good means a 2xx response within the latency threshold. Fast 503s and quick timeout errors still count as bad, so the SLI drops even though average latency looks excellent. A latency SLI computed only over successful responses would miss the problem completely, and so would a "requests answered" metric. To diagnose the cause I would add supporting signals, such as database timeout counts, connection-pool wait time and pool saturation, plus traces of failed attempts. The user-facing availability SLI is what shows the impact and burns the error budget, which is what should drive the response.',
+    'I compute the availability SLI separately for the new version and for the stable baseline over the same window during a canary. For example, after at least 500 eligible attempts in 10 minutes, the rule rolls back if the canary’s bad fraction exceeds the baseline’s by more than 0.5 percentage points, or if its burn rate, observed bad fraction divided by allowed bad fraction, is above about 10, which would exhaust the monthly budget within days. The evidence I need is version-labelled metrics, enough traffic in both groups to make the comparison meaningful, identical eligibility rules, and a record of the numbers next to the decision. The pipeline evaluates the rule automatically and redeploys the previous image on failure.'
+  ],
+  52: [
+    'Prerequisites form a directed graph where an edge A → B means A must come before B. I would use a topological sort, such as Kahn’s algorithm: count each course’s unmet prerequisites, repeatedly take a course with none, and decrement its successors. If some courses are never taken, there is a cycle and no valid schedule exists, so I report it. Dijkstra is a different tool for weighted shortest paths, for example travel times between venue gates, and it assumes every edge weight is nonnegative. That assumption is what makes the closest unfinished vertex’s distance final. With negative weights I would use DAG relaxation in topological order or Bellman-Ford.',
+    'In the dependency graph, the cycle breaks topological sorting’s assumption that the graph is acyclic. Every vertex on the cycle always has an unmet predecessor, so Kahn’s algorithm stops with vertices left over, and the right output is "no complete order" plus the cycle, not a partial order. In the second graph, the negative edge breaks Dijkstra’s assumption of nonnegative weights. Dijkstra may finalize a vertex and later miss a cheaper path through the negative edge, so it returns a wrong distance without any error. If that graph is a DAG, relaxing edges in topological order is correct. Otherwise Bellman-Ford handles negative weights and detects negative cycles.',
+    'A pruning rule is safe when I can prove that no completion of the current partial solution can be feasible, so cutting the branch loses nothing. The usual proof is monotonic. With sorted positive prices, if the next price already exceeds the remaining budget, every later price does too, and adding more items only increases the total, so the whole rest of the loop can be skipped. The proof depends on its assumptions: unsorted input or negative values would make the same rule unsound. I verify it by running the pruned and unpruned searches on the same inputs and checking that their solution sets are identical, while only the number of calls changes.'
+  ],
+  53: [
+    'The state is reach[s]: can some subset of the items processed so far add up to exactly s? It starts with reach[0] = true and everything else false. For each item of weight w, I iterate s from the target down to w and set reach[s] = reach[s] || reach[s − w]. The downward order matters because reach[s − w] must still describe the previous items. Otherwise the current item could be counted twice. That is the difference from unbounded reuse, such as coin change with unlimited coins, where I iterate upward on purpose so an item can feed later sums in the same pass. Both versions take O(n · target) time and O(target) space.',
+    'Almost certainly an ascending inner loop in the compressed one-dimensional table. Going upward, the code sets reach[3] from reach[0] and then, in the same pass for the same item, sets reach[6] from the freshly updated reach[3], so the single item was used twice. That is the unbounded recurrence, not 0/1. The fix is to iterate s from the target down to the item’s weight, so every read of reach[s − w] sees the state before this item. Afterwards the reachable sums for one item of weight 3 are exactly 0 and 3. I would add exactly that fixture as a regression test, together with one where reuse is legitimately allowed.',
+    'Matrix i has shape dims[i] × dims[i+1]. The state cost[i][j] is the minimum number of scalar multiplications needed to multiply matrices i through j, with cost[i][i] = 0. The transition tries every split point k from i to j − 1: cost[i][k] + cost[k+1][j] + dims[i] · dims[k+1] · dims[j+1], where the last term multiplies the two partial products. Because every interval depends only on strictly shorter intervals inside it, I fill the table by increasing interval length, from length 2 up to n, and the answer is cost[0][n−1]. Storing the best k in each cell lets me reconstruct the parenthesization. The time is O(n³) and the space O(n²).'
+  ],
+  54: [
+    'The trade-off is data custody and operating effort against quality, latency and cost. A local Ollama model keeps policy text in our network but needs hardware we run. A hosted model is usually faster and better, but requests leave the network. I measure, not argue. The same evaluation questions run through every adapter behind one Java interface, and I record the grounded-correct rate, correct refusals and p95 latency for the environment I actually used. The outage evidence is a script: switch the provider off, ask a help question and get the fallback, then make a new booking (201) and a competing claim on the same seat (409). Those status codes come from the booking API and PostgreSQL, so the two paths are independent.',
+    'I measure first, then apply the hard rules in order. The data rule comes first: if policy text or questions may not leave our network, the hosted model is out, unless an approved contract changes that. Then latency: p95 on representative questions under the real timeout, not a single fast demo call. If the local model is too slow, I try the cheap fixes before giving up on it: shorter retrieved context, a smaller model that still passes the evaluation, a GPU host, or caching common answers. I compare grounded quality only among options that pass both rules. If none pass, help ships with its fallback message, and booking is unaffected either way.',
+    'A fixture is justified when I need deterministic tests of control flow. The evidence is that parsing, citation checks, the timeout and the outage fallback all pass repeatably in CI. Local inference is justified when the data must stay inside our network and the measured p95 on our hardware fits the budget at the expected load. Hosted inference is justified when it passes the data policy and cost limits and clearly beats local on grounded-correct rate or tail latency on the same evaluation set. In every case I state the environment, the model version and the numbers, and confirm that booking still succeeds when that adapter is down.'
+  ],
+  55: [
+    'Two vertices with the same root are already connected by a path made of edges we kept. Adding another edge between them would create a second route, which is a cycle, and a spanning tree or forest has no cycles. It is also never needed for optimality. Because edges arrive in increasing weight, this edge is at least as heavy as every kept edge on that path, so swapping it in could never lower the cost. So union returns false, the edge is skipped and the component count stays the same. An edge between two different roots is the lightest one crossing the cut around its component, and by the cut property it belongs to some minimum spanning tree.',
+    'A good test checks the properties every optimal answer shares, not one exact edge list. It asserts the total cost equals the minimum, checked against a brute-force search on small inputs. It asserts the number of edges is V − C, where C is the number of components. It asserts the kept edges contain no cycle, which you can check by re-running union-find over them, and that each component is fully spanned. Add cases for a tie, a duplicate edge, a negative weight, an isolated vertex and zero vertices. Assert an exact set of edges only when the contract defines a tie-break, such as sorting by weight, then u, then v.',
+    'Union by size always attaches the smaller tree under the root of the larger one. A vertex’s depth grows only when its tree at least doubles in size, so no path is longer than log n. Path compression, or path halving, makes the nodes visited during find point closer to the root, so later finds are shorter. Together the amortized cost per operation is O(α(n)), where α is the inverse Ackermann function, which is below 5 for any realistic n. Deletion is the weak spot. The parent pointers record which component a vertex belongs to, not which edges connect it, so after removing an edge you cannot tell whether the component split. Use a fresh traversal, offline reverse processing, or a dynamic connectivity structure.'
+  ],
+  56: [
+    'It depends on how many numbers I must test and how large they are. For one number, or a few scattered ones, trial division up to √n is enough. I handle n < 2 and 2 first, then test odd divisors while d <= n / d, which is O(√n) time and O(1) space. For many queries below a known bound N, a sieve costs O(N log log N) time and O(N) memory once, and then each query is an O(1) array lookup. The break-even point is roughly when the total trial-division work for all queries exceeds the sieve cost, and the sieve’s memory still fits. For values near two billion, an int-indexed sieve is not practical, so the bound decides it.',
+    'A sieve up to two billion would need about two billion flags, roughly 2 GB as a boolean array or 250 MB as a bitset, just to answer five queries, so it is the wrong tool. Trial division up to √n is about 44,722 for n near two billion, and testing only odd divisors halves that, so five queries take a few hundred thousand operations. That is instant. For boundary checks, I loop with d <= n / d to avoid overflowing d × d near Integer.MAX_VALUE, and test 0, 1, 2, an even number, the prime square 46,337² = 2,147,117,569 (the largest prime square that fits in an int), and Integer.MAX_VALUE, which is prime. For many large queries, I would use deterministic Miller–Rabin.',
+    'For positive a and b, lcm(a, b) = a / gcd(a, b) × b. Computing a × b first can overflow even when the LCM itself fits. For example, two longs around 3 × 10^10 that share a large factor have a product above Long.MAX_VALUE but a small LCM. Dividing by the gcd first means the intermediate value is never larger than the final answer. An overflow check is still needed whenever the true LCM may exceed the type, which is common when folding over an array, because LCMs grow quickly. Use Math.multiplyExact, which throws ArithmeticException instead of wrapping silently, and fall back to BigInteger if the caller needs the exact large value. If any value is zero, return zero first.'
+  ],
   // @@guides
+};
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fuller answers for existing Codex topic questions on Days 55–56 (Grok). Keyed by topic ID, then by the exact
+// question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
+// Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
+export const lateTopicAnswers = {
+  'd-union-find-01': {
+    'What invariant does the parent array maintain?': 'Each set forms a tree inside the parent array. Every element follows parent links to exactly one root, and the root, where parent[r] == r, is the representative of the set. Two elements are in the same set exactly when find returns the same root for both. Only roots carry a meaningful size. Union keeps the invariant by linking one root under the other, never an inner node, so no element ends up with two roots and no cycle forms. Path compression keeps it too, because it only re-points nodes to an ancestor in the same tree, which changes path lengths but never membership.',
+    'Why combine union by size and path compression?': 'They attack different costs. Union by size attaches the smaller tree under the larger root, so an element gets one level deeper only when its set at least doubles. That bounds every path at log n even without compression. Path compression, or the simpler path halving, re-points the nodes visited by find towards the root, so the next find on any of them is shorter. Either alone gives O(log n) amortized per operation. Together they give O(α(n)) amortized, where α is the inverse Ackermann function, which is at most 4 for any input that fits in memory. In practice that means constant time per union or find.',
+    'How does the union result support Kruskal?': 'Kruskal needs one question answered quickly for each edge in weight order: are the endpoints already connected by edges I kept? Union answers it and updates the structure in the same call. It returns true when the endpoints had different roots. The sets are then merged and the edge is kept, because it connects two components without making a cycle. It returns false when the roots are equal, so the edge would close a cycle and is skipped. Each call is nearly constant time, so after sorting, the whole scan is close to O(E). The number of successful unions also tells you how many components remain: V minus the kept edge count.'
+  },
+  'd-bits-01': {
+    'What goes wrong when the XOR swap uses the same index twice?': 'The XOR swap does a ^= b, b ^= a, a ^= b, and it relies on a and b being two different storage locations. If both refer to the same element, for example swap(arr, i, i), the first step computes x ^ x, which is 0, and stores it in that single location. The original value is now lost, and the next two steps only XOR zeros together, so the element becomes 0 instead of staying unchanged. Guard with if (i == j) return, or simply use a temporary variable. Modern JVMs compile the temporary version just as efficiently, so the XOR trick is mainly an interview question, not an optimisation.'
+  },
+  'd-primes-01': {
+    'Why do you check up to and including the square root?': 'If n is composite, write n = d × q with 1 < d ≤ q. Then d × d ≤ d × q = n, so d ≤ √n. Every composite therefore has a divisor no larger than its square root, and if none exists up to √n, n is prime. The bound must be inclusive, because a perfect square such as 49 has its only nontrivial factor exactly at the boundary: 7 × 7. Stopping before 7 would wrongly report 49 as prime. In Java, write the loop condition as d <= n / d rather than d * d <= n, so it cannot overflow for values near Integer.MAX_VALUE, and handle n < 2 and the even case before the loop.'
+  },
+  'd-sieve-01': {
+    'Why can the p pass start at p²?': 'Any multiple of p smaller than p² can be written as k × p with k < p. That k has a prime factor smaller than p, and the pass for that smaller prime already marked k × p as composite. For example, when p = 5 the multiples 10, 15 and 20 were marked by the passes for 2 and 3, so the first value that still needs marking is 25. Starting at p² avoids that repeated work. It also explains why the outer loop can stop once p² exceeds the limit: no new composites remain to mark. The overall time stays O(N log log N), with an O(N) boolean array.'
+  }
 };
