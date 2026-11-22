@@ -363,6 +363,51 @@ export const lateLanes = {
     readings: [reading('Wikipedia · Boyer–Moore majority vote algorithm', 'https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_majority_vote_algorithm')],
     recall: 'Why must the majority candidate be verified?'
   },
+  14: {
+    title: 'Three-way partition (Dutch national flag)',
+    concept: 'Partition values into three groups in one pass with low, mid and high pointers and an unknown middle region.',
+    example: 'Seat states [2, 0, 2, 1, 1, 0, 0, 2, 1] become [0, 0, 0, 1, 1, 1, 2, 2, 2].',
+    practice: 'Implement the partition, test it against Arrays.sort, then use it in a three-way quicksort.',
+    checks: ['mid does not advance after a swap with high.', 'All-equal input works.', 'Random test against a sort passes.'],
+    readings: [reading('Princeton Algorithms · Quicksort', 'https://algs4.cs.princeton.edu/23quicksort/')],
+    recall: 'Why must mid stay put after swapping with high?'
+  },
+  15: {
+    title: 'Peak overlap: minimum rooms',
+    concept: 'Sort bookings by start and keep a min-heap of end times; the heap size is the number of rooms needed, which equals peak concurrency.',
+    example: '[9:00–10:00), [9:30–11:00), [10:00–10:30), [10:30–12:00), [10:45–11:15) need 3 rooms.',
+    practice: 'Implement the heap and sweep versions and compare them on random bookings.',
+    checks: ['Back-to-back bookings share a room.', 'Empty input returns 0.', 'Both versions agree.'],
+    readings: [reading('Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html')],
+    recall: 'What does the min-heap of end times represent?'
+  },
+  16: {
+    title: 'Prefix and suffix passes',
+    concept: 'Precompute running totals so each query is O(1): prefix sums for range totals, and left and right products for the product of all other elements without division.',
+    example: '[1, 2, 3, 4] gives [24, 12, 8, 6]; [2, 0, 5] gives [0, 10, 0].',
+    practice: 'Implement productExceptSelf and prefix sums, then a 2D prefix sum.',
+    checks: ['No division used.', 'Zeros handled.', 'Range totals match brute force.'],
+    readings: [reading('Princeton Algorithms · Analysis of algorithms', 'https://algs4.cs.princeton.edu/14analysis/')],
+    recall: 'How does the suffix pass complete each product?'
+  },
+  17: {
+    title: 'Rotation and modular arithmetic',
+    concept: 'Rotate an array in place with three reversals after normalizing k with modulo; the same modulo drives round-robin routing.',
+    example: '[1..7] rotated right by 3 is [5, 6, 7, 1, 2, 3, 4]; rotating [1, 2, 3] by 5 equals rotating by 2.',
+    practice: 'Implement rotate with reversals and a round-robin router, then a weighted router.',
+    checks: ['k larger than n handled.', 'Negative k handled.', 'O(1) extra space.'],
+    readings: [reading('Java 21 API · Math.floorMod', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html')],
+    recall: 'Why do three reversals rotate an array?'
+  },
+  18: {
+    title: 'Sliding window: peak request rate',
+    concept: 'With sorted timestamps, two pointers find the busiest fixed-width window in O(n), which is the number to size for.',
+    example: 'Ten requests over 4 seconds average 2.5 per second, but 7 arrive within one 1,000 ms window.',
+    practice: 'Implement the peak window, report several window widths, and estimate instances with headroom.',
+    checks: ['Window is half-open.', 'Peak and average both reported.', 'Instances rounded up.'],
+    readings: [reading('Google SRE book · Handling overload', 'https://sre.google/sre-book/handling-overload/')],
+    recall: 'Why size capacity for the peak window rather than the average?'
+  },
   // @@lanes
 };
 
@@ -6833,6 +6878,283 @@ empty: length 0`
       ['The n/3 version keeps two candidates and verifies both.', 'Results match a HashMap count.', 'Empty input handled.', 'Complexity stated.']],
     references: [['Wikipedia · Boyer–Moore majority vote algorithm', 'https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_majority_vote_algorithm']]
   },
+  'b-transactions-02.dsa': {
+    notes: [
+      'Partitioning an array into three groups in one pass is the Dutch national flag problem. Here every seat has a state, 0 free, 1 held or 2 booked, and we want all free seats first, then held, then booked. Sorting would work in O(n log n), but three pointers do it in O(n) with O(1) extra space.',
+      'ThreeWayPartition.java keeps an invariant: everything before low is 0, everything from low to mid − 1 is 1, everything after high is 2, and mid to high is still unknown. A 0 at mid is swapped to low and both advance; a 1 just advances mid; a 2 is swapped with high and high moves left, but mid stays, because the value swapped in has not been examined yet. That one detail is the usual bug.',
+      'The program checks the result against Arrays.sort on 1,000 random states, a cheap way to gain confidence in an invariant-based loop.'
+    ],
+    code: {
+      title: 'ThreeWayPartition.java · Dutch national flag partition of seat states in one pass, checked against a sort · java ThreeWayPartition.java',
+      text: String.raw`import java.util.Arrays;
+
+public class ThreeWayPartition {
+    // Dutch national flag: 0 = free, 1 = held, 2 = booked. One pass, O(1) extra space.
+    // Invariant: [0, low) are 0s, [low, mid) are 1s, (high, end] are 2s, [mid, high] unknown.
+    static void partition(int[] a) {
+        int low = 0, mid = 0, high = a.length - 1;
+        while (mid <= high) {
+            if (a[mid] == 0) swap(a, low++, mid++);
+            else if (a[mid] == 1) mid++;
+            else swap(a, mid, high--);           // do not advance mid: the swapped-in value is unknown
+        }
+    }
+
+    static void swap(int[] a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+
+    public static void main(String[] args) {
+        int[] states = {2, 0, 2, 1, 1, 0, 0, 2, 1};
+        partition(states);
+        System.out.println("partitioned: " + Arrays.toString(states));
+        int[] one = {2, 2, 2};
+        partition(one);
+        System.out.println("all booked: " + Arrays.toString(one));
+        int[] random = new java.util.Random(3).ints(1000, 0, 3).toArray();
+        int[] expected = random.clone();
+        Arrays.sort(expected);
+        partition(random);
+        System.out.println("1000 random states match a sort: " + Arrays.equals(random, expected));
+    }
+}
+`,
+      output: String.raw`partitioned: [0, 0, 0, 1, 1, 1, 2, 2, 2]
+all booked: [2, 2, 2]
+1000 random states match a sort: true`
+    },
+    takeaways: ['Three regions plus an unknown middle.', 'Do not advance mid after swapping with high.', 'O(n) time, O(1) space.', 'Check against a simple reference.'],
+    interview: [
+      ['How do you sort an array of 0s, 1s and 2s in one pass?', 'I use three pointers: low, mid and high, with the invariant that indexes before low hold 0, indexes from low to mid − 1 hold 1, indexes after high hold 2, and mid to high is unexamined. While mid ≤ high, if a[mid] is 0 I swap it with a[low] and advance both; if it is 1 I just advance mid; if it is 2 I swap it with a[high] and decrement high without moving mid, because the swapped-in value is still unexamined. Each step shrinks the unknown region, so it is one pass, O(n) time, and O(1) extra space. Counting sort with two passes also works, but this is one pass and in place.']
+    ],
+    check: ['Why does ThreeWayPartition.java not advance mid after swapping a 2 to the end?',
+      ['To save time', 'The value swapped into mid came from the unknown region and has not been checked', 'Because 2s are always last already', 'It is a bug'], 1,
+      'Advancing mid would skip that value, which might be a 0 or a 2.'],
+    practice: ['Copy ThreeWayPartition.java. Generalize it to partition around a pivot value (less, equal, greater) and use it in a quicksort that handles many duplicates, tested against Arrays.sort.',
+      ['Pivot partition keeps the invariant.', 'Quicksort with three-way partition is correct on duplicates.', 'Random tests pass.', 'Complexity stated.']],
+    references: [['Princeton Algorithms · Quicksort (3-way partitioning)', 'https://algs4.cs.princeton.edu/23quicksort/']]
+  },
+  'b-transactions-03.dsa': {
+    notes: [
+      'How many rooms, or seats, or connections, are needed so that overlapping bookings never share one? Sort the bookings by start time and keep a min-heap of end times for rooms in use. For each booking, if the earliest-ending room is free by its start, reuse that room by polling it; then add this booking’s end time. The heap size at the end is the answer.',
+      'MinRooms.java also solves it with a sweep: sort starts and ends separately, and walk through starts, releasing every room whose end is at or before the current start. The maximum number in use at once is the answer. Both are O(n log n). Using half-open intervals means a booking ending at 10:00 and another starting at 10:00 can share a room.',
+      'The same count is the peak concurrency, which is how you size a lock pool or connection pool: it tells you how many things are held at the same time.'
+    ],
+    code: {
+      title: 'MinRooms.java · minimum rooms for overlapping bookings with a min-heap of end times and with a start/end sweep · java MinRooms.java',
+      text: String.raw`import java.util.Arrays;
+import java.util.PriorityQueue;
+
+public class MinRooms {
+    // Minimum rooms so that no two overlapping bookings share a room. Half-open [start, end).
+    static int minRooms(int[][] bookings) {
+        int[][] b = bookings.clone();
+        Arrays.sort(b, (x, y) -> Integer.compare(x[0], y[0]));
+        PriorityQueue<Integer> endTimes = new PriorityQueue<>();   // end time of each room in use
+        for (int[] bk : b) {
+            if (!endTimes.isEmpty() && endTimes.peek() <= bk[0]) endTimes.poll();   // reuse the room that frees first
+            endTimes.offer(bk[1]);
+        }
+        return endTimes.size();
+    }
+
+    // Same answer with two sorted arrays: count starts minus ends seen so far.
+    static int sweep(int[][] bookings) {
+        int n = bookings.length;
+        int[] s = new int[n], e = new int[n];
+        for (int i = 0; i < n; i++) { s[i] = bookings[i][0]; e[i] = bookings[i][1]; }
+        Arrays.sort(s); Arrays.sort(e);
+        int rooms = 0, best = 0, j = 0;
+        for (int i = 0; i < n; i++) {
+            while (j < n && e[j] <= s[i]) { j++; rooms--; }
+            rooms++;
+            best = Math.max(best, rooms);
+        }
+        return best;
+    }
+
+    public static void main(String[] args) {
+        int[][] day = {{900, 1000}, {930, 1100}, {1000, 1030}, {1030, 1200}, {1045, 1115}};
+        System.out.println("heap: " + minRooms(day) + " rooms, sweep: " + sweep(day) + " rooms");
+        int[][] backToBack = {{900, 1000}, {1000, 1100}};
+        System.out.println("back to back: " + minRooms(backToBack) + " room");
+        System.out.println("none: " + minRooms(new int[0][]) + " rooms");
+    }
+}
+`,
+      output: String.raw`heap: 3 rooms, sweep: 3 rooms
+back to back: 1 room
+none: 0 rooms`
+    },
+    takeaways: ['Sort by start; a min-heap holds end times.', 'Reuse the room that frees first.', 'Peak concurrency = rooms needed.', 'Half-open intervals let back-to-back bookings share.'],
+    interview: [
+      ['How do you find the minimum number of meeting rooms for a list of bookings?', 'I sort the bookings by start time and keep a min-heap of end times, one per room in use. For each booking, if the smallest end time in the heap is at or before the booking’s start, that room is free, so I poll it to reuse the room; then I push the booking’s end time. The heap never removes a room that is still busy, and it reuses the one that frees earliest. The heap size at the end is the maximum number of rooms in use at once. Sorting is O(n log n) and each heap step is O(log n). An equivalent sweep sorts starts and ends separately and counts active bookings.']
+    ],
+    check: ['Bookings [9:00, 10:00) and [10:00, 11:00). How many rooms does MinRooms.java need?',
+      ['0', '1', '2', 'It depends on the order'], 1,
+      'With half-open intervals the first ends exactly when the second starts, so one room is enough.'],
+    practice: ['Copy MinRooms.java. Return which room each booking gets, find the time of peak concurrency, and test with random bookings against a brute-force count over every minute.',
+      ['Room assignments never overlap.', 'Peak time reported.', 'Brute-force check passes.', 'Back-to-back case uses one room.']],
+    references: [['Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html']]
+  },
+  'b-jpa-01.dsa': {
+    notes: [
+      'Prefix computations turn repeated work into one pass. A prefix-sum array, p[i + 1] = p[i] + a[i], answers “how many bookings in hours l to r − 1?” as p[r] − p[l] in O(1) after O(n) setup.',
+      'Product of the array except self uses the same idea in both directions, without division: first store in out[i] the product of everything to the left of i, then walk from the right with a running suffix product and multiply it in. ExceptSelf.java gives [24, 12, 8, 6] for [1, 2, 3, 4] and handles a zero correctly, which a division-based version would not.',
+      'Like avoiding N+1 queries in JPA, the lesson is to compute what many lookups need in one pass rather than repeating work for each item.'
+    ],
+    code: {
+      title: 'ExceptSelf.java · product of all other elements without division using prefix and suffix passes, plus prefix-sum range totals · java ExceptSelf.java',
+      text: String.raw`import java.util.Arrays;
+
+public class ExceptSelf {
+    // out[i] = product of all a[j] with j != i, without division. O(n) time, O(1) extra besides the output.
+    static long[] productExceptSelf(int[] a) {
+        int n = a.length;
+        long[] out = new long[n];
+        long prefix = 1;
+        for (int i = 0; i < n; i++) { out[i] = prefix; prefix *= a[i]; }
+        long suffix = 1;
+        for (int i = n - 1; i >= 0; i--) { out[i] *= suffix; suffix *= a[i]; }
+        return out;
+    }
+
+    // Prefix sums answer many range-total queries in O(1) each after O(n) setup.
+    static long[] prefixSums(int[] a) {
+        long[] p = new long[a.length + 1];
+        for (int i = 0; i < a.length; i++) p[i + 1] = p[i] + a[i];
+        return p;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("except self [1, 2, 3, 4] -> " + Arrays.toString(productExceptSelf(new int[] {1, 2, 3, 4})));
+        System.out.println("with a zero [2, 0, 5] -> " + Arrays.toString(productExceptSelf(new int[] {2, 0, 5})));
+        int[] bookingsPerHour = {3, 8, 5, 0, 6, 9};
+        long[] p = prefixSums(bookingsPerHour);
+        System.out.println("bookings in hours [1, 4) = " + (p[4] - p[1]) + ", in [0, 6) = " + (p[6] - p[0]));
+    }
+}
+`,
+      output: String.raw`except self [1, 2, 3, 4] -> [24, 12, 8, 6]
+with a zero [2, 0, 5] -> [0, 10, 0]
+bookings in hours [1, 4) = 13, in [0, 6) = 31`
+    },
+    takeaways: ['Prefix sums give O(1) range totals.', 'Left and right running products avoid division.', 'Zeros need no special case.', 'O(n) time.'],
+    interview: [
+      ['How do you compute the product of all elements except self without division?', 'I make two passes. In the first, from left to right, I store in out[i] the product of all elements before i, using a running prefix that starts at 1. In the second, from right to left, I keep a running suffix product, also starting at 1, multiply out[i] by it, and then multiply the suffix by a[i]. Each out[i] ends up as the product of everything before and after i. It is O(n) time and O(1) extra space besides the output. It avoids division, so zeros are handled naturally, and I use long or check for overflow when values can be large.']
+    ],
+    check: ['What does ExceptSelf.java return for [2, 0, 5]?',
+      ['[0, 0, 0]', '[0, 10, 0]', '[10, 0, 0]', 'It divides by zero'], 1,
+      'Only the zero’s position has a non-zero product, 2 × 5 = 10.'],
+    practice: ['Copy ExceptSelf.java. Add a 2D prefix sum for rectangle totals on a seat map, and a difference array that applies many range increments in O(1) each.',
+      ['Rectangle sums match brute force.', 'Difference array applies range updates correctly.', 'Overflow considered.', 'Complexity stated.']],
+    references: [['Princeton Algorithms · Analysis of algorithms', 'https://algs4.cs.princeton.edu/14analysis/']]
+  },
+  'h-scaling-01.dsa': {
+    notes: [
+      'Rotating an array by k positions in place can be done with three reversals: reverse the whole array, then reverse the first k elements, then reverse the rest. Each element moves a fixed number of times, so it is O(n) time and O(1) extra space.',
+      'Normalize k first: k % n handles values larger than the array, and ((k % n) + n) % n also handles a negative k, which means rotating left. RotateSeats.java rotates [1..7] right by 3 to [5, 6, 7, 1, 2, 3, 4].',
+      'Modular arithmetic is also how simple round-robin load balancing works: request r goes to instance (r + offset) % instances, which spreads requests evenly across the app nodes you run today.'
+    ],
+    code: {
+      title: 'RotateSeats.java · in-place rotation by three reversals with k normalized, and round-robin routing with modulo · java RotateSeats.java',
+      text: String.raw`import java.util.Arrays;
+
+public class RotateSeats {
+    // Rotate right by k in place with three reversals. O(n) time, O(1) space.
+    static void rotate(int[] a, int k) {
+        int n = a.length;
+        if (n == 0) return;
+        k = ((k % n) + n) % n;                 // handles k > n and negative k
+        reverse(a, 0, n - 1);
+        reverse(a, 0, k - 1);
+        reverse(a, k, n - 1);
+    }
+
+    static void reverse(int[] a, int i, int j) {
+        while (i < j) { int t = a[i]; a[i++] = a[j]; a[j--] = t; }
+    }
+
+    // Round-robin: which of the instances handles request r, starting from instance offset.
+    static int route(long request, int instances, int offset) {
+        return (int) ((request + offset) % instances);
+    }
+
+    public static void main(String[] args) {
+        int[] a = {1, 2, 3, 4, 5, 6, 7};
+        rotate(a, 3);
+        System.out.println("rotate right 3: " + Arrays.toString(a));
+        int[] b = {1, 2, 3};
+        rotate(b, 5);
+        System.out.println("rotate right 5 (= 2): " + Arrays.toString(b));
+        int[] c = {1, 2, 3, 4};
+        rotate(c, -1);
+        System.out.println("rotate left 1: " + Arrays.toString(c));
+        StringBuilder sb = new StringBuilder();
+        for (long r = 0; r < 6; r++) sb.append(route(r, 2, 1)).append(r < 5 ? " " : "");
+        System.out.println("round-robin over 2 instances from offset 1: " + sb);
+    }
+}
+`,
+      output: String.raw`rotate right 3: [5, 6, 7, 1, 2, 3, 4]
+rotate right 5 (= 2): [2, 3, 1]
+rotate left 1: [2, 3, 4, 1]
+round-robin over 2 instances from offset 1: 1 0 1 0 1 0`
+    },
+    takeaways: ['Rotate with three reversals.', 'Normalize k with modulo.', 'O(n) time, O(1) space.', 'Round-robin is (r + offset) % n.'],
+    interview: [
+      ['How do you rotate an array by k positions in place?', 'First I normalize k with k % n, and ((k % n) + n) % n if negative values mean left rotation, so k is between 0 and n − 1. Then, to rotate right, I reverse the whole array, reverse the first k elements, and reverse the remaining n − k elements. After the first reversal the last k elements are at the front but backwards, and the two smaller reversals put both parts back in order. Every element is swapped a constant number of times, so it is O(n) time and O(1) extra space. A cyclic replacement approach also works, but the reversal method is simpler to get right.']
+    ],
+    check: ['What does rotating [1, 2, 3] right by 5 give?',
+      ['[1, 2, 3]', '[2, 3, 1]', '[3, 1, 2]', 'It throws an exception'], 1,
+      '5 % 3 = 2, so it is the same as rotating right by 2.'],
+    practice: ['Copy RotateSeats.java. Add a check for whether one array is a rotation of another, and a weighted round-robin router that sends twice as many requests to a larger instance.',
+      ['Rotation check works in O(n) using a doubled array or KMP.', 'Weighted router distributes 2:1 over 30 requests.', 'Negative k handled.', 'Complexity stated.']],
+    references: [['Java 21 API · Math.floorMod', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html']]
+  },
+  'h-requirements-01.dsa': {
+    notes: [
+      'Capacity estimates need the peak, not the average. Given request timestamps in sorted order, the busiest window of a fixed width can be found with two pointers: move right through the timestamps and advance left while the window is wider than allowed. The largest window size seen is the peak.',
+      'PeakWindow.java finds 7 requests in a 1,000 ms window, while the average over the whole period is only 2.5 per second. Sizing for 2.5 per second would leave the service overloaded during the burst; at 4 requests per second per instance, the peak needs 2 instances.',
+      'Each pointer only moves forward, so the scan is O(n). The same pattern measures concurrency for rate limits and finds hot periods in logs.'
+    ],
+    code: {
+      title: 'PeakWindow.java · busiest fixed-width time window with two pointers, compared with the average rate · java PeakWindow.java',
+      text: String.raw`public class PeakWindow {
+    // Largest number of requests in any window of width ms, from sorted timestamps. Two pointers: O(n).
+    static int[] peak(long[] t, long width) {
+        int best = 0, bestStart = 0, left = 0;
+        for (int right = 0; right < t.length; right++) {
+            while (t[right] - t[left] >= width) left++;   // keep window [t[left], t[left] + width)
+            if (right - left + 1 > best) { best = right - left + 1; bestStart = left; }
+        }
+        return new int[] {best, bestStart};
+    }
+
+    public static void main(String[] args) {
+        long[] ts = {0, 200, 400, 1000, 1100, 1150, 1180, 1190, 2500, 4000};
+        int[] r = peak(ts, 1000);
+        System.out.println("peak in any 1000 ms window: " + r[0] + " requests, starting at " + ts[r[1]] + " ms");
+        System.out.println("average over the whole period: " + Math.round(10.0 * ts.length / ((ts[ts.length - 1] - ts[0]) / 1000.0)) / 10.0 + " requests per second");
+        long peakRps = r[0];
+        int perInstance = 4;
+        System.out.println("instances needed at peak with " + perInstance + " req/s each: " + (peakRps + perInstance - 1) / perInstance);
+    }
+}
+`,
+      output: String.raw`peak in any 1000 ms window: 7 requests, starting at 200 ms
+average over the whole period: 2.5 requests per second
+instances needed at peak with 4 req/s each: 2`
+    },
+    takeaways: ['Size for the peak, not the average.', 'Two pointers find the busiest window in O(n).', 'Window is half-open: [t, t + width).', 'Round instance counts up.'],
+    interview: [
+      ['How would you find the peak request rate from a log of timestamps?', 'I sort the timestamps if they are not sorted already, then use a sliding window with two pointers. For each right index, I advance left while t[right] − t[left] is at least the window width, so the window covers [t[left], t[left] + width). The number of requests in the window is right − left + 1, and I keep the maximum and where it started. Each pointer moves forward at most n times, so after sorting the scan is O(n). I report the peak per second alongside the average, because capacity, autoscaling thresholds and rate limits must handle bursts, not the daily average.']
+    ],
+    check: ['In PeakWindow.java, why is the peak more useful than the average for sizing?',
+      ['The average is always higher', 'Bursts can far exceed the average, and the service must survive them', 'The peak is easier to compute', 'Averages cannot be computed from timestamps'], 1,
+      'Seven requests arrive in one second although the average is 2.5 per second.'],
+    practice: ['Copy PeakWindow.java. Report the peak for 1 s, 10 s and 60 s windows, compute the 99th percentile of per-second counts, and estimate instances with 30% headroom.',
+      ['Peaks reported for three widths.', 'p99 computed from per-second buckets.', 'Headroom applied and rounded up.', 'Assumptions written down.']],
+    references: [['Google SRE book · Handling overload', 'https://sre.google/sre-book/handling-overload/']]
+  },
   // @@packets
 };
 
@@ -7005,6 +7327,26 @@ export const lateDistractors = {
     ['Only rows changed by other transactions, even if not committed.', 'A frozen snapshot taken when the connection opened.'],
     ['The thread pool that runs the request.', 'The JDBC driver’s global singleton.']
   ],
+  14: [
+    ['In the API gateway’s request log.', 'In a scheduled job that repairs owners afterwards.'],
+    ['The seat must have been deleted by the update.', 'The transaction committed twice.']
+  ],
+  15: [
+    ['That two users clicked at the same millisecond.', 'That the database index is missing.'],
+    ['It lasts until the connection pool is resized.', 'It applies to every table in the database.']
+  ],
+  16: [
+    ['Discards all pending changes in the persistence context.', 'Starts a new transaction for each entity.'],
+    ['An in-memory database is always faster, so it is preferred.', 'Lock tests do not depend on the database.']
+  ],
+  17: [
+    ['A ConcurrentHashMap shared through static fields.', 'Sticky sessions on the load balancer.'],
+    ['That the seat is now reserved for this user.', 'That no other instance can see the seat.']
+  ],
+  18: [
+    ['As the number of servers needed, without assumptions.', 'As a single daily total that includes peaks implicitly.'],
+    ['Only if the total traffic exceeds the database limit.', 'No, hot keys are a caching myth.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -7092,6 +7434,16 @@ export const lateExplanations = {
     'A check constraint tests a condition on the values of a single row, such as status being one of a fixed set.'],
   13: ['Under Read Committed, each statement sees data committed before it began, plus its own transaction’s changes.',
     'In JDBC, transaction state belongs to the Connection: commit and rollback apply to the statements run on it.'],
+  14: ['Only the database sees every concurrent writer, so the availability condition must be part of the UPDATE that changes the row.',
+    'Zero affected rows means no row matched all predicates when the statement ran: the seat may not exist, or it no longer satisfies the condition.'],
+  15: ['A version column records which state the decision was based on; if the row changed since, the version no longer matches and the write is rejected.',
+    'Row locks taken with SELECT … FOR UPDATE are held until the transaction commits or rolls back.'],
+  16: ['flush sends pending INSERT and UPDATE statements to the database inside the current transaction; only commit makes them durable.',
+    'Isolation levels, locking and error codes differ between engines, so lock tests must run on the same database as production.'],
+  17: ['Java locks only exist inside one JVM. Independent processes need a shared authority such as the database.',
+    'An availability read is a snapshot; another request can book the seat before this user’s booking arrives.'],
+  18: ['Useful estimates state requests per second with their assumptions and call out the peak separately from the average.',
+    'Load can concentrate on one hot key, such as a single popular seat or event, which can saturate even when total traffic is low.'],
   // @@explanations
 };
 
@@ -7422,6 +7774,46 @@ export const lateAssessment = {
       choices: ['It is slower', 'It allows SQL injection; identifiers cannot be bound, so choose them from a whitelist', 'JDBC forbids column names', 'It breaks transactions'], answer: 1,
       explanation: 'Parameters bind values only. Identifiers must come from a fixed set of allowed options.' }
   ],
+  14: [
+    { question: 'Which statement books A1 for U2 only if nobody owns it, in one atomic step?',
+      choices: ['SELECT owner FROM seats WHERE id = \'A1\', then UPDATE if null', 'UPDATE seats SET owner = \'U2\' WHERE id = \'A1\' AND owner IS NULL', 'UPDATE seats SET owner = \'U2\' WHERE id = \'A1\'', 'DELETE FROM seats WHERE id = \'A1\''], answer: 1,
+      explanation: 'The condition is evaluated by the database as part of the write, so two concurrent updates cannot both succeed.' },
+    { question: 'Two adjacent seats must be booked together. The first guarded update returns 1 row and the second returns 0. What should happen?',
+      choices: ['Commit the first seat', 'Roll back the transaction and report a group conflict', 'Retry the second update forever', 'Ignore the second result'], answer: 1,
+      explanation: 'All-or-nothing means both updates must succeed before commit; otherwise roll back.' }
+  ],
+  15: [
+    { question: 'One very popular seat receives hundreds of concurrent booking attempts. What tends to happen with optimistic locking?',
+      choices: ['Every attempt succeeds', 'Many attempts fail on the version check and retry, adding load and tail latency', 'The database deadlocks every time', 'Nothing changes compared with low contention'], answer: 1,
+      explanation: 'Optimistic locking is cheap when conflicts are rare; under heavy contention, retries pile up.' },
+    { question: 'How do you reduce deadlocks when a transaction locks several seats?',
+      choices: ['Lock seats in a consistent order, for example by seat ID', 'Use more threads', 'Lock seats in random order', 'Never commit'], answer: 0,
+      explanation: 'If every transaction acquires locks in the same order, no cycle of waits can form.' }
+  ],
+  16: [
+    { question: 'A list endpoint loads 50 bookings and then runs one query per booking to load each owner. What is this called?',
+      choices: ['A deadlock', 'The N+1 query problem', 'Optimistic locking', 'A dirty read'], answer: 1,
+      explanation: 'One query for the list plus N lazy loads; fix it with a fetch join, an entity graph or batch fetching, and measure.' },
+    { question: 'Why can @Transactional on a test method hide a bug?',
+      choices: ['It makes tests slower', 'The test transaction rolls back at the end and may change visibility, so commit-time behaviour is never exercised', 'It disables assertions', 'It runs tests in parallel'], answer: 1,
+      explanation: 'Some constraint and visibility problems appear only at commit or across connections.' }
+  ],
+  17: [
+    { question: 'Two app nodes give 160 requests per second of capacity, but the database handles only 120. What does adding a third node do?',
+      choices: ['Raises throughput to 240', 'Little or nothing; the database is the bottleneck', 'Halves latency', 'Removes the need for a database'], answer: 1,
+      explanation: 'Throughput is limited by the slowest shared dependency.' },
+    { question: 'What does sticky routing (session affinity) risk hiding?',
+      choices: ['Slow DNS', 'Important state kept in one instance’s memory, which is lost on failover or scale-in', 'Database constraints', 'TLS errors'], answer: 1,
+      explanation: 'Stateless instances with shared state elsewhere survive instance loss; affinity can mask the dependency.' }
+  ],
+  18: [
+    { question: 'Which is a measurable non-functional requirement?',
+      choices: ['The app must be fast', 'p95 latency of POST /holds under 300 ms at 500 requests per second, measured over 10 minutes', 'Users should be happy', 'Use the latest framework'], answer: 1,
+      explanation: 'It names the operation, the percentile, the threshold, the load and the measurement window.' },
+    { question: 'Right after a deploy, the seat-map cache is empty. What should the capacity plan assume?',
+      choices: ['The steady 95% hit rate applies immediately', 'Most requests miss and reach the origin until the cache fills, so origin load must be bounded, for example with request coalescing', 'Cold caches reduce origin load', 'Nothing; caches never start empty'], answer: 1,
+      explanation: 'A cold cache breaks the steady-state hit assumption; plan for the fill period.' }
+  ],
   // @@assessment
 };
 
@@ -7575,6 +7967,34 @@ export const lateStretchPlans = {
         acceptance: ['Postfix handles negative results and division order.', 'Next greater returns -1 where none exists, in O(n).', 'The two-stack queue is amortized O(1).', 'Complexity written for all three.'] },
       { id: 'l-uml-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · design and testing',
         prompt: 'Answer aloud in 2 minutes each, without notes: what each booking class owns; where email confirmation belongs; when Adapter, Strategy or State is justified; why fake the repository but use a real Seat; what a sequence diagram shows. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  14: {
+    assign: { 'b-transactions-02.packet': 60, 'b-transactions-02.stretch': 70, 'b-transactions-02.dsa.packet': 30 },
+    extra: [
+      { id: 'b-transactions-02.stretch-lab', minutes: 50, title: 'Stretch lab · guarded updates under real concurrency',
+        prompt: 'With PostgreSQL (Testcontainers or a local instance) and plain JDBC, run 50 threads that each try to book seat A1 with UPDATE … WHERE id = ? AND owner IS NULL, plus a group booking of A2 and A3 in one transaction. Count winners and assert the final rows.',
+        acceptance: ['Exactly one thread wins A1; 49 see zero rows.', 'The group booking is all-or-nothing when A3 is taken.', 'Unknown seat and taken seat give different results.', 'No sleeps: ordering uses latches.'] },
+      { id: 'b-transactions-02.stretch-set', minutes: 35, title: 'Stretch DSA · three partition problems',
+        prompt: 'In one Java file solve: (1) move all zeros to the end keeping order; (2) partition an array around a pivot (less, equal, greater); (3) sort an array of 0s, 1s and 2s with counting and compare with the one-pass version.',
+        acceptance: ['Order preserved in (1).', 'Pivot partition keeps the invariant.', 'Both 0/1/2 versions agree on random input.', 'Complexity written for all three.'] },
+      { id: 'b-transactions-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · atomic SQL updates',
+        prompt: 'Answer aloud in 2 minutes each, without notes: why the condition belongs in the UPDATE; what zero affected rows means; how to book two seats all-or-nothing; how to test a concurrent update deterministically; how to release a seat safely. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  15: {
+    assign: { 'b-transactions-03.packet': 60, 'b-transactions-03.stretch': 70, 'b-transactions-03.dsa.packet': 30 },
+    extra: [
+      { id: 'b-transactions-03.stretch-lab', minutes: 50, title: 'Stretch lab · optimistic versus pessimistic under contention',
+        prompt: 'Implement booking with a version column and with SELECT … FOR UPDATE. Run two workloads: 200 users over 200 seats, and 200 users on one hot seat. Record throughput, p95 latency, retries and lock waits for each strategy, then add a deadlock test with two seats locked in opposite orders and fix it with sorted locking.',
+        acceptance: ['A results table for both strategies and both workloads.', 'Retries are bounded.', 'The deadlock is reproduced, then prevented by ordering.', 'A recommendation with reasons.'] },
+      { id: 'b-transactions-03.stretch-set', minutes: 35, title: 'Stretch DSA · three interval problems',
+        prompt: 'In one Java file solve: (1) merge overlapping intervals; (2) insert a new interval into a sorted, non-overlapping list; (3) find free gaps between bookings within opening hours.',
+        acceptance: ['Touching intervals handled by a stated rule.', 'Insert is O(n).', 'Gaps exclude zero-length ranges.', 'Complexity written for all three.'] },
+      { id: 'b-transactions-03.stretch-interview', minutes: 25, title: 'Stretch interview drill · locking strategies',
+        prompt: 'Answer aloud in 2 minutes each, without notes: optimistic versus pessimistic locking; what happens on a hot seat; how deadlocks form and how to prevent them; what signals an optimistic conflict; when SELECT FOR UPDATE is worth it. Then compare with the model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
@@ -7799,6 +8219,31 @@ export const lateInterviewGuides = {
     'Both inserts must succeed or fail together, so they use the same Connection with auto-commit turned off, forming one transaction. I run the seat update, then the audit insert, then commit. If the audit insert throws, the catch block calls rollback, so the seat update is undone as well, and the error propagates or becomes a clear failure result. The service must not report success unless the commit succeeded. Using a separate connection for the audit would create a separate transaction, which could leave a booking without its audit row. In Spring, @Transactional on the service method does the same through one connection.',
     'Under Serializable isolation, the database guarantees the result is as if transactions ran one at a time. When two concurrent transactions conflict in a way that cannot be ordered, the database aborts one with a serialization failure, SQLSTATE 40001. That transaction’s reads may have been based on a state that is no longer valid, so retrying only the failed statement is wrong. The whole transaction must be rolled back and run again from the start, re-reading every input and re-making every decision. I wrap it in a retry loop with a small limit and backoff, and make external side effects happen only after commit.'
   ],
+  14: [
+    'If the application first reads the seat and then runs an unconditional UPDATE, two requests can both read “free” before either writes, and both updates succeed, so the second overwrites the first. Putting the condition in the write, UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL, makes the database check and change the row in one atomic step. The row lock taken by the update means the second request waits for the first to commit, then re-evaluates the condition, finds an owner, and updates zero rows. The application reads the affected-row count: 1 means booked, 0 means not booked. The earlier read can still be used for display, but never to authorize the change.',
+    'Each seat’s guarded update is atomic on its own, but the group must be all-or-nothing, so both updates run in one transaction on one connection with auto-commit off. I run the guarded UPDATE for the first seat, then for the second, and check that each affected exactly one row. Only if both did do I commit. If either returns zero, or any statement fails, I roll back, so the first seat is released, and return a group conflict. Locking seats in a consistent order, such as by seat ID, avoids deadlocks when two groups overlap. Tests cover both seats free, one taken, and two competing groups.',
+    'Zero rows means that when the statement ran, no row matched all of its conditions. With WHERE id = ? AND owner IS NULL, that covers two very different cases: the seat does not exist, or it exists but is already owned. If the API must return 404 for an unknown seat and 409 for a taken one, the service needs one more step: after a zero-row update, it reads the seat by ID in the same transaction to tell which case it was. The extra read only chooses the error; it never authorizes the change. Alternatively, a foreign key or a prior existence check can rule out unknown seats.'
+  ],
+  15: [
+    'Optimistic locking reads without locks and checks on write, for example with a version column: UPDATE … SET owner = ?, version = version + 1 WHERE id = ? AND version = ?. When conflicts are rare, it is cheap: no one waits, and the occasional loser retries or gets a conflict. Pessimistic locking takes the lock up front with SELECT … FOR UPDATE, so competing transactions wait in line. Under high contention that avoids wasted work and endless retries, but waiting adds latency and holds connections, and lock order matters to avoid deadlocks. So I choose optimistic for low contention and short user think times, and pessimistic, or a single conditional UPDATE, for hot rows.',
+    'With rare conflicts, almost every optimistic attempt succeeds on the first try, so latency is low and predictable. If one seat suddenly gets hundreds of concurrent attempts, only one can win each round; the rest fail the version check, re-read and retry, so the database does repeated work and the slowest users see many retries, which inflates p99 latency. Pessimistic locking turns this into a queue: requests wait for the row lock one at a time, which wastes less work but can exhaust the connection pool. For a hot seat the best answer is often a single conditional UPDATE, bounded retries with backoff, and a fast “seat taken” response.',
+    'If transaction T1 locks A then B, and T2 locks B then A, each can end up holding one row and waiting for the other, which is a deadlock. The database detects the cycle and aborts one of them with an error. The fix is to acquire locks in one global order, for example always sorting the seat IDs before locking, so a cycle cannot form. I also keep transactions short, set a lock timeout, and treat deadlock errors as retryable by rerunning the whole transaction a limited number of times. A test with two connections locking in opposite orders demonstrates the problem, and the same test with sorted order shows it gone.'
+  ],
+  16: [
+    'A managed entity is a Java object tracked by the persistence context of the current EntityManager. Changes to it are recorded in memory; they are not in the database yet. At flush, which happens before commit, before certain queries, or when called explicitly, JPA generates SQL statements for the changes and sends them inside the current transaction. They become durable and visible to others only when the transaction commits. In Spring, the transaction usually starts when a @Transactional service method is entered and commits when it returns normally, or rolls back on a runtime exception. So a row and an entity can differ until flush and commit.',
+    'First I confirm it with evidence: enable SQL logging or Hibernate statistics, call the endpoint with realistic data where bookings have different owners, start from a fresh persistence context, and count the queries. One query for bookings plus one per owner confirms N+1. Then I choose a fix that fits the use case: a JOIN FETCH or an entity graph to load owners in the same query, batch fetching to load owners in groups of IDs, or a DTO projection that selects only the needed columns. For paginated lists, I avoid fetch-joining collections. I add a test that asserts the number of queries, so the problem cannot return silently.',
+    'I set up a realistic case: for example, 20 bookings with 20 different owners, so caching or repeated owners cannot hide queries. I clear the persistence context so nothing is already loaded, enable SQL statement logging or Hibernate statistics, call the list operation, and access each booking’s owner as the endpoint does. Then I count the statements: 1 for the bookings and 20 for owners shows N+1. After applying a fetch join or batch fetching, I repeat the same measurement and expect 1 or 2 queries. Recording both counts, and ideally timings on PostgreSQL, turns the claim into evidence, and a test can assert the expected query count.'
+  ],
+  17: [
+    'A Java monitor belongs to one object inside one JVM. Two Spring Boot processes each have their own heap, their own Seat objects and their own locks, so synchronized in one process has no effect on the other; both can decide A1 is free and both can book it. Coordination has to happen in something both processes share. The usual choice is the database: a guarded UPDATE … WHERE owner IS NULL, a unique constraint on active bookings, or row locks inside a transaction. A distributed lock service is possible but adds complexity. Testing with two processes on different ports against one database shows the difference.',
+    'A read replica receives changes from the primary with some delay, so right after a booking it can still show A1 as free. It is fine to use it for things that tolerate slightly old data, such as browsing the seat map, as long as the product accepts that the map may be a few seconds stale and the booking itself is checked on the primary. It must not be used for the booking decision, for confirming a booking to the user who just made it, or for any read that feeds a write. Those go to the primary, or use read-your-writes techniques, such as routing that user to the primary for a short time.',
+    'A per-seat lock, for example a ConcurrentHashMap of ReentrantLocks keyed by seat ID, works perfectly in a single-process test: two threads booking A1 queue on the same lock. But the lock objects live in one JVM’s memory. When the application runs as two instances, each has its own map and its own lock for A1, so a request on instance 1 and a request on instance 2 both get “their” lock and both book the seat. The test passed only because it never exercised the real deployment. A requirement that holds across instances needs a shared authority, such as a conditional database update, and a test that uses two processes.'
+  ],
+  18: [
+    'I start from explicit assumptions: daily active users, how many seat-map views and booking attempts each makes, and how traffic is spread over the day. From those I compute average and peak requests per second, separately for reads and writes, plus request sizes. The estimate that usually decides the first move is the peak read rate on the seat map compared with what one instance and the database can serve, together with hot-key concentration, such as one big event. If peak reads exceed database capacity, the first step is caching or replicas; if a single seat or event is hot, it is contention control rather than more servers.',
+    'Refreshing more often increases reads, not bookings, so I re-estimate the read path: requests per second at the load balancer and gateway, the availability service instances, the cache, and the origin load on the database. With a cache hit ratio h, the origin sees roughly (1 − h) times the read rate, so doubling refreshes doubles origin reads unless the hit ratio improves. Write capacity, the booking service’s transactional path and the primary database’s write load stay the same. I would also check whether refresh traffic concentrates on one popular event, which creates a hot key, and whether rate limits or longer cache lifetimes are acceptable.',
+    'I trust measurements over assumptions. The first thing that would change my estimate is the observed peak on the path in question, at a fine resolution such as per second, compared with my assumed peak. Close behind are latency percentiles on that path and per-key concentration: if most requests target one event, the database row or cache key for that event is the real limit, even when total traffic is fine. Cache hit ratio in production, especially just after deploys, also changes origin load a lot. I would add metrics for these before the launch, then revise the plan with real numbers and keep the assumptions written down.'
+  ],
   // @@guides
 };
 
@@ -7807,6 +8252,35 @@ export const lateInterviewGuides = {
 // question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
 // Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
 export const lateTopicAnswers = {
+  'b-transactions-02': {
+    'Why include availability in the UPDATE predicate?': 'Because the database is the only place that sees every concurrent writer. If the application reads the seat, sees it is free, and then runs an unconditional UPDATE, another request can book the seat between the read and the write, and the second update silently overwrites the first owner. With WHERE id = ? AND owner IS NULL in the UPDATE, the database evaluates the condition and changes the row atomically, holding a row lock while it does. A competing update waits, re-checks the condition after the first commits, and changes nothing. So the earlier read can be used for display, but the write itself is what decides who gets the seat.',
+    'What does an affected-row count of zero tell you?': 'It tells you that the statement found no row matching all its conditions at the moment it ran, and it changed nothing. For UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL, there are two possible reasons: no seat has that ID, or the seat exists but already has an owner. It does not, on its own, tell you which. If the API must return different responses, such as 404 for an unknown seat and 409 for a taken seat, the service reads the seat by ID afterwards, in the same transaction, to classify the failure. It never retries the update blindly, and it never treats zero rows as success.',
+    'How should a test control a concurrent update?': 'I use two separate connections, because each connection has its own transaction. On connection A I begin a transaction and run the guarded update for A1 without committing, so A holds the row lock. On connection B, in another thread, I run the same update; it blocks waiting for the lock. I set a statement or lock timeout so the test cannot hang. Then I commit A, let B finish, and assert the results: A affected one row, B affected zero, and the final owner is A’s user. Explicitly ordering the steps with latches, instead of using sleeps, makes the test deterministic and repeatable in CI.'
+  },
+  'b-transactions-03': {
+    'When can SELECT FOR UPDATE be useful?': 'SELECT … FOR UPDATE locks the selected rows until the transaction ends, so no other transaction can update or lock them meanwhile. It is useful when a decision needs several statements: for example, reading two seats and the user’s current hold count, deciding whether the booking is allowed, and then updating several rows. Holding the locks keeps the inputs stable between the read and the write. It also suits hot rows where optimistic retries would waste work. The costs are waiting, held connections and deadlock risk, so I keep such transactions short, lock rows in a consistent order and set lock timeouts. For a single-row change, a conditional UPDATE is simpler.',
+    'What is a signal that optimistic locking detected a conflict?': 'With a hand-written version check, UPDATE seats SET owner = ?, version = version + 1 WHERE id = ? AND version = ?, the signal is an affected-row count of zero: someone changed the row after we read it, so our version is stale. With JPA and an @Version field, Hibernate does the same check on flush and throws an OptimisticLockException, which Spring wraps as ObjectOptimisticLockingFailureException. In both cases the application must not overwrite the newer data. It either reloads and re-applies the change if that still makes sense, retrying a limited number of times, or returns a conflict such as 409 so the user can decide again with current data.',
+    'How can multiple row locks deadlock?': 'A deadlock happens when two transactions each hold a lock the other needs. Transaction 1 locks seat A1 and then asks for A2, while transaction 2 has already locked A2 and asks for A1. Neither can continue, so they would wait forever. Databases detect the cycle and abort one transaction with a deadlock error, which the application should treat as retryable by rerunning the whole transaction. To prevent it, every transaction should acquire locks in the same order, for example sorted by seat ID, and keep the time between locks short. Lock timeouts limit the damage when something unexpected still waits too long.'
+  },
+  'b-jpa-01': {
+    'What is the difference between flush and commit?': 'Flush synchronizes the persistence context with the database: Hibernate sends pending INSERT, UPDATE and DELETE statements over the connection, inside the current transaction. After a flush, queries in the same transaction see the changes, and constraint violations may surface, but other transactions still cannot see them, and a rollback would undo them. Commit ends the transaction and makes everything durable and visible to others. Flush happens automatically before commit and before some queries, or explicitly with entityManager.flush(). Calling flush in a test is a useful way to trigger constraint checks before the test transaction rolls back.',
+    'Why can a collection fetch join complicate pagination?': 'A JOIN FETCH of a collection returns one SQL row per parent and child combination, so a booking with three seats appears three times in the result. If you ask for the first 20 rows with LIMIT 20, the database counts joined rows, not bookings, so you could get fewer than 20 bookings and a parent’s children could be cut off. Hibernate notices this and, when combined with setMaxResults, applies the paging in memory after loading everything, logging a warning, which is slow for large tables. Better options are to page over parent IDs first and then fetch their collections, or use batch fetching.'
+  },
+  'b-testing-02': {
+    'How might an outer test transaction hide a problem?': 'With @Transactional on a test, the test method and the code it calls run in one transaction that is rolled back at the end. That is convenient for cleanup, but nothing is ever committed. Constraints checked at commit, such as deferred constraints, do not fire; changes may never be flushed, so SQL errors stay hidden; another connection, like a second application instance, cannot see the data; and REQUIRES_NEW or asynchronous code behaves differently from production. So for behaviour that depends on commits or concurrency, I write tests without the outer transaction, commit for real, and clean up explicitly, for example by truncating tables.'
+  },
+  'h-scaling-01': {
+    'What are the vertical and horizontal scaling choices for an overloaded application?': 'Vertical scaling gives one instance more resources: more CPU, memory or a bigger database server. It is simple and needs no code changes, but it has an upper limit, costs rise steeply, and the instance remains a single point of failure. Horizontal scaling runs more instances behind a load balancer and spreads requests across them. It scales further and survives the loss of an instance, but the application must be stateless, keeping sessions and coordination in shared stores. Before either, I check where the bottleneck is: if the database is saturated, adding application instances does not help, and caching, indexing or replicas would be the right step.',
+    'Why does adding a third app node fail to increase this example’s throughput?': 'Because the application nodes are not the bottleneck. In the example each node can handle 80 requests per second, so two nodes already offer 160, but every request also needs the database, which caps the whole workload at 120 requests per second. Throughput can never exceed the slowest shared stage, so a third node raises application capacity to 240 while actual throughput stays at about 120, and it may even get worse because more concurrent requests queue for database connections. The right move is to measure each stage, then raise the database limit, for example with caching, query tuning or read replicas.',
+    'What problem can sticky routing hide?': 'Sticky routing, or session affinity, sends each user to the same instance every time. That makes it look fine to keep important state in that instance’s memory, such as the user’s session, a cart or a pending hold. The problem appears when the instance dies, is redeployed or the cluster scales in: the state is lost and users are logged out or lose work. Load can also become uneven, because heavy users stay pinned to one node. Keeping instances stateless, with sessions and holds in a shared store such as Redis or the database, removes the dependency, and testing with affinity turned off reveals it.'
+  },
+  'h-requirements-01': {
+    'How do you make “the app must be fast” measurable?': 'I turn it into a service level objective with five parts: which operation, which statistic, what threshold, under what load, and over what window. For example: “POST /holds returns within 300 ms at the 95th percentile and within 800 ms at the 99th, at 500 requests per second, measured over each 10-minute window, counting errors as failures.” Percentiles matter because averages hide slow requests. Separate targets for different operations, such as browsing the seat map versus booking, keep the goals realistic. Then the requirement can be tested with load tests and monitored in production, and everyone agrees when it is met.'
+  },
+  'h-estimates-01': {
+    'How do you justify your first scale decision?': 'I write down the assumptions, compute the numbers, and point to the bottleneck they reveal. For example: 200,000 daily users, 30 seat-map views each, 5% booking; with a peak 10 times the average, that is about 700 reads and 1 write per second at peak. One instance handles 300 requests per second and the database 400 queries per second, so reads at peak exceed the database. The first decision is a cache for the seat map with a short TTL, not more app instances. I state what I would measure to confirm it, such as actual peak RPS and cache hit ratio, and when I would revisit.',
+    'Why can aggregate traffic hide overload?': 'An average over a whole system can look comfortable while one part is overloaded. If 90% of requests go to one popular event, the cache key, database rows or partition for that event receive most of the load, and contention on those rows can queue requests and time out, even though total traffic is far below the system’s limit. Averages over time hide bursts in the same way: 10 requests per second averaged over an hour can include a minute of 200. So I look at per-key and per-partition load, peaks at fine time resolution, and latency percentiles, not only system-wide totals.'
+  },
   'j-build-01': {
     'How does a phase differ from a goal?': 'Maven’s build lifecycle is an ordered list of phases, such as validate, compile, test, package, verify, install and deploy. A phase is a step in that sequence, and running mvn package runs every phase up to and including package. A goal is a concrete task provided by a plugin, such as compiler:compile or surefire:test. Phases do no work themselves; plugins bind their goals to phases, either by default for the packaging type or through the POM. You can also run a goal directly, for example mvn dependency:tree, without running the lifecycle. Knowing this explains why mvn package also runs the unit tests: surefire:test is bound to the test phase.',
     'What does test scope do?': 'A dependency with <scope>test</scope> is available only when compiling and running tests, not when compiling the main code, and it is not packaged into the application or passed on to projects that depend on it. That is the right scope for JUnit, AssertJ, Mockito and Testcontainers. It keeps the production artifact smaller and prevents production code from accidentally using a test library: an import of a test-scoped class in src/main/java fails to compile. Other scopes include compile, the default; runtime, for things such as JDBC drivers needed only when running; and provided, for APIs the server supplies.'
@@ -8064,6 +8538,14 @@ no evidence: Fallback[stage=retrieval, reason=no authorized evidence]`
 
 // Extra note paragraphs appended to existing Codex topic packets (Days 1–27), so short main lessons reach the 700-word standard.
 export const lateTopicNotes = {
+  'b-transactions-02': ['The same pattern works for releasing a seat: UPDATE seats SET owner = NULL WHERE id = ? AND owner = ? only clears the seat if the caller still owns it, so a stale cancel cannot remove someone else’s booking. For a short hold, add an expiry: SET owner = ?, held_until = now() + interval \'10 minutes\' WHERE id = ? AND (owner IS NULL OR held_until < now()). In every case the rule is in the WHERE clause, the affected-row count decides the outcome, and the service maps 1 to success and 0 to a defined conflict or not-found result.'],
+  'b-transactions-03': [
+    'Optimistic locking in JPA uses a version attribute. Add @Version private long version; to the entity, and Hibernate adds AND version = ? to every UPDATE and increments the version. If another transaction changed the row since it was read, the update matches zero rows and Hibernate throws an OptimisticLockException, which Spring translates to ObjectOptimisticLockingFailureException. The service can catch it and either retry the whole operation with fresh data, a limited number of times, or return 409 so the user decides again.',
+    'Pessimistic locking in JPA uses a lock mode on the query, for example @Lock(LockModeType.PESSIMISTIC_WRITE) on a repository method, which PostgreSQL executes as SELECT … FOR UPDATE. The row stays locked until the transaction commits or rolls back, so the transaction must be short and must not wait for user input or slow external calls while holding the lock. Set a lock timeout, for example with the jakarta.persistence.lock.timeout hint, so a waiting request fails fast instead of holding a connection indefinitely.',
+    'A third option avoids holding locks in the application at all: a single conditional UPDATE that checks and changes the row in one statement, as on Day 14. It needs no version column and no SELECT FOR UPDATE, and it is often the best choice for claiming one seat. Locking strategies matter most when a decision spans several statements or rows.',
+    'Measure before choosing. Run the same booking workload with both strategies under realistic contention: many users across many seats, and many users on one hot seat. Record throughput, p95 and p99 latency, the number of retries or lock waits, and connection pool usage. Optimistic locking usually wins with low contention, and pessimistic locking or a single conditional UPDATE usually wins on a hot row. Whatever you choose, test the conflict path explicitly with two connections so the behaviour is proven, not assumed.'
+  ],
+  'h-requirements-01': ['Write non-functional requirements as testable statements with numbers: availability, such as 99.9% of booking requests succeed per 30 days; latency, such as p95 under 300 ms; durability, such as a confirmed booking is never lost; and consistency, such as a seat is never sold twice. Each one should name how it will be measured. These numbers drive the design: a strict no-double-booking rule points to a transactional database for the booking path, while a relaxed freshness rule for the seat map allows caching.'],
   'j-build-01': ['A useful habit is to read the effective build before trusting it. mvn help:effective-pom shows the full POM after inheritance from the Spring Boot parent, and mvn dependency:tree shows which library versions were actually chosen, including transitive ones. When two libraries pull different versions of the same dependency, Maven picks the nearest declaration, which can surprise you; the tree makes it visible, and dependencyManagement pins the version explicitly. Commit the Maven wrapper (mvnw) so every machine and CI build uses the same Maven version.'],
   'b-validation-01': ['Design the error body once and use it everywhere. Spring Boot supports RFC 9457 problem details through ProblemDetail, which gives a standard shape with type, title, status and detail, and you can add your own fields such as a stable code and a list of field errors. A single @RestControllerAdvice can map MethodArgumentNotValidException to 400 with one entry per invalid field, a SeatNotFoundException to 404 and a SeatTakenException to 409. Clients then parse one format, and tests can assert the code and the field names rather than the message text, which may change.'],
   'b-sql-01': ['Constraints should be named, for example CONSTRAINT bookings_seat_fk FOREIGN KEY (seat_id) REFERENCES seats (id), so that error messages and migrations refer to something meaningful. The application can catch the driver’s constraint-violation error and map it by name: a unique violation on one_active_per_seat becomes 409 SEAT_TAKEN, and a foreign-key violation on bookings_seat_fk becomes 404 SEAT_NOT_FOUND. Indexes matter too: PostgreSQL creates an index for primary keys and unique constraints automatically, but not for the referencing column of a foreign key, so add one on bookings.seat_id if you look bookings up by seat.'],
