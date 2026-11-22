@@ -138,6 +138,24 @@ export const lateLanes = {
     readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
     recall: 'Which invariant links the two heaps, and when is the median the average of both tops?'
   },
+  55: {
+    title: 'Kruskal and minimum spanning forests',
+    concept: 'Sort the edges by weight and keep an edge only when union-find joins two different components. The cut property makes each kept edge safe. A disconnected graph yields a forest with V − C edges, and negative weights are allowed.',
+    example: 'The six-vertex example keeps 3–4(−3), 0–2(1), 1–2(2) and 1–3(5) for a cost of 5. A brute-force search agrees, and the maximum spanning forest costs 22.',
+    practice: 'Implement Kruskal with a deterministic tie-break and a brute-force checker. Then add Prim, run once per component.',
+    checks: ['The cost is 5 with 4 edges, and vertex 5 stays alone.', 'Prim and Kruskal agree on 50 random graphs.', 'State O(E log E) time.'],
+    readings: [reading('Princeton Algorithms · Minimum spanning trees', 'https://algs4.cs.princeton.edu/43mst/')],
+    recall: 'State the cut property, and say what Kruskal returns for a graph with an isolated vertex.'
+  },
+  56: {
+    title: 'Number bases: parse, format and round-trip',
+    concept: 'A radix gives each digit a place value. Parse left to right with value = value × radix + digit, validating every digit. Format by repeated division, collecting remainders in reverse. Integer.toString(n, radix) and Integer.parseInt(s, radix) do both for radixes 2 to 36.',
+    example: '2A in base 16 is 2 × 16 + 10 = 42, which is 101010 in binary and 52 in octal. Parsing "102" in base 2 must fail, because 2 is not a binary digit.',
+    practice: 'Write parse(String s, int radix) and format(int n, int radix) by hand, then compare them with Integer.parseInt and Integer.toString for every radix from 2 to 36.',
+    checks: ['42 round-trips through bases 2, 8 and 16.', 'An invalid digit, an empty string and a radix of 37 are all rejected.', 'Values near Integer.MAX_VALUE and negative numbers match the JDK.'],
+    readings: [reading('Java 21 API · Integer.parseInt and toString(int, int)', jdk + 'java/lang/Integer.html')],
+    recall: 'How do you convert 2A from hexadecimal to decimal by hand, and which inputs must a base parser reject?'
+  },
   // @@lanes
 };
 
@@ -3338,6 +3356,104 @@ median after 7 calls: 110.0 ms (the 2600 ms outlier barely moves it)`
       ['For k = 3 over the latency array, the medians are 120, 110, 110, 110, 105.', 'It matches brute force on 100 random arrays.', 'Averaging two values near Integer.MAX_VALUE does not overflow.', 'State O(n log k) time and O(k) space.']],
     references: [['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html'], ['Google SRE book · Monitoring distributed systems (worry about your tail)', 'https://sre.google/sre-book/monitoring-distributed-systems/']]
   },
+  'd-mst-01': {
+    notes: [
+      'A minimum spanning tree connects all vertices of a connected, undirected, weighted graph with the lowest total edge weight. It has exactly V − 1 edges and no cycle. If the graph is disconnected, no spanning tree exists, and the right output is a minimum spanning forest: one tree per component, with V − C edges, where C is the number of components. Kruskal’s algorithm produces the forest naturally.',
+      'Why greedy works: the cut property. Split the vertices into two groups. The lightest edge crossing that split belongs to some minimum spanning tree. When Kruskal takes the next lightest edge whose endpoints are in different components, that edge is the lightest one crossing the cut between its endpoint’s component and the rest, so it is safe. An edge whose endpoints already share a root would close a cycle, and it is the heaviest edge on that cycle seen so far, so skipping it never loses optimality.',
+      'KruskalForest.java runs on six vertices, with vertex 5 isolated, a duplicate 0–2 edge, a tie at weight 5 and a negative edge 3–4 (−3). It keeps 3–4, 0–2, 1–2 and 1–3 for a cost of 5. That is 4 edges = 6 vertices − 2 components. A brute-force search over all edge subsets confirms 5. Negative weights are fine, because only the order of weights matters, unlike Dijkstra. Negating all weights gives a maximum spanning forest, which costs 22 here.',
+      'Ties mean several optimal trees can exist. 2–4 could replace 1–3 at the same cost. Tests should therefore assert the total cost, the edge count V − C and that the result is acyclic. Assert an exact edge set only if you define a tie-break, as the program does by sorting on weight, then u, then v. The cost is O(E log E) for sorting plus nearly linear union-find work. Prim’s algorithm, which grows one tree from a start vertex with a priority queue, is the usual alternative for dense graphs.'
+    ],
+    code: {
+      title: 'KruskalForest.java · Kruskal with a deterministic tie-break, a brute-force check, a negative edge and a maximum spanning forest · java KruskalForest.java',
+      text: String.raw`import java.util.*;
+
+public class KruskalForest {
+    record Edge(int u, int v, int w) {
+        public String toString() { return u + "-" + v + "(" + w + ")"; }
+    }
+
+    static int[] parent, size;
+
+    static int find(int x) {
+        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }   // path halving
+        return x;
+    }
+
+    static boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;                       // same component: this edge would close a cycle
+        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra; size[ra] += size[rb];
+        return true;
+    }
+
+    // Kruskal: sort by weight (ties by endpoints, so the output is deterministic), keep each edge whose union succeeds.
+    static List<Edge> kruskal(int n, List<Edge> edges) {
+        parent = new int[n]; size = new int[n];
+        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+        List<Edge> sorted = new ArrayList<>(edges);
+        sorted.sort(Comparator.comparingInt(Edge::w).thenComparingInt(Edge::u).thenComparingInt(Edge::v));
+        List<Edge> kept = new ArrayList<>();
+        for (Edge e : sorted) if (union(e.u(), e.v())) kept.add(e);
+        return kept;
+    }
+
+    static int cost(List<Edge> es) { return es.stream().mapToInt(Edge::w).sum(); }
+
+    // Brute force for small graphs: the cheapest acyclic edge subset with the maximum possible number of edges.
+    static int bruteForce(int n, List<Edge> edges) {
+        int best = Integer.MAX_VALUE, bestCount = -1;
+        for (int mask = 0; mask < (1 << edges.size()); mask++) {
+            parent = new int[n]; size = new int[n];
+            for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+            boolean acyclic = true; int count = 0, c = 0;
+            for (int i = 0; i < edges.size() && acyclic; i++) if ((mask >> i & 1) == 1) {
+                Edge e = edges.get(i);
+                acyclic = union(e.u(), e.v()); count++; c += e.w();
+            }
+            if (!acyclic) continue;
+            if (count > bestCount || (count == bestCount && c < best)) { bestCount = count; best = c; }
+        }
+        return best;
+    }
+
+    public static void main(String[] args) {
+        // 6 vertices: 0..4 connected, 5 isolated; a duplicate edge, a tie and one negative weight.
+        List<Edge> edges = List.of(new Edge(0, 1, 4), new Edge(0, 2, 1), new Edge(1, 2, 2), new Edge(1, 3, 5),
+                new Edge(2, 3, 8), new Edge(3, 4, -3), new Edge(2, 4, 5), new Edge(0, 2, 1));
+        List<Edge> forest = kruskal(6, edges);
+        Set<Integer> roots = new TreeSet<>();
+        for (int v = 0; v < 6; v++) roots.add(find(v));
+        System.out.println("kept " + forest + " cost " + cost(forest));
+        System.out.println("edges " + forest.size() + " = V - components = 6 - " + roots.size());
+        System.out.println("brute force minimum: " + bruteForce(6, edges));
+
+        // Maximum spanning tree: same algorithm on negated weights.
+        List<Edge> negated = edges.stream().map(e -> new Edge(e.u(), e.v(), -e.w())).toList();
+        System.out.println("maximum spanning forest cost: " + -cost(kruskal(6, negated)));
+        System.out.println("empty graph: " + kruskal(0, List.of()) + " cost " + cost(kruskal(0, List.of())));
+    }
+}
+`,
+      output: String.raw`kept [3-4(-3), 0-2(1), 1-2(2), 1-3(5)] cost 5
+edges 4 = V - components = 6 - 2
+brute force minimum: 5
+maximum spanning forest cost: 22
+empty graph: [] cost 0`
+    },
+    takeaways: ['Sort edges; keep an edge only when union succeeds.', 'A disconnected graph gives a forest with V − C edges.', 'The cut property makes the greedy choice safe; negative weights are fine.', 'With ties, test cost, edge count and acyclicity rather than one edge set.'],
+    interview: [
+      ['Explain Kruskal’s algorithm and prove that the greedy choice is safe.', 'Sort the edges by weight and start with every vertex in its own union-find set. For each edge in order, if its endpoints have different roots, union them and keep the edge. Otherwise skip it, because it would close a cycle. Correctness comes from the cut property: for any split of the vertices into two sides, a lightest edge crossing the split belongs to some minimum spanning tree. When Kruskal keeps edge (u, v), consider the cut between u’s current component and everything else. No lighter crossing edge remains, because any lighter one was already processed and either kept or skipped inside a component. So the edge is safe. The time is O(E log E), dominated by sorting.'],
+      ['How do you test an MST implementation when the optimal tree is not unique?', 'I assert properties that every correct answer shares, not one particular edge list. The total weight must equal the known minimum, which I get from a brute-force search on small graphs. The number of edges must be V − C, where C is the number of components. The kept edges must form no cycle and must connect every vertex within each component. I include a tie, a duplicate edge, a negative weight, an isolated vertex and an empty graph. If the API promises a deterministic result, for example sorting ties by endpoints, then I also assert the exact edges. Otherwise an exact list would make a correct implementation fail.'],
+      ['When would you use Prim’s algorithm instead of Kruskal’s?', 'Both are correct by the cut property and both handle negative weights. Kruskal sorts all edges and uses union-find, costing O(E log E). It is simple when the edges arrive as a list, it works naturally on disconnected graphs and it produces a forest. Prim grows one tree from a start vertex, repeatedly adding the lightest edge leaving the tree with a priority queue, in O(E log V). With an adjacency matrix and a simple array it costs O(V²), which wins on dense graphs where E is close to V². Prim needs a restart per component to build a forest. In an interview I pick Kruskal for edge lists and sparse graphs, and Prim for dense adjacency matrices.']
+    ],
+    check: ['In KruskalForest.java, why are there 4 kept edges for 6 vertices?',
+      ['Kruskal stops early to save time', 'Vertex 5 is isolated, so there are 2 components and V − C = 4 edges', 'The duplicate edge was counted twice', 'The negative edge is excluded'], 1,
+      'A spanning forest has V − C edges. Vertex 5 forms its own component.'],
+    practice: ['Copy KruskalForest.java. Add prim(int n, List<Edge>) with a PriorityQueue and run it once per component. Compare its cost with Kruskal on 50 random small graphs.',
+      ['Prim and Kruskal give the same cost on every graph, including disconnected ones.', 'Both match the brute-force minimum when there are at most 12 edges.', 'Swapping the tie-break changes the edges but not the cost.', 'State O(E log E) for Kruskal and O(E log V) for Prim.']],
+    references: [['Princeton Algorithms · Minimum spanning trees', 'https://algs4.cs.princeton.edu/43mst/'], ['MIT OCW 6.046J · Greedy Algorithms: Minimum Spanning Tree', 'https://www.youtube.com/watch?v=tKwnms5iRBU']]
+  },
   // @@packets
 };
 
@@ -3400,6 +3516,16 @@ export const lateDistractors = {
     ['Replace the evaluation set, because fixtures already measure quality.', 'Show that the hosted provider is used for every request.'],
     ['Yes. Booking should pause until the provider recovers.', 'Only if the outage lasts longer than the request timeout.']
   ],
+  55: [
+    ['The edge weight is negative.', 'The vertex IDs are adjacent numbers.'],
+    ['An error, because a spanning tree does not exist.', 'A single tree that leaves out isolated vertices.'],
+    ['It sorts the edges again so the next union is cheaper.', 'It guarantees each root has exactly one child.'],
+    ['Weights must be distinct, otherwise Kruskal fails.', 'Only positive integer weights are supported by union-find.']
+  ],
+  56: [
+    ['The sign bit, which tells whether n is negative.', 'Whether n is a power of two.'],
+    ['After checking every odd number below n / 2.', 'As soon as one odd candidate fails to divide n.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -3431,6 +3557,12 @@ export const lateExplanations = {
     'A larger interval combines answers for smaller intervals inside it, so shorter intervals must be solved first: fill by increasing length.'],
   54: ['A fixture is deterministic, so it reliably tests parsing, timeouts and fallbacks. It says nothing about the quality of a real model.',
     'Booking state is owned by the booking service and database. The model only powers help, so its outage must leave booking working.'],
+  55: ['union returns false when find gives the same root for both endpoints, because they are already connected and the edge would close a cycle.',
+    'Each component gets its own minimum spanning tree, so Kruskal returns a forest with V − C edges.',
+    'Path halving points nodes at their grandparents during find, which shortens later searches. It never changes which component a vertex belongs to.',
+    'Kruskal only compares weights, so negative and equal weights are fine. The nonnegative rule belongs to Dijkstra.'],
+  56: ['n & 1 keeps only bit 0. In two’s complement that bit is 1 for odd values and 0 for even values, including negative ones.',
+    'Every composite n has a divisor d with d × d ≤ n. Once d > n / d, no unchecked divisor can exist, so n is prime.'],
   // @@explanations
 };
 
@@ -3548,6 +3680,14 @@ export const lateAssessment = {
       choices: ['Liveness', 'Readiness', 'The model provider’s status page', 'The JVM uptime'], answer: 1,
       explanation: 'A failing readiness check takes the instance out of rotation. A failing liveness check triggers a restart, so it should not depend on external services.' }
   ],
+  56: [
+    { question: 'Why does a sieve up to 30 only need outer passes for p = 2, 3 and 5?',
+      choices: ['Because 7 is not prime', 'Every composite up to 30 has a prime factor of at most √30 ≈ 5.48, so passes for 7 and above mark nothing new', 'Because the array has only 30 entries', 'Larger primes are removed afterwards'], answer: 1,
+      explanation: 'The first multiple a pass for 7 would mark is 49, which is above 30. Primes up to 30 that are larger than 5 are still collected as unmarked values.' },
+    { question: 'What does Integer.parseInt("1F", 16) return, and what does Integer.parseInt("12", 2) do?',
+      choices: ['31, and it returns 3', '31, and it throws NumberFormatException because 2 is not a binary digit', '15, and it throws', '1F cannot be parsed, and it returns 12'], answer: 1,
+      explanation: '1F is 1 × 16 + 15 = 31. In radix 2 only the digits 0 and 1 are valid, so "12" is rejected.' }
+  ],
   // @@assessment
 };
 
@@ -3607,6 +3747,17 @@ export const lateStretchPlans = {
       { id: 'h-reliability-03.stretch-review', minutes: 25, title: 'Stretch review · weekend recap without notes',
         prompt: 'Without opening notes, write one paragraph each on: the gateway’s job, SSE recovery after a gap, why the outbox exists, why consumers must be idempotent, and compensation versus rollback. Then open the notes and mark what you missed.',
         acceptance: ['Five paragraphs written before opening notes.', 'At least one missed point marked per paragraph.'] }
+    ]
+  },
+  56: {
+    assign: { 'd-bits-01.packet': 30, 'd-primes-01.packet': 30, 'd-sieve-01.packet': 30, 'd-lcm-01.packet': 25, 'd-bits-01.stretch': 40, 'd-bases-01.packet': 25 },
+    extra: [
+      { id: 'd-bits-01.stretch-lab', minutes: 50, title: 'Stretch lab · a tested number toolkit',
+        prompt: 'Combine NumberAlgorithms.java and EuclidGcd.java into one NumberToolkit class with isPrime, sieve, gcd, extendedGcd, lcmOfArray, toBase and fromBase. Write a main method that runs table-driven checks and prints PASS or FAIL for each case.',
+        acceptance: ['isPrime agrees with the sieve for every n from 0 to 10,000.', 'fromBase(toBase(n, r), r) == n for 1,000 random n and every radix from 2 to 36.', 'lcmOfArray reports overflow instead of wrapping.', 'Every check prints PASS, and a deliberately broken case prints FAIL.'] },
+      { id: 'd-bits-01.stretch-review', minutes: 40, title: 'Stretch review · course recap without notes',
+        prompt: 'This is the last day of the course. Without opening notes, list the 10 topics from Days 1–56 you would least like to be asked about in an interview. For each, write one sentence explaining it and the Java class you would sketch. Then open the notes, correct each answer and schedule the three weakest for revision.',
+        acceptance: ['Ten topics are listed before opening notes.', 'Each has one corrected sentence and a Java class name.', 'Three weakest topics are scheduled for revision.'] }
     ]
   },
   // @@stretch
@@ -3685,5 +3836,36 @@ export const lateInterviewGuides = {
     'I measure first, then apply the hard rules in order. The data rule comes first: if policy text or questions may not leave our network, the hosted model is out, unless an approved contract changes that. Then latency: p95 on representative questions under the real timeout, not a single fast demo call. If the local model is too slow, I try the cheap fixes before giving up on it: shorter retrieved context, a smaller model that still passes the evaluation, a GPU host, or caching common answers. I compare grounded quality only among options that pass both rules. If none pass, help ships with its fallback message, and booking is unaffected either way.',
     'A fixture is justified when I need deterministic tests of control flow. The evidence is that parsing, citation checks, the timeout and the outage fallback all pass repeatably in CI. Local inference is justified when the data must stay inside our network and the measured p95 on our hardware fits the budget at the expected load. Hosted inference is justified when it passes the data policy and cost limits and clearly beats local on grounded-correct rate or tail latency on the same evaluation set. In every case I state the environment, the model version and the numbers, and confirm that booking still succeeds when that adapter is down.'
   ],
+  55: [
+    'Two vertices with the same root are already connected by a path made of edges we kept. Adding another edge between them would create a second route, which is a cycle, and a spanning tree or forest has no cycles. It is also never needed for optimality. Because edges arrive in increasing weight, this edge is at least as heavy as every kept edge on that path, so swapping it in could never lower the cost. So union returns false, the edge is skipped and the component count stays the same. An edge between two different roots is the lightest one crossing the cut around its component, and by the cut property it belongs to some minimum spanning tree.',
+    'A good test checks the properties every optimal answer shares, not one exact edge list. It asserts the total cost equals the minimum, checked against a brute-force search on small inputs. It asserts the number of edges is V − C, where C is the number of components. It asserts the kept edges contain no cycle, which you can check by re-running union-find over them, and that each component is fully spanned. Add cases for a tie, a duplicate edge, a negative weight, an isolated vertex and zero vertices. Assert an exact set of edges only when the contract defines a tie-break, such as sorting by weight, then u, then v.',
+    'Union by size always attaches the smaller tree under the root of the larger one. A vertex’s depth grows only when its tree at least doubles in size, so no path is longer than log n. Path compression, or path halving, makes the nodes visited during find point closer to the root, so later finds are shorter. Together the amortized cost per operation is O(α(n)), where α is the inverse Ackermann function, which is below 5 for any realistic n. Deletion is the weak spot. The parent pointers record which component a vertex belongs to, not which edges connect it, so after removing an edge you cannot tell whether the component split. Use a fresh traversal, offline reverse processing, or a dynamic connectivity structure.'
+  ],
+  56: [
+    'It depends on how many numbers I must test and how large they are. For one number, or a few scattered ones, trial division up to √n is enough. I handle n < 2 and 2 first, then test odd divisors while d <= n / d, which is O(√n) time and O(1) space. For many queries below a known bound N, a sieve costs O(N log log N) time and O(N) memory once, and then each query is an O(1) array lookup. The break-even point is roughly when the total trial-division work for all queries exceeds the sieve cost, and the sieve’s memory still fits. For values near two billion, an int-indexed sieve is not practical, so the bound decides it.',
+    'A sieve up to two billion would need about two billion flags, roughly 2 GB as a boolean array or 250 MB as a bitset, just to answer five queries, so it is the wrong tool. Trial division up to √n is about 44,722 for n near two billion, and testing only odd divisors halves that, so five queries take a few hundred thousand operations. That is instant. For boundary checks, I loop with d <= n / d to avoid overflowing d × d near Integer.MAX_VALUE, and test 0, 1, 2, an even number, the prime square 46,337² = 2,147,117,569 (the largest prime square that fits in an int), and Integer.MAX_VALUE, which is prime. For many large queries, I would use deterministic Miller–Rabin.',
+    'For positive a and b, lcm(a, b) = a / gcd(a, b) × b. Computing a × b first can overflow even when the LCM itself fits. For example, two longs around 3 × 10^10 that share a large factor have a product above Long.MAX_VALUE but a small LCM. Dividing by the gcd first means the intermediate value is never larger than the final answer. An overflow check is still needed whenever the true LCM may exceed the type, which is common when folding over an array, because LCMs grow quickly. Use Math.multiplyExact, which throws ArithmeticException instead of wrapping silently, and fall back to BigInteger if the caller needs the exact large value. If any value is zero, return zero first.'
+  ],
   // @@guides
+};
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fuller answers for existing Codex topic questions on Days 55–56 (Grok). Keyed by topic ID, then by the exact
+// question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
+// Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
+export const lateTopicAnswers = {
+  'd-union-find-01': {
+    'What invariant does the parent array maintain?': 'Each set forms a tree inside the parent array. Every element follows parent links to exactly one root, and the root, where parent[r] == r, is the representative of the set. Two elements are in the same set exactly when find returns the same root for both. Only roots carry a meaningful size. Union keeps the invariant by linking one root under the other, never an inner node, so no element ends up with two roots and no cycle forms. Path compression keeps it too, because it only re-points nodes to an ancestor in the same tree, which changes path lengths but never membership.',
+    'Why combine union by size and path compression?': 'They attack different costs. Union by size attaches the smaller tree under the larger root, so an element gets one level deeper only when its set at least doubles. That bounds every path at log n even without compression. Path compression, or the simpler path halving, re-points the nodes visited by find towards the root, so the next find on any of them is shorter. Either alone gives O(log n) amortized per operation. Together they give O(α(n)) amortized, where α is the inverse Ackermann function, which is at most 4 for any input that fits in memory. In practice that means constant time per union or find.',
+    'How does the union result support Kruskal?': 'Kruskal needs one question answered quickly for each edge in weight order: are the endpoints already connected by edges I kept? Union answers it and updates the structure in the same call. It returns true when the endpoints had different roots. The sets are then merged and the edge is kept, because it connects two components without making a cycle. It returns false when the roots are equal, so the edge would close a cycle and is skipped. Each call is nearly constant time, so after sorting, the whole scan is close to O(E). The number of successful unions also tells you how many components remain: V minus the kept edge count.'
+  },
+  'd-bits-01': {
+    'What goes wrong when the XOR swap uses the same index twice?': 'The XOR swap does a ^= b, b ^= a, a ^= b, and it relies on a and b being two different storage locations. If both refer to the same element, for example swap(arr, i, i), the first step computes x ^ x, which is 0, and stores it in that single location. The original value is now lost, and the next two steps only XOR zeros together, so the element becomes 0 instead of staying unchanged. Guard with if (i == j) return, or simply use a temporary variable. Modern JVMs compile the temporary version just as efficiently, so the XOR trick is mainly an interview question, not an optimisation.'
+  },
+  'd-primes-01': {
+    'Why do you check up to and including the square root?': 'If n is composite, write n = d × q with 1 < d ≤ q. Then d × d ≤ d × q = n, so d ≤ √n. Every composite therefore has a divisor no larger than its square root, and if none exists up to √n, n is prime. The bound must be inclusive, because a perfect square such as 49 has its only nontrivial factor exactly at the boundary: 7 × 7. Stopping before 7 would wrongly report 49 as prime. In Java, write the loop condition as d <= n / d rather than d * d <= n, so it cannot overflow for values near Integer.MAX_VALUE, and handle n < 2 and the even case before the loop.'
+  },
+  'd-sieve-01': {
+    'Why can the p pass start at p²?': 'Any multiple of p smaller than p² can be written as k × p with k < p. That k has a prime factor smaller than p, and the pass for that smaller prime already marked k × p as composite. For example, when p = 5 the multiples 10, 15 and 20 were marked by the passes for 2 and 3, so the first value that still needs marking is 25. Starting at p² avoids that repeated work. It also explains why the outer loop can stop once p² exceeds the limit: no new composites remain to mark. The overall time stays O(N log log N), with an O(N) boolean array.'
+  }
 };
