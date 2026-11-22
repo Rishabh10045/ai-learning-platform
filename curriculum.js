@@ -89,8 +89,21 @@ const foundations = {
   intro: 'Model a single seat and demonstrate a booking that keeps its original owner after a second request.',
   blocks: [
     {
-      id: 'lab', title: 'Learn and code the booking flow', kind: 'Java · LLD', minutes: 45,
-      concept: 'Seat ki state socho ek locker ki tarah. Khali locker ka koi owner nahi hai. Jaise hi U1 use claim karta hai, har failed attempt ke baad bhi owner U1 rehna chahiye. Is rule ko invariant bolte hain. Encapsulation se caller state dekh sakta hai aur usse sirf defined operation se badal sakta hai.',
+      // Day 1 has no previous day to revise: its 12-minute revision slot is the Java foundations warm-up (day-depth.js).
+      id: 'foundations', title: 'Java foundations warm-up: objects, constructors and this', kind: 'Java foundations', minutes: 12,
+      concept: 'Before the booking lab, make sure the object model is solid: references versus primitives, constructors that validate, this.field versus a parameter, this(...) delegation, static versus instance members and private fields.',
+      example: 'Seat s2 = s1 copies the reference, so s2.claim("U1") is visible through s1. new Seat() compiles only if you declare Seat() yourself.',
+      practice: 'Run Foundations.java from the warm-up notes, then make the three edits listed there and predict each result before running.',
+      checks: ['The program prints the expected three lines.', 'You can explain this.id = id versus id = id.', 'You can explain why declaring Seat(String) removes the default constructor.'],
+      readings: [
+        reading('Oracle Java Tutorial · Providing constructors', 'https://docs.oracle.com/javase/tutorial/java/javaOO/constructors.html'),
+        reading('Oracle Java Tutorial · Using the this keyword', 'https://docs.oracle.com/javase/tutorial/java/javaOO/thiskey.html')
+      ],
+      recall: 'What does this.id = id do in a constructor, and when does Java add a default constructor?'
+    },
+    {
+      id: 'lab', title: 'Learn and code the booking flow', kind: 'Java · LLD', minutes: 36,
+      concept: 'Think of a seat as a locker. An empty locker has no owner. Once U1 claims it, the owner must stay U1 after every failed attempt by anyone else. A rule that must hold after every operation is an invariant. Encapsulation lets callers read the state but change it only through the operation that enforces the rule.',
       example: 'A1 available, no owner → U1 books, owner U1 → U2 fails, owner still U1.',
       practice: 'Create Seat, BookingService, and Main in plain Java. Implement boolean book(String seatId, String userId). Keep exactly one seat, A1, and demonstrate the cases in Main.',
       checks: ['A1 starts available with no owner.', 'U1 gets true, U2 gets false, and A1 still belongs to U1.', 'An unknown seat ID or a whitespace-only user ID throws IllegalArgumentException.', 'External code can inspect state through a read operation. The state changes through the booking operation.'],
@@ -101,8 +114,8 @@ const foundations = {
       recall: 'Explain how the booking operation protects the owner when two sequential users ask for A1.'
     },
     {
-      id: 'http', title: 'Follow an HTTP request', kind: 'HLD', minutes: 25,
-      concept: 'DNS hostname se server ka address dhundhne mein help karta hai. HTTPS connection ke baad browser request bhejta hai. Backend method aur path se handler choose karta hai, application logic chalata hai, data access karta hai aur response bhejta hai. Browser response ko screen par dikhata hai. Booking ki authoritative state backend store mein hoti hai.',
+      id: 'http', title: 'Follow an HTTP request', kind: 'HLD', minutes: 16,
+      concept: 'DNS turns the hostname into a server address. After the TCP and TLS (HTTPS) connection is set up, the browser sends the HTTP request. The backend picks a handler from the method and path, runs the application logic, reads or writes the data store and sends a response with a status code. The browser renders that response. The authoritative booking state lives in the backend store, not on the screen.',
       example: 'Browser → DNS lookup → secure connection → POST /bookings → handler → booking store → HTTP response → UI update.',
       practice: 'Draw the path from the browser to the backend and back. Label DNS, HTTPS, HTTP routing and the authoritative booking store.',
       checks: ['Show where hostname lookup ends and the application request begins.', 'Mark the authoritative write before a success response and show where a stale read can appear.'],
@@ -113,8 +126,8 @@ const foundations = {
       recall: 'What do DNS and HTTP routing each decide? Where does the authoritative booking state live?'
     },
     {
-      id: 'ai', title: 'Learn what an LLM does', kind: 'Generative AI', minutes: 20,
-      concept: 'Booking rule hum explicitly likhte hain. Learned model training data se patterns learn karta hai. Inference mein trained model input tokens ko use karke output generate karta hai. Fluent answer ke factual claims ko validate karna padta hai.',
+      id: 'ai', title: 'Learn what an LLM does', kind: 'Generative AI', minutes: 14,
+      concept: 'We write the booking rule explicitly in code. A learned model instead picks up patterns from training data. During inference the trained model uses the input tokens to generate output one token at a time. A fluent answer can still be wrong, so its factual claims must be validated.',
       example: 'A help model can summarize a cancellation policy. BookingService checks whether a seat can be claimed.',
       practice: 'Give one useful LLM feature for a booking application and one booking rule that must stay deterministic. This exercise uses text only.',
       checks: ['Give one supported and one unsupported policy reply example.', 'Keep the ownership decision in defined Java application behavior.'],
@@ -125,8 +138,8 @@ const foundations = {
       recall: 'Explain where an LLM fits in the app and which rule stays in application code.'
     },
     {
-      id: 'dsa', title: 'Detect duplicate user IDs', kind: 'DSA practice', minutes: 15,
-      concept: 'Membership check ka matlab hai dekhna ki koi value pehle se collection mein hai. Set unique values represent karta hai. Explain the expected time under good hashing and what assumptions a worst-case claim needs.',
+      id: 'dsa', title: 'Detect duplicate user IDs', kind: 'DSA practice', minutes: 30,
+      concept: 'A membership check asks whether a value is already in a collection. A Set holds unique values, and HashSet.add returns false when the value is already present. Compare three approaches (all pairs, sort then scan, hash set), explain the expected time under good hashing and what assumptions a worst-case claim needs.',
       example: 'IDs [U1, U2, U1] contain a duplicate. IDs [U1, U2] do not.',
       practice: 'Given a list of non-null, case-sensitive String IDs, return a boolean indicating whether any ID repeats. Input order is irrelevant. Explain the approach before coding.',
       checks: ['Empty and distinct inputs return false. A repeated ID returns true.', 'U1 and u1 are distinct. State the expected time and memory assumptions.'],
@@ -134,7 +147,7 @@ const foundations = {
       recall: 'What information do you need to keep as you scan the list?'
     },
     {
-      id: 'review', title: 'Capture evidence and open questions', kind: 'Review', minutes: 15,
+      id: 'review', title: 'Capture evidence and open questions', kind: 'Review', minutes: 12,
       practice: 'Save the actual Main output, one correction in your own words, and any topics to revisit. Carry setup or incomplete code forward as pending.',
       recall: 'Which checks ran successfully and which are still pending?'
     }
@@ -217,6 +230,19 @@ const outline = [
   ['Union-Find and minimum spanning trees', ['D-UNION-FIND-01','D-MST-01'], ['supplement'], 'Princeton · Union–Find', algorithms + '15uf/', 'Implement union by size and path compression. Use the provided Java trace to predict the edges and cost selected by Kruskal’s algorithm. Add tests for a duplicate edge, equal weights, disconnected vertices and zero vertices.', 'Why does Kruskal skip an edge joining vertices that already have the same root?']
 ];
 
+// Daily 30-minute DSA lane for weekday sessions (added by Grok on 2026-11-22; Day 3+ still to be filled).
+const dsaLanes = {
+  2: {
+    title: 'Two Sum with a HashMap',
+    concept: 'Extend Day 1’s seen-set: remember where each value was seen. For each number, look up target − number in a value → index map before inserting the current number.',
+    example: '[2, 7, 11, 15], target 9: at index 1, 9 − 7 = 2 was seen at index 0, so the answer is [0, 1].',
+    practice: 'Implement int[] twoSum(int[] nums, int target) in one pass with a HashMap. Then write the two-pointer version for a sorted array and compare time and space.',
+    checks: ['[2,7,11,15]/9 → [0,1], [3,3]/6 → [0,1], [1,2]/7 → [].', 'Look up before insert so an element never pairs with itself.', 'State O(n) expected time and O(n) space, and O(1) extra space for two pointers on sorted input.'],
+    readings: [reading('Dev.java · The Map interface', java + 'api/collections-and-streams/collections-framework/maps/')],
+    recall: 'Why does Two Sum look up target − x before inserting x?'
+  }
+};
+
 export const days = [
   { ...foundations, number: 1 },
   ...outline.map(([title, topics, sources, section, url, practice, recall], index) => {
@@ -232,6 +258,12 @@ export const days = [
       { id: 'review', title: 'Review and capture evidence', kind: 'Review', minutes: 15,
         practice: 'Save your output or reasoning. Discuss one changed scenario and one limitation after practice.', recall }
     ];
+    const lane = dsaLanes[number];
+    if (lane) {
+      // Weekday shape: 12 revision + 78 main (30 learn + 36 practice + 12 review) + 30 DSA.
+      blocks[1].minutes = 30; blocks[2].minutes = 36; blocks[3].minutes = 12;
+      blocks.splice(3, 0, { id: 'dsa', kind: 'DSA practice', minutes: 30, ...lane });
+    }
     return { number, title, topics, sources, blocks, intro: practice, milestone: topics.find(topic => topic.startsWith('LAB-')) };
   })
 ];

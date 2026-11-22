@@ -68,7 +68,7 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
     assert.equal(new Set(qa.questions).size, day.number === 1 ? 5 : 3, label);
     assert.equal(qa.answers.length, qa.questions.length, label);
     assert.ok(qa.answers.every(answer => answer.length > 100), label);
-    assert.equal(qa.assessment.length, [1, 55].includes(day.number) ? 5 : 3, label);
+    assert.equal(qa.assessment.length, [1, 2, 55].includes(day.number) ? 5 : 3, label); // Day 2: +2 questions (day-depth.js, Grok 2026-11-22)
     assert.ok(qa.assessment.every(item => item.explanation.length > 15 && item.choices[item.answer] &&
       item.choices.length === new Set(item.choices).size), label);
     const [scenario, choices] = assessmentScenarios[day.number];
@@ -83,7 +83,7 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
     if (day.number > 1) assert.equal(day.blocks[0].minutes, 12);
   }
   assert.equal(interviewQuestionCount, 3 * days.length + 2);
-  assert.equal(quizQuestionCount, 3 * days.length + 4);
+  assert.equal(quizQuestionCount, 3 * days.length + 6); // +2 Day 2 questions (day-depth.js, Grok 2026-11-22)
   assert.equal(lessons.find(lesson => lesson.id === 'd-union-find-01').source, 'added');
   assert.equal(availabilityBudget('2026-11-28'), 390);
   assert.equal(coverageCurriculum.tracks.length, 4);

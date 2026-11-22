@@ -14,11 +14,13 @@ import { applyStudyAction } from '../study-actions.js';
 import { defaultPreferences } from '../study-planner.js';
 import { StudySync, defaultSyncOrigin } from '../study-sync.js';
 import { accountCard } from '../study-panels.js';
+import { warmupLessons, depthPackets, stretchPlans } from '../day-depth.js';
 import { createCodexAdapter, createCodexHost } from './adapters/codex-adapter.js';
 
 const S = window.StudyDeskSchedule, E = window.StudyDeskEngagement, qs = new URLSearchParams(location.search);
 const codex = { days, courses, START_DATE, courseOutline, studyLessons, sessionQA, passCount, assessmentVersion, topicLessons, getTopic,
-  lessonDiagrams, videosForDay, passedAssessment, readProgress, emptyProgress, storageKey, applyStudyAction, defaultPreferences, todayInIndia };
+  lessonDiagrams, videosForDay, passedAssessment, readProgress, emptyProgress, storageKey, applyStudyAction, defaultPreferences, todayInIndia,
+  warmupLessons, depthPackets, stretchPlans };
 const pinned = S.isISO(qs.get('today')) ? qs.get('today') : null;
 const today = () => pinned || todayInIndia();
 const noticeEl = document.getElementById('pv-notice');

@@ -23,14 +23,19 @@ const { main, lane } = A.lessonsByDay[1];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 const stat = http.createServer((req, res) => {
   if (req.url === '/__seed') { res.writeHead(200, { 'content-type': 'text/html' }); return res.end('<!doctype html><link rel="icon" href="data:,"><title>seed</title>'); }
-  const p = path.join(repo, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  let pn = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (pn.endsWith('/')) pn += 'index.html';
+  const p = path.join(repo, pn);
   if (!p.startsWith(repo) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' });
   fs.createReadStream(p).pipe(res);
 });
 await new Promise(r => stat.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${stat.address().port}`;
-const url = hash => `${origin}/ui/preview.html?today=${DAY}${hash ? '#' + hash : ''}`;
+const PAGE = process.env.STUDY_PAGE || '/';
+let PIN = DAY;
+const url = hash => `${origin}${PAGE}?today=${PIN}${hash ? '#' + hash : ''}`;
+const W = A.lessonsByDay[1].warmup;
+const all1 = [main, lane, W].filter(Boolean);
 
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); };
@@ -54,8 +59,9 @@ async function route(page, hash) { await page.evaluate(h => { location.hash = h;
 const txt = (page, sel) => page.$eval(sel, e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
 const stored = page => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), KEY);
 const toast = page => txt(page, '.sd-toast');
+let D = 1, M = main; // day + main lesson the helpers act on
 async function setPractice(page, id, status, evidence) {
-  await route(page, 'day-1/practice');
+  await route(page, `day-${D}/practice`);
   const card = `[id="practice-${id}"]`;
   if (evidence != null) { await page.$eval(`${card} textarea`, (t, v) => { t.value = v; t.dispatchEvent(new Event('input', { bubbles: true })); }, evidence); }
   const idx = { pending: 0, 'in-progress': 1, complete: 2 }[status];
@@ -63,16 +69,16 @@ async function setPractice(page, id, status, evidence) {
   await sleep(250);
 }
 async function answerQuiz(page, right = true) {
-  await route(page, 'day-1/learn');
-  for (let i = 0; i < main.quiz.questions.length; i++) {
-    const q = main.quiz.questions[i], pick = right ? q.answer : (q.answer + 1) % q.options.length;
-    await page.$eval(`[id="q-j-oop-01-${i}-${pick}"]`, r => r.click());
+  await route(page, `day-${D}/learn`);
+  for (let i = 0; i < M.quiz.questions.length; i++) {
+    const q = M.quiz.questions[i], pick = right ? q.answer : (q.answer + 1) % q.options.length;
+    await page.$eval(`[id="q-${M.id}-${i}-${pick}"]`, r => r.click());
   }
-  await page.$eval('form[data-quiz="q-j-oop-01"] button[type=submit]', b => b.click());
+  await page.$eval(`form[data-quiz="q-${M.id}"] button[type=submit]`, b => b.click());
   await sleep(300);
 }
 async function lessonButton(page, lessonId, label) {
-  await route(page, 'day-1/learn');
+  await route(page, `day-${D}/learn`);
   const ok = await page.evaluate((id, label) => {
     const b = [...document.querySelectorAll(`[id="lesson-${id}"] .sd-lesson-actions button`)].find(x => x.textContent.includes(label));
     if (b) b.click(); return !!b;
@@ -106,7 +112,7 @@ async function shoot(page, name, sel) {
     concept: !!document.querySelector('[id="lesson-j-oop-01"] .sd-notes details.sd-reveal'),
     laneNotes: (document.querySelector('[id="lesson-d-hashing-01"] .sd-notes') || { innerText: '' }).innerText.length
   }));
-  check('Learn: 2 real YouTube videos (watch URLs, not search links)', learn.videos.length === 2 && learn.videos.every(u => /youtube\.com\/watch\?v=/.test(u)), learn.videos.join(' '));
+  check('Learn: 5 real YouTube videos (objects, DNS, HTTP, LLM, hashing) (watch URLs, not search links)', learn.videos.length === 5 && learn.videos.every(u => /youtube\.com\/watch\?v=/.test(u)), learn.videos.join(' '));
   check('Learn: readings are direct https links', learn.readings.length >= 5 && learn.readings.every(u => /^https:\/\//.test(u) && !/search/.test(u)), learn.readings.length + ' readings');
   check('Learn: written notes are real (≥ 900 words, runnable ClaimTrace.java)', learn.words >= 900 && /class ClaimTrace/.test(learn.code), learn.words + ' words');
   check('Learn: diagram + concept check render', learn.diagram && learn.concept);
@@ -116,15 +122,15 @@ async function shoot(page, name, sel) {
   await shoot(page, 'desktop-quiz', 'form[data-quiz="q-j-oop-01"]');
   await route(page, 'day-1/practice');
   const practice = await page.evaluate(() => [...document.querySelectorAll('.sd-practice')].map(c => ({ id: c.id, prompt: [...c.querySelectorAll(':scope > p')].filter(p => !p.classList.contains('sd-meta') && !p.classList.contains('sd-muted')).map(p => p.textContent).join(' '), checks: c.querySelectorAll('.sd-checklist li').length })));
-  check('Practice: 4 required Codex blocks + DSA + topic packet + stretch, all with prompts', practice.length === 7 && practice.every(p => p.prompt.length > 20), practice.map(p => p.id.replace('practice-', '') + ':' + p.checks).join(' '));
+  check('Practice: warm-up + 4 required Codex blocks + DSA + topic packets + stretch, all with prompts', practice.length === all1.reduce((n, l) => n + l.practice.length, 0) && practice.every(p => p.prompt.length > 20), practice.map(p => p.id.replace('practice-', '') + ':' + p.checks).join(' '));
   await shoot(page, 'desktop-practice', '.sd-panel');
   await route(page, 'day-1/coach');
   const coach = await page.evaluate(() => ({ qs: document.querySelectorAll('article.sd-iq').length, answers: document.querySelectorAll('article.sd-iq details.sd-model').length, open: document.querySelectorAll('article.sd-iq details[open]').length, none: document.querySelectorAll('.sd-noanswer').length }));
-  check('Interview: 9 questions, every one with a collapsed model answer', coach.qs === 9 && coach.answers === 9 && coach.open === 0 && coach.none === 0, JSON.stringify(coach));
+  check('Interview: '+all1.reduce((n, l) => n + (l.interview || []).length, 0)+' questions (session + topic packets + lane + warm-up), every one with a collapsed model answer', coach.qs === all1.reduce((n, l) => n + (l.interview || []).length, 0) && coach.answers === coach.qs && coach.open === 0 && coach.none === 0, JSON.stringify(coach));
   await page.$eval('article.sd-iq details', d => { d.open = true; });
   await shoot(page, 'desktop-interview', '.sd-panel');
   await route(page, 'day-1/my-notes');
-  check('My notes: 5 per-topic takeaway editors + 4 coach takeaways kept separate (collapsed)', await page.evaluate(() => document.querySelectorAll('textarea.sd-tk-ta').length === 5 && document.querySelector('details.sd-coach-tk:not([open])') && document.querySelectorAll('details.sd-coach-tk li').length === 4));
+  check('My notes: ≥5 per-topic takeaway editors + ≥16 coach takeaways kept separate (collapsed)', await page.evaluate(() => document.querySelectorAll('textarea.sd-tk-ta').length >= 5 && document.querySelector('details.sd-coach-tk:not([open])') && document.querySelectorAll('details.sd-coach-tk li').length >= 16));
   check('content pass: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -135,11 +141,11 @@ let completedBlob;
   const errors = [], ctx = await browser.createBrowserContext(), page = await open(ctx, VP.desktop, errors);
   await go(page, 'day-1/learn');
   check('gate: Mark complete is refused before practice/quiz (nothing stored)', await lessonButton(page, 'j-oop-01', 'Mark complete') && (await stored(page)) === null);
-  for (const id of ['j-oop-01.lab', 'j-oop-01.http', 'j-oop-01.ai']) await setPractice(page, id, 'complete');
+  for (const id of ['j-foundations-01.foundations', 'j-oop-01.lab', 'j-oop-01.http', 'j-oop-01.ai']) await setPractice(page, id, 'complete');
   await setPractice(page, 'd-hashing-01.dsa', 'complete', 'https://github.com/example/dup-ids');
   await setPractice(page, 'j-oop-01.review', 'complete', 'first=true second=false owner=U1');
   let s = await stored(page);
-  check('practice -> Codex blocks checked + review evidence saved', s?.sessions?.[1]?.checked?.length === 5 && s.sessions[1].evidence === 'first=true second=false owner=U1', JSON.stringify(s?.sessions?.[1]?.checked));
+  check('practice -> Codex blocks checked + review evidence saved', s?.sessions?.[1]?.checked?.length === 6 && s.sessions[1].evidence === 'first=true second=false owner=U1', JSON.stringify(s?.sessions?.[1]?.checked));
   await answerQuiz(page, false);
   s = await stored(page);
   check('quiz: wrong answers are scored and not passed', s.assessments[1].score < codex.passCount(1) && /Need 80%/.test(await toast(page)), await toast(page));
@@ -184,7 +190,7 @@ let completedBlob;
   // reopen the study day (Codex reopen) then finish again
   await lessonButton(page, 'j-oop-01', 'Reopen');
   s = await stored(page);
-  check('reopen: Codex day reopened; notes, evidence, takeaway and blocks kept; self-check marked stale', s.sessions[1].completedOn === '' && s.sessions[1].evidence && s.personalNotes[1] && s.topicTakeaways['j-oop-01'] && s.sessions[1].checked.length === 5 && s.assessments[1].stale === true);
+  check('reopen: Codex day reopened; notes, evidence, takeaway and blocks kept; self-check marked stale', s.sessions[1].completedOn === '' && s.sessions[1].evidence && s.personalNotes[1] && s.topicTakeaways['j-oop-01'] && s.sessions[1].checked.length === 6 && s.assessments[1].stale === true);
   await answerQuiz(page, true);
   await lessonButton(page, 'j-oop-01', 'Mark complete');
   s = await stored(page);
@@ -197,7 +203,7 @@ let completedBlob;
 {
   const errors = [], ctx = await browser.createBrowserContext(), page = await open(ctx, VP.desktop, errors);
   const old = codexBlob([
-    [{ kind: 'begin', day: 1 }], ...['lab', 'http', 'ai', 'dsa', 'review'].map(id => [{ kind: 'block', day: 1, id, done: true }]),
+    [{ kind: 'begin', day: 1 }], ...['foundations', 'lab', 'http', 'ai', 'dsa', 'review'].map(id => [{ kind: 'block', day: 1, id, done: true }]),
     [{ kind: 'evidence', day: 1, evidence: 'Output from the old app', notes: 'revisit this()' }],
     [{ kind: 'assessment', day: 1, choices: codex.sessionQA[1].assessment.map(a => a.answer), bankVersion: codex.assessmentVersion }],
     [{ kind: 'finish', day: 1 }], [{ kind: 'notes', day: 1, text: 'Notes written in the old Codex app' }],
@@ -206,6 +212,7 @@ let completedBlob;
     [{ kind: 'availability', date: '2026-11-25', unavailable: true }]
   ]);
   const legacyUi = fs.readFileSync(path.join(repo, 'ui/fixtures/legacy-progress.fixture.js'), 'utf8');
+  old.sessions[1].checked = old.sessions[1].checked.filter(id => id !== 'foundations'); // app.js@76d7e56 shape: no warm-up block
   const raw = JSON.stringify(old), demo = '{"schemaVersion":2,"lessons":{"JC-01":{"status":"complete"}}}';
   await page.goto(`${origin}/__seed`, { waitUntil: 'domcontentloaded' });   // same origin, not the app: seed storage before the app loads
   await page.evaluate((k, raw, demo, legacy) => { localStorage.clear(); localStorage.setItem(k, raw); localStorage.setItem('studydesk.preview.v2', demo); localStorage.setItem('studydesk.legacy.v1.fixture', legacy); }, KEY, raw, demo, legacyUi.slice(0, 2000));
@@ -240,16 +247,20 @@ let completedBlob;
   setAccount(api.db, 'deepak@example.test', await accountPasswordHash('preview-only-password-1'));
   const apiOrigin = `http://127.0.0.1:${api.port}`;
   async function signIn(page) {
-    await page.$eval('#pv-account', d => { d.open = true; });
-    await page.$eval('#pv-account input[type=url]', (i, v) => { i.value = v; }, apiOrigin);
-    await page.type('#pv-account input[type=email]', 'deepak@example.test');
-    await page.type('#pv-account input[type=password]', 'preview-only-password-1');
-    await page.click('#pv-account button[type=submit]');
+    const back = await page.evaluate(() => location.hash.slice(1));
+    let A = '#pv-account';
+    if (PAGE.includes('preview')) await page.$eval('#pv-account', d => { d.open = true; });
+    else { await route(page, 'account'); A = '.sd-account-slot'; }
+    await page.$eval(A + ' input[type=url]', (i, v) => { i.value = v; }, apiOrigin);
+    await page.type(A + ' input[type=email]', 'deepak@example.test');
+    await page.type(A + ' input[type=password]', 'preview-only-password-1');
+    await page.click(A + ' button[type=submit]');
     await page.waitForFunction(() => /Account · /.test(document.querySelector('.sd-sync')?.textContent || ''), { timeout: 8000 });
+    if (back && back !== 'account') await route(page, back);
   }
   const ctxA = await browser.createBrowserContext(), a = await open(ctxA, VP.desktop, errors);
   await go(a, 'day-1/practice'); await signIn(a);
-  for (const id of ['j-oop-01.lab', 'j-oop-01.http', 'j-oop-01.ai']) await setPractice(a, id, 'complete');
+  for (const id of ['j-foundations-01.foundations', 'j-oop-01.lab', 'j-oop-01.http', 'j-oop-01.ai']) await setPractice(a, id, 'complete');
   await setPractice(a, 'd-hashing-01.dsa', 'complete', 'https://github.com/example/dup');
   await setPractice(a, 'j-oop-01.review', 'complete', 'account evidence');
   await answerQuiz(a, true);
@@ -279,12 +290,83 @@ let completedBlob;
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
+// ---------- 4b. Day 2 (Mon 23 Nov, weekday 2h): content, complete, reload, reopen, upgrade ----------
+{
+  const errors = [], ctx = await browser.createBrowserContext(), page = await open(ctx, VP.desktop, errors);
+  const { main: m2, lane: l2 } = A.lessonsByDay[2];
+  D = 2; M = m2; PIN = '2026-11-23';
+  const s2 = await (async () => { await page.goto(`${origin}/__seed`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((k, v) => { localStorage.clear(); localStorage.setItem(k, v); }, KEY, completedBlob); })();
+  await go(page, 'day-2');
+  check('Day 2 plan: Monday is a 2h weekday', /2h/.test(await txt(page, '.sd-chip-budget')) && !/stretch/.test(await txt(page, '.sd-chip-budget')), await txt(page, '.sd-chip-budget'));
+  const plan2 = await page.evaluate(() => document.querySelector('.sd-main').innerText);
+  check('Day 2 plan: revision of Day 1 + main j-concurrency-01 + DSA lane j-concurrency-01.dsa', /revis/i.test(plan2) && await page.evaluate(() => ['j-concurrency-01', 'j-concurrency-01.dsa'].every(id => [...document.querySelectorAll('.sd-lrow code')].some(c => c.textContent === id))));
+  check('Day 2 plan: 12 min revision · 78 min main · 30 min DSA', /12 min/.test(plan2) && /1h 18m/.test(plan2) && /30 min/.test(plan2), plan2.match(/\d+ min/g)?.slice(0, 8).join(','));
+  await route(page, 'day-2/learn');
+  const learn2 = await page.evaluate(() => ({
+    videos: [...document.querySelectorAll('[id="lesson-j-concurrency-01"] .sd-video:not(.sd-reading) .sd-video-t')].map(a => a.href),
+    code: [...document.querySelectorAll('[id="lesson-j-concurrency-01"] .sd-notes pre')].map(p => p.textContent).join('\n'),
+    words: (document.querySelector('[id="lesson-j-concurrency-01"] .sd-notes') || { innerText: '' }).innerText.split(/\s+/).length,
+    laneCode: [...document.querySelectorAll('[id="lesson-j-concurrency-01.dsa"] .sd-notes pre')].map(p => p.textContent).join('\n'),
+    opts: [...document.querySelectorAll('form[data-quiz="q-j-concurrency-01"] fieldset')].map(f => f.querySelectorAll('input[type=radio]').length)
+  }));
+  check('Day 2 learn: 2 real YouTube videos', learn2.videos.length === 2 && learn2.videos.every(u => /youtube\.com\/watch\?v=/.test(u)), learn2.videos.join(' '));
+  check('Day 2 learn: notes ≥ 500 words with runnable RaceTrace.java', learn2.words >= 500 && /class RaceTrace/.test(learn2.code), learn2.words + ' words');
+  check('Day 2 DSA lane: TwoSum.java in the lane notes', /class TwoSum/.test(learn2.laneCode));
+  check('Day 2 quiz: 5 questions, none with only 2 options', learn2.opts.length === 5 && learn2.opts.every(n => n >= 3), learn2.opts.join(','));
+  await shoot(page, 'day2-desktop-learn', '[id="lesson-j-concurrency-01"]');
+  await route(page, 'day-2/coach');
+  const iq2 = await page.evaluate(() => ({ qs: document.querySelectorAll('article.sd-iq').length, answers: document.querySelectorAll('article.sd-iq details.sd-model').length, open: document.querySelectorAll('article.sd-iq details[open]').length }));
+  check('Day 2 interview: ≥ 9 questions with collapsed model answers', iq2.qs >= 9 && iq2.answers === iq2.qs && iq2.open === 0, JSON.stringify(iq2));
+  // complete Day 2
+  for (const id of ['j-concurrency-01.learn', 'j-concurrency-01.practice']) await setPractice(page, id, 'complete');
+  await setPractice(page, 'j-concurrency-01.dsa.dsa', 'complete', 'twoSum passes 3 cases');
+  await setPractice(page, 'j-concurrency-01.review', 'complete', 'U1=true U2=true finalOwner=U1');
+  await route(page, 'day-2/revision');
+  const revBtn = await page.evaluate(() => { const b = [...document.querySelectorAll('.sd-main button')].find(x => /mark.*(revis|done)|revision done|done/i.test(x.textContent)); if (b) b.click(); return b ? b.textContent : null; });
+  await sleep(300);
+  let st = await stored(page);
+  check('Day 2 practice + revision -> Codex blocks checked (revision, learn, practice, dsa, review)', ['revision', 'learn', 'practice', 'dsa', 'review'].every(id => st.sessions[2]?.checked?.includes(id)), JSON.stringify(st.sessions[2]?.checked) + ' rev=' + revBtn);
+  await answerQuiz(page, true);
+  st = await stored(page);
+  check('Day 2 quiz: all correct -> 5/5 stored by Codex grading', st.assessments[2]?.score === 5);
+  await lessonButton(page, 'j-concurrency-01.dsa', 'Mark complete');
+  await lessonButton(page, 'j-concurrency-01', 'Mark complete');
+  st = await stored(page);
+  check('Day 2 complete: Codex session 2 completedOn = 23 Nov 2026', st.sessions[2]?.completedOn === '2026-11-23');
+  await route(page, 'day-2/my-notes');
+  await page.type('#sd-notes-ta', 'Check-then-act races; prove with a latch.');
+  await page.waitForFunction(() => (document.getElementById('sd-notes-status') || {}).textContent === 'Saved', { timeout: 5000 }).catch(() => {});
+  await page.reload({ waitUntil: 'load' }); await page.waitForFunction(() => document.body.dataset.previewReady === 'true'); await sleep(200);
+  await route(page, 'day-2');
+  const badge2 = await txt(page, '.sd-dayhead .sd-badge');
+  await route(page, 'day-2/my-notes');
+  check('Day 2 reload: Complete + notes kept; Day 1 still Complete', /Complete/.test(badge2) && (await page.$eval('#sd-notes-ta', t => t.value)).startsWith('Check-then-act') && (await stored(page)).sessions[1].completedOn === DAY);
+  await shoot(page, 'day2-desktop-complete');
+  await lessonButton(page, 'j-concurrency-01', 'Reopen');
+  st = await stored(page);
+  check('Day 2 reopen: reopened, evidence + notes + blocks kept, self-check stale', st.sessions[2].completedOn === '' && st.sessions[2].evidence && st.personalNotes[2] && st.sessions[2].checked.length === 5 && st.assessments[2].stale === true);
+  check('Day 2 flow: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+  // upgrade: a Day 2 completed under the old block shape (no DSA block) stays complete
+  const ctx2 = await browser.createBrowserContext(), p2 = await open(ctx2, VP.desktop, errors);
+  const old2 = JSON.parse(completedBlob);
+  old2.sessions[2] = { startedOn: '2026-11-23', checked: ['revision', 'learn', 'practice', 'review'], evidence: 'old shape', notes: '', completedOn: '2026-11-23' };
+  old2.personalNotes = { ...(old2.personalNotes || {}), 2: 'Old Day 2 notes' };
+  await p2.goto(`${origin}/__seed`, { waitUntil: 'domcontentloaded' });
+  await p2.evaluate((k, v) => { localStorage.clear(); localStorage.setItem(k, v); }, KEY, JSON.stringify(old2));
+  await go(p2, 'day-2');
+  check('Day 2 upgrade: old-shape completed Day 2 shows Complete, notes kept', /Complete/.test(await txt(p2, '.sd-dayhead .sd-badge')) && await (async () => { await route(p2, 'day-2/my-notes'); return (await p2.$eval('#sd-notes-ta', t => t.value)) === 'Old Day 2 notes'; })());
+  await ctx2.close();
+  D = 1; M = main; PIN = DAY;
+}
+
 // ---------- 5. 320px + desktop screenshots, no horizontal overflow ----------
 {
   const errors = [], ctx = await browser.createBrowserContext(), page = await open(ctx, VP.m320, errors);
   await page.goto(`${origin}/__seed`, { waitUntil: 'domcontentloaded' });   // same origin, not the app: seed storage before the app loads
   await page.evaluate((k, v) => { localStorage.clear(); localStorage.setItem(k, v); }, KEY, completedBlob);
-  for (const [hash, name, sel] of [['day-1/learn', 'm320-learn', '[id="lesson-j-oop-01"]'], ['day-1/learn', 'm320-quiz', 'form[data-quiz="q-j-oop-01"]'], ['day-1/practice', 'm320-practice', '.sd-panel'], ['day-1/coach', 'm320-interview', '.sd-panel'], ['day-1/my-notes', 'm320-my-notes', '.sd-takeaways']]) {
+  for (const [hash, name, sel] of [['day-1', 'm320-day1-plan', null], ['day-2', 'm320-day2-plan', null], ['day-2/learn', 'm320-day2-learn', '[id="lesson-j-concurrency-01"]'], ['day-1/learn', 'm320-learn', '[id="lesson-j-oop-01"]'], ['day-1/learn', 'm320-quiz', 'form[data-quiz="q-j-oop-01"]'], ['day-1/practice', 'm320-practice', '.sd-panel'], ['day-1/coach', 'm320-interview', '.sd-panel'], ['day-1/my-notes', 'm320-my-notes', '.sd-takeaways']]) {
     await go(page, hash);
     if (name === 'm320-interview') await page.$eval('article.sd-iq details', d => { d.open = true; });
     const of = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
@@ -297,5 +379,5 @@ let completedBlob;
 
 await browser.close(); stat.close();
 const pass = results.filter(r => r.ok).length;
-console.log(`\n${pass}/${results.length} Day 1 integration checks passed · screenshots: ${shots}`);
+console.log(`\n${pass}/${results.length} Day 1 + Day 2 integration checks passed · screenshots: ${shots}`);
 process.exitCode = pass === results.length ? 0 : 1;

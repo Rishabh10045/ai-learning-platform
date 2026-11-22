@@ -2,6 +2,7 @@ import { days } from './curriculum.js';
 import { lessonContent } from './lesson-content.js';
 import { assessmentScenarios } from './assessment-scenarios.js';
 import { interviewGuides } from './interview-guides.js';
+import { extraAssessment, extraDistractors, extraExplanations } from './day-depth.js';
 
 // Each row supplies a negative/edge fixture, a separate stretch exercise and an applied interview prompt.
 // Quiz pairs are correct explanation followed by a plausible misconception.
@@ -291,7 +292,7 @@ const dayOneExtra = [
   'Give the expected time and extra space of duplicate detection. State your assumptions and one adversarial input.'
 ];
 
-export const assessmentVersion = 2;
+export const assessmentVersion = 3; // 3: Day 1–2 four-option questions + two Day 2 questions (Grok, 2026-11-22)
 
 function compile(question, options, explanation) {
   // A stable option order lets the browser and account API grade the same version.
@@ -307,7 +308,8 @@ export const sessionQA = Object.fromEntries(days.map((day, index) => {
   const lesson = lessonContent[day.number];
   const starter = day.blocks.find(block => block.recall && block.id !== 'revision').recall;
   const assessment = [
-    ...pairs.map(([question, right, wrong]) => compile(question, [right, wrong], right)),
+    ...pairs.map(([question, right, wrong], i) => compile(question, [right, wrong, ...(extraDistractors[day.number]?.[i] || [])],
+      extraExplanations[day.number]?.[i] || right)),
     compile(...assessmentScenarios[day.number])
   ];
   if (day.number === 1) assessment.push(
@@ -318,6 +320,7 @@ export const sessionQA = Object.fromEntries(days.map((day, index) => {
       choices: ['Assign the seat owner', 'Override the protected domain invariant', 'Draft a help answer checked against policy evidence', 'Decide whether a user can bypass validation'], answer: 2,
       explanation: 'Model output is suitable for a validated policy explanation. The Java application and datastore enforce identity, validation and ownership.' }
   );
+  assessment.push(...(extraAssessment[day.number] || []));
   return [day.number, {
     test, stretch,
     questions: day.number === 1 ? [starter, lesson.variation, ...dayOneExtra] : [starter, lesson.variation, probe],

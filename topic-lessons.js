@@ -1,3 +1,4 @@
+import { depthPackets } from './day-depth.js';
 // A topic gets its own teaching material only when each item is written for that topic.
 export const topicLessons = {
   'j-oop-01': {
@@ -209,3 +210,6 @@ export const topicLessons = {
     references: [['Spring AI · Retrieval Augmented Generation', 'https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html']]
   }
 };
+
+// Day 1–2 packets added by Grok (2026-11-22); keys outside the topic index (lane packets) stay in day-depth.js.
+for (const [id, packet] of Object.entries(depthPackets)) if (!id.includes('.')) topicLessons[id] = packet;

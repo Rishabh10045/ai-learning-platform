@@ -11,7 +11,8 @@ const host = (storage = memoryStorage()) => createCodexHost({ S, E, adapter: A, 
 const ch = (c) => ({ date: DAY, at: '2026-11-22T16:00:00.000Z', ...c });
 
 async function completeDay1(h) {
-  const { main, lane } = d1();
+  const { main, lane, warmup } = d1();
+  assert.equal((await h.change(ch({ type: 'practice', id: warmup.practice[0].id, status: 'complete', evidence: '' }))).ok, true, 'warm-up');
   for (const p of main.practice.filter(p => p.required !== false && !p.evidenceRequired)) assert.equal((await h.change(ch({ type: 'practice', id: p.id, status: 'complete', evidence: '' }))).ok, true, p.id);
   assert.equal((await h.change(ch({ type: 'practice', id: lane.practice[0].id, status: 'complete', evidence: 'https://github.com/x/dup' }))).ok, true);
   assert.equal((await h.change(ch({ type: 'practice', id: 'j-oop-01.review', status: 'complete', evidence: 'first=true second=false owner=U1' }))).ok, true);
@@ -37,17 +38,23 @@ test('Day 1 has real content in every element', () => {
   assert.ok(main.notes.length >= 30);
   assert.ok(main.notes.some(n => n.type === 'code' && /class ClaimTrace/.test(n.text)));
   const vids = main.videos.filter(v => v.kind === 'video');
-  assert.equal(vids.length, 2);
+  assert.equal(vids.length, 5); // javaObjects, dns, httpCrash, llm, hashTables
   for (const v of main.videos) assert.match(v.url, /^https:\/\//);
   assert.ok(!main.videos.some(v => /search_query|results\?/.test(v.url)), 'no search-result placeholder links');
   assert.equal(main.quiz.questions.length, 5); assert.equal(main.quiz.passPct, 80);
-  assert.equal(main.interview.length, 9);
+  assert.equal(main.interview.length, 20); // 5 session + 4 j-oop-01 + 4 invariants + 4 request + 3 ai packets
   assert.ok(main.interview.every(q => q.prompt && q.answer && q.answer.length > 40));
-  assert.equal(main.takeaways.length, 4);
+  assert.equal(main.takeaways.length, 16);
+  assert.ok(main.quiz.questions.every(q => q.options.length >= 3), 'no two-option questions');
   assert.equal(main.topics.length, 5);
   assert.deepEqual(main.practice.filter(p => p.required !== false).map(p => p.id), ['j-oop-01.lab', 'j-oop-01.http', 'j-oop-01.ai', 'j-oop-01.review']);
   assert.ok(main.practice.every(p => p.prompt));
-  assert.equal(lane.practice.length, 1);
+  assert.equal(lane.practice.length, 2);
+  assert.ok(lane.notes.some(n => n.type === 'code' && /class DuplicateIds/.test(n.text)));
+  const { warmup } = d1();
+  assert.equal(warmup.id, 'j-foundations-01');
+  assert.ok(warmup.notes.some(n => n.type === 'code' && /this\("A1"\)/.test(n.text)));
+  assert.equal(S.resolveSessions(A.course).sessions[0].warmup.id, 'j-foundations-01');
 });
 
 test('complete Day 1 end to end through Codex rules; score, XP and completion derive from Codex state', async () => {
@@ -58,7 +65,7 @@ test('complete Day 1 end to end through Codex rules; score, XP and completion de
   for (const q of d1().main.interview.slice(0, 3)) await h.change(ch({ type: 'interview', id: q.id, lessonId: 'j-oop-01' }));
   const stored = JSON.parse(storage.getItem(codex.storageKey));
   assert.equal(stored.sessions[1].completedOn, DAY);
-  assert.deepEqual(stored.sessions[1].checked.sort(), ['ai', 'dsa', 'http', 'lab', 'review']);
+  assert.deepEqual(stored.sessions[1].checked.sort(), ['ai', 'dsa', 'foundations', 'http', 'lab', 'review']);
   assert.equal(stored.assessments[1].score, 5);
   assert.equal(stored.personalNotes[1], 'Invariant: owner never changes on a failed claim.');
   assert.equal(stored.topicTakeaways['j-oop-01'], 'My rule: validate first, then mutate.');
@@ -105,7 +112,7 @@ test('refused actions leave Codex storage untouched', async () => {
 
 test('upgrade: a learner profile written by Codex app.js@76d7e56 loads unchanged; IDs and storage key stable', async () => {
   const old = codexBlob([
-    [{ kind: 'begin', day: 1 }], [{ kind: 'block', day: 1, id: 'lab', done: true }], [{ kind: 'block', day: 1, id: 'http', done: true }],
+    [{ kind: 'begin', day: 1 }], [{ kind: 'block', day: 1, id: 'foundations', done: true }], [{ kind: 'block', day: 1, id: 'lab', done: true }], [{ kind: 'block', day: 1, id: 'http', done: true }],
     [{ kind: 'block', day: 1, id: 'ai', done: true }], [{ kind: 'block', day: 1, id: 'dsa', done: true }], [{ kind: 'block', day: 1, id: 'review', done: true }],
     [{ kind: 'evidence', day: 1, evidence: 'Main output pasted', notes: 'revisit constructors' }],
     [{ kind: 'assessment', day: 1, choices: codex.sessionQA[1].assessment.map(a => a.answer), bankVersion: codex.assessmentVersion }],
@@ -116,6 +123,8 @@ test('upgrade: a learner profile written by Codex app.js@76d7e56 loads unchanged
     [{ kind: 'availability', date: '2026-11-24', unavailable: true }],
     [{ kind: 'begin', day: 2 }, '2026-11-23'], [{ kind: 'notes', day: 2, text: 'Day 2 draft' }]
   ]);
+  // Profiles from app.js@76d7e56 predate the Day 1 'foundations' block: drop it to reproduce that stored shape.
+  old.sessions[1].checked = old.sessions[1].checked.filter(id => id !== 'foundations');
   const raw = JSON.stringify(old);
   const storage = memoryStorage({ [codex.storageKey]: raw, 'studydesk.preview.v2': '{"schemaVersion":2,"lessons":{"JC-01":{"status":"complete"}}}' });
   const h = host(storage);

@@ -42,9 +42,11 @@ export function createCodexAdapter({ S, E, codex }) {
     days, courses, courseOutline, studyLessons, sessionQA, passCount, assessmentVersion, topicLessons, getTopic,
     lessonDiagrams, videosForDay, passedAssessment, defaultPreferences, START_DATE
   } = codex;
+  const warmupLessons = codex.warmupLessons || {}, depthPackets = codex.depthPackets || {}, stretchPlans = codex.stretchPlans || {};
+  const WARM_BLOCK = 'foundations';
 
   const sourceCourse = { java: 'Java Backend', design: 'System Design', dsa: 'DSA + System Design', genai: 'AI Engineering' };
-  const blockPractice = block => block.id !== 'dsa' && block.id !== 'revision';
+  const blockPractice = block => block.id !== 'dsa' && block.id !== 'revision' && block.id !== WARM_BLOCK;
   const mainIdOf = day => day.topics[0].toLowerCase();
   const laneIdOf = day => {
     if (!day.blocks.some(block => block.id === 'dsa')) return null;
@@ -76,11 +78,15 @@ export function createCodexAdapter({ S, E, codex }) {
     return (studyLessons[n]?.notes || []).map(block => block.type === 'h4' ? { type: 'h4', text: block.text } : block);
   }
 
-  function packetNotes(topicId) {
-    const packet = topicLessons[topicId];
+  function packetNotes(topicId, packetIn, titleIn) {
+    const packet = packetIn || topicLessons[topicId];
     if (!packet) return [];
     const topic = getTopic(topicId);
-    const out = [{ type: 'h', text: 'Topic packet · ' + (topic?.title || topicId) }, ...(packet.notes || []).map(text => ({ type: 'p', text }))];
+    const out = [{ type: 'h', text: 'Topic packet · ' + (titleIn || topic?.title || topicId) }, ...(packet.notes || []).map(text => ({ type: 'p', text }))];
+    if (packet.code) {
+      out.push({ type: 'h4', text: packet.code.title }, { type: 'code', lang: 'java', text: packet.code.text });
+      if (packet.code.output) out.push({ type: 'callout', tone: 'tip', text: 'Expected output:\n' + packet.code.output });
+    }
     if (packet.check) {
       const [q, options, answer, why] = packet.check;
       out.push({ type: 'details', summary: 'Concept check: ' + q, text: options.map((o, i) => String.fromCharCode(65 + i) + '. ' + o).join('\n') + '\n\nAnswer: ' + String.fromCharCode(65 + answer) + '. ' + options[answer] + (why ? '\n' + why : '') });
@@ -148,13 +154,44 @@ export function createCodexAdapter({ S, E, codex }) {
       topics: topicIds.map(id => ({ id, title: getTopic(id)?.title || id, subject: getTopic(id)?.subject || '' })),
       coach: (studyLessons[n]?.coach || []).map(c => ({ id: mainId + '-coach-' + c.id, prompt: c.prompt, copyText: c.copyText, copyLabel: c.copyLabel }))
     };
+    const lanePacket = laneId ? (topicLessons[laneId] || depthPackets[laneId]) : null;
     const lane = laneId ? {
       id: laneId, title: laneBlocks[0].title, estMinutes: 0, day: n, lane: true,
       source: { kind: 'gfg', course: courses.dsa.title, ref: 'Day ' + n + ' DSA block' },
-      notes: laneBlocks.flatMap(blockGuide), revision: laneBlocks.filter(b => b.recall).map(b => 'Recall: ' + b.recall),
-      practice: laneBlocks.map(block => practiceOf(laneId, block, n)), videos: readingsOf(n, laneBlocks, [])
+      notes: [...laneBlocks.flatMap(blockGuide), ...(lanePacket ? packetNotes(laneId, lanePacket, laneBlocks[0].title) : [])],
+      revision: laneBlocks.filter(b => b.recall).map(b => 'Recall: ' + b.recall),
+      practice: [...laneBlocks.map(block => practiceOf(laneId, block, n)),
+        ...(lanePacket?.practice ? [{ id: laneId + '.packet', block: null, day: n, title: 'Topic packet practice · ' + laneBlocks[0].title, platform: 'Java', prompt: lanePacket.practice[0], acceptance: lanePacket.practice[1] || [], required: false }] : [])],
+      videos: [...readingsOf(n, laneBlocks, []), ...(lanePacket?.references || []).filter(([, url]) => !laneBlocks.some(b => (b.readings || []).some(r => r.url === url)))
+        .map(([title, url], i) => ({ id: n + '~lread~' + i, title, url, source: 'Reading', kind: 'article' }))],
+      interview: (lanePacket?.interview || []).map(([prompt, answer], i) => ({ id: laneId + '-tq' + (i + 1), prompt, answer, topicId: laneId })),
+      takeaways: (lanePacket?.takeaways || []).map(text => ({ topicId: laneId, text }))
     } : null;
-    return { main, lane };
+    // Day 1 only: the revision slot is a Java foundations warm-up lesson, completed through Codex block 'foundations'.
+    const warmBlock = day.blocks.find(block => block.id === WARM_BLOCK);
+    const warmId = warmBlock && Object.keys(warmupLessons)[0];
+    const wp = warmId && warmupLessons[warmId];
+    const warmup = wp ? {
+      id: warmId, title: wp.title, estMinutes: 0, day: n, warmup: true, blockId: WARM_BLOCK,
+      source: { kind: 'added', note: 'Java foundations warm-up added for Day 1 (day-depth.js)' },
+      notes: [...blockGuide(warmBlock), ...packetNotes(warmId, wp, wp.title)],
+      revision: warmBlock.recall ? ['Recall: ' + warmBlock.recall] : [],
+      practice: [practiceOf(warmId, warmBlock, n), { id: warmId + '.packet', block: null, day: n, title: 'Warm-up practice · edit and predict', platform: 'Java', prompt: wp.practice[0], acceptance: wp.practice[1] || [], required: false }],
+      videos: (wp.references || []).map(([title, url], i) => ({ id: n + '~wread~' + i, title, url, source: 'Reading', kind: 'article' })),
+      interview: (wp.interview || []).map(([prompt, answer], i) => ({ id: warmId + '-tq' + (i + 1), prompt, answer, topicId: warmId })),
+      takeaways: (wp.takeaways || []).map(text => ({ topicId: warmId, text }))
+    } : null;
+    if (warmup && wp.check) {
+      const [q, options, answer, why] = wp.check;
+      warmup.notes.push({ type: 'details', summary: 'Concept check: ' + q, text: options.map((o, i) => String.fromCharCode(65 + i) + '. ' + o).join('\n') + '\n\nAnswer: ' + String.fromCharCode(65 + answer) + '. ' + options[answer] + (why ? '\n' + why : '') });
+    }
+    const plan = stretchPlans[n];
+    if (plan) {
+      const items = [main, lane, warmup].filter(Boolean).flatMap(l => l.practice);
+      for (const pr of items) if (plan.assign?.[pr.id]) { pr.stretch = true; pr.minutes = plan.assign[pr.id]; pr.title = 'Stretch · ' + pr.title.replace(/^Stretch practice$/, 'booking lab test harness'); }
+      for (const x of plan.extra || []) main.practice.push({ id: x.id, block: null, day: n, title: x.title, platform: 'Java', minutes: x.minutes, prompt: x.prompt, acceptance: x.acceptance || [], required: false, stretch: true });
+    }
+    return { main, lane, warmup };
   }
 
   // ---- course ----
@@ -170,6 +207,9 @@ export function createCodexAdapter({ S, E, codex }) {
     }) }))
   }));
   const laneLessons = days.map(d => lessonsByDay[d.number].lane).filter(Boolean);
+  const warmLessons = days.map(d => lessonsByDay[d.number].warmup).filter(Boolean);
+  if (warmLessons.length) subjects.unshift({ id: 'java-foundations', title: 'Java foundations warm-up', short: 'Foundations',
+    modules: [{ id: 'java-foundations-1', title: 'Day 1 warm-up', lessons: warmLessons }] });
   subjects.push({ id: 'dsa-lane', title: 'DSA in Java · daily 30-minute lane', short: 'DSA lane', dsa: true, daily: true,
     modules: [{ id: 'dsa-lane-1', title: 'Daily DSA practice', lessons: laneLessons }] });
   const course = {
@@ -179,7 +219,8 @@ export function createCodexAdapter({ S, E, codex }) {
       testPassPct: 70, subjectOrder: 'free', dsaRequired: false },
     subjects,
     sessions: days.map(day => ({ id: sessionId(day.number), subject: dayOfTrack[day.number], lessons: [mainIdOf(day)],
-      dsa: lessonsByDay[day.number].lane ? [lessonsByDay[day.number].lane.id] : [] }))
+      dsa: lessonsByDay[day.number].lane ? [lessonsByDay[day.number].lane.id] : [],
+      ...(lessonsByDay[day.number].warmup ? { warmup: lessonsByDay[day.number].warmup.id } : {}) }))
   };
   subjects.forEach(s => s.modules.forEach(m => m.lessons.forEach(l => {
     byLesson[l.id] = l;
@@ -192,10 +233,10 @@ export function createCodexAdapter({ S, E, codex }) {
   function toProgress(state, side = emptySidecar()) {
     const p = S.normalize({});
     for (const day of days) {
-      const n = day.number, { main, lane } = lessonsByDay[n], session = state.sessions[n];
+      const n = day.number, { main, lane, warmup } = lessonsByDay[n], session = state.sessions[n];
       const checked = new Set(session?.checked || []);
       const dated = session?.completedOn || session?.startedOn || null;
-      [main, lane].filter(Boolean).forEach(lesson => (lesson.practice || []).forEach(pr => {
+      [main, lane, warmup].filter(Boolean).forEach(lesson => (lesson.practice || []).forEach(pr => {
         const extra = side.practice[pr.id] || {};
         const evidence = pr.block === 'review' ? (session?.evidence || '') : (extra.evidence || '');
         if (pr.block && checked.has(pr.block)) p.practice[pr.id] = { status: 'complete', evidence, completedOn: extra.completedOn || dated };
@@ -204,6 +245,10 @@ export function createCodexAdapter({ S, E, codex }) {
       }));
       if (session?.completedOn) p.lessons[main.id] = { status: 'complete', completedOn: session.completedOn };
       else if (session?.startedOn) p.lessons[main.id] = { status: 'in-progress', completedOn: null };
+      // A day completed before the warm-up existed (Codex app.js@76d7e56 profiles) counts the warm-up as done.
+      if (warmup && !checked.has(WARM_BLOCK) && session?.completedOn) p.lessons[warmup.id] = { status: 'complete', completedOn: session.completedOn };
+      if (warmup && checked.has(WARM_BLOCK)) p.lessons[warmup.id] = { status: 'complete', completedOn: side.practice[warmup.id + '.' + WARM_BLOCK]?.completedOn || dated };
+      if (lane && !checked.has('dsa') && session?.completedOn) p.lessons[lane.id] = { status: 'complete', completedOn: session.completedOn }; // completed before the lane existed (Day 2+)
       if (lane && checked.has('dsa')) p.lessons[lane.id] = { status: 'complete', completedOn: side.practice[lane.id + '.dsa']?.completedOn || dated };
       const a = state.assessments[n];
       if (a) {
@@ -235,7 +280,7 @@ export function createCodexAdapter({ S, E, codex }) {
 
   function quizLock(lessonId, state) {
     const lesson = byLesson[lessonId];
-    if (!lesson || lesson.lane) return null;
+    if (!lesson || lesson.lane || lesson.warmup) return null;
     const n = lesson.day, session = state.sessions[n];
     if (!session) return nextDayNumber(state) === n ? 'Start this study day, finish every block and save the review evidence to unlock the self-check.' : 'Finish the current study day first.';
     const left = days[n - 1].blocks.filter(b => !session.checked.includes(b.id)).map(b => b.title);
@@ -250,9 +295,10 @@ export function createCodexAdapter({ S, E, codex }) {
       case 'lesson': {
         const lesson = byLesson[change.id]; if (!lesson) return fail('Unknown lesson ' + change.id);
         const n = lesson.day, session = state.sessions[n];
-        if (lesson.lane) {
-          if (change.status === 'complete') return (session?.checked || []).includes('dsa') ? { actions: [], side } : fail('Finish practice: ' + lesson.practice[0].title);
-          return { actions: (session?.checked || []).includes('dsa') ? [{ kind: 'block', day: n, id: 'dsa', done: false }] : [], side };
+        if (lesson.lane || lesson.warmup) {
+          const bid = lesson.blockId || 'dsa';
+          if (change.status === 'complete') return (session?.checked || []).includes(bid) ? { actions: [], side } : fail('Finish practice: ' + lesson.practice[0].title);
+          return { actions: (session?.checked || []).includes(bid) ? [{ kind: 'block', day: n, id: bid, done: false }] : [], side };
         }
         if (change.status === 'complete') return { actions: [...begin(state, n), { kind: 'finish', day: n }], side };
         if (session?.completedOn) return { actions: [{ kind: 'reopen', day: n }], side };

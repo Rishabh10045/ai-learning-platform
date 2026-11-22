@@ -34,6 +34,10 @@ const videos = {
   llm: youtube('lFXQkBvEe0o', 'Introduction to Generative AI and LLMs', 'Microsoft Developer', 'Watch the opening overview of training, inference and LLM input.', 8),
   race: youtube('RMR75VzYoos', 'Race Conditions in Java Multithreading', 'Jakob Jenkov', 'Pause at the first shared-state interleaving and draw the read and write events.'),
   memory: youtube('LCSqZyjBwWA', 'The Java Memory Model: The Basics', 'Jakob Jenkov', 'Focus on shared memory and the visibility of changes between workers.'),
+  dns: youtube('mpQZVYPuDGU', 'How a DNS Server (Domain Name System) works', 'PowerCert Animated Videos', 'Follow the lookup chain: browser cache, resolver, root, TLD and authoritative server.', 7),
+  httpCrash: youtube('iYM2zFP3Zn0', 'HTTP Crash Course & Exploration', 'Traversy Media', 'Watch the parts on methods, headers and status codes; skip the tooling demo.', 15),
+  hashTables: youtube('KyUTuwz_b7Q', 'Hash Tables and Hash Functions', 'Computer Science Lessons', 'Focus on how a hash picks a bucket and what a collision is.', 10),
+  threadsIntro: youtube('mTGdtC9f4EU', 'Java Concurrency and Multithreading - Introduction', 'Jakob Jenkov', 'Focus on what threads share (heap) and what they do not (stacks).', 10),
   hash: mit('Nu8YGneFCWE', 'Hashing', 'Focus on dictionary operations, collisions and expected lookup cost.'),
   computation: mit('ZA-tUyM_y7s', 'Algorithms and Computation', 'Focus on modeling the input and measuring work against input size.'),
   sorting: mit('oS9aPzUNG-s', 'Sets and Sorting', 'Follow the first merge-sort example and trace ties independently.'),
@@ -59,7 +63,7 @@ const videos = {
 };
 
 const byDay = {
-  1: ['javaObjects', 'llm'], 2: ['race'], 3: ['memory'], 4: ['hash'], 5: ['javaObjects'], 6: ['streams'], 7: ['memory'],
+  1: ['javaObjects', 'dns', 'httpCrash', 'llm', 'hashTables'], 2: ['threadsIntro', 'race'], 3: ['memory'], 4: ['hash'], 5: ['javaObjects'], 6: ['streams'], 7: ['memory'],
   8: ['mvcTest'], 9: ['injection'], 10: ['rest'], 11: ['mvcTest'], 12: ['sql'],
   13: ['transaction'], 14: ['mvcc'], 15: ['databaseLocks'], 16: ['transaction'],
   17: ['distributed'], 18: ['designInterview'], 19: ['transaction'], 20: ['transaction'],
