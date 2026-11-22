@@ -75,6 +75,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
     recall: 'In Kahn’s algorithm, what does it mean when the queue empties before every node has been output?'
   },
+  48: {
+    title: 'Floor binary search: which signing key was active at time t',
+    concept: 'Binary search halves a sorted range each step. For the floor (the last element ≤ t), record mid whenever a[mid] ≤ t and continue to the right. Otherwise go left. Compute mid as lo + (hi − lo) / 2.',
+    example: 'Key starts [1000, 2000, 3500, 5000] map to k1–k4. t = 999 has no key, 1000 → k1, 2999 → k2, 3500 → k3, 9999 → k4.',
+    practice: 'Implement int floorIndex(long[] starts, long t) with lo <= hi. Then add ceilingIndex and compare both with TreeMap.floorKey and ceilingKey.',
+    checks: ['Outputs match the example, including −1 before the first key.', 'Floor and ceiling agree with TreeMap on 10 values.', 'State O(log n) time and explain why mid = lo + (hi − lo) / 2.'],
+    readings: [reading('Java 21 API · TreeMap (floorEntry, ceilingEntry)', jdk + 'java/util/TreeMap.html')],
+    recall: 'In a floor binary search, what do you do when a[mid] ≤ t, and why must the range always shrink past mid?'
+  },
   // @@lanes
 };
 
@@ -1750,6 +1759,227 @@ circular dependency among [a, b, c]`
       ['Layers for the app are [clock, dataSource], [auditService, seatRepository], [bookingService], [bookingController].', 'The course order is valid, such as 0, 1, 2, 3.', 'The cycle case still throws with the stuck beans listed.']],
     references: [['Spring Framework · Dependencies and circular dependencies', 'https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html']]
   },
+  'b-security-02': {
+    notes: [
+      'Authentication answers "who is calling?" and authorization answers "may this caller do this action on this resource?" OAuth 2.0 is an authorization framework: a client gets an access token from an authorization server and presents it to a resource server, such as booking-api, as "Authorization: Bearer <token>". OpenID Connect (OIDC) adds authentication on top: the client also receives an ID token that tells the client who logged in. The ID token is for the client. APIs should accept access tokens, not ID tokens.',
+      'A resource server must check every access token on every request, in this order: the signature (with the issuer’s public keys from its JWKS endpoint, selected by the token’s kid header), the issuer (iss), the expiry (exp, with a small clock skew allowance), the audience (aud must include this API), and then the scopes or roles the endpoint needs. TokenCheck.java runs these checks on six fixtures. A missing token, a tampered signature, an expired token and a token minted for help-api all get 401. A valid booking-api token with only booking:read gets 403 insufficient_scope, and a valid write token gets 200.',
+      'The difference between 401 and 403 matters to clients. 401 Unauthorized means "no valid credentials": the client should obtain or refresh a token, and the response carries a WWW-Authenticate: Bearer header with error="invalid_token". 403 Forbidden means "I know who you are, and you may not do this": refreshing will not help. RFC 6750 uses error="insufficient_scope" for that case. Never return 200 with an error body, and never let a 403 reveal whether a resource exists that the caller is not allowed to see.',
+      'In Spring Boot, spring-boot-starter-oauth2-resource-server does the token work. Set spring.security.oauth2.resourceserver.jwt.issuer-uri, and Spring discovers the JWKS keys and validates the signature, exp and iss. The audience is not checked by default: set spring.security.oauth2.resourceserver.jwt.audiences=booking-api (Spring Boot 2.7 and later) or add an audience validator. Scopes become authorities named SCOPE_booking:write, so you can write .requestMatchers(POST, "/bookings").hasAuthority("SCOPE_booking:write"). TokenCheck uses HS256 with a demo key only to stay self-contained. Real deployments use asymmetric keys, so the API never holds a secret that can mint tokens.'
+    ],
+    code: {
+      title: 'TokenCheck.java · signature, issuer, expiry, audience and scope checks on six token fixtures · java TokenCheck.java',
+      text: String.raw`import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+
+public class TokenCheck {
+    // Teaching model of what a resource server checks on every request. Real services use Spring Security's
+    // resource server with RS256/ES256 keys from the issuer's JWKS endpoint; HS256 with a shared demo key keeps this short.
+    static final byte[] KEY = "demo-key-not-for-production-use!".getBytes(StandardCharsets.UTF_8);
+    static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
+    static final long NOW = 1_800_000_000L;   // fixed clock (seconds) so the output is repeatable
+
+    static String sign(String payloadJson) throws Exception {
+        String header = B64.encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+        String payload = B64.encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
+        return header + "." + payload + "." + B64.encodeToString(hmac(header + "." + payload));
+    }
+
+    static byte[] hmac(String data) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(KEY, "HmacSHA256"));
+        return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    // Tiny claim reader for this demo's flat JSON only (a real service uses a JSON library via Spring Security).
+    static String claim(String json, String name) {
+        int i = json.indexOf("\"" + name + "\":");
+        if (i < 0) return null;
+        int start = i + name.length() + 3;
+        if (json.charAt(start) == '"') return json.substring(start + 1, json.indexOf('"', start + 1));
+        int end = start;
+        while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+        return json.substring(start, end);
+    }
+
+    static String check(String authorization, String requiredScope) throws Exception {
+        if (authorization == null || !authorization.startsWith("Bearer ")) return "401 missing token";
+        String[] parts = authorization.substring(7).split("\\.");
+        if (parts.length != 3) return "401 malformed token";
+        byte[] expected = hmac(parts[0] + "." + parts[1]);
+        if (!MessageDigest.isEqual(expected, Base64.getUrlDecoder().decode(parts[2]))) return "401 bad signature";
+        String json = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+        if (!"https://id.example.com".equals(claim(json, "iss"))) return "401 wrong issuer";
+        if (Long.parseLong(claim(json, "exp")) <= NOW) return "401 expired";
+        if (!"booking-api".equals(claim(json, "aud"))) return "401 wrong audience";
+        List<String> scopes = Arrays.asList(Objects.requireNonNullElse(claim(json, "scope"), "").split(" "));
+        if (!scopes.contains(requiredScope)) return "403 insufficient_scope (needs " + requiredScope + ")";
+        return "200 ok for " + claim(json, "sub");
+    }
+
+    public static void main(String[] args) throws Exception {
+        String good = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u1\",\"aud\":\"booking-api\",\"scope\":\"booking:read booking:write\",\"exp\":1800000600}");
+        String readOnly = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u2\",\"aud\":\"booking-api\",\"scope\":\"booking:read\",\"exp\":1800000600}");
+        String forHelp = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u1\",\"aud\":\"help-api\",\"scope\":\"booking:write\",\"exp\":1800000600}");
+        String expired = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u1\",\"aud\":\"booking-api\",\"scope\":\"booking:write\",\"exp\":1799999999}");
+        String tampered = good.substring(0, good.lastIndexOf('.')) + "." + B64.encodeToString(new byte[32]);
+
+        Map<String, String> cases = new LinkedHashMap<>();
+        cases.put("no header", null);
+        cases.put("tampered signature", "Bearer " + tampered);
+        cases.put("expired", "Bearer " + expired);
+        cases.put("token for help-api", "Bearer " + forHelp);
+        cases.put("read-only token", "Bearer " + readOnly);
+        cases.put("valid token", "Bearer " + good);
+        for (var c : cases.entrySet()) System.out.println("POST /bookings, " + c.getKey() + " -> " + check(c.getValue(), "booking:write"));
+    }
+}
+`,
+      output: String.raw`POST /bookings, no header -> 401 missing token
+POST /bookings, tampered signature -> 401 bad signature
+POST /bookings, expired -> 401 expired
+POST /bookings, token for help-api -> 401 wrong audience
+POST /bookings, read-only token -> 403 insufficient_scope (needs booking:write)
+POST /bookings, valid token -> 200 ok for u1`
+    },
+    takeaways: ['Access tokens are for APIs; ID tokens are for the client.', 'Check signature, iss, exp, aud, then scope, on every request.', '401 = no valid credentials; 403 = valid but not allowed (insufficient_scope).', 'Spring Boot: set issuer-uri and audiences; scopes become SCOPE_ authorities.'],
+    interview: [
+      ['What must an API check on a JWT access token before trusting it?', 'First the signature, using the issuer’s public key from its JWKS endpoint, chosen by the kid header, and only with an algorithm I expect, never alg none or a switch from RS256 to HS256. Then the issuer must be the authorization server I trust, the token must not be expired (with a small clock-skew allowance) and must be past nbf if present, and the audience must include my API. A valid token minted for another service must be rejected here. Only then do I check the scopes or roles for this endpoint, and finally the object-level rule that the caller owns the booking. Signature, issuer, expiry or audience failures return 401. A missing scope returns 403.'],
+      ['When do you return 401 and when 403?', '401 means the request lacks valid authentication: no token, a malformed or expired token, a bad signature, or the wrong issuer or audience. The response includes WWW-Authenticate: Bearer with error="invalid_token", which tells the client to get a new token. 403 means the token is valid and identifies the caller, but the caller is not allowed to perform this action, for example a booking:read token calling POST /bookings. RFC 6750 calls that insufficient_scope, and getting a new token of the same kind will not help. For objects the caller must not even know about, I often return 404 instead of 403, so the API does not confirm that another user’s booking exists.'],
+      ['How do you configure a Spring Boot API as an OAuth 2.0 resource server?', 'I add spring-boot-starter-oauth2-resource-server and set spring.security.oauth2.resourceserver.jwt.issuer-uri to the authorization server. Spring fetches its metadata and JWKS keys, and validates the signature, issuer and expiry of each bearer token. I add the audience check, either with the jwt.audiences property (Spring Boot 2.7 and later) or with a custom OAuth2TokenValidator, because it is not on by default. In the SecurityFilterChain I require authentication everywhere and map endpoints to authorities, for example hasAuthority("SCOPE_booking:write") for POST /bookings. Inside the service I enforce ownership using the jwt.getSubject() value, and I write tests for missing, expired, wrong-audience and insufficient-scope tokens.']
+    ],
+    check: ['A correctly signed, unexpired token from your issuer has aud = help-api and scope booking:write. What should booking-api return for POST /bookings?',
+      ['200, because the signature and scope are valid', '401, because the token was not issued for booking-api', '403, because the scope is wrong', '500, because the token is malformed'], 1,
+      'The audience check fails, so the credentials are not valid for this API. That is a 401, before scopes are even considered.'],
+    practice: ['Copy TokenCheck.java. Add a not-before (nbf) check, a 60-second clock-skew allowance for exp, and support for aud as a JSON array. Add fixtures for each and predict the status codes before running.',
+      ['A token expiring 30 seconds ago is accepted with the 60-second skew; one expiring 2 minutes ago is not.', 'A token with nbf in the future gets 401.', 'aud ["help-api","booking-api"] is accepted.', 'Every fixture’s expected status is written before running.']],
+    references: [['Spring Boot · OAuth2 resource server (audiences property)', 'https://docs.spring.io/spring-boot/reference/security/oauth2.html'], ['Spring Security · OAuth 2.0 Resource Server JWT', 'https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html'], ['RFC 6750 · Bearer token usage (invalid_token, insufficient_scope)', 'https://datatracker.ietf.org/doc/html/rfc6750'], ['RFC 9068 · JWT profile for OAuth 2.0 access tokens', 'https://datatracker.ietf.org/doc/html/rfc9068']]
+  },
+  'h-security-01': {
+    notes: [
+      'A token answers "who is this and what kinds of actions were granted?" It does not answer "is this booking theirs?" That last check, object-level authorization, is the API’s job on every request, and missing it is the top API security risk in the OWASP API Security Top 10 (API1:2023, Broken Object Level Authorization). If DELETE /bookings/b-200 only checks for a booking:write scope, any logged-in user can cancel anyone’s booking by changing the ID.',
+      'Design permissions in three layers. Audience: the token was issued for this API. Scope: the client was granted this kind of action, such as booking:write. Ownership or policy: this subject may act on this specific object, for example booking.owner == token.sub, or the user is staff for this venue. Load the object, compare it with the authenticated subject from the token, never with a user ID taken from the request body, and return 404 when the caller may not see it. PkceOwnership.java shows u1 cancelling its own booking (204) and getting 404 for u2’s booking even with a valid write scope.',
+      'Use the right OAuth flow for browser and mobile apps: Authorization Code with PKCE. The app creates a random code_verifier, sends only its SHA-256 hash, the code_challenge, with the login redirect, and later sends the verifier with the authorization code to the token endpoint. The server recomputes the hash, so an attacker who intercepts the code cannot exchange it without the verifier. PkceOwnership.java reproduces the RFC 7636 example: the verifier dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk gives the challenge E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM. The implicit flow and the password grant are deprecated by the OAuth 2.0 Security Best Current Practice (RFC 9700).',
+      'Keep tokens narrow and short-lived. Request only the scopes a feature needs. The AI help service, for example, gets a token for help-api with booking:read and never booking:write. Keep access tokens to minutes and use refresh tokens with rotation. When one service calls another on behalf of a user, get a token whose audience is the downstream service, rather than forwarding the user’s token everywhere. Test the four failure classes separately: missing, invalid, wrong audience and insufficient scope or ownership.'
+    ],
+    code: {
+      title: 'PkceOwnership.java · PKCE S256 challenge (RFC 7636 example) and an object-level ownership check · java PkceOwnership.java',
+      text: String.raw`import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+
+public class PkceOwnership {
+    // PKCE (RFC 7636): the client keeps a random verifier and sends only its SHA-256 challenge with the login redirect.
+    static String challenge(String verifier) throws Exception {
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(verifier.getBytes(StandardCharsets.US_ASCII));
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+    }
+
+    // Object-level authorization: a valid token with the right scope still may only touch its own bookings.
+    record Booking(String id, String ownerSub) {}
+    static final Map<String, Booking> bookings = Map.of("b-100", new Booking("b-100", "u1"), "b-200", new Booking("b-200", "u2"));
+
+    static String cancel(String sub, Set<String> scopes, String bookingId) {
+        if (!scopes.contains("booking:write")) return "403 insufficient_scope";
+        Booking b = bookings.get(bookingId);
+        if (b == null || !b.ownerSub().equals(sub)) return "404 not found";   // do not reveal other users' bookings
+        return "204 cancelled " + bookingId;
+    }
+
+    public static void main(String[] args) throws Exception {
+        String verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";            // example verifier from RFC 7636 Appendix B
+        String sentWithLogin = challenge(verifier);
+        System.out.println("code_challenge (S256): " + sentWithLogin);
+        System.out.println("matches RFC 7636 example: " + sentWithLogin.equals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+        // At the token exchange the server recomputes the challenge from the verifier the client now reveals.
+        System.out.println("token exchange with right verifier: " + challenge(verifier).equals(sentWithLogin));
+        System.out.println("token exchange with stolen code, guessed verifier: " + challenge("attacker-guess").equals(sentWithLogin));
+
+        Set<String> write = Set.of("booking:read", "booking:write");
+        System.out.println("u1 cancels b-100: " + cancel("u1", write, "b-100"));
+        System.out.println("u1 cancels b-200: " + cancel("u1", write, "b-200"));
+        System.out.println("u2 cancels b-200 with read-only scope: " + cancel("u2", Set.of("booking:read"), "b-200"));
+    }
+}
+`,
+      output: String.raw`code_challenge (S256): E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+matches RFC 7636 example: true
+token exchange with right verifier: true
+token exchange with stolen code, guessed verifier: false
+u1 cancels b-100: 204 cancelled b-100
+u1 cancels b-200: 404 not found
+u2 cancels b-200 with read-only scope: 403 insufficient_scope`
+    },
+    takeaways: ['Scopes grant kinds of action; ownership must be checked per object.', 'Compare the object owner with token.sub, never with a client-supplied user ID.', 'Browser and mobile apps: Authorization Code with PKCE (S256).', 'Narrow audience and scopes, short-lived access tokens.'],
+    interview: [
+      ['What is broken object-level authorization and how do you prevent it?', 'It happens when an API checks that the caller is authenticated, and maybe has the right scope, but does not check that the caller may access the specific object named in the request. Changing /bookings/b-100 to /bookings/b-200 then exposes or modifies another user’s booking. OWASP lists it first in the API Security Top 10. I prevent it by loading the object and checking a policy against the authenticated subject from the validated token, such as owner equals sub or a staff role for that venue, in the service layer for every operation, including reads. I return 404 for objects the caller may not see, and I write tests where a second valid user tries every ID-based endpoint on the first user’s data.'],
+      ['Explain Authorization Code with PKCE. What attack does PKCE stop?', 'The client generates a random code_verifier and sends its SHA-256 hash, the code_challenge, with method S256 in the authorization request. The user logs in at the authorization server, which redirects back with a short-lived authorization code. The client then calls the token endpoint with the code and the original verifier. The server hashes the verifier and compares it with the stored challenge before issuing tokens. This stops authorization-code interception: a malicious app or a leaked redirect can capture the code, but without the verifier, which never left the legitimate client, it cannot exchange the code. PKCE is now recommended for all clients, including confidential ones.'],
+      ['A token valid for the help service arrives at the booking API. Which check rejects it?', 'The audience check. The token’s signature, issuer and expiry are all valid, because the same authorization server minted it, and it might even carry a booking-like scope. But its aud claim names help-api, so booking-api must reject it with 401. Without the audience check, any service that receives a user’s token, including a compromised or less trusted one like an AI help service, could replay it against the booking API. In Spring Boot I enable it with the jwt.audiences property or a custom validator, because it is not checked by default. When help-api needs booking data it should obtain its own token for booking-api with read-only scope.']
+    ],
+    check: ['u1 has a valid booking-api token with booking:write and calls DELETE /bookings/b-200, which belongs to u2. What should happen?',
+      ['204, because the scope allows writes', '404 (or 403): the object-level check fails because the owner is not the token subject', '401, because the token is invalid', '200 with an error message in the body'], 1,
+      'Scopes are not enough. The service compares the booking owner with the token subject, and returning 404 avoids revealing that b-200 exists.'],
+    practice: ['Copy PkceOwnership.java. Generate a random 43-character verifier with SecureRandom and base64url, compute its challenge, and verify the round trip. Then add a staff role that may cancel any booking at its own venue, and test four users against three bookings.',
+      ['The RFC 7636 example still matches.', 'A random verifier is 43–128 characters from the unreserved set.', 'Staff can cancel only bookings at their venue; others get 404.', 'Each test names the expected status before running.']],
+    references: [['RFC 7636 · PKCE', 'https://datatracker.ietf.org/doc/html/rfc7636'], ['OWASP API Security 2023 · API1 Broken Object Level Authorization', 'https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/'], ['RFC 9700 · OAuth 2.0 Security Best Current Practice', 'https://datatracker.ietf.org/doc/html/rfc9700'], ['OpenID Connect Core 1.0', 'https://openid.net/specs/openid-connect-core-1_0.html']]
+  },
+  'b-security-02.dsa': {
+    notes: [
+      'Binary search finds a target in a sorted array in O(log n) by halving the search range each step. A useful variant is the floor search: find the last element less than or equal to t. Signing keys that rotate are a natural example. Keys start at 1000, 2000, 3500 and 5000, each valid until the next starts. To answer "which key was active at time t?" you need the floor of t.',
+      'KeyAtTime.java keeps a candidate answer. When starts[mid] <= t, mid is a valid floor, so record it and search to the right for a later one. Otherwise search to the left. The loop ends when lo passes hi, and the answer is the last recorded candidate, or −1 if t is before the first key. Computing mid as lo + (hi − lo) / 2 avoids integer overflow on very large arrays. In practice a JWT names its key directly with the kid header. The floor lookup answers schedule and audit questions, and TreeMap.floorEntry gives the same answer in one call.',
+      'Most binary-search bugs come from the loop condition and the updates. Pick one template and stick to it: with lo <= hi, always move to mid + 1 or mid − 1, never to mid, so the range shrinks every step. Test the edges: a target before the first element, exactly equal to an element, between two elements, after the last element, and an empty array. The same "last index where a condition is true" template solves first bad version, search insert position and binary search on the answer, such as the smallest capacity that ships packages within D days.'
+    ],
+    code: {
+      title: 'KeyAtTime.java · floor binary search: which rotating key was active at time t · java KeyAtTime.java',
+      text: String.raw`import java.util.*;
+
+public class KeyAtTime {
+    // Signing keys rotate. Each key is valid from its start time until the next key starts.
+    // To verify a token issued at time t, find the last key whose start is <= t: a "floor" binary search.
+    static int floorIndex(long[] starts, long t) {
+        int lo = 0, hi = starts.length - 1, ans = -1;
+        while (lo <= hi) {
+            int mid = lo + (hi - lo) / 2;           // avoids int overflow of (lo + hi)
+            if (starts[mid] <= t) { ans = mid; lo = mid + 1; }
+            else hi = mid - 1;
+        }
+        return ans;
+    }
+
+    public static void main(String[] args) {
+        long[] starts = {1000, 2000, 3500, 5000};
+        String[] kids = {"k1", "k2", "k3", "k4"};
+        for (long t : new long[] {999, 1000, 2999, 3500, 9999}) {
+            int i = floorIndex(starts, t);
+            System.out.println("issued at " + t + " -> " + (i < 0 ? "no key (reject)" : kids[i]));
+        }
+        TreeMap<Long, String> byStart = new TreeMap<>(Map.of(1000L, "k1", 2000L, "k2", 3500L, "k3", 5000L, "k4"));
+        System.out.println("TreeMap.floorEntry(2999) -> " + byStart.floorEntry(2999L).getValue());
+    }
+}
+`,
+      output: String.raw`issued at 999 -> no key (reject)
+issued at 1000 -> k1
+issued at 2999 -> k2
+issued at 3500 -> k3
+issued at 9999 -> k4
+TreeMap.floorEntry(2999) -> k2`
+    },
+    takeaways: ['Floor search: record mid when it qualifies, then go right.', 'mid = lo + (hi − lo) / 2 avoids overflow.', 'With lo <= hi, always move past mid.', 'TreeMap.floorEntry is the library version.'],
+    interview: [
+      ['Find the last element less than or equal to t in a sorted array.', 'I use binary search with lo = 0, hi = n − 1 and ans = −1. While lo <= hi, I compute mid = lo + (hi − lo) / 2. If a[mid] <= t, mid is a candidate, so I set ans = mid and continue to the right with lo = mid + 1, looking for a later candidate. Otherwise a[mid] is too big, so I set hi = mid − 1. When the loop ends, ans is the floor index, or −1 if every element is greater than t. Each step halves the range, so it is O(log n) time and O(1) space. I test values before the first element, equal to an element, between elements and after the last.'],
+      ['Why write lo + (hi − lo) / 2 instead of (lo + hi) / 2?', 'With int indices, lo + hi can exceed Integer.MAX_VALUE when both are large, for arrays above about a billion elements or when the search is over a numeric answer range rather than indices. The sum then overflows to a negative number and mid becomes invalid, which can cause an exception or an infinite loop. This was a real bug in the JDK’s Arrays.binarySearch for years. lo + (hi − lo) / 2 computes the same midpoint without overflow because hi − lo is never larger than the range. Another option is (lo + hi) >>> 1, the unsigned shift that the JDK uses now.'],
+      ['How would you find the minimum ship capacity to deliver packages within D days?', 'I binary search on the answer instead of on an index. The capacity must be at least the heaviest package and at most the sum of all weights. For a candidate capacity, a greedy check walks the packages in order, filling a day until the next package would exceed the capacity, and counts days. If it needs D days or fewer, the capacity works, and so does anything larger, so the condition is monotonic, which is what binary search needs. I search for the smallest capacity that works: when feasible, record it and go left. Otherwise go right. The time is O(n log(sum)).']
+    ],
+    check: ['Key starts are [1000, 2000, 3500, 5000]. Which key is active at t = 3499?',
+      ['k1', 'k2: the floor of 3499 is 2000', 'k3', 'No key'], 1,
+      'The last start ≤ 3499 is 2000, so k2 is active until k3 starts at 3500.'],
+    practice: ['Copy KeyAtTime.java. Add ceilingIndex (first start ≥ t) and searchInsert. Then solve minimum ship capacity for weights [1..10] and D = 5.',
+      ['Floor and ceiling agree with TreeMap.floorKey and ceilingKey on 10 random values.', 'searchInsert([1,3,5,6], 2) = 1.', 'Ship capacity for [1..10], D = 5 is 15.', 'State the time of each method.']],
+    references: [['Java 21 API · TreeMap.floorEntry', jdk + 'java/util/TreeMap.html']]
+  },
   // @@packets
 };
 
@@ -1784,6 +2014,10 @@ export const lateDistractors = {
     ['Any method with @Transactional, however it is called.', 'A database trigger that Spring installs at startup.'],
     ['Open and close a database connection for each column.', 'Generate the SQL for a query from the entity class.']
   ],
+  48: [
+    ['How long the token may be cached by the browser.', 'Which scopes the user selected on the consent screen.'],
+    ['The client secret sent in the authorization redirect URL.', 'A nonce stored in the user’s ID token by the API.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -1801,6 +2035,8 @@ export const lateExplanations = {
     'Virtual threads make waiting cheap, which changes how many tasks can wait. The connection pool still has the same number of connections.'],
   47: ['Advice lives in the proxy, so only calls that pass through it are intercepted. Self-invocation, private methods and constructor calls never reach the proxy.',
     'JdbcTemplate moves the cursor and calls mapRow once per row. The mapper only turns that row into a value. It does not manage transactions, connections or SQL.'],
+  48: ['aud names the intended recipients. An API must reject a token whose audience does not include it, even when the signature and expiry are valid.',
+    'PKCE binds the code to the client: the authorization request carries a hash (challenge), and the token exchange must present the matching verifier, which only the real client knows.'],
   // @@explanations
 };
 
@@ -1861,6 +2097,14 @@ export const lateAssessment = {
     { question: 'A page lists 50 bookings and runs one extra query per booking to load the user name. How many queries is that, and what is a fix?',
       choices: ['1, which is already optimal', '51, so use a JOIN or one batched IN query', '50, so add an index', '2, so cache the page'], answer: 1,
       explanation: 'One query for the list plus one per row is the N+1 pattern. A JOIN, or a second query with WHERE id IN (...), loads the names in one round trip.' }
+  ],
+  48: [
+    { question: 'A booking:read token calls POST /bookings, which needs booking:write. The token is otherwise valid. Which response is correct?',
+      choices: ['401 with error="invalid_token"', '403 with error="insufficient_scope"', '200 with an error message in the body', '500, because the scope is unknown'], answer: 1,
+      explanation: 'The credentials are valid but lack the needed scope. RFC 6750 uses 403 insufficient_scope. Getting a new token of the same kind will not help.' },
+    { question: 'u1’s token has a valid booking:write scope. u1 calls DELETE /bookings/b-200, owned by u2. What prevents the cancellation?',
+      choices: ['The signature check', 'An object-level check that the booking owner equals the token subject', 'The audience check', 'Nothing; scope is sufficient'], answer: 1,
+      explanation: 'Scopes grant kinds of action, not access to every object. Broken object-level authorization is OWASP API1:2023, so the service must compare the owner with token.sub.' }
   ],
   // @@assessment
 };
@@ -1935,6 +2179,11 @@ export const lateInterviewGuides = {
     'An external call through the Spring bean crosses the proxy, for example a controller calling bookingService.book() on the injected bean. That proxy begins the transaction, calls the real method, and commits or rolls back. A call from one method to another inside the same object, this.save(), goes straight to the target and gets no advice. For a rollback, the exception must leave the method through the proxy. By default only RuntimeException and Error roll back, and checked exceptions commit unless rollbackFor names them. The writes must also go through the transaction’s connection, which JdbcTemplate and JPA do automatically. I verify by reading the table from a separate connection after the call, not from the same session.',
     'First, the proxy boundary: is the method called from another bean through the injected proxy, or through self-invocation, a constructor or a non-Spring object, which would bypass the advice entirely? I check this with TransactionSynchronizationManager.isActualTransactionActive() inside the method, or with transaction debug logging. Second, the rollback rule and exception path. A checked exception commits by default, so the annotation needs rollbackFor = Exception.class or the specific type, and the exception must not be caught and logged inside the method. I would also confirm that both writes use the same transactional DataSource, because a second DataSource or a manually opened connection would commit on its own. Then I compare rows through a separate connection.',
     'With REQUIRED, the outer transaction’s owner controls the final commit or rollback. The inner method joins the existing transaction and does not commit by itself. If the inner method throws a RuntimeException through its proxy, Spring marks the shared transaction rollback-only. Even if the outer method catches the exception, its commit becomes a rollback, and Spring throws UnexpectedRollbackException so the caller knows. With REQUIRES_NEW, the inner method owns its own independent transaction: the outer one is suspended, the inner commits or rolls back by itself on a second connection, and then the outer resumes. I state which propagation each method uses and test the failure path from an external caller.'
+  ],
+  48: [
+    'Authentication establishes who the caller is, for example by validating a signed token from a trusted issuer. Authorization decides whether that caller may perform this action on this resource. The audience check makes sure the token was issued for this API: aud must include booking-api, so a token minted for help-api cannot be replayed against the booking API, even though its signature is valid. The scope check makes sure the client was granted this kind of action, such as booking:write for POST /bookings. Neither proves ownership, so the service still compares the booking owner with the token subject. Signature, issuer, expiry or audience failures return 401. A missing scope returns 403.',
+    'The audience check distinguishes it. The token’s signature, issuer and expiry are valid, because the same authorization server issued it, but its aud claim names help-api rather than booking-api. The booking API must require its own identifier in aud and reject the token with 401 invalid_token before looking at scopes. Otherwise any service that receives a user’s token, including a less trusted one such as an AI help feature, could use it to act on bookings. In Spring Boot I set spring.security.oauth2.resourceserver.jwt.audiences, or add a custom audience validator, because it is not checked by default. If help-api needs booking data, it gets its own read-only token whose audience is booking-api.',
+    'I would build signed token fixtures with a test key and a fixed clock, and send the same request with each one. No Authorization header, a malformed token, a bad signature, an expired token, the wrong issuer and the wrong audience must all return 401 with WWW-Authenticate: Bearer error="invalid_token" where a token was presented. A correctly signed, in-date token for booking-api with only booking:read must return 403 insufficient_scope on POST /bookings. A valid booking:write token for another user’s booking must return 404. A valid write token for the caller’s own booking must succeed. I also assert that no booking row changed for any rejected case, by checking the database, not just the status.'
   ],
   // @@guides
 };
