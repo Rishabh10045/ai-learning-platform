@@ -266,3 +266,29 @@ Status: OPEN (needs Codex: root app switch + adapter questions on PR #5)
 - New, all under `ui/`: `adapters/codex-adapter.js` (Codex data → course v2; every UI change → Codex study actions; persistence stays Codex's key / account API), `preview.html` + `preview.js` (integrated preview of the real 55 sessions), checks `adapter.test.mjs` + `day1-integration.mjs`. Small UI additions: model answers, per-topic takeaways, readings, quiz lock + explanations, optional practice. Engine: opt-in `subjectOrder:"free"` / `dsaRequired:false`.
 - **Blocker for merging (owner Codex):** root `index.html` + `app.js` still call the v1 StudyDesk API (`StudyDesk.parseHash`, `curriculum/days`), so on this branch the root page throws and Codex's `checks/integrated.mjs` / `qa-browser.mjs` fail (they pass on `76d7e56` alone). Proposed fix and adapter questions are in the PR #5 comment.
 - Verified locally only. No deployed account API yet (`defaultSyncOrigin()` is empty on github.io). The account flow was tested against `backend/server.mjs` on a temp DB.
+
+### [2026-11-22 12:15 IST] Grok — handoff for Codex: root switch + Day 1–3 depth done while you were offline (merged to main via PR #6 at Deepak's request)
+Status: OPEN (needs Codex review at ~13:20 IST)
+Deepak asked Grok to do Codex's work until ~13:20 and then to launch so he can study now. Every Codex-owned file changed, and why:
+- `index.html`: rewritten. It now loads `ui/engine/*`, `ui/study-desk.js` and `app.js`. The old site nav and `styles.css` are no longer loaded.
+- `app.js`: replaced with the v2 root host (same logic as `ui/preview.js`). It uses the same storage key `ai-learning-platform.study-desk.v1`, the same `StudySync` account API and `study-actions.js` reducer. The account card is at `#account`. `?today=YYYY-MM-DD` pins the date for tests. The v1 host is in git history (`app.js@76d7e56`).
+- `backend/server.mjs`: `publicFiles` now include `ui/engine/*.js`, `ui/adapters/codex-adapter.js` and `day-depth.js`.
+- `day-depth.js` (new, Codex data): Java foundations warm-up (`j-foundations-01`), and packets for `l-invariants-01`, `h-request-01`, `ai-foundations-01`, `d-hashing-01` and `j-concurrency-01`. Also lane packets `j-concurrency-01.dsa` (Two Sum) and `j-concurrency-02.dsa` (duplicate within k), the `SafeSeat.java` code for `j-concurrency-02`, extra distractors and explanations (Days 1–3), two extra Day 2 questions and the Day 1 270-minute stretch plan. The Java sources are in `notes/java-examples/` and all 7 ran on JDK 21.
+- `curriculum.js`: Day 1 gets a new block `foundations` (12 min). Minutes change to lab 36, http 16, ai 14, dsa 30, review 12, which gives a 12 + 78 + 30 core. Day 1 concepts are rewritten in English. A new `dsaLanes` map adds a 30-minute `dsa` block for Days 2–3, with learn 30, practice 36 and review 12. The Day 2+ block IDs stay the same, plus `dsa`.
+- `session-qa.js`: `assessmentVersion` goes 2 → 3. Pair questions accept extra distractors (`day-depth.js`), and Day 2 has 5 questions.
+- `lesson-videos.js`: adds `dns`, `httpCrash`, `hashTables` (Day 1) and `threadsIntro` (Day 2). Every ID was verified with YouTube oEmbed.
+- `topic-lessons.js`: merges `depthPackets` (keys in the topic index only) and `packetCode`.
+- `checks/study-backend.test.mjs`: Day 2 assessment count 3 → 5 and total 169 → 171.
+- `checks/integrated.mjs`, `checks/qa-browser.mjs`: ported to the v2 root DOM with the same intent. The v1 originals are kept as `checks/legacy-v1/*.txt`.
+- Upgrade safety in the adapter: a Day completed before its new `foundations`/`dsa` block existed still shows complete.
+Tests at bb4cab7: backend 9/9, engine 44/44, adapter 7/7, coverage 3/3, browser 251/251, Day 1+2 integration 65/65, integrated (55 sessions × 2 viewports) pass, qa-browser two-browser account pass.
+Day 3+ gaps (Codex). All 55 sessions render on the root with no errors or overflow, but:
+- Days 4–55 have no DSA block (main is 108 min against the 78-minute slot).
+- Days 4–55 have 2-option pair questions.
+- 46 sessions have no runnable code.
+- 28 sessions have notes under 400 words.
+- 44 sessions have only 3 interview questions.
+- Day 55 has no video.
+- Weekend long days (7/8, 14/15, 21/22, 28/29, 35/36, 42/43, 49/50) have no stretch plan.
+- Most topics have no packet.
+Now unused by the root: `styles.css`, `study-panels.js`, except `accountCard`.
