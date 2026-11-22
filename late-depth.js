@@ -39,6 +39,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
     recall: 'Why does keeping the k largest values need a min-heap, and what does the heap’s head represent?'
   },
+  44: {
+    title: 'Merge overlapping hold intervals',
+    concept: 'Sort intervals by start. Keep the last merged interval, and extend it while the next interval starts at or before its end. Otherwise start a new one. For half-open intervals, [a,b) and [c,d) overlap exactly when a < d and c < b.',
+    example: '[30,40), [0,10), [5,15), [15,20), [50,55) sort and merge to [0,20), [30,40), [50,55). A new hold [20,30) fits between them, and [18,25) conflicts.',
+    practice: 'Implement List<Hold> merge(List<Hold> holds) and boolean conflicts(List<Hold> busy, Hold wanted) with a record Hold(int start, int end). Then add minRooms() with a PriorityQueue of end times.',
+    checks: ['merge gives [0,20), [30,40), [50,55) for the example, and [] for no holds.', 'conflicts returns false for [20,30) and true for [18,25).', 'minRooms([0,30),[5,10),[15,20)) = 2, and the time is O(n log n).'],
+    readings: [reading('Java 21 API · Comparator.comparingInt', jdk + 'java/util/Comparator.html')],
+    recall: 'Why must intervals be sorted by start before merging, and what are the two comparisons that detect overlap of half-open intervals?'
+  },
   // @@lanes
 };
 
@@ -657,6 +666,242 @@ public class TopKFrequent {
       ['Both versions return [refund, parking] for k=2 and [] for an empty input.', 'The tie rule is identical in both (alphabetical).', 'State the time and space of both versions.']],
     references: [['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html']]
   },
+  'h-case-up-01': {
+    notes: [
+      'A capstone demo is an argument, and every claim in it needs evidence you can rerun. The Seat Booking system has one invariant: a seat has at most one confirmed owner. The architecture is simple on purpose. Two or more stateless application instances sit behind a load balancer, and one PostgreSQL database is the single authority for ownership. A read cache and the optional AI help feature sit beside the booking path, never inside it. If the cache is stale or the model is down, users may see slower or less helpful pages, but they can never be sold the same seat twice.',
+      'The authoritative operation is one conditional write: UPDATE seat SET owner = ? WHERE id = ? AND owner IS NULL, and the application checks that exactly one row changed. One row means this request won. Zero rows means 409 Conflict. The same transaction stores the reply under the client’s idempotency key, so a retry after a timeout replays the stored reply instead of booking again. CapstoneSim.java models this with a synchronized store shared by two instances. The race has exactly one winner, a retry through the other instance replays the original reply, and booking still works while the help provider is down.',
+      'Structure the demo as a fixed script: reset the fixture (A1 free, A2 free), start two instances against one database, race two claims for A1 through different instances, retry the winning request with its key, ask a policy question that has a cited answer, then force a provider timeout and book A2. For each step, write the expected result before running it, and keep the commands in a README so a clean checkout reproduces it. A screenshot is weaker evidence than a command and its output.',
+      'Be honest about the scope of the evidence. A two-instance race shows the invariant holds for the tested paths, and it says nothing about throughput or behavior during a regional failover. When a requirement changes, for example "confirm across two regions", name the part that must change first, which is where the single authority lives, and the trade-off you accept. A typical trade-off is rejecting or queueing claims when the regions cannot agree, which keeps the invariant and gives up some availability.'
+    ],
+    code: {
+      title: 'CapstoneSim.java · one authority, two instances, idempotent retry and a help fallback · java CapstoneSim.java',
+      text: String.raw`import java.util.*;
+import java.util.concurrent.*;
+
+public class CapstoneSim {
+    // The "database": the single authority for seat ownership and for idempotency records.
+    static final class Store {
+        private final Map<String, String> owner = new HashMap<>();     // seat -> user
+        private final Map<String, String> replies = new HashMap<>();   // idempotency key -> stored reply
+
+        // Plays the role of one transaction:
+        //   UPDATE seat SET owner = ? WHERE id = ? AND owner IS NULL   -- 1 row means we won, 0 rows means conflict
+        //   INSERT INTO idempotency_key (key, reply) VALUES (?, ?)
+        synchronized String claim(String key, String seat, String user) {
+            String previous = replies.get(key);
+            if (previous != null) return previous;                   // same logical request: replay, do not re-run
+            String reply = owner.putIfAbsent(seat, user) == null
+                    ? "201 " + seat + " -> " + user
+                    : "409 " + seat + " is taken";
+            replies.put(key, reply);
+            return reply;
+        }
+
+        synchronized String ownerOf(String seat) { return owner.get(seat); }
+    }
+
+    // An application instance holds no booking state of its own; every decision goes to the store.
+    record Instance(String name, Store db) {
+        String book(String key, String seat, String user) { return db.claim(key, seat, user); }
+
+        String help(boolean providerUp) {
+            if (!providerUp) return "help unavailable, showing the refund policy page instead";
+            return "Refunds are allowed up to 24h before the show [POL-REFUND-1]";
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Store db = new Store();
+        Instance app1 = new Instance("app-1", db), app2 = new Instance("app-2", db);
+
+        // 1. Two users race for seat A1 through different instances, released at the same moment.
+        CountDownLatch go = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        Future<String> ana = pool.submit(() -> { go.await(); return app1.book("key-ana", "A1", "ana"); });
+        Future<String> ben = pool.submit(() -> { go.await(); return app2.book("key-ben", "A1", "ben"); });
+        go.countDown();
+        String anaReply = ana.get(), benReply = ben.get();
+        pool.shutdown();
+        int winners = (anaReply.startsWith("201") ? 1 : 0) + (benReply.startsWith("201") ? 1 : 0);
+        System.out.println("winners for A1: " + winners);
+
+        // 2. The client timed out and retries with the same key, this time through the other instance.
+        String winnerKey = anaReply.startsWith("201") ? "key-ana" : "key-ben";
+        String original = anaReply.startsWith("201") ? anaReply : benReply;
+        String retry = app2.book(winnerKey, "A1", "whoever");
+        System.out.println("retry replays the original reply: " + retry.equals(original));
+        System.out.println("owner unchanged after retry: " + original.endsWith(db.ownerOf("A1")));
+
+        // 3. The model provider is down: help falls back, booking still works.
+        System.out.println("help: " + app1.help(false));
+        System.out.println("book A2 while the provider is down: " + app2.book("key-cy", "A2", "cy"));
+    }
+}
+`,
+      output: String.raw`winners for A1: 1
+retry replays the original reply: true
+owner unchanged after retry: true
+help: help unavailable, showing the refund policy page instead
+book A2 while the provider is down: 201 A2 -> cy`
+    },
+    takeaways: ['One authority (the database) owns the seat transition. Instances, cache and AI help do not.', 'Conditional write plus rows-affected check gives one winner. The idempotency key makes retries replay.', 'Script the demo: fixture, commands, expected result written first, output.', 'A small race proves the invariant for the tested paths, not throughput or failover.'],
+    interview: [
+      ['Walk me through your booking architecture in two minutes.', 'Users hit a load balancer in front of two stateless Spring Boot instances. Every booking goes to one PostgreSQL database, which is the single authority: a conditional UPDATE sets the owner only if the seat is free, and the service checks that one row changed. The same transaction records the reply under the client’s idempotency key, so retries replay instead of double-booking. Reads can come from a short-lived cache, and an optional AI help feature answers policy questions with citations. Neither the cache nor the model can change ownership, so if they fail, booking keeps working. I show that with a race test, a retry test and a forced provider timeout.'],
+      ['Why is the cache never allowed to decide whether a seat is free?', 'A cache is a copy, and copies lag. Two instances could each read "free" from the cache within the same millisecond and both promise the seat. The cache can make the seat map fast to display, but the decision must be made where all writers serialize, which is the conditional write in the database. If the cache says free and the database says taken, the user gets a 409 and a refreshed map, which is an acceptable experience. If the cache were the authority, the failure would be a double booking, which is not acceptable. That asymmetry is why the cache is advisory.'],
+      ['The product team now wants cross-region confirmation. What changes first?', 'Ownership of the decision changes first. Today one database serializes all claims. With two regions I must choose between one primary authority for each seat, so remote users pay extra latency, a consensus-backed store that agrees across regions, or partitioning seats so each region exclusively owns some of them. I also need fencing so a region that lost its leadership cannot keep confirming, and a rule for partitions. The safest rule rejects or queues claims when agreement is impossible. I would prototype the partition case first, because that is where double bookings appear, and I would measure confirmation latency before promising it.']
+    ],
+    check: ['In CapstoneSim.java the winning client retries with the same idempotency key through the other instance. What happens?',
+      ['A second seat is booked for the same user', 'The stored original reply is returned and ownership does not change', 'The request fails with 409 because the seat is taken', 'The other instance has no record, so it books again'], 1,
+      'The idempotency record lives in the shared store, so any instance finds it and replays the reply without re-running the claim.'],
+    practice: ['Write the README demo script for your own lab: reset command, start two instances, the race, the retry with the same key, one cited help answer, a forced provider timeout and a second booking. Write the expected output under each command before running it, then run it from a clean checkout.',
+      ['Each step has a command and an expected result written before the run.', 'The race shows one 201 and one 409, and the database has one owner.', 'The retry returns the original reply byte for byte.', 'Booking succeeds while the provider is forced to time out.']],
+    references: [['PostgreSQL · UPDATE (rows affected and WHERE conditions)', 'https://www.postgresql.org/docs/current/sql-update.html'], ['Stripe API · Idempotent requests', 'https://docs.stripe.com/api/idempotent_requests']]
+  },
+  'l-machine-02': {
+    notes: [
+      'An invariant test states a rule that must hold for every interleaving and then tries hard to break it. For booking the rule is: after any number of concurrent claims for a seat, exactly one claim returned success and the stored owner is that claimant. Unit tests that call claim() once per thread in sequence cannot fail on a race, so they prove nothing about concurrency. The test must start many claims at the same moment and must check both the return values and the final stored state.',
+      'Use a start gate so the threads really compete. A CyclicBarrier or a CountDownLatch holds every client until all are ready, then releases them together. Repeat the round many times, with a fresh store each time, and count the rounds that broke the rule. InvariantRace.java runs 8 clients, split across two "instances", for 200 rounds against a conditional write and gets exactly one winner every time. A real cross-instance test uses two application processes and one database. Testcontainers can start a disposable PostgreSQL container from JUnit 5, so the test runs the same SQL as production.',
+      'Prove that the test can fail. A race test that has never gone red may simply not be racing. InvariantRace.java includes a broken check-then-act store and forces the bad interleaving with a barrier between the check and the write, so all 8 clients "win". Seeing 8 winners on the broken version and 1 on the fixed version shows that the test detects the bug. With real databases, you can force the same interleaving by pausing one transaction between its SELECT and its UPDATE.',
+      'Report results precisely: "200 of 200 rounds had exactly one winner with 8 clients on two instances" is a claim about those conditions. It is not a load test and it is not proof for every schedule. Keep a fixed seed or a fixed fixture so a failure can be reproduced, print the round number and the winners when a round fails, and run the test in CI so a later refactor that reintroduces check-then-act turns the build red.'
+    ],
+    code: {
+      title: 'InvariantRace.java · a race test that fails on check-then-act and passes on a conditional write · java InvariantRace.java',
+      text: String.raw`import java.util.*;
+import java.util.concurrent.*;
+
+public class InvariantRace {
+    interface SeatStore { boolean claim(String seat, String user) throws Exception; }
+
+    // Broken: check, then act, in two separate steps (like SELECT owner, then an UPDATE with no condition).
+    static final class CheckThenAct implements SeatStore {
+        private final Map<String, String> owners = new ConcurrentHashMap<>();
+        private final CyclicBarrier afterCheck;   // test hook: every client finishes its check before anyone writes
+
+        CheckThenAct(int clients) { afterCheck = new CyclicBarrier(clients); }
+
+        public boolean claim(String seat, String user) throws Exception {
+            boolean free = !owners.containsKey(seat);
+            afterCheck.await();                    // the "unlucky" interleaving, made certain
+            if (!free) return false;
+            owners.put(seat, user);
+            return true;
+        }
+    }
+
+    // Correct: one atomic conditional write (like UPDATE ... WHERE owner IS NULL and checking rows affected = 1).
+    static final class ConditionalWrite implements SeatStore {
+        private final Map<String, String> owners = new ConcurrentHashMap<>();
+
+        public boolean claim(String seat, String user) { return owners.putIfAbsent(seat, user) == null; }
+    }
+
+    // One round: clients split across two "instances" all try to claim seat A1 at the same moment.
+    static int winners(SeatStore store, int clients) throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(clients);
+        CyclicBarrier start = new CyclicBarrier(clients);
+        List<Future<Boolean>> results = new ArrayList<>();
+        for (int i = 0; i < clients; i++) {
+            String user = (i % 2 == 0 ? "app-1/" : "app-2/") + "user" + i;
+            results.add(pool.submit(() -> { start.await(); return store.claim("A1", user); }));
+        }
+        int won = 0;
+        for (Future<Boolean> r : results) if (r.get()) won++;
+        pool.shutdown();
+        return won;
+    }
+
+    public static void main(String[] args) throws Exception {
+        int clients = 8, rounds = 200;
+        System.out.println("check-then-act, forced interleaving: " + winners(new CheckThenAct(clients), clients) + " winners");
+
+        int exactlyOne = 0;
+        for (int r = 0; r < rounds; r++) if (winners(new ConditionalWrite(), clients) == 1) exactlyOne++;
+        System.out.println("conditional write: exactly one winner in " + exactlyOne + "/" + rounds + " rounds");
+    }
+}
+`,
+      output: String.raw`check-then-act, forced interleaving: 8 winners
+conditional write: exactly one winner in 200/200 rounds`
+    },
+    takeaways: ['State the invariant, then check both return values and final stored state.', 'Use a start gate (CyclicBarrier or CountDownLatch) and many fresh rounds.', 'Show the test going red on a deliberately broken version.', 'Testcontainers gives the cross-instance test a real database.'],
+    interview: [
+      ['How would you test that two instances never confirm the same seat?', 'I would start one PostgreSQL database, using Testcontainers in JUnit 5, and two application instances pointed at it. For each round I reset seat A1, create eight clients split across the two instances, and hold them at a CyclicBarrier so they send their claims at the same moment. After the round I assert that exactly one response was 201, the rest were 409, and the database row names the 201 client. I repeat for a few hundred rounds and print the failing round and responses if any assertion breaks. I also run the same test against a deliberately broken check-then-act version to prove the test can go red.'],
+      ['Your race test passed 1,000 times. Is the code correct?', 'It means the invariant held for the interleavings that happened in those runs, on that machine, with that timing. It does not prove all schedules are safe. Races depend on timing, so a test can pass for months and then fail under different CPU load. That is why I also argue correctness from the design: one atomic conditional write, where the database serializes competing updates, and not a read followed by a write. I strengthen the test by forcing the dangerous interleaving with a barrier or a paused transaction, and by confirming that it fails on a broken version. Passing tests plus a sound design argument is the honest claim.'],
+      ['Why does InvariantRace.java use a barrier inside the broken store?', 'Without it, the broken check-then-act version would usually pass, because one thread often finishes its check and write before another even starts. The test would then be flaky and could not show the bug on demand. The barrier makes every client complete its check, all seeing a free seat, before any of them writes, so all eight report success. That turns an unlikely interleaving into a certain one. It is a test hook, not production code. The same idea in a database test is pausing transaction one after its SELECT until transaction two has also read the row.']
+    ],
+    check: ['InvariantRace.java prints "8 winners" for check-then-act. Why is the result always 8, not a random number?',
+      ['Because ConcurrentHashMap is not thread-safe', 'Because the barrier makes every client finish its check before anyone writes, so all see a free seat', 'Because eight threads always run in parallel on any machine', 'Because putIfAbsent is used in the broken version'], 1,
+      'The barrier forces the worst interleaving, so every client passes the check and every client writes.'],
+    practice: ['Copy InvariantRace.java. Add a third store that uses synchronized on the whole claim method, and a fourth that uses compute() on the map. Run 200 rounds for each and print the counts. Then make the round print the winning users when a round fails.',
+      ['check-then-act shows more than one winner and the other three show 200/200.', 'A failing round prints its round number and winners.', 'One sentence on why synchronized works in one JVM but not across two processes.']],
+    references: [['Testcontainers for Java', 'https://java.testcontainers.org/'], ['Java 21 API · CyclicBarrier', jdk + 'java/util/concurrent/CyclicBarrier.html'], ['JUnit 5 User Guide', 'https://junit.org/junit5/docs/current/user-guide/']]
+  },
+  'l-machine-02.dsa': {
+    notes: [
+      'Merge intervals is the core pattern for holds, meetings and bookings that occupy time. Sort the intervals by start time. Walk through them, keeping the last merged interval. If the next interval starts at or before the end of the last one, they overlap or touch, so extend the last interval to the larger end. Otherwise start a new merged interval. Sorting costs O(n log n) and the walk costs O(n).',
+      'Choose and state the boundary convention. MergeHolds.java uses half-open intervals [start, end), so a hold ending at 20 and one starting at 20 do not overlap. The merge still joins touching intervals into one busy period ([0,10), [5,15) and [15,20) become [0,20)), which is a choice for display. The conflict check uses the overlap rule for half-open intervals: [a,b) and [c,d) overlap exactly when a < d and c < b. That is why a new hold [20,30) fits between [0,20) and [30,40), while [18,25) conflicts.',
+      'Related problems reuse the same sorted sweep. Insert interval puts a new interval into a sorted list and merges around it. Meeting rooms I asks whether any two meetings overlap: sort and compare neighbours. Meeting rooms II asks how many rooms you need: use a min-heap of end times, or sort the starts and ends separately. For booking, the database version of the conflict check is a WHERE clause with the same two comparisons, or a PostgreSQL exclusion constraint on a range column.'
+    ],
+    code: {
+      title: 'MergeHolds.java · merge overlapping holds and check a new hold for conflict · java MergeHolds.java',
+      text: String.raw`import java.util.*;
+
+public class MergeHolds {
+    // A hold on one seat from start (inclusive) to end (exclusive), in minutes after the doors open.
+    record Hold(int start, int end) {
+        public String toString() { return "[" + start + "," + end + ")"; }
+    }
+
+    // Sort by start, then extend the last merged interval while the next one overlaps or touches it.
+    static List<Hold> merge(List<Hold> holds) {
+        List<Hold> sorted = new ArrayList<>(holds);
+        sorted.sort(Comparator.comparingInt(Hold::start));
+        List<Hold> merged = new ArrayList<>();
+        for (Hold h : sorted) {
+            if (!merged.isEmpty() && h.start() <= merged.get(merged.size() - 1).end()) {
+                Hold last = merged.remove(merged.size() - 1);
+                merged.add(new Hold(last.start(), Math.max(last.end(), h.end())));
+            } else {
+                merged.add(h);
+            }
+        }
+        return merged;
+    }
+
+    // Half-open intervals [a,b) and [c,d) overlap exactly when a < d and c < b.
+    static boolean conflicts(List<Hold> busy, Hold wanted) {
+        for (Hold h : busy) if (wanted.start() < h.end() && h.start() < wanted.end()) return true;
+        return false;
+    }
+
+    public static void main(String[] args) {
+        List<Hold> holds = List.of(new Hold(30, 40), new Hold(0, 10), new Hold(5, 15), new Hold(15, 20), new Hold(50, 55));
+        List<Hold> busy = merge(holds);
+        System.out.println("busy: " + busy);
+        System.out.println("hold [20,30) conflicts: " + conflicts(busy, new Hold(20, 30)));
+        System.out.println("hold [18,25) conflicts: " + conflicts(busy, new Hold(18, 25)));
+        System.out.println("merge of no holds: " + merge(List.of()));
+    }
+}
+`,
+      output: String.raw`busy: [[0,20), [30,40), [50,55)]
+hold [20,30) conflicts: false
+hold [18,25) conflicts: true
+merge of no holds: []`
+    },
+    takeaways: ['Sort by start, then extend or start a new interval: O(n log n).', 'Half-open [a,b) and [c,d) overlap when a < d and c < b.', 'Decide whether touching intervals merge, and say so.', 'Meeting rooms II uses a min-heap of end times.'],
+    interview: [
+      ['Merge [[1,3],[2,6],[8,10],[15,18]]. Explain the algorithm and complexity.', 'First I sort by start, which this input already is. I keep [1,3] as the last merged interval. [2,6] starts at 2, which is not after 3, so it overlaps, and I extend the last interval to [1,6]. [8,10] starts after 6, so I add it as new. [15,18] starts after 10, so I add it too. The result is [[1,6],[8,10],[15,18]]. Sorting is O(n log n) and the single pass is O(n), so the total is O(n log n) time. The output list is O(n) space, and the sort may use O(log n) to O(n) extra space depending on the implementation.'],
+      ['How do you decide whether two holds conflict, and what bug do people make?', 'For half-open intervals [a,b) and [c,d), they overlap exactly when a < d and c < b. The common bugs are checking only one endpoint, for example asking whether c is between a and b, which misses a new interval that completely contains an old one, and mixing inclusive and exclusive ends, so back-to-back holds are wrongly reported as conflicts. I fix the convention first, usually half-open because back-to-back bookings then work naturally, and I test containment, touching ends, identical intervals and no overlap. The same two comparisons go into the SQL WHERE clause.'],
+      ['How many rooms are needed for meetings [[0,30],[5,10],[15,20]]?', 'Two rooms. I sort meetings by start and keep a min-heap of end times for rooms in use. At 0 the heap is empty, so I add end 30. At 5 the earliest end is 30, which is after 5, so I need a new room and add 10. At 15 the earliest end is 10, which is at or before 15, so I reuse that room by popping 10 and pushing 20. The heap size peaked at 2, which is the answer. Time is O(n log n) and space is O(n). An alternative sorts starts and ends separately and sweeps with two pointers.']
+    ],
+    check: ['Using half-open intervals, does a new hold [20,30) conflict with busy periods [0,20) and [30,40)?',
+      ['Yes, because 20 equals the end of [0,20)', 'No, because 20 < 20 is false and 30 < 30 is false', 'Yes, because 30 equals the start of [30,40)', 'It depends on the order of the busy list'], 1,
+      'Overlap needs a < d and c < b. Both comparisons fail at the touching ends, so the hold fits.'],
+    practice: ['Copy MergeHolds.java. Add insert(List<Hold> sortedMerged, Hold h) that returns a new merged list in O(n) without re-sorting, and minRooms(List<Hold> meetings) using a PriorityQueue of end times.',
+      ['insert([[0,20),[30,40)], [18,32)) returns [[0,40)].', 'minRooms([[0,30),[5,10),[15,20)]) returns 2.', 'Empty inputs return an empty list and 0.', 'State the time and space of both methods.']],
+    references: [['Java 21 API · List.sort and Comparator', jdk + 'java/util/Comparator.html'], ['PostgreSQL · Range types and exclusion constraints', 'https://www.postgresql.org/docs/current/rangetypes.html']]
+  },
   // @@packets
 };
 
@@ -675,6 +920,10 @@ export const lateDistractors = {
     ['Hard-coded in the system prompt and edited by redeploying the app.', 'In the model’s weights through a nightly fine-tune of all policies.'],
     ['Nothing new, because the provider handles all evaluation.', 'Only a one-time training cost; no further maintenance is needed.']
   ],
+  44: [
+    ['A screenshot of the seat map after one successful booking.', 'A load-balancer health check that returns 200 OK.'],
+    ['Whichever application instance received the request first.', 'The help assistant, because it reads the current policy.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -684,6 +933,8 @@ export const lateExplanations = {
     'Retry only transient failures, within the remaining deadline and cost budget, with backoff and jitter. Parallel fan-out multiplies cost, and a 400 will fail the same way again.'],
   43: ['Frequently changing facts belong in a maintained source read at request time, so edits apply at once and answers can cite them. Prompts and weights both freeze a copy that goes stale.',
     'Fine-tuning creates a model lifecycle. You curate data, train, deploy a new version, and rerun regression evaluations whenever the data or base model changes.'],
+  44: ['A defensible demo starts from a known fixture, runs written commands and compares observable results with expectations written beforehand. Anyone can rerun it from a clean checkout.',
+    'Only the database’s conditional write serializes competing claims across instances. Instance order, caches and the model are advisory and can be stale or wrong.'],
   // @@explanations
 };
 
@@ -712,6 +963,14 @@ export const lateAssessment = {
     { question: 'Which statement about LoRA is correct?',
       choices: ['It retrains every weight of the base model', 'It trains small low-rank adapter weights while the base weights stay frozen', 'It is a retrieval method for long documents', 'It removes the need for an evaluation set'], answer: 1,
       explanation: 'LoRA freezes the base model and learns small low-rank updates. It lowers training cost but does not change the need to evaluate and deploy carefully.' }
+  ],
+  44: [
+    { question: 'Two instances each run "SELECT owner FROM seat WHERE id = \'A1\'", see NULL, and then run "UPDATE seat SET owner = ? WHERE id = \'A1\'". What can happen?',
+      choices: ['Nothing bad, because each instance has its own connection', 'Both updates succeed and the last writer silently replaces the first owner', 'The second UPDATE always fails with a constraint error', 'PostgreSQL merges the two owners into one row'], answer: 1,
+      explanation: 'Check-then-act across two statements lets both callers pass the check. Without "AND owner IS NULL" in the UPDATE and a rows-affected check, both report success.' },
+    { question: 'Your race test has passed 500 rounds. What is the most accurate claim?',
+      choices: ['The booking service handles any production load', 'The invariant held for 500 rounds of the tested interleavings and fixture', 'Concurrency bugs are impossible in this code', 'The database no longer needs a conditional write'], answer: 1,
+      explanation: 'A passing race test is evidence for the tested conditions only. Combine it with the design argument and a test shown to fail on a broken version.' }
   ],
   // @@assessment
 };
@@ -766,5 +1025,11 @@ export const lateInterviewGuides = {
     'Consider customization only for a reproducible behavior gap: the same kind of input keeps producing the wrong style, format or classification, even with an adequate prompt, the right evidence and simpler fixes already tried. First I define the metric for that behavior, for example "answers ≤ 60 words that end with a citation", and keep a held-out test set so I can see real improvement rather than memorization. Knowledge problems are different. A missing or frequently changing policy belongs in retrieval with controlled provenance, so edits take effect immediately and answers can cite them. Fine-tuning facts into weights would freeze them and remove the ability to check permissions per user.',
     'Keep the evidence and the labeled inputs fixed, and change only the instructions. I would test a more explicit style rubric (length, tone, structure), add two or three strong examples (few-shot), and require a structured output shape such as JSON with an answer and a citations field. Then I measure style compliance alongside readability, groundedness and cost per request on held-out tasks, so a style gain that hurts accuracy is visible. If one of these variants closes the gap, no training is needed. Fine-tuning becomes a candidate only when a stable, measured style gap survives the comparison and the task is stable enough to justify a model lifecycle.',
     'When the real problem is knowledge, not behavior. If a policy is missing, unavailable or outdated, training on labeled examples teaches the model yesterday’s answer and makes it sound confident about it. Fine-tuning also cannot cite a source or respect per-user access. The fix is a reliable, authorized evidence path: retrieval from the maintained policy store, with checks that the answer matches the cited passage, plus an evaluation of freshness and of correct abstention when evidence is missing. Factual authority should stay where the organization can update it in minutes. A further sign that fine-tuning is a poor fix is training data full of outdated answers or personal information.'
-  ]
+  ],
+  44: [
+    'One changed requirement is that booking must keep working when the AI provider is down. I first state the invariant: one confirmed owner per seat, decided by the database’s conditional write. Then I trace the paths: the help feature reads policies and calls the model, and booking never waits on either. The trade-off I make is that help degrades to a static policy page with a link instead of retrying for a long time, because a slow help answer is worse than an honest fallback. My demo shows a normal cited answer, then a forced provider timeout that returns the fallback within the deadline, and a booking for another seat that still commits.',
+    'The single claim authority must change first. Today one PostgreSQL primary serializes every claim. With cross-region confirmation I need either one primary authority for each seat that every region calls, which costs latency for remote users, a store that agrees across regions using a consensus protocol, or exclusive seat ownership per region, so a region never confirms a seat it does not own. Whichever I choose, I add fencing so an old leader cannot keep confirming after a failover, and I define partition behavior. The safe default is to reject or queue claims when agreement is impossible, so availability drops but the one-owner rule holds. Browsing holds can stay local.',
+    'A two-instance contention test supports one claim: for the tested fixture and code paths, exactly one claim commits and the losers get 409. It shows the decision lives in the shared database rather than in instance memory. It does not support claims about throughput, tail latency, connection-pool limits, hot-seat contention at scale or failover behavior. Those need a load run with a representative mix of reads and claims, many concurrent writers on one hot event, injected failures, and measurements of p95/p99 latency, error rates and an invariant check after the run. In an interview I link each claim to the command and output that produced it, and I say plainly which claims I have not measured.'
+  ],
+  // @@guides
 };
