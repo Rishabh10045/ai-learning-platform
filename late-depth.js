@@ -201,6 +201,15 @@ export const lateLanes = {
     readings: [reading('Princeton · Dynamic programming slides', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/06DynamicProgrammingI.pdf')],
     recall: 'What are the two choices in the weighted interval recurrence?'
   },
+  33: {
+    title: 'Union-find: grouping venues that share a team',
+    concept: 'Union-find keeps disjoint groups with find (the group root) and union (merge two groups); union by size and path compression make both nearly constant time.',
+    example: 'Joining A–B, B–C and D–E gives groups {A, B, C}, {D, E} and {F}; joining A–C then reports that they are already connected.',
+    practice: 'Implement find with path halving and union by size; use it to count components and detect a cycle edge.',
+    checks: ['union returns false for an existing connection.', 'Groups printed in a deterministic order.', 'Explain why trees stay shallow.'],
+    readings: [reading('Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/')],
+    recall: 'What two optimizations make union-find nearly constant time?'
+  },
   // @@lanes
 };
 
@@ -4485,6 +4494,224 @@ buffer 1 : [A, D] total 9`
       ['DP equals brute force on random cases.', 'Memoized and bottom-up results agree.', 'Ties are broken consistently.', 'Complexity stated.']],
     references: [['Princeton · Dynamic programming (Kleinberg–Tardos lecture slides)', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/06DynamicProgrammingI.pdf']]
   },
+  'b-security-01': {
+    notes: [
+      'Three checks are often mixed up. Authentication establishes who the caller is, from a password session, a signed JWT or another trusted credential. Authorization decides whether that caller may perform this action on this particular resource. Validation checks that the input is well formed, for example that a seat code has the right shape. A request can pass all three for the wrong reasons if you only check one.',
+      'Authorization has two levels. A role or scope, such as booking:read, grants a category of action. It does not say which bookings. The resource rule does: the caller must own the booking, or be support staff assigned to the booking’s venue. The most common API vulnerability, broken object level authorization (OWASP API1:2023), is checking the scope and forgetting the resource rule, so any signed-in user can read any booking by changing the ID in the URL.',
+      'BookingAccess.java shows the order of decisions. With no authenticated caller, return 401. With a caller who lacks the booking:read scope, return 403. Then load the booking and apply the resource rule. When the booking exists but belongs to someone else, it returns 404, the same as a missing booking, so the response does not reveal which IDs exist; returning 403 is also acceptable if the API documents it. Every refusal body contains no booking data. The caller’s identity and venue assignments come from the verified token and server-side data, never from fields in the request.',
+      'In Spring Boot, a SecurityFilterChain handles authentication and broad URL rules, and method security, enabled with @EnableMethodSecurity, can apply @PreAuthorize rules to service methods. A simple and reliable pattern is to include the ownership condition in the query itself, for example findByIdAndOwnerId(id, userId), so a missing row and a foreign row behave the same way.'
+    ],
+    code: {
+      title: 'BookingAccess.java · 401 for no caller, 403 for a missing scope, and a resource rule for owner or venue-assigned staff that returns the same 404 for foreign and missing bookings · java BookingAccess.java',
+      text: String.raw`import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+public class BookingAccess {
+    record Booking(String id, String ownerId, String venue, String seat) {}
+    // The caller comes from the verified token or session, never from the request body.
+    record Caller(String userId, Set<String> scopes, String role, Set<String> venues) {}
+    record Response(int status, String body) {}
+
+    static final Map<String, Booking> DB = Map.of(
+        "P", new Booking("P", "U1", "venue-A", "12C"),
+        "Q", new Booking("Q", "U3", "venue-B", "4A"));
+
+    // Authentication -> scope (category of action) -> resource rule (this booking).
+    static Response getBooking(Optional<Caller> auth, String bookingId) {
+        if (auth.isEmpty()) return new Response(401, "{\"error\":\"unauthenticated\"}");
+        Caller c = auth.get();
+        if (!c.scopes().contains("booking:read")) return new Response(403, "{\"error\":\"forbidden\"}");
+        Booking b = DB.get(bookingId);
+        boolean allowed = b != null && (b.ownerId().equals(c.userId())
+            || ("SUPPORT".equals(c.role()) && c.venues().contains(b.venue())));
+        // Same answer for "missing" and "not yours": no hint that the booking exists.
+        if (!allowed) return new Response(404, "{\"error\":\"not found\"}");
+        return new Response(200, "{\"id\":\"" + b.id() + "\",\"seat\":\"" + b.seat() + "\"}");
+    }
+
+    public static void main(String[] args) {
+        Caller u1 = new Caller("U1", Set.of("booking:read"), "USER", Set.of());
+        Caller u2 = new Caller("U2", Set.of("booking:read"), "USER", Set.of());
+        Caller noScope = new Caller("U1", Set.of("profile:read"), "USER", Set.of());
+        Caller staffA = new Caller("S1", Set.of("booking:read"), "SUPPORT", Set.of("venue-A"));
+        Object[][] cases = {
+            {"anonymous    -> P", Optional.empty(), "P"},
+            {"U1 (owner)   -> P", Optional.of(u1), "P"},
+            {"U2 (other)   -> P", Optional.of(u2), "P"},
+            {"U1 no scope  -> P", Optional.of(noScope), "P"},
+            {"staff venueA -> P", Optional.of(staffA), "P"},
+            {"staff venueA -> Q", Optional.of(staffA), "Q"},
+            {"U2 missing   -> Z", Optional.of(u2), "Z"}};
+        for (Object[] t : cases) {
+            @SuppressWarnings("unchecked")
+            Response r = getBooking((Optional<Caller>) t[1], (String) t[2]);
+            System.out.println(t[0] + ": " + r.status() + " " + r.body());
+        }
+    }
+}
+`,
+      output: String.raw`anonymous    -> P: 401 {"error":"unauthenticated"}
+U1 (owner)   -> P: 200 {"id":"P","seat":"12C"}
+U2 (other)   -> P: 404 {"error":"not found"}
+U1 no scope  -> P: 403 {"error":"forbidden"}
+staff venueA -> P: 200 {"id":"P","seat":"12C"}
+staff venueA -> Q: 404 {"error":"not found"}
+U2 missing   -> Z: 404 {"error":"not found"}`
+    },
+    takeaways: ['Authentication: who. Authorization: may they, on this resource. Validation: is the input well formed.', 'A scope is not ownership.', 'Take identity and venue assignments from trusted server data.', 'Refusals must not leak resource data.'],
+    interview: [
+      ['What is the difference between authentication, authorization and validation?', 'Authentication establishes the caller’s identity from a trusted credential, such as a session cookie or a signed JWT; failing it should give 401. Authorization decides whether that identity may perform this action on this specific resource, combining broad roles or scopes with resource rules such as ownership; failing it gives 403, or 404 if we do not want to reveal that the resource exists. Validation checks that the input is well formed and within business rules, such as a valid seat code or a date in the future, and failing it gives 400. They are independent: a well-formed request from an authenticated user can still be unauthorized for that booking.'],
+      ['What is broken object level authorization, and how do you prevent it?', 'It is when an API checks that the caller is logged in, and perhaps has the right scope, but not that the specific object belongs to them. Then GET /bookings/123 works for any user who guesses or increments the ID. It is first in the OWASP API Security Top 10 for 2023. I prevent it by enforcing the resource rule on every operation that takes an ID: load the object with the owner condition in the query, such as findByIdAndOwnerId, or check it in the service before returning data. I take the user ID from the verified token, not the request. Then I add regression tests with two users that try to read each other’s objects.'],
+      ['Support staff may view bookings only for their assigned venues. How do you enforce that?', 'The role SUPPORT alone is not enough, because it would grant every venue. I store the staff member’s venue assignments on the server and load them for the authenticated user, rather than trusting a venue value sent by the caller. When a staff member requests a booking, the service checks that the booking’s venue is in their assigned set; for list endpoints, the query filters by those venues so other venues’ data is never loaded. I return the same not-found response for a booking in another venue as for a missing one. Tests cover staff assigned to venue A reading a venue-A booking, which succeeds, and a venue-B booking, which is refused.']
+    ],
+    check: ['A signed-in user with the booking:read scope requests another user’s booking. What should the API do?',
+      ['Return it, because the scope allows reading bookings', 'Refuse with 403 or 404 and return no booking data', 'Return 401', 'Return the booking without the seat number'], 1,
+      'The scope grants the category of action; the resource rule still says this booking belongs to someone else.'],
+    practice: ['Copy BookingAccess.java. Add an update endpoint with the same rules, a list endpoint that returns only the caller’s bookings or the staff member’s venues, and a test proving a caller-supplied venue field is ignored.',
+      ['Update follows the same order of checks.', 'List never includes other users’ bookings.', 'A spoofed venue field has no effect.', 'Every refusal body is free of booking data.']],
+    references: [['OWASP API Security Top 10 2023 · API1 Broken Object Level Authorization', 'https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/'], ['Spring Security · Method security', 'https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html']]
+  },
+  'b-testing-03': {
+    notes: [
+      'Security rules break silently: a refactor removes an ownership check and every normal test still passes, because normal tests use the owner. Security regression tests protect against that by testing the people who should be refused, not only the person who should succeed.',
+      'Use at least three identities against the same resource: the owner U1, another signed-in user U2, and an anonymous caller. Assert the status code for each, and also assert that the refusal body contains no protected data such as the seat or the customer name. Add a test that a booking that does not exist and a booking owned by someone else give the same response, so attackers cannot probe for valid IDs. For roles, test staff in venue A against bookings in venue A and venue B.',
+      'AccessRegressionTest.java runs the same five tests against two handlers. The secure one passes 5/5. The buggy one checks only that the caller is logged in, a classic broken object level authorization bug, and fails 3 of the 5 tests, so the suite catches it. Run the suite in CI so a regression blocks the merge.',
+      'In Spring Boot, write these as MockMvc tests. Spring Security’s test support lets you set the caller per request, for example with @WithMockUser or the jwt() request post-processor for resource servers, so each test can act as U1, U2 or nobody without real tokens.'
+    ],
+    code: {
+      title: 'AccessRegressionTest.java · owner, other user, anonymous, data-leak and existence-probe tests run against a secure and a buggy handler · java AccessRegressionTest.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+public class AccessRegressionTest {
+    record Result(int status, String body) {}
+
+    // System under test: a deliberately simple handler. Swap in the buggy version to see tests fail.
+    static final Map<String, String> OWNER = Map.of("P", "U1");
+    static Result secure(String caller, String id) {
+        if (caller == null) return new Result(401, "unauthenticated");
+        if (!caller.equals(OWNER.get(id))) return new Result(404, "not found");
+        return new Result(200, "booking " + id + " seat 12C");
+    }
+    static Result buggy(String caller, String id) {   // checks login but forgets ownership (IDOR)
+        if (caller == null) return new Result(401, "unauthenticated");
+        return OWNER.containsKey(id) ? new Result(200, "booking " + id + " seat 12C") : new Result(404, "not found");
+    }
+
+    interface Handler { Result call(String caller, String id); }
+
+    static List<String> run(Handler h) {
+        List<String> failures = new ArrayList<>();
+        check(failures, "owner reads own booking", h.call("U1", "P"), r -> r.status() == 200);
+        check(failures, "anonymous gets 401", h.call(null, "P"), r -> r.status() == 401);
+        check(failures, "other user is refused", h.call("U2", "P"), r -> r.status() == 404 || r.status() == 403);
+        check(failures, "refusal leaks no booking data", h.call("U2", "P"), r -> !r.body().contains("12C"));
+        check(failures, "missing and foreign look the same", h.call("U2", "Z"), r -> r.equals(h.call("U2", "P")));
+        return failures;
+    }
+
+    static void check(List<String> failures, String name, Result r, Function<Result, Boolean> ok) {
+        if (!ok.apply(r)) failures.add(name + " (got " + r.status() + ")");
+    }
+
+    public static void main(String[] args) {
+        List<String> secureFailures = run(AccessRegressionTest::secure);
+        List<String> buggyFailures = run(AccessRegressionTest::buggy);
+        System.out.println("secure handler: " + (5 - secureFailures.size()) + "/5 pass");
+        System.out.println("buggy handler : " + (5 - buggyFailures.size()) + "/5 pass");
+        buggyFailures.forEach(f -> System.out.println("  FAIL " + f));
+    }
+}
+`,
+      output: String.raw`secure handler: 5/5 pass
+buggy handler : 2/5 pass
+  FAIL other user is refused (got 200)
+  FAIL refusal leaks no booking data (got 200)
+  FAIL missing and foreign look the same (got 404)`
+    },
+    takeaways: ['Test who must be refused, not just who succeeds.', 'Use owner, other user and anonymous.', 'Assert refusal bodies leak nothing.', 'Run the suite in CI so regressions block merges.'],
+    interview: [
+      ['How do you test that one user cannot access another user’s data?', 'I create fixture data for two users, for example booking P owned by U1, and call the same endpoint as U1, as U2 and with no credentials. I assert 200 with the right data for U1, 401 for the anonymous call and 403 or 404 for U2, matching our documented policy. I also assert that the refusal body contains no protected fields, and that a missing booking and U2’s request for P return the same response, so IDs cannot be probed. In Spring Boot I write these with MockMvc and Spring Security’s test support to set the user per request. They run in CI on every pull request.'],
+      ['Why should security tests include a deliberately broken version or a mutation check?', 'A security test that always passes might be testing nothing, for example if it uses the owner by mistake or asserts only that the status is not 500. Running the suite against a handler with the ownership check removed shows that the tests actually fail when the protection is missing. In AccessRegressionTest.java the buggy handler fails three tests, which proves the suite would catch that regression. In a real project, the same idea is done with mutation testing tools, or by temporarily removing the check in a branch. It gives confidence that a future refactor that drops the rule will be caught in CI rather than in production.'],
+      ['What should a refused request return, and what should it not reveal?', 'An unauthenticated request should return 401, so the client knows to sign in. An authenticated request that is not allowed should return 403, or 404 if the API should not reveal whether the resource exists; for bookings, 404 is often better because it makes a foreign ID and a missing ID look the same. The body should contain a generic error code and message, and nothing from the resource, such as seat numbers, names or the owner ID. It also should not contain stack traces. Logs on the server can record the details, without secrets, so the team can investigate. Tests should assert all of this.']
+    ],
+    check: ['The buggy handler checks that the caller is logged in but not that they own the booking. Which test catches it?',
+      ['owner reads own booking', 'anonymous gets 401', 'other user is refused', 'None of them'], 2,
+      'The owner and anonymous cases behave correctly in both handlers; only a second signed-in user exposes the missing ownership check.'],
+    practice: ['Copy AccessRegressionTest.java. Add tests for a support user in venue A against bookings in venues A and B, for update and delete endpoints, and a table-driven runner that prints each case.',
+      ['Venue-B access is refused for venue-A staff.', 'Update and delete follow the same rules.', 'The buggy handler fails the new tests too.', 'Each case name explains the rule.']],
+    references: [['Spring Security · Testing with MockMvc', 'https://docs.spring.io/spring-security/reference/servlet/test/mockmvc/index.html'], ['Spring Security · Testing OAuth 2.0 with MockMvc', 'https://docs.spring.io/spring-security/reference/servlet/test/mockmvc/oauth2.html']]
+  },
+  'b-security-01.dsa': {
+    notes: [
+      'Union-find, also called disjoint-set union, keeps track of items split into groups and answers “are these two in the same group?” almost in constant time. Each group is a tree, and each item points to a parent; the root names the group.',
+      'find follows parent pointers to the root. Path compression, here path halving, makes nodes point closer to the root as it goes. union links the root of the smaller tree under the larger one. Together these make each operation take amortized nearly O(1) time (inverse Ackermann).',
+      'VenueGroups.java groups venues that share a support team: A–B, B–C and D–E. Joining A and C reports that they are already in one group, which is also how union-find detects a cycle when adding edges, as in Kruskal’s algorithm. The groups are {A, B, C}, {D, E} and {F}.'
+    ],
+    code: {
+      title: 'VenueGroups.java · union-find with path halving and union by size, grouping venues that share a support team · java VenueGroups.java',
+      text: String.raw`import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+public class VenueGroups {
+    // Union-find (disjoint sets) with path compression and union by size.
+    static int[] parent, size;
+
+    static int find(int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];   // path halving
+            x = parent[x];
+        }
+        return x;
+    }
+
+    static boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;          // already connected
+        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra;
+        size[ra] += size[rb];
+        return true;
+    }
+
+    public static void main(String[] args) {
+        String[] venues = {"A", "B", "C", "D", "E", "F"};
+        int n = venues.length;
+        parent = new int[n]; size = new int[n];
+        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+        // Venues that share a support team: staff of one may see bookings of the other.
+        int[][] shared = {{0, 1}, {1, 2}, {3, 4}, {0, 2}};
+        for (int[] s : shared)
+            System.out.println("share " + venues[s[0]] + "-" + venues[s[1]] + ": " + (union(s[0], s[1]) ? "merged" : "already in one group"));
+        Map<Integer, TreeSet<String>> groups = new TreeMap<>();
+        for (int i = 0; i < n; i++) groups.computeIfAbsent(find(i), k -> new TreeSet<>()).add(venues[i]);
+        System.out.println("groups: " + groups.values());
+        System.out.println("A and C same team: " + (find(0) == find(2)) + ", A and D: " + (find(0) == find(3)));
+    }
+}
+`,
+      output: String.raw`share A-B: merged
+share B-C: merged
+share D-E: merged
+share A-C: already in one group
+groups: [[A, B, C], [D, E], [F]]
+A and C same team: true, A and D: false`
+    },
+    takeaways: ['find returns the group root.', 'Union by size keeps trees shallow.', 'Path compression flattens them further.', 'union returning false means already connected.'],
+    interview: [
+      ['How does union-find work, and why is it fast?', 'Each element points to a parent, and a root points to itself, so each group is a tree named by its root. find follows parents to the root, and union links one root under the other. Two optimizations make it fast. Union by size or rank links the smaller tree under the larger, which keeps trees at most logarithmic in height. Path compression makes nodes on a find path point closer to, or directly at, the root, flattening the tree for later calls. Together they give an amortized cost per operation of the inverse Ackermann function, which is at most 4 or 5 for any realistic input, so effectively constant.']
+    ],
+    check: ['After union(A, B), union(B, C) and union(D, E), what does union(A, C) return in VenueGroups.java?',
+      ['true, it merges two groups', 'false, A and C are already in one group', 'It throws an exception', 'true, but only with path compression'], 1,
+      'A and C were connected through B, so they already share a root.'],
+    practice: ['Copy VenueGroups.java. Use it to count the number of connected components in a list of edges, detect the first edge that creates a cycle, and implement Kruskal’s minimum spanning tree.',
+      ['Component count matches a DFS count.', 'The first cycle edge is reported.', 'Kruskal sorts edges and skips cycle edges.', 'Complexity stated.']],
+    references: [['Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/']]
+  },
   // @@packets
 };
 
@@ -4577,6 +4804,10 @@ export const lateDistractors = {
     ['Yes, as long as the intervals are sorted by start time.', 'Only if every value is negative.'],
     ['Its weight times the number of intervals it overlaps.', 'Its weight plus best[i − 1], even if that set overlaps it.']
   ],
+  33: [
+    ['That the request body is well formed.', 'Which bookings the caller may read.'],
+    ['Return the booking because scope is checked first.', 'Return 401 so the client signs in again.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4624,6 +4855,8 @@ export const lateExplanations = {
     'Marking on enqueue keeps each vertex in the queue once and preserves its first parent, which lies on a fewest-edge route.'],
   32: ['The exchange argument only preserves the count of intervals. A single high-value interval can be worth more than several short ones, so weighted cases need a recurrence.',
     'Taking interval i means nothing that overlaps it can be used, so its value is added to the best total of the jobs that end before it starts, best[p(i)].'],
+  33: ['Authentication only proves who the caller is. What they may do, and to which resources, is authorization; input shape is validation.',
+    'A scope grants a category of action, but the resource rule decides access to this booking. The caller is authenticated, so 401 is wrong; refuse with 403 or 404.'],
   // @@explanations
 };
 
@@ -4788,6 +5021,14 @@ export const lateAssessment = {
     { question: 'What makes weighted interval scheduling O(n log n) rather than O(n²)?',
       choices: ['Using a HashMap of values', 'Finding each compatible predecessor p(i) by binary search over jobs sorted by end time', 'Greedy selection by value', 'Recursion without memoization'], answer: 1,
       explanation: 'Sorting is O(n log n) and each p(i) is one binary search; the recurrence itself is O(n).' }
+  ],
+  33: [
+    { question: 'Why might an API return 404 rather than 403 when a signed-in user requests someone else’s booking?',
+      choices: ['404 is faster to compute', 'It makes foreign and missing IDs look the same, so callers cannot probe which bookings exist', '403 is only for anonymous callers', 'Spring Security cannot return 403'], answer: 1,
+      explanation: 'Either can be correct if documented; 404 avoids confirming that the ID exists.' },
+    { question: 'Which test would catch a handler that checks login but not ownership?',
+      choices: ['The owner reads their own booking', 'An anonymous caller gets 401', 'A second signed-in user requests the owner’s booking and is refused', 'The response time is under 200 ms'], answer: 2,
+      explanation: 'Only a different authenticated user exercises the ownership rule.' }
   ],
   // @@assessment
 };
@@ -4999,6 +5240,11 @@ export const lateInterviewGuides = {
     'Take three bookings: [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10. Earliest finish takes [0,2) first, then [2,4), for a total of 2, and the long booking no longer fits. The best answer is the long booking alone, worth 10. Weighted interval scheduling fixes this with a recurrence over jobs sorted by end time: best[i] = max(best[i − 1], value[i] + best[p(i)]), where p(i) is the number of jobs that end before job i starts. It compares skipping job i with taking it plus the best compatible earlier set. With binary search for p(i), it runs in O(n log n).',
     'The idea stays the same, but the compatibility rule becomes previous.end + 10 minutes ≤ next.start instead of previous.end ≤ next.start. In greedy selection, I track the time the room is free again, which is the chosen end plus 10. In the weighted DP, the reset changes how p(i) is computed. I keep all times in one unit, such as minutes, and use half-open intervals. Then I test the boundary: with a booking ending at 60, starts at 69, 70 and 71 must be rejected, accepted and accepted. I also confirm the reset applies per room, because two rooms would make it a different problem.',
     'With equal weights, the goal is to maximize the count. Take any optimal schedule and look at its first booking, X. Let G be the booking that finishes earliest of all. G ends no later than X, so replacing X with G keeps every later booking compatible, and the schedule has the same number of bookings. So there is an optimal schedule that starts with G. After choosing G, what remains is the same problem on bookings that start after G ends, so the argument repeats. The exchange only keeps the count, not the total value, so with weights it can lose value.'
+  ],
+  33: [
+    'Authentication identifies the caller from a trusted credential, such as a session or a signed token; if it fails, the response is 401. Authorization decides whether this caller may perform this action on this particular resource, for example whether U2 may read booking P owned by U1; if it fails, the response is 403, or 404 to avoid revealing that P exists. Validation checks that the input is well formed, such as a correct seat code, and gives 400. I would show three cases against the same booking: no credentials, a signed-in user who does not own it, and the owner, and confirm that the refusals contain no booking details.',
+    'Besides the SUPPORT role, the service must check the booking’s venue against the venues assigned to that staff member. The assignment must come from trusted server-side data loaded for the authenticated user, not from a venue field in the request, because a caller could simply claim a different venue. For a single booking I compare the booking’s venue with the assigned set; for list endpoints I put the venue filter into the query so other venues’ bookings are never loaded. I test the same staff role against bookings in two venues: venue A succeeds and venue B is refused with the same response as a missing booking.',
+    'The resource-level check belongs in the service or data-access code that performs the operation, not only in the URL rules or the token check. A scope such as booking:read says the caller may read bookings in general; it does not say which ones. So the service loads the booking with the ownership or venue condition, for example findByIdAndOwnerId, or checks it before returning data, and refuses otherwise. Putting the rule there means every controller, batch job or new endpoint that uses the service gets the same protection. I test it with a valid token that has the right scope but asks for another owner’s booking.'
   ],
   // @@guides
 };
