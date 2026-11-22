@@ -6,6 +6,8 @@ Newest release first. Times are IST. Every release keeps the progress key `ai-le
 ## Unreleased
 - CI: GitHub Actions runs every test suite on each pull request and on each push to `main` (`.github/workflows/ci.yml`, `ci/run-all.sh`).
 - New checks: `ui/checks/upgrade.test.mjs` loads a learner profile written by the `0203934` release and checks that it survives. `checks/java-examples.mjs` compiles and runs every Java program shown in a lesson on JDK 21 and compares its expected output.
+- Fix: on narrow phones (320 px) with wide fonts, long code words in practice text pushed the page sideways. They now wrap.
+- Fix: the Day 1 warm-up concept check appeared twice. It now appears once.
 - `main` is protected. Changes land through pull requests, and the CI check must pass first. See `RELEASING.md`.
 
 ## 2026-11-22 23:14 · `9f992de` · 56-day curriculum (PR #5, PR #7)

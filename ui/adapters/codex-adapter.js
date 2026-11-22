@@ -181,10 +181,7 @@ export function createCodexAdapter({ S, E, codex }) {
       interview: (wp.interview || []).map(([prompt, answer], i) => ({ id: warmId + '-tq' + (i + 1), prompt, answer, topicId: warmId })),
       takeaways: (wp.takeaways || []).map(text => ({ topicId: warmId, text }))
     } : null;
-    if (warmup && wp.check) {
-      const [q, options, answer, why] = wp.check;
-      warmup.notes.push({ type: 'details', summary: 'Concept check: ' + q, text: options.map((o, i) => String.fromCharCode(65 + i) + '. ' + o).join('\n') + '\n\nAnswer: ' + String.fromCharCode(65 + answer) + '. ' + options[answer] + (why ? '\n' + why : '') });
-    }
+    // The warm-up concept check is rendered once, by packetNotes (wp.check).
     const plan = stretchPlans[n];
     if (plan) {
       const items = [main, lane, warmup].filter(Boolean).flatMap(l => l.practice);
