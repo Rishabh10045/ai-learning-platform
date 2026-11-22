@@ -43,3 +43,18 @@ Reviewed the Module 4 rows in the saved public listing against the Day 1–56 cu
 | 4.6 Connection pooling and database optimization | D13 `b-jdbc-01` teaches connection lifecycle. D21 `b-sql-02` teaches plan inspection and Day 17 works a dependency capacity ceiling. There is no pool saturation fixture or sizing exercise. | Partial | 25 min, measure acquire wait, active connections and query latency in a bounded pool. Compare timeout evidence. |
 
 The next source locator is **Module 5 row 5.1**, cache-aside, write-through, write-behind and read-through.
+
+
+## Module 5 · Caching Fundamentals
+
+Reviewed the public Module 5 rows with the dedicated Day 22 topic materials. The evidence below is editorial unless a separate lab execution is recorded.
+
+| Source row | Current day and evidence | Status | Required repair |
+| --- | --- | --- | --- |
+| 5.1 Cache-aside, write-through, write-behind and read-through | D22 `b-caching-01` teaches the application-owned cache-aside read, TTL and Redis failure. The three alternative write or loading policies lack a trace or exercise. | Partial | 30 min, compare four cache policies on one read/write sequence and state the loss risk for a buffered write. |
+| 5.2 LRU, LFU and FIFO | D22 `d-lru-01` compares LRU and FIFO with the A/B/A/C trace and explains frequency aging and ties. The dedicated Day 29 exercise is LRU. | Partial | 20 min, run an LFU trace with equal frequencies, aging and a tie-break. |
+| 5.3 Stampede and thundering-herd prevention | D22 `h-caching-01` explains concurrent misses, an origin-load bound, coalescing for one key, and jitter for many expiries. The practice contrasts a hot-key burst with a controlled fill. | Covered | Execute a bounded concurrency fixture, and record origin calls separately from user requests. |
+| 5.4 TTL, event and tag invalidation | D22 `b-caching-01` and `h-caching-01` cover TTL, post-commit invalidation and a stale fill. Tag-scoped invalidation is unaddressed. | Partial | 20 min, map keys to a policy-tag set and test a policy change without evicting unrelated keys. |
+| 5.5 When to avoid caching | D22 `b-caching-01` and `h-caching-01` distinguish advisory availability from a booking write, with a stale trace and outage fixture. | Covered | Run the Redis outage exercise on the intended infrastructure before marking it executed. |
+
+Next source locator is **Module 6 row 6.1**, Redis Cluster. Continue the LLD and DSA gap work independently.

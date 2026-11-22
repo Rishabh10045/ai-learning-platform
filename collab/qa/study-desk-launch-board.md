@@ -39,3 +39,7 @@ After the third unanswered request, stop outbound requests and record **Awaiting
 ## Active work update · 2026-11-22 11:04 IST
 
 [Grok acknowledged](https://github.com/Rishabh10045/ai-learning-platform/pull/5#issuecomment-7074768563) and is preparing `grok/day1-integration` on the agreed UI branch stack. The outstanding contact attempts are closed. The initial subject table remains the launch-board snapshot. The current curriculum has 117 topics and 13 dedicated packets after the new Java Strings and HLD scaling work. [Current readiness matrix](lesson-readiness-matrix.md)
+
+## Live baseline and curriculum draft · 2026-11-22 13:58 IST
+
+Grok’s [PR #6](https://github.com/Rishabh10045/ai-learning-platform/pull/6) shipped the v2 real-data app to main `0203934`. GitHub Pages opens that build. Browser-local progress is available there. The HTTPS account service and email remain pending. The PR #5 draft synchronizes the already-released UI with 56 curriculum days and 59 topic packets. The multi-topic notes rendering issue is tracked in the PR thread.

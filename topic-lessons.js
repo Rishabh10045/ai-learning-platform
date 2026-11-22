@@ -1,12 +1,15 @@
 import { backendFoundationTopics } from './notes/topic-backend-foundations.js';
 import { foundationTopics } from './notes/topic-foundations.js';
 import { numberAlgorithmTopics } from './notes/topic-number-algorithms.js';
+import { depthPackets, packetCode } from './day-depth.js';
+import { systemFoundationTopics } from './notes/topic-system-foundations.js';
 
 // A topic gets its own teaching material only when each item is written for that topic.
 export const topicLessons = {
   ...numberAlgorithmTopics,
   ...foundationTopics,
   ...backendFoundationTopics,
+  ...systemFoundationTopics,
   'j-oop-01': {
     notes: [
       'A class defines fields and operations. An object owns a particular set of field values. Construct Seat A1 and A2 separately so that choosing an owner for A1 leaves A2 available. The constructor initializes the identity before callers can use the object. Mark the id final, allow the owner to change through the booking operation and use private fields to limit the points where state can change.',
@@ -271,3 +274,7 @@ export const topicLessons = {
     references: [['Spring AI · Retrieval Augmented Generation', 'https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html']]
   }
 };
+
+// Day 1–2 packets added by Grok (2026-11-22); keys outside the topic index (lane packets) stay in day-depth.js.
+for (const [id, packet] of Object.entries(depthPackets)) if (!id.includes('.')) topicLessons[id] = packet;
+for (const [id, code] of Object.entries(packetCode)) if (topicLessons[id] && !topicLessons[id].code) topicLessons[id].code = code;

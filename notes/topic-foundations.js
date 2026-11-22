@@ -1,93 +1,9 @@
 const classAccess = ['Dev.java · Controlling access to members', 'https://dev.java/learn/language/oop/classes-objects/more-on-classes/#controlling-access'];
-const webFlow = ['MDN · Overview of HTTP', 'https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview'];
-const aiBasics = ['Microsoft · Introduction to Generative AI', 'https://github.com/microsoft/generative-ai-for-beginners/blob/main/01-introduction-to-genai/README.md'];
-const setsApi = ['Java 21 · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html'];
-const javaThreads = ['Oracle · Thread interference', 'https://docs.oracle.com/javase/tutorial/essential/concurrency/interfere.html'];
 const javaHashMap = ['Java 21 · HashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html'];
 const javaExceptions = ['Dev.java · Exceptions', 'https://dev.java/learn/language/annotations-exceptions/exceptions/'];
 const javaGenerics = ['Dev.java · Generics', 'https://dev.java/learn/generics/'];
 
 export const foundationTopics = {
-  'l-invariants-01': {
-    notes: [
-      'A domain invariant is a condition that must hold in every valid state, including after a request fails. A1 begins with no owner. Its first successful claim sets exactly one owner. A later conflict must preserve that owner. A boolean outcome and the final state test different parts of this rule.',
-      'Teach the transition at the object that owns the state. Validate input before evaluating a legitimate conflict, then ask Seat to claim itself. A generic setOwner operation gives callers a way around the rule. Put a read method on the boundary when the caller needs to show the owner.',
-      'A cancel feature expands the state model. Define which caller may cancel, what the new availability is, and what an already-cancelled request returns. Test that a rejected cancellation preserves the current owner. Keep this day’s fixture sequential. The later concurrency lesson adds coordination for overlapping requests.'
-    ],
-    practice: ['Use the Day 1 Java example to draw initial, success and conflict transitions. Add a cancellation proposal as a table before writing code.', ['The first valid claim records U1 and a later conflict preserves U1.', 'An invalid request and an unauthorized cancellation proposal each preserve the current owner.', 'State the authorized cancellation result separately from a repeated request.']],
-    interview: [
-      ['How do you know an unsuccessful booking preserved the invariant?', 'Assert the returned outcome and read the authoritative owner afterward. A false return alone cannot catch a method that mutated state before rejecting.'],
-      ['Where would the rule live if the HTTP controller were removed?', 'It belongs in the domain owner or authoritative write, so other permitted entry points use the same rule.'],
-      ['How would cancellation change the fixture?', 'Add a permitted transition from owned to available and a rejection path for a mismatched caller. Verify the final state in both cases.']
-    ],
-    takeaways: ['Write the rule as a state property.', 'Route each mutation through one domain operation.', 'Test failed paths against final state.'],
-    check: ['U2 gets false for A1 after U1 booked it. Which extra check proves the conflict path?', ['The owner is still U1.', 'A1 has a printable label.', 'The caller used Java.'], 0, 'The owner check proves that the failed operation preserved the booked state.'],
-    references: [classAccess]
-  },
-  'h-request-01': {
-    notes: [
-      'Trace an HTTPS request in layers. Resolve the domain name using DNS, establish or reuse a secure connection and send an HTTP request identifying the method, path and body. DNS gives the client an address. The method and path help the HTTP server select an application handler.',
-      'For POST /bookings, the handler decodes and validates the submitted ID, then asks the booking service to attempt the write. The authoritative store decides whether A1 changes ownership. The server reports the result and the browser updates its display. A cached GET can lag behind a write.',
-      'A timed-out browser sees an uncertain operation: the write may have committed before the response was lost. A well-scoped replay or a status query can resolve ambiguity. First draw the success and known-conflict paths. Then place a lost response after the commit and explain where the user can recover.'
-    ],
-    practice: ['Draw browser → DNS → HTTPS → router → booking service → store → response. Label one successful request and one conflict.', ['The diagram distinguishes DNS lookup from HTTP path routing.', 'It marks authoritative commit before the success response and separates a stale display from the current state.', 'It shows a client recovery step if the response is lost after commit.']],
-    interview: [
-      ['What does DNS decide compared with the HTTP router?', 'DNS resolves a hostname. The application router selects a handler using HTTP properties such as method and path.'],
-      ['Why could the UI show A1 available while POST returns a conflict?', 'The UI’s availability was a snapshot. Another request might commit before the authoritative booking operation runs.'],
-      ['What can a timeout after commit tell the client?', 'The client cannot deduce the write outcome from the missing response. It can retrieve the durable result or replay using a stable idempotency contract.']
-    ],
-    takeaways: ['Trace each layer’s responsibility.', 'Mark the authoritative write in the diagram.', 'Distinguish a stale read from an uncertain write.'],
-    check: ['Which component decides whether A1 can be booked?', ['DNS resolver', 'Browser cache', 'Authoritative booking write'], 2, 'Ownership is enforced at the write boundary that has the current durable state.'],
-    references: [webFlow]
-  },
-  'ai-foundations-01': {
-    notes: [
-      'Training changes model parameters from examples. Inference uses the parameters to process an input and produce output. A language model receives tokens and produces probabilities over possible continuations. A fluent output can still contain claims unsupported by the policy.',
-      'In the booking application, the model can propose a plain-language explanation of a cancellation rule. Supply the actual policy text. Require a supported quote or evidence location before presenting a policy claim. When no rule applies or multiple rules conflict, give a deterministic fallback or ask for the missing information.',
-      'A booking transition uses current state, identity and domain validation. Keep those decisions in the authoritative Java path. A timeout or ungrounded support answer can change the help response while the booking flow remains available. Verify a normal booking under a simulated model failure.'
-    ],
-    practice: ['Use three policy fixtures: a supported answer, an unsupported claim and an ambiguous case. For each, record input evidence and the application result.', ['Supported text quotes or identifies the applicable rule.', 'Unsupported and ambiguous claims return a fallback or ask a clarifying question.', 'An unavailable help feature leaves the deterministic booking rule intact.']],
-    interview: [
-      ['What is the difference between training and inference?', 'Training adjusts model parameters using data. Inference uses the trained parameters on the current input.'],
-      ['Why can plausible text still fail a policy-help check?', 'Plausibility is a property of the generation, while evidence is a property of the applicable policy. A validator needs the latter before displaying the claim.'],
-      ['What should happen to booking during a help-model failure?', 'Booking should continue through the independent enforcing path. The help endpoint applies its defined fallback.']
-    ],
-    takeaways: ['Separate training from serving.', 'Use evidence before surfacing a policy claim.', 'Keep model availability out of booking correctness.'],
-    check: ['Which activity fits the Day 1 model boundary?', ['Changing a seat owner', 'Drafting a cancellation explanation checked against policy', 'Choosing whether to ignore validation'], 1, 'A policy draft can be verified against evidence. Booking still uses the deterministic write path.'],
-    references: [aiBasics]
-  },
-  'd-hashing-01': {
-    notes: [
-      'To decide whether an ID repeats, maintain a set containing every ID seen in the completed prefix. Calling add returns false when an equivalent value already exists. At that point the prefix plus the current value contains a duplicate and the algorithm can stop.',
-      'Trace [U1,U2,U1]. The first two calls add new keys. The third finds U1 already present. Empty and all-distinct inputs finish without an early return. Use exact String equality for case-sensitive IDs so U1 and u1 remain separate.',
-      'For n bounded-length IDs, a HashSet offers expected O(n) time with suitable hashing and O(n) worst-case storage for the distinct prefix. The expected bound assumes distribution and treats key work separately. If a memory budget dominates, sorting can be a different choice when preserving order is unnecessary or you can copy the input.'
-    ],
-    practice: ['Implement containsDuplicate(List<String>) in the Day 1 DSA exercise and compare with a nested-loop oracle for small lists.', ['Empty, one-element and distinct lists return false.', '[U1,U2,U1] returns true and [U1,u1] returns false.', 'The learner explains the set prefix invariant and gives both expected time and memory.']],
-    interview: [
-      ['What invariant makes an unsuccessful Set.add evidence of a duplicate?', 'The set contains exactly the IDs from the already-scanned prefix. If add reports that the ID exists, some index in that prefix holds an equal value.'],
-      ['What affects the expected linear bound?', 'Hash distribution plus the cost of comparing or hashing keys. The scan does at most n additions and can exit earlier.'],
-      ['How could you find duplicates without a hash table?', 'Sort the values, then look for equal neighbors. This changes order or requires a copy, and comparison sorting typically uses O(n log n) comparisons.']
-    ],
-    takeaways: ['Keep the set equal to the processed prefix.', 'Use add’s return value for existence and insertion in one step.', 'Test case sensitivity and memory trade-offs.'],
-    check: ['Why does [U1,u1] contain no duplicate under this contract?', ['Only the first ID is checked.', 'The comparison is case-sensitive.', 'HashSet never stores two strings.'], 1, 'The inputs have different contents under exact String equality.'],
-    references: [setsApi]
-  },
-  'j-concurrency-01': {
-    notes: [
-      'Check-then-act is a sequence. A thread reads that A1 is free, decides to claim it and writes the owner. Two threads can independently read the same old value before either writes. Both then think they won. The final owner alone can hide one incorrectly reported success.',
-      'Use a shared Seat object, a latch that records when each thread has read, and a separate release latch before the writes. The main thread waits for both reads, releases them, then waits for results. Bound the waits and make cleanup release the worker threads if an assertion fails.',
-      'Capture the two return values and the final owner. A protected version must make the read, decision and write one guarded transition. Use a start barrier outside the protected operation for the corrected version. Putting a rendezvous inside the same exclusive lock can block the second worker from ever reaching it.'
-    ],
-    practice: ['Run the Day 2 race with two workers and controlled read/write latches. Record both local reads and final outcomes.', ['Both workers see unowned before the write phase in the broken fixture.', 'Both can report success with one final owner.', 'All waits have a timeout and the test joins or shuts down workers.']],
-    interview: [
-      ['Why can an atomic reference assignment still give two successes?', 'A single write can be atomic while separate read, decision and write steps interleave. The entire transition needs one coordination rule.'],
-      ['Why use latches instead of sleeps?', 'Latches control the ordering explicitly. Sleeps depend on scheduler timing and can pass without exercising the problematic interleaving.'],
-      ['What evidence distinguishes the race from an ordinary conflict?', 'The race shows two success results based on the same prior state. The correct sequential conflict shows one success, one rejection and a preserved owner.']
-    ],
-    takeaways: ['Test the sequence, not only one write.', 'Control the interleaving with a bounded fixture.', 'Record each result and the final authority.'],
-    check: ['Both workers read empty before either writes. What violates the booking rule?', ['One reports success and one conflicts.', 'Both report success.', 'Both calls finish in the same second.'], 1, 'Only one successful transition is allowed for an initially free seat.'],
-    references: [javaThreads]
-  },
   'd-hashing-02': {
     notes: [
       'A hash table uses a hash to select candidates and equality to decide whether a key matches. A collision happens when distinct keys have the same hash or map to the same bucket. A correct table keeps both entries and compares the candidate’s equality.',

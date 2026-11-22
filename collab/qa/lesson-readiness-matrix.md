@@ -1,22 +1,22 @@
 # Study Desk day and topic readiness matrix
 
-22 November 2026 IST. The original Day 56 draft was `17d3fc0`. Current rows include the Day 56, Day 1–16 and foundation lesson batches. This presence audit counts authored fields and timing blocks. Read the source-level audit and run individual labs before treating a topic as fully verified.
+22 November 2026 IST. The original Day 56 draft was `17d3fc0`. Current rows include the Day 56 and Day 1–25 batches reconciled with the v2 main branch. This presence audit counts authored fields and timing blocks. Read the source-level audit and run individual labs before treating a topic as fully verified.
 
 - 56 days have English lesson notes, a worked example, practice criteria, revision prompts and a direct reading field.
-- 170 day-level interview questions have answers. There are 172 scored quiz items and 27 interactive diagrams. 52 days have under 400 words of explanatory prose.
-- 43 of 122 indexed topics have dedicated packets. The other 79 use a parent-day link and have an individual learner takeaway field.
-- Days 1–16 and 56 have dedicated packets for every assigned topic. Days 1, 5, 7, 26, 55 and 56 have displayed standalone Java. Other exercises mainly use prompts and acceptance criteria.
-- Every core is 120 minutes. Weekend defaults remain 390 minutes. The independent 30-minute daily DSA lane and live synced account release are open.
+- 170 day-level interview questions have answers. There are 174 scored quiz items and 27 interactive diagrams. 52 days have under 400 words of explanatory prose.
+- 59 of 122 indexed topics have dedicated packets. The other 63 use a parent-day link and have an individual learner takeaway field.
+- Days 1–25 and 56 have dedicated packets for every assigned topic. Days 1, 5, 7, 26, 55 and 56 have displayed standalone Java. Other exercises mainly use prompts and acceptance criteria.
+- Every core is 120 minutes. Weekend defaults remain 390 minutes. Days 1–3 have a 30-minute DSA block. The other daily lanes and live synced account release are open.
 
 | Subject | Indexed | Dedicated | Remaining |
 | --- | ---: | ---: | ---: |
 | Java | 15 | 13 | 2 |
-| Low-level design | 8 | 4 | 4 |
-| System design | 22 | 3 | 19 |
+| Low-level design | 8 | 5 | 3 |
+| System design | 22 | 12 | 10 |
 | AI engineering | 19 | 2 | 17 |
-| DSA in Java | 31 | 8 | 23 |
-| Spring Boot & backend | 17 | 7 | 10 |
-| SQL and data | 10 | 6 | 4 |
+| DSA in Java | 31 | 9 | 22 |
+| Spring Boot & backend | 17 | 10 | 7 |
+| SQL and data | 10 | 8 | 2 |
 
 ## Day-by-day rendered content
 
@@ -24,9 +24,9 @@ Reading and video columns count configured URLs. Prose excludes code and heading
 
 | Day | Session | Prose words | Diagram | Displayed code | Practice / criteria | Read / video links | Interview Q / A | MCQs | Recall bullets | Core / explicit DSA min |
 | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | Build the first booking flow | 644 | Yes | java | 4 / 10 | 7 / 2 | 5 / 5 | 5 | 4 | 120 / 15 |
-| 2 | Java thread interleavings | 290 | Yes | — | 1 / 4 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
-| 3 | Visibility and locking | 285 | Yes | — | 1 / 4 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
+| 1 | Build the first booking flow | 644 | Yes | java | 4 / 10 | 9 / 5 | 5 / 5 | 5 | 4 | 120 / 30 |
+| 2 | Java thread interleavings | 290 | Yes | — | 2 / 7 | 2 / 2 | 3 / 3 | 5 | 3 | 120 / 30 |
+| 3 | Visibility and locking | 285 | Yes | — | 2 / 7 | 3 / 1 | 3 / 3 | 3 | 3 | 120 / 30 |
 | 4 | Equality, hashing and collections | 399 | Yes | — | 1 / 3 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 5 | Java contracts and exceptions | 353 | — | java | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 6 | Generics, lambdas and streams | 265 | — | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
@@ -88,11 +88,11 @@ Zero means the topic has no dedicated field of that kind. The named parent lesso
 | Day | Subject | Topic | Stable topic ID | Parent lesson ID | Notes words | Interview Q / A | Coach takeaways | Diagnostic checks | Practice criteria | Read links |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | Java | Objects, encapsulation and ownership | `j-oop-01` | `j-oop-01` | 266 | 4 / 4 | 4 | 1 | 4 | 2 |
-| 1 | Low-level design | Domain invariants | `l-invariants-01` | `j-oop-01` | 146 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 1 | System design | Browser-to-server request flow | `h-request-01` | `j-oop-01` | 143 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 1 | AI engineering | Training, inference and application boundaries | `ai-foundations-01` | `j-oop-01` | 133 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 1 | DSA in Java | Find duplicate IDs with a set | `d-hashing-01` | `j-oop-01` | 134 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 2 | Java | Thread interleavings and races | `j-concurrency-01` | `j-concurrency-01` | 146 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 1 | Low-level design | Domain invariants | `l-invariants-01` | `j-oop-01` | 182 | 4 / 4 | 4 | 1 | 3 | 1 |
+| 1 | System design | Browser-to-server request flow | `h-request-01` | `j-oop-01` | 191 | 4 / 4 | 4 | 1 | 3 | 2 |
+| 1 | AI engineering | Training, inference and application boundaries | `ai-foundations-01` | `j-oop-01` | 180 | 3 / 3 | 4 | 1 | 2 | 1 |
+| 1 | DSA in Java | Find duplicate IDs with a set | `d-hashing-01` | `j-oop-01` | 168 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 2 | Java | Thread interleavings and races | `j-concurrency-01` | `j-concurrency-01` | 180 | 3 / 3 | 4 | 1 | 3 | 2 |
 | 3 | Java | Synchronization, visibility and atomicity | `j-concurrency-02` | `j-concurrency-02` | 169 | 4 / 4 | 3 | 1 | 2 | 1 |
 | 4 | Java | Equality and hash codes | `j-equality-01` | `j-equality-01` | 175 | 3 / 3 | 3 | 1 | 2 | 1 |
 | 4 | Java | HashMap internals and collection choice | `j-collections-01` | `j-equality-01` | 341 | 5 / 5 | 5 | 1 | 4 | 4 |
@@ -122,23 +122,23 @@ Zero means the topic has no dedicated field of that kind. The named parent lesso
 | 16 | Spring Boot & backend | JPA entities, flush and N+1 | `b-jpa-01` | `b-jpa-01` | 125 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 16 | Spring Boot & backend | PostgreSQL integration tests | `b-testing-02` | `b-jpa-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 17 | System design | Multiple application instances | `h-scaling-01` | `h-scaling-01` | 302 | 4 / 4 | 4 | 1 | 4 | 2 |
-| 18 | System design | Functional and non-functional requirements | `h-requirements-01` | `h-requirements-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 18 | System design | Functional and non-functional requirements | `h-requirements-01` | `h-requirements-01` | 128 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 18 | System design | Capacity estimates and hot keys | `h-estimates-01` | `h-requirements-01` | 179 | 3 / 3 | 3 | 1 | 2 | 1 |
-| 19 | Low-level design | Hold states and expiry | `l-invariants-02` | `l-invariants-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 19 | SQL and data | Atomic hold confirmation | `b-transactions-04` | `l-invariants-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 20 | Spring Boot & backend | Idempotency keys | `b-http-02` | `b-http-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 20 | System design | Recovery after a lost response | `h-reliability-01` | `b-http-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 21 | System design | Replication, partitioning and sharding | `h-databases-01` | `h-databases-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 21 | SQL and data | SQL indexes and query plans | `b-sql-02` | `h-databases-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 22 | Spring Boot & backend | Redis cache-aside and eviction | `b-caching-01` | `b-caching-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 22 | System design | Cache staleness and invalidation | `h-caching-01` | `b-caching-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 22 | DSA in Java | Cache capacity and eviction trade-offs | `d-lru-01` | `b-caching-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 23 | Spring Boot & backend | Kafka partitions, consumer groups and offsets | `b-messaging-01` | `b-messaging-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 23 | System design | Message redelivery and deduplication | `h-queues-01` | `b-messaging-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 24 | System design | Load balancing and traffic experiments | `h-loadbalance-01` | `h-loadbalance-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 24 | System design | Latency percentiles and queue wait | `h-observability-01` | `h-loadbalance-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 25 | System design | Consistency choices during a partition | `h-consistency-01` | `h-consistency-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 25 | System design | Timeouts and degraded operation | `h-reliability-02` | `h-consistency-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 19 | Low-level design | Hold states and expiry | `l-invariants-02` | `l-invariants-02` | 140 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 19 | SQL and data | Atomic hold confirmation | `b-transactions-04` | `l-invariants-02` | 143 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 20 | Spring Boot & backend | Idempotency keys | `b-http-02` | `b-http-02` | 141 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 20 | System design | Recovery after a lost response | `h-reliability-01` | `b-http-02` | 126 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 21 | System design | Replication, partitioning and sharding | `h-databases-01` | `h-databases-01` | 147 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 21 | SQL and data | SQL indexes and query plans | `b-sql-02` | `h-databases-01` | 134 | 3 / 3 | 3 | 1 | 3 | 2 |
+| 22 | Spring Boot & backend | Redis cache-aside and eviction | `b-caching-01` | `b-caching-01` | 127 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 22 | System design | Cache staleness and invalidation | `h-caching-01` | `b-caching-01` | 128 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 22 | DSA in Java | Cache capacity and eviction trade-offs | `d-lru-01` | `b-caching-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 23 | Spring Boot & backend | Kafka partitions, consumer groups and offsets | `b-messaging-01` | `b-messaging-01` | 128 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 23 | System design | Message redelivery and deduplication | `h-queues-01` | `b-messaging-01` | 121 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 24 | System design | Load balancing and traffic experiments | `h-loadbalance-01` | `h-loadbalance-01` | 129 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 24 | System design | Latency percentiles and queue wait | `h-observability-01` | `h-loadbalance-01` | 123 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 25 | System design | Consistency choices during a partition | `h-consistency-01` | `h-consistency-01` | 128 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 25 | System design | Timeouts and degraded operation | `h-reliability-02` | `h-consistency-01` | 112 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 26 | DSA in Java | Time, space and input size | `d-complexity-01` | `d-complexity-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 26 | DSA in Java | Array scans and prefix sums | `d-arrays-01` | `d-complexity-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 26 | DSA in Java | Recursion, factorial and Fibonacci | `d-recursion-02` | `d-complexity-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
@@ -312,3 +312,9 @@ The exact displayed NumberAlgorithms.java ran on Java 21. It includes determinis
 ## Days 7–16 verification
 
 The exact displayed BoundedBookingWork.java ran under JDK 21. The test holds one worker with a latch, fills a single queue slot, rejects the third submission, verifies that a timed wait leaves work active and asserts termination. Sixteen distinct attached reference URLs returned HTTP 200. The nine Node tests, all 56 Learn and Coach routes, mobile route checks and the two-browser account flow passed. The Spring, JPA and PostgreSQL exercises still need execution on their intended infrastructure.
+
+## Days 18–25 and v2 root verification
+
+All 16 new topic records resolve through their stable IDs, and all 15 attached reference URLs returned HTTP 200. The combined build passed 63 backend and engine/adapter unit tests, two viewport runs of all 56 root Learn and Coach routes, the two-browser root save/reload/reopen flow, and 65 integrated Day 1–2 checks. The standalone TwoSum.java, Foundations.java and Day 56 number algorithms ran on JDK 21. These runs validate local behavior. Redis, Kafka, PostgreSQL labs and the deployed account service remain open.
+
+Multi-topic display remains a v2 adapter bug. An explicit check for the second and later packet bodies on Day 56 failed even though the day-level lesson, code and diagram rendered. [Reproducer and requested UI fix](https://github.com/Rishabh10045/ai-learning-platform/pull/5#issuecomment-7076527978)

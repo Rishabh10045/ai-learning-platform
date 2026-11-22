@@ -3,42 +3,137 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Study Desk (UI preview with example data)</title>
+  <title>Study Desk</title>
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%23c2571a%22/%3E%3C/svg%3E">
   <link rel="stylesheet" href="study-desk.css">
   <style>
     .demo-banner { margin: 0; padding: 6px 16px; font: 13px/1.4 system-ui, sans-serif; background: #fff2d9; color: #6b3d00; border-bottom: 1px solid #f0d9a8; text-align: center; }
+    .demo-banner a { color: #8a3b00; }
+    .demo-banner button { font: inherit; background: none; border: 0; color: #8a3b00; text-decoration: underline; cursor: pointer; padding: 0 2px; }
+    .host-notice { margin: 0; padding: 8px 16px; font: 14px/1.4 system-ui, sans-serif; background: #f8e4e4; color: #6e2020; border-bottom: 1px solid #ecc; }
   </style>
 </head>
 <body style="margin:0">
-  <p class="demo-banner" role="note">UI preview with <strong>example fixture data</strong>. Changes are kept in memory only and are lost on reload.</p>
+  <p class="demo-banner" role="note"><strong>Preview with example fixture data</strong> (not the real 54-session curriculum yet). Progress is kept in this browser only; account sync comes from Codex’s progress.js. <button type="button" id="demo-reset">Reset preview</button></p>
+  <p class="host-notice" id="host-notice" role="alert" hidden></p>
   <div id="study-desk"></div>
-
-  <script src="fixtures/curriculum.fixture.js"></script>
-  <script src="fixtures/lessons.fixture.js"></script>
-  <script src="fixtures/videos.fixture.js"></script>
-  <script src="fixtures/progress.fixture.js"></script>
+  <script src="engine/schedule-engine.js"></script>
+  <script src="engine/engagement-engine.js"></script>
+  <script src="fixtures/course.fixture.js"></script>
+  <script src="fixtures/legacy-progress.fixture.js"></script>
+  <script src="fixtures/engagement.fixture.js"></script>
   <script src="study-desk.js"></script>
   <script>
-    // Demo host: in-memory only. The real host (Codex's app.js + progress.js) owns persistence.
+    // DEMO HOST ONLY. The real host (Codex's app.js + progress.js) owns persistence and account sync.
+    // ?today=YYYY-MM-DD pins the IST study date; ?migrate=1 seeds old day-based progress (only when nothing is stored);
+    // ?store=0 keeps progress in memory only. ?engagement=example shows a made-up history (memory only, labelled Example data); ?engagement=off hides the engagement UI.
     (function () {
-      var F = window.STUDY_DESK_FIXTURES;
-      var progress = JSON.parse(JSON.stringify(F.progress));
-      function dayEntry(day) { return progress.days[day] || (progress.days[day] = { blocks: {}, practice: {}, notes: "" }); }
+      var S = window.StudyDeskSchedule, E = window.StudyDeskEngagement, F = window.STUDY_DESK_FIXTURES, qs = new URLSearchParams(location.search);
+      var example = qs.get("engagement") === "example";
+      var KEY = "studydesk.preview.v2", useStore = qs.get("store") !== "0" && !example;
+      var pinned = S.isISO(qs.get("today")) ? qs.get("today") : example ? F.engagementExample.today : null;
+      var cutoff = (F.course.schedule && F.course.schedule.dayCutoff) || S.DEFAULTS.dayCutoff;
+      // Study date: before 04:00 IST still counts as the previous evening (QA H3).
+      var today = pinned || S.studyDayIST(Date.now(), cutoff);
+      var notices = [];
+      var baseSync = { state: "local", label: useStore ? "Preview · this browser only" : "Preview · memory only" }, sync = baseSync;
+
+      function stamp() { return new Date().toISOString().replace(/[:.]/g, "-"); }
+      // Never wipe what we cannot read: keep a copy and say so (QA M4).
+      function backup(raw, why) {
+        var k = KEY + ".backup." + stamp();
+        try { localStorage.setItem(k, raw); notices.push("Saved progress could not be used (" + why + "). A copy was kept in localStorage as “" + k + "”. Starting from a clean slate."); }
+        catch (e) { notices.push("Saved progress could not be used (" + why + ") and there was no room to back it up."); }
+        console.warn("Study Desk: stored progress backed up", k, why);
+      }
+      function load() {
+        if (!useStore) return null;
+        var raw = null; try { raw = localStorage.getItem(KEY); } catch (e) { return null; }
+        if (raw == null) return null;
+        var parsed;
+        try { parsed = JSON.parse(raw); } catch (e) { backup(raw, "not valid JSON"); return null; }
+        var problems = S.validateProgress(parsed);
+        if (problems.length) { backup(raw, problems.join("; ")); return null; }
+        if (parsed.schemaVersion !== S.SCHEMA_VERSION && parsed.days) {   // v1 day-based progress: migrate once, keep the original (QA M11)
+          try { localStorage.setItem(KEY + ".v1-original", raw); } catch (e) {}
+          var m = S.migrateProgress(F.course, parsed); console.info("Migrated v1 progress", m.report);
+          notices.push("Old day-based progress was converted to lesson IDs (" + m.report.migrated + " items moved, " + m.report.kept + " kept as legacy). The original is kept as “" + KEY + ".v1-original”.");
+          return m.progress;
+        }
+        return parsed;
+      }
+      var progress = load();
+      if (qs.get("migrate") === "1") {
+        if (progress) console.info("?migrate=1 ignored: progress is already stored (Reset preview first)");
+        else { var mg = S.migrateProgress(F.course, F.legacyProgress); progress = mg.progress; console.info("Migrated legacy progress", mg.report); }
+      }
+      if (example) {
+        progress = F.engagementExample.build(S, E, F.course);
+        var eb = document.createElement("p"); eb.className = "demo-banner"; eb.setAttribute("role", "note");
+        eb.innerHTML = "<strong>Example data</strong>: XP, streak, tasks and activity below come from a made-up history (22–27 Nov), kept in memory only. <a href=\"?\">Back to my preview</a>";
+        document.body.insertBefore(eb, document.getElementById("study-desk"));
+      }
+      progress = S.normalize(progress || S.emptyProgress());
+
+      // Returns "" or the reason the save failed (QA M3: storage full is reported, not swallowed).
+      function save() {
+        if (!useStore) return "";
+        try { localStorage.setItem(KEY, JSON.stringify(progress)); return ""; }
+        catch (e) { return /quota/i.test(String(e && (e.name + e.message))) ? "browser storage is full" : String(e && e.message || e); }
+      }
+      function setSync(err) {
+        sync = err ? { state: "error", label: "Not saved", detail: "Your last change is only in this tab: " + err + ". Free some space (or export your notes) and try again." } : baseSync;
+      }
+      var firstErr = save(); setSync(firstErr);
+      function hostChange(change) {
+        change.date = change.date || today;
+        // Engagement reducer: schedule rules + challenge/prefs checks + timestamped activity log.
+        var r = E.applyChange(F.course, progress, change, change.at);
+        if (!r.ok) return r;
+        progress = r.progress;
+        var err = save(); setSync(err);
+        desk.update({ progress: progress, sync: sync });
+        return err ? { ok: false, reason: "Not saved: " + err + ". The change is kept in this tab only.", result: r.result } : r;
+      }
       var desk = StudyDesk.mount(document.getElementById("study-desk"), {
-        curriculum: F.curriculum, lessons: F.lessons, videos: F.videos, progress: progress,
-        headerLinks: [{ label: "Coverage check", href: "coverage.html" }],
-        onProgressChange: function (c) {
-          var e = dayEntry(c.day);
-          if (c.scope === "day") e.status = c.status;
-          else if (c.scope === "block") { (e.blocks = e.blocks || {})[c.id] = c.status; delete e.status; }
-          else if (c.scope === "practice") (e.practice = e.practice || {})[c.id] = c.status;
-          desk.update({ progress: progress });
-        },
-        onNoteChange: function (day, text) { dayEntry(day).notes = text; return Promise.resolve(); }
+        course: F.course, progress: progress, today: today, sync: sync,
+        engagement: example ? { example: true } : qs.get("engagement") === "off" ? false : undefined,   // ?engagement=off: engagement UI hidden (old behaviour)
+        headerLinks: [{ label: "Coverage", href: "coverage.html" }],
+        onChange: function (change) { return hostChange(change); }
       });
+
+      // Another tab saved: load its progress instead of overwriting it later (QA M5).
+      window.addEventListener("storage", function (e) {
+        if (!useStore || e.key !== KEY || e.newValue == null) return;
+        try { var p = JSON.parse(e.newValue); if (S.validateProgress(p).length) return; progress = S.normalize(p); desk.update({ progress: progress }); } catch (err) {}
+      });
+
+      // Re-evaluate the study date every minute and when the tab comes back (QA H3).
+      function tick(now, force) {
+        if (pinned && !force) return;
+        var t = S.studyDayIST(now != null ? now : Date.now(), cutoff);
+        if (t !== today) { today = t; desk.update({ today: today }); }
+      }
+      setInterval(tick, 60000);
+      window.addEventListener("focus", function () { tick(); });
+      document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") tick(); });
+
+      var noticeEl = document.getElementById("host-notice");
+      function showNotices() { noticeEl.hidden = !notices.length; noticeEl.textContent = notices.join(" "); }
+      showNotices();
+
       window.__studyDesk = desk;
+      window.__studyDeskProgress = function () { return progress; };
+      window.__studyDeskApply = function (change) { return desk && arguments.length ? hostChange(change) : null; };
+      window.__studyDeskToday = function () { return today; };
+      window.__studyDeskTick = function (nowMs) { tick(nowMs, true); return today; };   // test hook: pretend the clock is nowMs
+      document.getElementById("demo-reset").addEventListener("click", function () {
+        // One click must not wipe weeks of work (QA M6): confirm, and keep the previous progress.
+        if (!window.confirm("Reset the preview? This clears all progress and notes in this browser. A copy is kept as “" + KEY + ".lastReset”.")) return;
+        if (useStore) try { localStorage.setItem(KEY + ".lastReset", JSON.stringify(progress)); } catch (e) {}
+        progress = S.emptyProgress(); setSync(save()); desk.update({ progress: progress, sync: sync });
+      });
     })();
   </script>
 </body>
