@@ -3,6 +3,7 @@ import { lessonContent } from './lesson-content.js';
 import { assessmentScenarios } from './assessment-scenarios.js';
 import { interviewGuides } from './interview-guides.js';
 import { extraAssessment, extraDistractors, extraExplanations } from './day-depth.js';
+import { lateInterviewGuides } from './late-depth.js';
 
 // Each row supplies a negative/edge fixture, a separate stretch exercise and an applied interview prompt.
 // Quiz pairs are correct explanation followed by a plausible misconception.
@@ -297,7 +298,7 @@ const dayOneExtra = [
   'Give the expected time and extra space of duplicate detection. State your assumptions and one adversarial input.'
 ];
 
-export const assessmentVersion = 3; // 3: Day 1–2 four-option questions + two Day 2 questions (Grok, 2026-11-22)
+export const assessmentVersion = 5; // 3: Day 1–2 four-option questions + two Day 2 questions; 4: Days 41–43 depth (late-depth.js); 5: Days 44+ depth (Grok, 2026-11-22)
 
 function compile(question, options, explanation) {
   // A stable option order lets the browser and account API grade the same version.
@@ -311,7 +312,7 @@ function compile(question, options, explanation) {
 export const sessionQA = Object.fromEntries(days.map((day, index) => {
   const [test, stretch, probe, ...pairs] = rows[index];
   const lesson = lessonContent[day.number];
-  const starter = day.blocks.find(block => block.recall && block.id !== 'revision').recall;
+  const starter = day.blocks.find(block => block.recall && block.id !== 'revision' && block.id !== 'dsa').recall; // the DSA lane's recall is not the session's starter question
   const assessment = [
     ...pairs.map(([question, right, wrong], i) => compile(question, [right, wrong, ...(extraDistractors[day.number]?.[i] || [])],
       extraExplanations[day.number]?.[i] || right)),
@@ -329,7 +330,7 @@ export const sessionQA = Object.fromEntries(days.map((day, index) => {
   return [day.number, {
     test, stretch,
     questions: day.number === 1 ? [starter, lesson.variation, ...dayOneExtra] : [starter, lesson.variation, probe],
-    answers: interviewGuides[day.number],
+    answers: lateInterviewGuides[day.number] || interviewGuides[day.number], // Days 41–56: fuller answers (late-depth.js)
     assessment
   }];
 }));

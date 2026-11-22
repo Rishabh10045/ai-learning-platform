@@ -1,0 +1,400 @@
+{
+ "note": "Learner profile written by the Study Desk host/adapter shipped at main 0203934 (Day 1 complete, 100% self-check, notes, takeaway, 3 interview marks). Used by ui/checks/upgrade.test.mjs.",
+ "storage": {
+  "ai-learning-platform.study-desk.v1": "{\"sessions\":{\"1\":{\"startedOn\":\"2026-11-22\",\"completedOn\":\"2026-11-22\",\"checked\":[\"foundations\",\"lab\",\"http\",\"ai\",\"dsa\",\"review\"],\"evidence\":\"first=true second=false owner=U1\",\"notes\":\"\"}},\"unavailable\":[],\"videoProgress\":{},\"personalNotes\":{\"1\":\"UPGRADE-NOTE: owner never changes on a failed claim.\"},\"udemyLectures\":{},\"assessments\":{\"1\":{\"score\":5,\"attempts\":1,\"lastAttempt\":\"2026-11-22\",\"stale\":false,\"correct\":[true,true,true,true,true],\"bankVersion\":3}},\"planned\":{},\"topicTakeaways\":{\"j-oop-01\":\"UPGRADE-TAKEAWAY validate first, then mutate.\"},\"preferences\":{\"weekdayMinutes\":120,\"saturdayMinutes\":390,\"sundayMinutes\":390,\"emailReminders\":false}}",
+  "ai-learning-platform.study-desk.ui-sidecar.v1": "{\"v\":1,\"interview\":{\"j-oop-01-iq1\":{\"lessonId\":\"j-oop-01\",\"answeredOn\":\"2026-11-22\"},\"j-oop-01-iq2\":{\"lessonId\":\"j-oop-01\",\"answeredOn\":\"2026-11-22\"},\"j-oop-01-iq3\":{\"lessonId\":\"j-oop-01\",\"answeredOn\":\"2026-11-22\"}},\"challenges\":{},\"notifications\":null,\"practice\":{\"j-foundations-01.foundations\":{\"evidence\":\"\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.lab\":{\"evidence\":\"\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.http\":{\"evidence\":\"\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.ai\":{\"evidence\":\"\",\"completedOn\":\"2026-11-22\"},\"d-hashing-01.dsa\":{\"evidence\":\"https://github.com/x/dup\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.review\":{\"completedOn\":\"2026-11-22\"}},\"watchLog\":{},\"revisions\":{},\"activity\":[{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-foundations-01.foundations\",\"xp\":75,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.lab\",\"xp\":25,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.http\",\"xp\":25,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.ai\",\"xp\":25,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"d-hashing-01.dsa\",\"xp\":85,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.review\",\"xp\":35,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"quiz\",\"id\":\"j-oop-01\",\"xp\":30},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"lesson\",\"id\":\"d-hashing-01\",\"xp\":0,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"lesson\",\"id\":\"j-oop-01\",\"xp\":90,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"note\",\"id\":\"S01\",\"xp\":0},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"takeaway\",\"id\":null,\"xp\":0},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"interview\",\"id\":\"j-oop-01-iq1\",\"xp\":5},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"interview\",\"id\":\"j-oop-01-iq2\",\"xp\":5},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"interview\",\"id\":\"j-oop-01-iq3\",\"xp\":5}],\"lastActiveAt\":\"2026-11-22T16:00:00.000Z\"}"
+ },
+ "lessonIds": [
+  {
+   "main": [
+    "j-oop-01"
+   ],
+   "dsa": [
+    "d-hashing-01"
+   ],
+   "warmup": "j-foundations-01"
+  },
+  {
+   "main": [
+    "j-concurrency-01"
+   ],
+   "dsa": [
+    "j-concurrency-01.dsa"
+   ],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-concurrency-02"
+   ],
+   "dsa": [
+    "j-concurrency-02.dsa"
+   ],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-equality-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-oop-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-generics-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-executors-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "l-uml-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-build-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-http-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-validation-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-sql-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-jdbc-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-transactions-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-transactions-03"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-jpa-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-scaling-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-requirements-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "l-invariants-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-http-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-databases-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-caching-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-messaging-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-loadbalance-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-consistency-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-complexity-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-pointers-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-sort-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-lru-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-recursion-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-graphs-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-greedy-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-security-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-deployment-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-foundations-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-prompting-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-model-api-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-embeddings-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-rag-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-evaluation-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-tools-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-security-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-customization-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-case-up-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "l-review-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-jvm-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-di-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "b-security-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-api-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-queues-02"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "h-cloud-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-backtracking-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-math-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "ai-operations-03"
+   ],
+   "dsa": [],
+   "warmup": null
+  },
+  {
+   "main": [
+    "d-union-find-01"
+   ],
+   "dsa": [],
+   "warmup": null
+  }
+ ]
+}

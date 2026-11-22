@@ -836,6 +836,25 @@
         h("div", { class: "sd-progline" }, meter(c.pct, c.title + " progress"), h("span", { class: "sd-muted", text: fmtNum(Math.min(c.value, c.target)) + "/" + fmtNum(c.target) })),
         h("div", { class: "sd-chal-actions" }, btn, c.href && !c.claimed ? h("a", { class: "sd-link", href: c.href, text: "Go ▸" }) : null));
     }
+    // Spaced revision: each finished session comes back 1, 3 and 7 days later for a 5-minute recall.
+    function revisionCard(rv, eng) {
+      var mine = !isExample(eng), due = rv.due || [], up = rv.upcoming || [];
+      var sec = h("section", { class: "sd-card sd-revisions", "aria-labelledby": "sd-rev-h" },
+        h("div", { class: "sd-card-h" }, h("h2", { id: "sd-rev-h", text: "Due revisions" + (due.length ? " (" + due.length + ")" : "") }),
+          h("span", { class: "sd-muted", text: "+1, +3 and +7 days after you finish a session · +" + E().POINTS.spacedRevision + " XP each" })));
+      if (!due.length) sec.appendChild(h("p", { class: "sd-emptynote", text: rv.done ? "Nothing due today. " + rv.done + " spaced revision" + (rv.done === 1 ? "" : "s") + " done so far." : "Nothing due yet. Finish a session and it comes back here tomorrow, in 3 days and in a week." }));
+      else sec.appendChild(h("ul", { class: "sd-revlist" }, due.map(function (x) {
+        return h("li", { class: "sd-rev", "data-revision": x.id },
+          h("div", { class: "sd-rev-body" },
+            h("p", { class: "sd-eyebrow", text: "Day " + x.n + " · +" + x.step + " day" + (x.step === 1 ? "" : "s") + (x.overdueDays ? " · due " + x.overdueDays + " day" + (x.overdueDays === 1 ? "" : "s") + " ago" : " · due today") }),
+            h("a", { class: "sd-rev-t", href: x.href, text: x.title }),
+            x.prompt ? h("p", { class: "sd-muted sd-rev-q", text: "Recall without notes: " + x.prompt }) : null),
+          h("button", { type: "button", class: "sd-btn", "data-revise": x.id,
+            onclick: function () { if (!mine) { toast("Example data: nothing to mark."); return; } emit({ type: "spaced", id: x.id, done: true }); } }, "Mark revised"));
+      })));
+      if (up.length) sec.appendChild(h("p", { class: "sd-muted sd-rev-next", text: "Coming up: " + up.slice(0, 4).map(function (x) { return "Day " + x.n + " (+" + x.step + ") on " + fmtDate(x.dueOn); }).join(" · ") }));
+      return sec;
+    }
     function engToday(eng) {
       var tk = eng.tasks || { tasks: [] }, wrap = h("div", { class: "sd-eng-grid" });
       var card = h("section", { class: "sd-card sd-tasks", "aria-labelledby": "sd-tasks-h" });
@@ -845,11 +864,15 @@
           exampleChip(eng)));
       card.appendChild(head);
       if (tk.tasks && tk.tasks.length) card.appendChild(h("ul", { class: "sd-tasklist" }, tk.tasks.map(taskRow)));
+      if (tk.optional && tk.optional.length) card.appendChild(h("details", { class: "sd-optional" },
+        h("summary", { text: "Optional: topic packets and stretch work (" + (tk.optionalDone || 0) + "/" + tk.optional.length + " done) · they never block finishing tonight" }),
+        h("ul", { class: "sd-tasklist" }, tk.optional.map(taskRow))));
       wrap.appendChild(card);
       var chs = eng.challenges || [];
       var cc = h("section", { class: "sd-card sd-chals", "aria-labelledby": "sd-chal-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-chal-h", text: "Challenges" }), h("a", { class: "sd-link", href: "#activity", text: "Activity & badges ▸" })));
       if (chs.length) chs.forEach(function (c) { cc.appendChild(challengeCard(c, eng)); }); else cc.appendChild(h("p", { class: "sd-emptynote", text: "No challenge today." }));
       wrap.appendChild(cc);
+      if (eng.revisions) wrap.appendChild(revisionCard(eng.revisions, eng));
       return wrap;
     }
     function fmtAt(iso) {
@@ -857,7 +880,7 @@
       var d = new Date(ms + 330 * 60000), H = d.getUTCHours(), M = d.getUTCMinutes();
       return fmtDate(d.toISOString().slice(0, 10)) + ", " + ((H + 11) % 12 + 1) + ":" + String(M).padStart(2, "0") + " " + (H < 12 ? "AM" : "PM") + " IST";
     }
-    var ACT_LABEL = { lesson: "Lesson", practice: "Practice", quiz: "Lesson check", test: "Module test", watch: "Video", note: "Notes", revision: "Revision", interview: "Interview answer", takeaway: "Key takeaway", challenge: "Challenge", prefs: "Reminder settings", unavailable: "Day off", minutes: "Study minutes" };
+    var ACT_LABEL = { lesson: "Lesson", practice: "Practice", quiz: "Lesson check", test: "Module test", watch: "Video", note: "Notes", revision: "Revision", interview: "Interview answer", takeaway: "Key takeaway", challenge: "Challenge", spaced: "Spaced revision", prefs: "Reminder settings", unavailable: "Day off", minutes: "Study minutes" };
     // First 10 rows visible, the rest behind a native <details> (keyboard accessible, no JS state).
     function moreList(cls, items, row, noun) {
       var first = items.slice(0, 10), rest = items.slice(10), wrap = h("div", null, h("ul", { class: cls }, first.map(row)));
@@ -900,7 +923,7 @@
       // how points work
       var P = E().POINTS;
       var rows = [["Finish a lesson", P.lessonComplete], ["Pass a lesson check", P.quizPass + " (+" + P.quizPerfectBonus + " for 100%)"], ["Practice item done", P.practiceComplete + " (+" + P.practiceEvidenceBonus + " with evidence)"],
-        ["Quick revision", P.revisionDone], ["Interview question answered", P.interviewAnswer + " each"], ["Module test passed", P.moduleTestPass + " (+" + P.moduleTestHighBonus + " for 90%+)"],
+        ["Quick revision", P.revisionDone], ["Spaced revision (+1, +3, +7 days)", P.spacedRevision + " each"], ["Interview question answered", P.interviewAnswer + " each"], ["Module test passed", P.moduleTestPass + " (+" + P.moduleTestHighBonus + " for 90%+)"],
         ["Whole session finished", P.sessionComplete], ["Videos", P.watchPer10Min + " per 10 min, max " + P.watchDailyCap + "/day"], ["Daily challenge", P.dailyChallenge], ["Weekly challenge", P.weeklyChallenge]];
       main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-pts-h" }, h("h2", { id: "sd-pts-h", text: "How points work" }),
         h("table", { class: "sd-pts" }, h("thead", null, h("tr", null, h("th", { scope: "col", text: "Action" }), h("th", { scope: "col", text: "XP" }))),

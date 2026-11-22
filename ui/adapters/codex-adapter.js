@@ -22,7 +22,7 @@ export const SIDECAR_KEY = 'ai-learning-platform.study-desk.ui-sidecar.v1';
 export const SIDECAR_VERSION = 1;
 
 export function emptySidecar() {
-  return { v: SIDECAR_VERSION, interview: {}, challenges: {}, notifications: null, practice: {}, watchLog: {}, revisions: {}, activity: [], lastActiveAt: null };
+  return { v: SIDECAR_VERSION, interview: {}, challenges: {}, notifications: null, practice: {}, watchLog: {}, revisions: {}, spaced: {}, activity: [], lastActiveAt: null };
 }
 export function readSidecar(storage) {
   try {
@@ -181,14 +181,11 @@ export function createCodexAdapter({ S, E, codex }) {
       interview: (wp.interview || []).map(([prompt, answer], i) => ({ id: warmId + '-tq' + (i + 1), prompt, answer, topicId: warmId })),
       takeaways: (wp.takeaways || []).map(text => ({ topicId: warmId, text }))
     } : null;
-    if (warmup && wp.check) {
-      const [q, options, answer, why] = wp.check;
-      warmup.notes.push({ type: 'details', summary: 'Concept check: ' + q, text: options.map((o, i) => String.fromCharCode(65 + i) + '. ' + o).join('\n') + '\n\nAnswer: ' + String.fromCharCode(65 + answer) + '. ' + options[answer] + (why ? '\n' + why : '') });
-    }
+    // The warm-up concept check is rendered once, by packetNotes (wp.check).
     const plan = stretchPlans[n];
     if (plan) {
       const items = [main, lane, warmup].filter(Boolean).flatMap(l => l.practice);
-      for (const pr of items) if (plan.assign?.[pr.id]) { pr.stretch = true; pr.minutes = plan.assign[pr.id]; pr.title = 'Stretch · ' + pr.title.replace(/^Stretch practice$/, 'booking lab test harness'); }
+      for (const pr of items) if (plan.assign?.[pr.id]) { pr.stretch = true; pr.minutes = plan.assign[pr.id]; pr.title = 'Stretch · ' + pr.title.replace(/^Stretch practice$/, n === 1 ? 'booking lab test harness' : 'session exercise'); } // Day 1's stretch is the lab harness
       for (const x of plan.extra || []) main.practice.push({ id: x.id, block: null, day: n, title: x.title, platform: 'Java', minutes: x.minutes, prompt: x.prompt, acceptance: x.acceptance || [], required: false, stretch: true });
     }
     return { main, lane, warmup };
@@ -268,6 +265,7 @@ export function createCodexAdapter({ S, E, codex }) {
     p.takeaways = { ...(state.topicTakeaways || {}) };
     p.interview = clone(side.interview || {});
     p.challenges = clone(side.challenges || {});
+    p.spaced = clone(side.spaced || {});
     p.prefs = { notifications: { ...(side.notifications || {}), email: prefs.emailReminders === true } };
     p.activity = clone(side.activity || []);
     if (side.lastActiveAt) p.lastActiveAt = side.lastActiveAt;
@@ -358,6 +356,11 @@ export function createCodexAdapter({ S, E, codex }) {
         if (change.answered === false) delete side.interview[change.id]; else side.interview[change.id] = { lessonId: change.lessonId, answeredOn: date };
         return { actions: [], side };
       }
+      case 'spaced': // {id: 'S03+7', done}: +1/+3/+7-day spaced revision (sidecar only; due checks in engagement-engine.js)
+        if (!/^S\d{2}\+(1|3|7)$/.test(change.id || '')) return fail('Unknown spaced revision ' + change.id);
+        side.spaced = side.spaced || {};
+        if (change.done === false) delete side.spaced[change.id]; else side.spaced[change.id] = { doneOn: date };
+        return { actions: [], side };
       case 'challenge':
         if (change.done === false) delete side.challenges[change.id]; else side.challenges[change.id] = { doneOn: date, kind: change.kind || null, title: change.title || null };
         return { actions: [], side };
@@ -406,9 +409,11 @@ export function createCodexHost({ S, E, adapter, codex, storage, sync = null, to
 
   function change(ch) {
     const run = async () => {
-      ch = { ...ch, date: today() };
+      // `date` is the IST day the change happens, except for 'unavailable', where it is the day being marked (the
+      // calendar can mark a future date). Overwriting it marked TODAY instead (found by engagement-real.test.mjs).
+      ch = { ...ch, date: ch.type === 'unavailable' && /^\d{4}-\d{2}-\d{2}$/.test(ch.date || '') ? ch.date : today() };
       const before = adapter.toProgress(state, side);
-      if (ch.type === 'challenge' || ch.type === 'prefs') {
+      if (ch.type === 'challenge' || ch.type === 'prefs' || ch.type === 'spaced') {
         const v = E.applyChange(adapter.course, before, ch, ch.at);
         if (!v.ok) return v;
         if (ch.type === 'challenge') ch = { ...ch, kind: v.progress.challenges[ch.id]?.kind, title: v.progress.challenges[ch.id]?.title };

@@ -59,7 +59,9 @@ const videos = {
   safety: microsoft('gen-ai-lesson13-gh', 'Securing Generative AI Applications', 'Focus on input trust boundaries and application checks.'),
   tuning: microsoft('gen-ai-lesson18-gh', 'Fine-Tuning LLMs', 'Focus on when customization helps. The training implementation is optional.'),
   springAi: youtube('aNKDoiOUo9M', 'Spring Tips: Spring AI', 'SpringDeveloper', 'Use this for the integration overview. Follow the current Spring AI reference for API signatures.'),
-  ollama: youtube('P4P24jmogmM', 'Getting Started with Ollama in Spring', 'SpringDeveloper', 'Focus on the local model setup and provider boundary.')
+  ollama: youtube('P4P24jmogmM', 'Getting Started with Ollama in Spring', 'SpringDeveloper', 'Focus on the local model setup and provider boundary.'),
+  mst: mit('tKwnms5iRBU', 'Greedy Algorithms: Minimum Spanning Tree', 'Focus on the cut property and why Kruskal’s smallest safe edge is always correct.'),
+  numberTheory: mit('NuY7szYSXSw', 'Mathematics for Computer Science · Number Theory I', 'Focus on the GCD, Euclid’s algorithm and linear combinations (Bézout).')
 };
 
 const byDay = {
@@ -73,7 +75,7 @@ const byDay = {
   35: ['models'], 36: ['prompts'], 37: ['springAi'], 38: ['pythonRetrieval'],
   39: ['rag'], 40: ['evaluation'], 41: ['toolCalling'], 42: ['safety'],
   43: ['tuning'], 44: ['springAi'], 45: ['designInterview'], 46: ['memory'], 47: ['injection'], 48: ['oauth'],
-  49: ['gateway'], 50: ['kafka'], 51: ['docker'], 52: ['dijkstra', 'dfs'], 53: ['intervalDp'], 54: ['ollama']
+  49: ['gateway'], 50: ['kafka'], 51: ['docker'], 52: ['dijkstra', 'dfs'], 53: ['intervalDp'], 54: ['ollama'], 55: ['mst'], 56: ['numberTheory']
 };
 
 export function videosForDay(number) {

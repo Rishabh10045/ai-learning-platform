@@ -1,0 +1,9 @@
+{
+  "name": "study-desk-ci",
+  "private": true,
+  "description": "Browser-check dependencies for ci/run-all.sh (not used by the site).",
+  "dependencies": {
+    "axe-core": "4.14.1",
+    "puppeteer-core": "23.11.1"
+  }
+}

@@ -176,3 +176,31 @@ test('every packet on a multi-topic day renders its own heading and note body (f
   const d56 = A.lessonsByDay[56].main.notes.filter(n => n.type === 'h' && n.text.startsWith('Topic packet · ')).map(n => n.text);
   assert.ok(d56.length >= 2, 'Day 56 renders every packet: ' + d56.join(' | '));
 });
+
+test('no lesson renders the same concept check or heading twice (Day 1 warm-up duplicate regression)', () => {
+  for (const d of codex.days) for (const l of ['main', 'lane', 'warmup'].map(k => A.lessonsByDay[d.number][k]).filter(Boolean)) {
+    const checks = l.notes.filter(n => n.type === 'details').map(n => n.summary);
+    assert.equal(new Set(checks).size, checks.length, 'Day ' + d.number + ' ' + l.id + ': duplicate ' + checks.join(' | '));
+    const heads = l.notes.filter(n => n.type === 'h').map(n => n.text);
+    assert.equal(new Set(heads).size, heads.length, 'Day ' + d.number + ' ' + l.id + ': duplicate heading');
+  }
+  assert.equal(A.lessonsByDay[1].warmup.notes.filter(n => n.type === 'details').length, 1);
+});
+
+test('the first interview question is the main lesson recall, never the DSA lane recall (Days 2–3 mismatch regression)', () => {
+  for (const d of codex.days) {
+    const lane = d.blocks.find(b => b.id === 'dsa');
+    if (!lane?.recall) continue;
+    assert.notEqual(codex.sessionQA[d.number].questions[0], lane.recall, 'Day ' + d.number);
+    const review = d.blocks.find(b => b.id === 'review');
+    if (d.number > 1 && review?.recall) assert.equal(codex.sessionQA[d.number].questions[0], review.recall, 'Day ' + d.number); // Day 1 starts with the warm-up recall
+  }
+});
+
+test('weekend stretch items are labelled for their own day (no Day 1 label on later days)', () => {
+  for (const d of codex.days) {
+    const items = A.lessonsByDay[d.number].main.practice.filter(p => p.stretch);
+    if (d.number > 1) assert.ok(!items.some(p => /booking lab test harness/.test(p.title)), 'Day ' + d.number);
+  }
+  assert.ok(A.lessonsByDay[1].main.practice.some(p => p.title === 'Stretch · booking lab test harness'));
+});

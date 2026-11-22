@@ -510,11 +510,12 @@ for (const vpName of ["mobile", "mobile320"]) {
   const tk = await page.evaluate(() => window.__studyDesk.getDerived().eng.tasks);
   check("Engagement: all of Day 1's tasks done -> ring full and 'All done' message", tk.allDone && /All done/.test(await text(page, ".sd-tasks")), `${tk.done}/${tk.total}`);
   await page.screenshot({ path: path.join(shotDir, "desktop-today-day1-all-done.png"), fullPage: true });
-  // Activity view
+  // Activity view. "Last study activity" is the real wall-clock time of the action (lastActiveAt), not the simulated ?today=,
+  // so the check accepts any IST date. A fixed "Sun, 22 Nov" made CI fail on every run after 22 Nov 2026 IST.
   await page.evaluate(() => { location.hash = "#activity"; }); await sleep(80);
   const act = await text(page, ".sd-main");
   check("Engagement: #activity says numbers are calculated locally and shows streak, badges, points history, activity log with IST times, and the points table",
-    /Calculated in this browser from your progress/.test(act) && /Streak/.test(act) && /Badges/.test(act) && /Points history/.test(act) && /Activity log/.test(act) && /Last study activity: Sun, 22 Nov, \d+:\d\d (AM|PM) IST/.test(act) && /How points work/.test(act) && /First step/.test(act), act.slice(0, 120));
+    /Calculated in this browser from your progress/.test(act) && /Streak/.test(act) && /Badges/.test(act) && /Points history/.test(act) && /Activity log/.test(act) && /Last study activity: (Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec), \d+:\d\d (AM|PM) IST/.test(act) && /How points work/.test(act) && /First step/.test(act), act.slice(0, 120));
   check("Engagement: sidebar links to Activity and Reminders", (await allText(page, ".sd-sidenav a")).join("|").includes("Activity") && (await allText(page, ".sd-sidenav a")).join("|").includes("Reminders"));
   // Coach: mark an interview answer
   await go(page, "store=0&today=2026-11-23", "#day-2/coach");

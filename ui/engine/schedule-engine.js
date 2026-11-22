@@ -455,6 +455,12 @@
         if (change.answered === false) delete p.interview[change.id]; else p.interview[change.id] = { lessonId: change.lessonId, answeredOn: date };
         break;
       }
+      case "spaced": {      // {id: "S03+7", done}: spaced revision of a finished session (+1/+3/+7 days); due checks in engagement-engine.js
+        if (!/^.+\+(1|3|7)$/.test(change.id || "")) return fail("Unknown spaced revision " + change.id);
+        p.spaced = isObj(p.spaced) ? p.spaced : {};
+        if (change.done === false) delete p.spaced[change.id]; else p.spaced[change.id] = { doneOn: date };
+        break;
+      }
       case "challenge": {   // {id: "daily-YYYY-MM-DD" | "weekly-YYYY-MM-DD", done, kind, title}
         if (!/^(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(change.id || "")) return fail("Unknown challenge " + change.id);
         p.challenges = isObj(p.challenges) ? p.challenges : {};

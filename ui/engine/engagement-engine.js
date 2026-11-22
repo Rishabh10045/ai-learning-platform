@@ -8,6 +8,7 @@
  * engagement fields the reducer writes:
  *   progress.interview  { [questionId]: { lessonId, answeredOn } }
  *   progress.challenges { [challengeId]: { doneOn, kind, xp } }
+ *   progress.spaced     { ["S03+7"]: { doneOn } }   spaced revision of a finished session, +1/+3/+7 days later
  *   progress.prefs      { notifications: {...} }
  *   progress.activity   [ { at, date, type, id, xp } ]   (recordActivity, newest last)
  *   progress.lastActiveAt  ISO timestamp of the last study action
@@ -41,15 +42,18 @@
     watchPer10Min: 1,            // logged video minutes, 1 XP per 10 min
     watchDailyCap: 12,           // at most 12 XP/day from videos (videos are not the goal)
     dailyChallenge: 30,
-    weeklyChallenge: 150
+    weeklyChallenge: 150,
+    spacedRevision: 10           // +1/+3/+7-day spaced revision of a finished session
   };
+  // Spaced revision: review a finished session 1, 3 and 7 days after it was completed.
+  var SPACED_STEPS = [1, 3, 7];
   // Level n starts at LEVELS[n-1].xp. After the table: +1500 XP per level.
   var LEVELS = [
     { xp: 0, name: "Rookie" }, { xp: 200, name: "Learner" }, { xp: 500, name: "Builder" }, { xp: 1000, name: "Problem Solver" },
     { xp: 1750, name: "Engineer" }, { xp: 2750, name: "Senior Engineer" }, { xp: 4000, name: "Architect" }
   ];
   var NOTIFY_DEFAULTS = { email: false, address: "", intervalHours: 2.5, quietStart: "00:00", quietEnd: "06:00", timezone: "Asia/Kolkata", maxPerDay: 6 };
-  var STUDY_TYPES = { lesson: 1, practice: 1, quiz: 1, test: 1, watch: 1, note: 1, revision: 1, interview: 1, challenge: 1 };   // settings changes are not "activity"
+  var STUDY_TYPES = { lesson: 1, practice: 1, quiz: 1, test: 1, watch: 1, note: 1, revision: 1, interview: 1, challenge: 1, spaced: 1 };   // settings changes are not "activity"
   var ACTIVITY_CAP = 1000;
 
   function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
@@ -152,6 +156,8 @@
       var st = S.sessionStatus(r, idx, p);
       if (st.status === "complete") push(st.completedOn, "session", r.id, POINTS.sessionComplete, "Finished session " + r.n);
     });
+    var sp = isObj(p.spaced) ? p.spaced : {};
+    Object.keys(sp).forEach(function (k) { var m = /^(.+)\+(1|3|7)$/.exec(k); if (m && sp[k]) push(sp[k].doneOn, "spaced", k, POINTS.spacedRevision, "Spaced revision (+" + m[2] + " day" + (m[2] === "1" ? "" : "s") + ") of " + m[1]); });
     var ch = isObj(p.challenges) ? p.challenges : {};
     Object.keys(ch).forEach(function (id) {
       var c = ch[id] || {}, weekly = /^weekly-/.test(id);
@@ -218,7 +224,10 @@
     sessionItems(rs).forEach(function (l) {
       var isDsa = rs.dsa.indexOf(l) >= 0, warm = rs.warmup === l;
       if (l.quiz && (l.quiz.questions || []).length) t("quiz-" + l.id, "quiz", "Pass the lesson check: " + l.title, POINTS.quizPass, S.quizGate(l, p).passed, "#lesson/" + l.id);
-      (l.practice || []).forEach(function (pr) { t("practice-" + pr.id, "practice", (isDsa ? "DSA: " : "Practice: ") + pr.title.replace(/^(Practice|Problem set): /, ""), POINTS.practiceComplete + POINTS.practiceEvidenceBonus, S.practiceState(pr, p).status === "complete", base + "/practice"); });
+      (l.practice || []).forEach(function (pr) {
+        t("practice-" + pr.id, "practice", (isDsa ? "DSA: " : "Practice: ") + pr.title.replace(/^(Practice|Problem set): /, ""), POINTS.practiceComplete + POINTS.practiceEvidenceBonus, S.practiceState(pr, p).status === "complete", base + "/practice");
+        if (pr.required === false) tasks[tasks.length - 1].optional = true;   // packets and stretch work: shown, but never block "session done"
+      });
       t("lesson-" + l.id, isDsa ? "dsa" : "lesson", (warm ? (/^Java foundations/.test(l.title) ? "" : "Java foundations: ") : isDsa ? "Finish DSA set: " : "Finish lesson: ") + l.title, POINTS.lessonComplete, S.lessonState(l, p) === "complete", isDsa ? base + "/practice" : "#lesson/" + l.id);
     });
     var qs = []; rs.lessons.forEach(function (l) { questionsOf(l).forEach(function (q) { qs.push(q.id); }); });
@@ -228,9 +237,46 @@
     }
     t("notes-" + rs.id, "notes", "Write your own key takeaways (My notes)", 0, !!String(p.notes[rs.id] || "").trim(), base + "/my-notes");
     if (rs.test) { var m = idx.moduleById[rs.test].module; t("test-" + m.id, "test", "Pass the module test: " + m.test.title, POINTS.moduleTestPass, S.testState(m, p) === "passed", base + "/test"); }
-    var done = tasks.filter(function (x) { return x.done; }).length;
-    return { date: today, sessionN: n, tasks: tasks, done: done, total: tasks.length, pct: tasks.length ? Math.round(done * 100 / tasks.length) : 0,
-      xpAvailable: tasks.reduce(function (a, x) { return a + (x.done ? 0 : x.xp); }, 0), off: false, finished: false, allDone: done === tasks.length };
+    // Counts cover the core session only. Optional items (topic packets, stretch work) are listed separately
+    // so finishing tonight's session ends the day: the ring completes and reminders stop.
+    var core = tasks.filter(function (x) { return !x.optional; }), opt = tasks.filter(function (x) { return x.optional; });
+    var done = core.filter(function (x) { return x.done; }).length;
+    return { date: today, sessionN: n, tasks: core, optional: opt, optionalDone: opt.filter(function (x) { return x.done; }).length,
+      done: done, total: core.length, pct: core.length ? Math.round(done * 100 / core.length) : 0,
+      xpAvailable: core.reduce(function (a, x) { return a + (x.done ? 0 : x.xp); }, 0), off: false, finished: false, allDone: done === core.length };
+  }
+
+  /* ---------- spaced revision (+1 / +3 / +7 days) ---------- */
+  function spacedKey(sessionId, step) { return sessionId + "+" + step; }
+  /*
+   * Every finished session is due for a short review 1, 3 and 7 days after its completion date.
+   * The +1 review also counts as done when the next session's quick-revision block was ticked on
+   * or after the due date (that block revises the previous session). Returns
+   * { due: [...oldest first], upcoming: [...next 7 days], done: n } with items
+   * { id, sessionId, n, step, dueOn, overdueDays, title, prompt, href, done }.
+   */
+  function spacedRevisions(course, progress, today, o) {
+    o = o || {};
+    var idx = o.idx || S.indexCourse(course), p = S.normalize(progress), res = S.resolveSessions(course, idx);
+    var sp = isObj(p.spaced) ? p.spaced : {}, due = [], upcoming = [], doneCount = 0;
+    res.sessions.forEach(function (r, i) {
+      var st = S.sessionStatus(r, idx, p);
+      if (st.status !== "complete" || !st.completedOn) return;
+      var main = r.lessons[0], qs = main ? questionsOf(main) : [], next = res.sessions[i + 1];
+      SPACED_STEPS.forEach(function (step) {
+        var key = spacedKey(r.id, step), dueOn = S.addDays(st.completedOn, step);
+        var quick = step === 1 && next && p.revisions[next.id] && (!p.revisions[next.id].doneOn || p.revisions[next.id].doneOn >= dueOn);
+        var q = qs.length ? qs[SPACED_STEPS.indexOf(step) % qs.length] : null;   // a different recall question at each step
+        var item = { id: key, sessionId: r.id, n: r.n, step: step, dueOn: dueOn, overdueDays: Math.max(0, S.diffDays(dueOn, today)),
+          title: main ? main.title : "Session " + r.n, prompt: q ? (q.prompt || q.q || "") : "", href: main ? "#lesson/" + main.id : "#day-" + r.n,
+          done: !!sp[key] || !!quick, doneOn: sp[key] ? sp[key].doneOn : quick ? p.revisions[next.id].doneOn : null };
+        if (item.done) { doneCount++; return; }
+        if (dueOn <= today) due.push(item);
+        else if (S.diffDays(today, dueOn) <= 7) upcoming.push(item);
+      });
+    });
+    function byDue(a, b) { return a.dueOn < b.dueOn ? -1 : a.dueOn > b.dueOn ? 1 : a.n - b.n; }
+    return { date: today, due: due.sort(byDue), upcoming: upcoming.sort(byDue), done: doneCount, steps: SPACED_STEPS.slice() };
   }
 
   /* ---------- challenges ---------- */
@@ -292,7 +338,11 @@
     var tests = Object.keys(p.tests).filter(function (id) { return p.tests[id].passed; }).length;
     var answers = isObj(p.interview) ? Object.keys(p.interview).length : 0;
     var chall = isObj(p.challenges) ? Object.keys(p.challenges).length : 0;
-    var subj = idx.subjects.filter(function (s) { return S.subjectProgress(s, p).status === "complete"; }).length;
+    // The one-lesson Day 1 warm-up track is not a subject you "clear".
+    var subj = idx.subjects.filter(function (s) { return !(s.modules || []).every(function (m) { return (m.lessons || []).every(function (l) { return l.warmup; }); }) && S.subjectProgress(s, p).status === "complete"; }).length;
+    var res = S.resolveSessions(course, idx), sessionsDone = res.sessions.filter(function (r) { return S.sessionStatus(r, idx, p).status === "complete"; }).length;
+    var hasTests = idx.subjects.some(function (s) { return (s.modules || []).some(function (m) { return !!m.test; }); });
+    var spacedDone = isObj(p.spaced) ? Object.keys(p.spaced).length : 0;
     var defs = [
       ["first-step", "First step", "Complete your first lesson", lessonsDone.length, 1],
       ["streak-3", "Warming up", "3-day study streak", st.best, 3],
@@ -301,13 +351,17 @@
       ["streak-30", "Unstoppable", "30-day study streak", st.best, 30],
       ["dsa-10", "Problem crusher", "Finish 10 DSA sets", dsaDone, 10],
       ["perfect-10", "Sharp shooter", "Score 100% on 10 lesson checks", perfect, 10],
-      ["module-1", "Module master", "Pass your first module test", tests, 1],
+      hasTests ? ["module-1", "Module master", "Pass your first module test", tests, 1] : null,
+      ["sessions-7", "First week done", "Finish 7 sessions", sessionsDone, 7],
+      ["sessions-half", "Halfway there", "Finish " + Math.ceil(res.count / 2) + " sessions", sessionsDone, Math.ceil(res.count / 2)],
+      ["sessions-all", "Course complete", "Finish all " + res.count + " sessions", sessionsDone, res.count],
+      ["spaced-10", "Memory keeper", "Do 10 spaced revisions (+1, +3, +7 days)", spacedDone, 10],
       ["interview-25", "Interview ready", "Answer 25 interview questions", answers, 25],
       ["challenge-5", "Challenger", "Claim 5 challenges", chall, 5],
       ["subject-1", "Subject cleared", "Finish every lesson and test of one subject", subj, 1],
       ["xp-1000", "Four digits", "Earn 1,000 XP", led.reduce(function (a, e) { return a + e.xp; }, 0), 1000]
     ];
-    return defs.map(function (d) { return { id: d[0], title: d[1], text: d[2], value: Math.min(d[3], d[4]), target: d[4], earned: d[3] >= d[4] }; });
+    return defs.filter(Boolean).map(function (d) { return { id: d[0], title: d[1], text: d[2], value: Math.min(d[3], d[4]), target: d[4], earned: d[3] >= d[4] }; });
   }
 
   /* ---------- the whole engagement view-model ---------- */
@@ -325,6 +379,7 @@
       xp: xp, todayXp: todayXp, level: levelFor(xp), streak: st, tasks: tk,
       challenges: [dailyChallenge(course, p, today, { idx: idx, tasks: tk }), weeklyChallenge(course, p, today, { ledger: led, active: act })].filter(Boolean),
       badges: badges(course, p, { idx: idx, streak: st, ledger: led }),
+      revisions: spacedRevisions(course, p, today, { idx: idx }),
       ledger: led.slice().reverse(), activity: log, lastActiveAt: last,
       notifications: prefs, nextNudge: nextNudge(prefs, last, o.now, { todayDone: !!tk.allDone && tk.total > 0 })
     };
@@ -361,6 +416,10 @@
       if (!c.met) return fail("Not yet: " + c.text + " (" + Math.min(c.value, c.target) + "/" + c.target + ")");
       change = Object.assign({}, change, { kind: c.kind, title: c.title });
     }
+    if (change.type === "spaced" && change.done !== false) {
+      var sr = spacedRevisions(course, p, date), it = sr.due.find(function (x) { return x.id === change.id; });
+      if (!it) return fail(/^.+\+(1|3|7)$/.test(change.id || "") ? "That revision is not due yet" : "Unknown spaced revision " + change.id);
+    }
     if (change.type === "prefs") {
       var merged = Object.assign({}, notificationPrefs(p), change.notifications || {});
       var bad = validateNotificationPrefs(merged);
@@ -389,6 +448,6 @@
     CONTRACT_VERSION: CONTRACT_VERSION, POINTS: POINTS, LEVELS: LEVELS, NOTIFY_DEFAULTS: NOTIFY_DEFAULTS, STUDY_TYPES: STUDY_TYPES,
     notificationPrefs: notificationPrefs, validateNotificationPrefs: validateNotificationPrefs, nextNudge: nextNudge, istLabel: istLabel,
     ledger: ledger, levelFor: levelFor, activeDates: activeDates, streak: streak, tasksFor: tasksFor,
-    dailyChallenge: dailyChallenge, weeklyChallenge: weeklyChallenge, badges: badges, derive: derive, recordActivity: recordActivity, applyChange: applyChange, merge: merge, questionsOf: questionsOf
+    dailyChallenge: dailyChallenge, weeklyChallenge: weeklyChallenge, badges: badges, spacedRevisions: spacedRevisions, SPACED_STEPS: SPACED_STEPS, derive: derive, recordActivity: recordActivity, applyChange: applyChange, merge: merge, questionsOf: questionsOf
   };
 });
