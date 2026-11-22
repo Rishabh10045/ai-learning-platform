@@ -8,12 +8,12 @@ import { codex } from './codex-load.mjs';
 
 const finished = Object.keys(lateLanes).map(Number);   // a day gets its lane when its whole batch is finished
 
-test('only Days 41–56 are touched by late-depth.js', () => {
+test('only Days 34–56 are touched by late-depth.js (Codex owns 4–33)', () => {
   for (const map of [lateLanes, lateDistractors, lateExplanations, lateAssessment, lateStretchPlans, lateInterviewGuides])
-    for (const k of Object.keys(map)) assert.ok(+k >= 41 && +k <= 56, 'day ' + k);
+    for (const k of Object.keys(map)) assert.ok(+k >= 34 && +k <= 56, 'day ' + k);
   for (const id of Object.keys(lateDepthPackets)) {
     const day = codex.days.find(d => d.topics.some(t => t.toLowerCase() === id.replace(/\.dsa$/, '')));
-    assert.ok(day && day.number >= 41, id + ' is scheduled on Day 41–56');
+    assert.ok(day && day.number >= 34, id + ' is scheduled on Day 34–56');
   }
 });
 
