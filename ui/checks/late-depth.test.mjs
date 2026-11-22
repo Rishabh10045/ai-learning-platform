@@ -8,14 +8,14 @@ import { codex } from './codex-load.mjs';
 
 const finished = Object.keys(lateLanes).map(Number);   // a day gets its lane when its whole batch is finished
 
-test('late-depth.js day maps: lanes, distractors, stretch plans and packets stay on Days 26–56; guides and extra MCQs also fix Days 2–3', () => {
-  for (const map of [lateLanes, lateDistractors, lateExplanations, lateStretchPlans])
-    for (const k of Object.keys(map)) assert.ok(+k >= 26 && +k <= 56, 'day ' + k);
-  for (const map of [lateAssessment, lateInterviewGuides])
-    for (const k of Object.keys(map)) assert.ok((+k >= 26 && +k <= 56) || +k === 2 || +k === 3, 'day ' + k);
+test('late-depth.js day maps stay on real days 1–56, and full packets never replace Codex packets on Days 1–27', () => {
+  for (const map of [lateLanes, lateDistractors, lateExplanations, lateStretchPlans, lateAssessment, lateInterviewGuides])
+    for (const k of Object.keys(map)) assert.ok(Number.isInteger(+k) && +k >= 1 && +k <= 56, 'day ' + k);
   for (const id of Object.keys(lateDepthPackets)) {
     const day = codex.days.find(d => d.topics.some(t => t.toLowerCase() === id.replace(/\.dsa$/, '')));
-    assert.ok(day && day.number >= 26, id + ' is scheduled on Day 26–56');
+    assert.ok(day, id + ' is scheduled');
+    // Days 1–27 keep Codex's topic packets; Grok adds only '.dsa' lane packets, fuller answers (lateTopicAnswers) and code (lateTopicCode).
+    if (day.number < 28) assert.ok(id.endsWith('.dsa'), id + ' would replace a Codex packet on Day ' + day.number);
   }
 });
 

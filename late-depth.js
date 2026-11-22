@@ -273,6 +273,51 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/')],
     recall: 'What two optimizations make union-find nearly constant time?'
   },
+  4: {
+    title: 'Hash collisions and one-pass lookups',
+    concept: 'Different keys can share a hash code; a HashMap uses the hash to find a bucket and equals to pick the key. The same map answers “have I seen the complement?” in one pass.',
+    example: '"Aa" and "BB" both hash to 2112 but stay separate entries. twoSum([2, 7, 11, 15], 9) returns [0, 1].',
+    practice: 'Run HashLookups.java, then add a count of pairs with a given sum and a first-repeated-ID finder.',
+    checks: ['A second put on the same key returns the old value and keeps the size.', 'twoSum handles duplicates and no answer.', 'Explain expected versus worst-case O(1).'],
+    readings: [reading('Java 21 API · HashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html')],
+    recall: 'Why does a HashMap need equals even after the hash matches?'
+  },
+  5: {
+    title: 'Strings with two pointers',
+    concept: 'Walk two indexes towards each other to test palindromes in O(n) time and O(1) space, and build strings with StringBuilder instead of + in loops.',
+    example: '"A man, a plan, a canal: Panama" is a palindrome once punctuation and case are ignored; "  seat A1   is   free " reversed by word is "free is A1 seat".',
+    practice: 'Implement isPalindrome and reverseWords, then the one-deletion palindrome variant.',
+    checks: ['Punctuation and case are skipped.', 'Empty input works.', 'No String concatenation in a loop.'],
+    readings: [reading('Java 21 API · StringBuilder', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuilder.html')],
+    recall: 'Why is the two-pointer palindrome check O(1) extra space?'
+  },
+  6: {
+    title: 'Grouping with a canonical key: anagrams',
+    concept: 'Map each word to a key shared by all its anagrams, such as its sorted letters, and group by that key with computeIfAbsent or Collectors.groupingBy.',
+    example: 'listen, silent and enlist share the key eilnst; cat, act and tac share act.',
+    practice: 'Group anagrams with a loop and a stream, then switch to a letter-count key.',
+    checks: ['Loop and stream versions agree.', 'Output order is deterministic.', 'Complexity stated for both keys.'],
+    readings: [reading('Java 21 API · Collectors', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html')],
+    recall: 'What makes a good grouping key for anagrams?'
+  },
+  7: {
+    title: 'Maximum subarray (Kadane)',
+    concept: 'Track the best sum ending at the current index and restart when it turns negative; the best of those is the answer in O(n).',
+    example: '[−2, 1, −3, 4, −1, 2, 1, −5, 4] has maximum sum 6 from index 3 to 6; [−8, −3, −6] gives −3.',
+    practice: 'Implement Kadane with bounds and verify it against brute force on random arrays.',
+    checks: ['All-negative input handled.', 'Bounds are correct.', 'Brute-force comparison passes.'],
+    readings: [reading('Wikipedia · Maximum subarray problem', 'https://en.wikipedia.org/wiki/Maximum_subarray_problem')],
+    recall: 'Why is it safe to drop a negative running sum?'
+  },
+  8: {
+    title: 'Stack design: O(1) minimum',
+    concept: 'Store the current minimum with each stack entry so push, pop, top and min all run in O(1).',
+    example: 'Push 5, 3, 7, 3, 2: minimums 5, 3, 3, 3, 2. Popping 2 restores 3.',
+    practice: 'Implement MinStack with records on an ArrayDeque, then a two-stack variant.',
+    checks: ['Empty-stack behaviour defined.', 'Duplicate minimums handled.', 'Randomized test against brute force.'],
+    readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
+    recall: 'How does popping restore the previous minimum without a search?'
+  },
   // @@lanes
 };
 
@@ -6207,6 +6252,255 @@ A and C same team: true, A and D: false`
       ['Component count matches a DFS count.', 'The first cycle edge is reported.', 'Kruskal sorts edges and skips cycle edges.', 'Complexity stated.']],
     references: [['Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/']]
   },
+  'j-oop-02.dsa': {
+    notes: [
+      'Many string problems are solved with two pointers that walk towards each other. To check whether a sentence is a palindrome while ignoring punctuation and case, start i at the first character and j at the last. Skip anything that is not a letter or digit, compare the two characters in lower case, and move both inwards. The method stops early on the first mismatch. It is O(n) time and O(1) extra space, because it never builds a cleaned copy.',
+      'Reversing the order of words shows how to build strings efficiently. strip removes outer spaces, split("\\\\s+") splits on runs of whitespace, and a StringBuilder appends the words from last to first with single spaces. Concatenating with + inside a loop would create a new String each time, which costs O(n²) characters copied for long input.',
+      'Remember that Strings are compared with equals, not ==. PalindromeWords.java builds "A1" at runtime with a StringBuilder, so == is false even though equals is true.'
+    ],
+    code: {
+      title: 'PalindromeWords.java · two-pointer palindrome check that skips punctuation, word reversal with StringBuilder, and == versus equals · java PalindromeWords.java',
+      text: String.raw`public class PalindromeWords {
+    // Two pointers from both ends, skipping anything that is not a letter or digit. O(n) time, O(1) space.
+    static boolean isPalindrome(String s) {
+        int i = 0, j = s.length() - 1;
+        while (i < j) {
+            char a = s.charAt(i), b = s.charAt(j);
+            if (!Character.isLetterOrDigit(a)) { i++; continue; }
+            if (!Character.isLetterOrDigit(b)) { j--; continue; }
+            if (Character.toLowerCase(a) != Character.toLowerCase(b)) return false;
+            i++; j--;
+        }
+        return true;
+    }
+
+    // Reverse word order, collapsing extra spaces. StringBuilder avoids creating a new String per word.
+    static String reverseWords(String s) {
+        String[] words = s.strip().split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (int k = words.length - 1; k >= 0; k--) {
+            if (words[k].isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(words[k]);
+        }
+        return sb.toString();
+    }
+
+    public static void main(String[] args) {
+        System.out.println("'A man, a plan, a canal: Panama' palindrome: " + isPalindrome("A man, a plan, a canal: Panama"));
+        System.out.println("'race a car' palindrome: " + isPalindrome("race a car"));
+        System.out.println("'' palindrome: " + isPalindrome(""));
+        System.out.println("reverse '  seat A1   is   free ' -> '" + reverseWords("  seat A1   is   free ") + "'");
+        String a = "A1", b = new StringBuilder("A").append(1).toString();
+        System.out.println("a == b: " + (a == b) + ", a.equals(b): " + a.equals(b));
+    }
+}
+`,
+      output: String.raw`'A man, a plan, a canal: Panama' palindrome: true
+'race a car' palindrome: false
+'' palindrome: true
+reverse '  seat A1   is   free ' -> 'free is A1 seat'
+a == b: false, a.equals(b): true`
+    },
+    takeaways: ['Two pointers from both ends: O(n), O(1) space.', 'Skip characters instead of building a cleaned copy.', 'Use StringBuilder in loops.', 'Compare Strings with equals.'],
+    interview: [
+      ['How do you check whether a string is a palindrome, ignoring case and punctuation?', 'I use two indexes, i from the start and j from the end. While i < j, I advance i past any character that is not a letter or digit, and move j back past any such character. Then I compare the two characters after converting both to lower case; if they differ, it is not a palindrome. Otherwise I move both inwards. If the pointers meet, it is a palindrome. This reads each character at most once, so it is O(n) time, and it uses O(1) extra space because it does not build a cleaned copy. I test an empty string, a single character, punctuation only, and mixed case.']
+    ],
+    check: ['What does PalindromeWords.java return for "race a car"?',
+      ['true', 'false', 'It throws an exception', 'It depends on the locale'], 1,
+      'After removing the space, "raceacar" read backwards is "racaecar", so the characters differ.'],
+    practice: ['Copy PalindromeWords.java. Add a check for whether a string can become a palindrome by deleting at most one character, and a method that reverses each word in place but keeps word order.',
+      ['"abca" returns true for one deletion.', 'Word-by-word reversal keeps spaces.', 'Both are O(n).', 'Edge cases tested.']],
+    references: [['Java 21 API · StringBuilder', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuilder.html']]
+  },
+  'j-generics-01.dsa': {
+    notes: [
+      'Two words are anagrams if they contain the same letters with the same counts, like listen and silent. To group anagrams, compute a key that is the same for every word in a group: the word’s characters sorted. Then use a map from key to a list of words. For n words of length k this costs O(n · k log k) time. For lowercase English letters, a 26-entry count array turned into a string gives an O(n · k) key.',
+      'AnagramGroups.java shows the same grouping twice: with a loop and computeIfAbsent, and with a stream pipeline, Collectors.groupingBy(key, TreeMap::new, toList()). Passing TreeMap::new makes the output order stable, which matters for tests; a HashMap’s order is not defined.',
+      'The helper largest is generic: <K extends Comparable<K>, V> lets it work for any key type that can be compared and any element type, while the compiler still checks the types at each call.'
+    ],
+    code: {
+      title: 'AnagramGroups.java · group anagrams by sorted-letter key with a loop and with Collectors.groupingBy, plus a generic helper · java AnagramGroups.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+
+public class AnagramGroups {
+    // Key = the word's letters sorted. O(n · k log k) for n words of length k.
+    static String key(String w) {
+        char[] c = w.toCharArray();
+        Arrays.sort(c);
+        return new String(c);
+    }
+
+    static Map<String, List<String>> groupLoop(List<String> words) {
+        Map<String, List<String>> groups = new TreeMap<>();
+        for (String w : words) groups.computeIfAbsent(key(w), k -> new ArrayList<>()).add(w);
+        return groups;
+    }
+
+    // The same grouping as a stream pipeline; TreeMap::new keeps the printed order stable.
+    static Map<String, List<String>> groupStream(List<String> words) {
+        return words.stream().collect(Collectors.groupingBy(AnagramGroups::key, TreeMap::new, Collectors.toList()));
+    }
+
+    // Generic helper: the largest group, ties broken by the smaller key.
+    static <K extends Comparable<K>, V> K largest(Map<K, List<V>> groups) {
+        K best = null;
+        for (Map.Entry<K, List<V>> e : groups.entrySet())
+            if (best == null || e.getValue().size() > groups.get(best).size()) best = e.getKey();
+        return best;
+    }
+
+    public static void main(String[] args) {
+        List<String> words = List.of("listen", "silent", "enlist", "google", "gooegl", "cat", "act", "tac", "dog");
+        Map<String, List<String>> g = groupLoop(words);
+        System.out.println("groups: " + g.values());
+        System.out.println("stream version equal: " + g.equals(groupStream(words)));
+        System.out.println("largest group key: " + largest(g) + " -> " + g.get(largest(g)));
+    }
+}
+`,
+      output: String.raw`groups: [[cat, act, tac], [dog], [google, gooegl], [listen, silent, enlist]]
+stream version equal: true
+largest group key: act -> [cat, act, tac]`
+    },
+    takeaways: ['A canonical key turns grouping into a map lookup.', 'Sorted letters: O(k log k) per word.', 'groupingBy(key, TreeMap::new, toList()) gives stable order.', 'Bounded generics keep helpers type-safe.'],
+    interview: [
+      ['How would you group a list of words into anagrams?', 'I map every word to a canonical key that is identical for all its anagrams, then group by that key. The simplest key is the word’s characters sorted, so listen, silent and enlist all become eilnst. I use a Map<String, List<String>> and computeIfAbsent to append each word to its group, or Collectors.groupingBy in a stream. Sorting costs O(k log k) per word, so the total is O(n · k log k) time and O(n · k) space. If the alphabet is small, such as 26 lowercase letters, a key built from letter counts takes O(k) per word. I use a TreeMap or sort the output when the order must be deterministic.']
+    ],
+    check: ['Which key puts listen, silent and enlist in the same group?',
+      ['The first letter', 'The word length', 'The letters sorted: eilnst', 'The word’s hashCode'], 2,
+      'Anagrams share exactly the same letters, so sorting them gives the same string.'],
+    practice: ['Copy AnagramGroups.java. Replace the sorted key with a 26-letter count key, compare the results on 10,000 random words, and add a method that checks whether two strings are anagrams in O(n).',
+      ['Both keys produce the same groups.', 'The count key is O(k).', 'Upper case and non-letters are handled or rejected.', 'Output order is deterministic.']],
+    references: [['Java 21 API · Collectors.groupingBy', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html']]
+  },
+  'j-executors-01.dsa': {
+    notes: [
+      'The maximum subarray problem asks for the contiguous range with the largest sum, for example the busiest stretch of booking demand where each value is the change from the previous hour. Checking every range is O(n²). Kadane’s algorithm does it in one pass.',
+      'Keep cur, the best sum of a range ending at the current index, and best, the best sum seen anywhere. For each value, if cur is negative, start a new range at this value, because a negative prefix can only make any later range smaller; otherwise extend cur. Update best whenever cur beats it, and record the range bounds. MaxSubarray.java finds 6 for indexes 3 to 6 in [−2, 1, −3, 4, −1, 2, 1, −5, 4].',
+      'Define the edge case: if the subarray must be non-empty, an all-negative array returns its largest element, here −3. The program also checks Kadane against a brute-force version on 1,000 random arrays, a good habit for any clever algorithm.'
+    ],
+    code: {
+      title: 'MaxSubarray.java · Kadane’s algorithm with range bounds, the all-negative case, and a check against brute force on 1,000 random arrays · java MaxSubarray.java',
+      text: String.raw`public class MaxSubarray {
+    // Kadane: best sum of a non-empty contiguous subarray, with its bounds. O(n) time, O(1) space.
+    static long[] kadane(int[] a) {
+        long best = a[0], cur = a[0];
+        int bestL = 0, bestR = 0, curL = 0;
+        for (int i = 1; i < a.length; i++) {
+            if (cur < 0) { cur = a[i]; curL = i; }      // a negative prefix never helps: restart here
+            else cur += a[i];
+            if (cur > best) { best = cur; bestL = curL; bestR = i; }
+        }
+        return new long[] {best, bestL, bestR};
+    }
+
+    static long bruteForce(int[] a) {
+        long best = Long.MIN_VALUE;
+        for (int i = 0; i < a.length; i++) {
+            long s = 0;
+            for (int j = i; j < a.length; j++) { s += a[j]; best = Math.max(best, s); }
+        }
+        return best;
+    }
+
+    public static void main(String[] args) {
+        int[] demand = {-2, 1, -3, 4, -1, 2, 1, -5, 4};
+        long[] r = kadane(demand);
+        System.out.println("best sum " + r[0] + " from index " + r[1] + " to " + r[2]);
+        long[] neg = kadane(new int[] {-8, -3, -6});
+        System.out.println("all negative: best " + neg[0] + " at index " + neg[1]);
+        java.util.Random rnd = new java.util.Random(7);
+        boolean ok = true;
+        for (int t = 0; t < 1000; t++) {
+            int[] a = new int[1 + rnd.nextInt(12)];
+            for (int i = 0; i < a.length; i++) a[i] = rnd.nextInt(21) - 10;
+            ok &= kadane(a)[0] == bruteForce(a);
+        }
+        System.out.println("1000 random arrays match brute force: " + ok);
+    }
+}
+`,
+      output: String.raw`best sum 6 from index 3 to 6
+all negative: best -3 at index 1
+1000 random arrays match brute force: true`
+    },
+    takeaways: ['Restart when the running sum is negative.', 'O(n) time, O(1) space.', 'Decide if empty ranges are allowed.', 'Test against brute force.'],
+    interview: [
+      ['Explain Kadane’s algorithm and why it is correct.', 'I scan once and keep two values: cur, the maximum sum of a subarray that ends at the current index, and best, the maximum seen so far. At each element, the best subarray ending here is either the element alone or the element added to the best subarray ending at the previous index. So cur becomes max(a[i], cur + a[i]), which is the same as restarting when cur is negative. best is the maximum of all cur values. This is a small dynamic programming argument, and it runs in O(n) time with O(1) space. I clarify whether an empty subarray with sum 0 is allowed, since that changes the all-negative case.']
+    ],
+    check: ['For [−8, −3, −6], what does a non-empty maximum subarray return?',
+      ['0', '−3', '−17', '−8'], 1,
+      'Every range has a negative sum, so the best single element, −3, is the answer when the range must be non-empty.'],
+    practice: ['Copy MaxSubarray.java. Add the maximum circular subarray sum (total minus minimum subarray, with the all-negative case), and the maximum product subarray, each tested against brute force.',
+      ['Circular case handles all-negative input.', 'Product version tracks min and max.', 'Brute-force checks pass.', 'Complexity stated.']],
+    references: [['Wikipedia · Maximum subarray problem (Kadane’s algorithm)', 'https://en.wikipedia.org/wiki/Maximum_subarray_problem']]
+  },
+  'l-uml-01.dsa': {
+    notes: [
+      'A stack is last in, first out. A common design question is a stack that also returns its minimum in O(1). The trick is to store, with every entry, the minimum of the stack at the moment that entry was pushed.',
+      'MinStack.java pushes records of (value, min). push computes min as the smaller of the new value and the current top’s min. min simply reads the top’s min, and pop removes the top, which automatically restores the previous minimum. Every operation is O(1), and the extra space is O(n). An alternative keeps a second stack that only holds the minimums, which can save space when many values are larger than the current minimum.',
+      'Define behaviour on an empty stack: here min and pop throw IllegalStateException. Use ArrayDeque, not the legacy Stack class, which is synchronized and extends Vector.'
+    ],
+    code: {
+      title: 'MinStack.java · a stack that returns its minimum in O(1) by storing the minimum with each entry · java MinStack.java',
+      text: String.raw`import java.util.ArrayDeque;
+import java.util.Deque;
+
+public class MinStack {
+    // Each entry stores its value and the minimum of the stack at the time it was pushed.
+    private record Entry(int value, int min) {}
+    private final Deque<Entry> stack = new ArrayDeque<>();
+
+    void push(int x) {
+        int min = stack.isEmpty() ? x : Math.min(x, stack.peek().min());
+        stack.push(new Entry(x, min));
+    }
+
+    int pop() {
+        if (stack.isEmpty()) throw new IllegalStateException("empty stack");
+        return stack.pop().value();
+    }
+
+    int top() { return stack.peek().value(); }
+    int min() {
+        if (stack.isEmpty()) throw new IllegalStateException("empty stack");
+        return stack.peek().min();
+    }
+
+    public static void main(String[] args) {
+        MinStack s = new MinStack();
+        for (int x : new int[] {5, 3, 7, 3, 2}) { s.push(x); System.out.print("push " + x + " min " + s.min() + "; "); }
+        System.out.println();
+        while (true) {
+            int v = s.pop();
+            if (s.stack.isEmpty()) { System.out.println("pop " + v + " -> empty"); break; }
+            System.out.print("pop " + v + " min " + s.min() + "; ");
+        }
+        try { s.min(); } catch (IllegalStateException e) { System.out.println("min on empty: " + e.getMessage()); }
+    }
+}
+`,
+      output: String.raw`push 5 min 5; push 3 min 3; push 7 min 3; push 3 min 3; push 2 min 2; 
+pop 2 min 3; pop 3 min 3; pop 7 min 3; pop 3 min 5; pop 5 -> empty
+min on empty: empty stack`
+    },
+    takeaways: ['Store the running minimum with each entry.', 'All operations O(1).', 'Pop restores the previous minimum for free.', 'Use ArrayDeque, not Stack.'],
+    interview: [
+      ['How do you design a stack that returns its minimum in constant time?', 'Each push stores the value together with the minimum of the whole stack at that moment, which is the smaller of the new value and the previous top’s minimum. min then just reads the top entry’s minimum, which is O(1). When I pop, the entry below still carries the minimum that was correct before the popped value arrived, so nothing needs to be recomputed. push, pop, top and min are all O(1), with O(n) extra space. A variant keeps a second stack of minimums and pushes to it only when a value is less than or equal to the current minimum, which uses less memory when values are mostly large.']
+    ],
+    check: ['After pushing 5, 3, 7, 3 and 2, then popping twice, what does min return?',
+      ['2', '3', '5', '7'], 1,
+      'Popping 2 and then 3 leaves 5, 3, 7, whose minimum is 3.'],
+    practice: ['Copy MinStack.java. Add a max as well, a version with a separate minimum stack that only grows on new minimums, and a randomized test against a brute-force minimum.',
+      ['Both versions agree on 10,000 random operations.', 'Duplicate minimums are handled.', 'Empty-stack behaviour is defined.', 'Space use compared.']],
+    references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html']]
+  },
   // @@packets
 };
 
@@ -6339,6 +6633,26 @@ export const lateDistractors = {
     ['The array is always sorted first.', 'The inner loop restarts at the beginning each time.'],
     ['It moves to the current index.', 'It moves to one past the old duplicate, even if that is further left.']
   ],
+  4: [
+    ['They are stored in different buckets.', 'Their toString values are identical.'],
+    ['As a guarantee only when the map is a TreeMap.', 'Never; lookup is always O(n).']
+  ],
+  5: [
+    ['A programming error that should crash the service.', 'A reason to retry the request until it succeeds.'],
+    ['Only when the class must be serialized.', 'When you need a private helper method.']
+  ],
+  6: [
+    ['Only when the stream is parallel.', 'When the stream variable is assigned.'],
+    ['That the list cannot be modified.', 'That every Seat is immutable.']
+  ],
+  7: [
+    ['The JVM heap size.', 'The number of CPU cores, whatever the database does.'],
+    ['Read the exception from the thread’s log output only.', 'submit returns null when the task fails.']
+  ],
+  8: [
+    ['That a log line was printed.', 'That the repository was called exactly once, and nothing else.'],
+    ['Use as many design patterns as possible.', 'Put all logic in one class so it changes in one place.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -6406,6 +6720,16 @@ export const lateExplanations = {
     'After one O(n) pass, prefix[r] − prefix[l] gives the sum of [l, r) with two lookups, so each query is O(1).'],
   27: ['Each pointer only moves forward, so together they make at most 2n moves, which is O(n).',
     'An occurrence before left is already outside the window. Moving left back to it would re-admit elements that were removed because of an earlier duplicate.'],
+  4: ['The hashCode contract requires equal objects to have equal hash codes; otherwise a map would look in the wrong bucket for an equal key.',
+    'HashMap lookup is O(1) on average when hashes spread well and key comparison is cheap. Heavy collisions or expensive keys break that.'],
+  5: ['Someone else already holding the seat is a normal, expected outcome, so the API should return a defined conflict result rather than treat it as bad input.',
+    'An interface earns its place when it captures a real contract that more than one implementation, or a test double, must satisfy.'],
+  6: ['Streams are lazy: nothing runs until a terminal operation such as findFirst or toList pulls elements through the pipeline.',
+    'The type argument tells the compiler what the list holds, so callers get Seat back without casts. It does not copy or protect the objects.'],
+  7: ['Adding Java threads cannot create more database connections; with eight connections, at most eight queries run at once.',
+    'Exceptions thrown inside a Callable are captured and rethrown by Future.get as an ExecutionException with the original cause.'],
+  8: ['A test should prove the rule: U2’s attempt fails and the owner is still U1. Checking only a return value can miss an incorrect mutation.',
+    'A SOLID argument should point to a concrete reason for change, so the design separates code that changes for different reasons.'],
   // @@explanations
 };
 
@@ -6656,6 +6980,46 @@ export const lateAssessment = {
       choices: ['The synchronized keyword, because it is global to the cluster', 'Making owner volatile', 'An atomic conditional update in the shared database, such as UPDATE … WHERE owner IS NULL', 'Running the threads at a higher priority'], answer: 2,
       explanation: 'Java monitors only coordinate threads in one JVM, so the decision must move to a shared authority.' }
   ],
+  4: [
+    { question: 'A SeatId record normalizes its code to upper case in the constructor. Why does that make HashMap lookups with "a1" and " A1 " work?',
+      choices: ['HashMap ignores case by default', 'Both become the same canonical value, so equals and hashCode agree', 'Records cannot be used as keys', 'The map rehashes on every lookup'], answer: 1,
+      explanation: 'Normalizing once at construction means equal seats always have equal fields, so equals and hashCode are consistent.' },
+    { question: 'What does map.put("Aa", 10) return if "Aa" was already mapped to 1?',
+      choices: ['null', '1', '10', 'It throws because "Aa" and "BB" collide'], answer: 1,
+      explanation: 'put replaces the value for an existing key and returns the previous value; the size does not change.' }
+  ],
+  5: [
+    { question: 'A try-with-resources body throws, and then close() also throws. What does the caller see?',
+      choices: ['Only the close() exception', 'The body’s exception, with the close() exception attached as suppressed', 'Both are lost', 'A new RuntimeException'], answer: 1,
+      explanation: 'The primary exception is the body’s; Java records the close() failure with addSuppressed.' },
+    { question: 'Why can two Strings that both print A1 compare false with ==?',
+      choices: ['== compares references, and they can be different objects with the same characters', 'Strings are mutable', '== ignores case', 'One has a hidden newline'], answer: 0,
+      explanation: 'Use equals to compare String contents; == only tells you whether both references point to the same object.' }
+  ],
+  6: [
+    { question: 'Why is List<Integer> not a subtype of List<Number>?',
+      choices: ['Because Integer is final', 'Because then code could add a Double to a list that must contain only Integers', 'Because of autoboxing', 'It is a subtype'], answer: 1,
+      explanation: 'Mutable generic types are invariant to keep writes type-safe; use List<? extends Number> to read Numbers.' },
+    { question: 'A pipeline is seats.stream().filter(Seat::isFree).map(Seat::id).findFirst(). How many seats does it examine if the second seat is free?',
+      choices: ['All of them', 'Two', 'One', 'None until toList is called'], answer: 1,
+      explanation: 'Streams are lazy and findFirst short-circuits, so a sequential pipeline stops at the first match.' }
+  ],
+  7: [
+    { question: 'A ThreadPoolExecutor has 1 worker and a queue of 1, and both are full. What happens to a third task by default?',
+      choices: ['It waits forever', 'It is rejected with RejectedExecutionException (AbortPolicy)', 'A new thread is always created', 'It replaces the queued task'], answer: 1,
+      explanation: 'When the workers and the bounded queue are full, the default AbortPolicy rejects new work.' },
+    { question: 'Two threads each hold a local variable pointing to the same Seat. Can they race?',
+      choices: ['No, local variables are private to each thread', 'Yes, the locals are private but the Seat object they refer to is shared', 'Only if the variables are static', 'Only on multi-core CPUs'], answer: 1,
+      explanation: 'Locals live on each thread’s stack, but objects live on the shared heap.' }
+  ],
+  8: [
+    { question: 'Why use a fake repository but a real Seat in a booking unit test?',
+      choices: ['Seat is too slow to construct', 'The repository is an external boundary, while Seat owns the rule under test', 'Fakes are required by JUnit', 'Real objects cannot be asserted on'], answer: 1,
+      explanation: 'Replace boundaries, not the logic you want to verify.' },
+    { question: 'Which diagram best shows the order of calls when U2’s booking attempt fails?',
+      choices: ['Class diagram', 'Sequence diagram', 'Deployment diagram', 'Package diagram'], answer: 1,
+      explanation: 'A sequence diagram shows who calls whom, in what order, including alternative branches.' }
+  ],
   // @@assessment
 };
 
@@ -6781,6 +7145,34 @@ export const lateStretchPlans = {
         acceptance: ['LFU evicts the least frequently used key, and the least recent among ties.', 'Stream "aabc" gives a, -, b, b as first non-repeating characters.', 'The hit counter uses O(300) memory.', 'Time and space written for all three.'] },
       { id: 'd-lru-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · LRU, machine coding and queues',
         prompt: 'Answer aloud in 2 minutes each, without notes: how an O(1) LRU works; why the map stores nodes; why get needs a lock; how LinkedHashMap gives LRU; why a two-stack queue is amortized O(1). Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  7: {
+    assign: { 'j-executors-01.packet': 45, 'j-jvm-01.packet': 45, 'j-executors-01.stretch': 40, 'j-executors-01.dsa.packet': 30 },
+    extra: [
+      { id: 'j-executors-01.stretch-lab', minutes: 50, title: 'Stretch lab · a bounded booking executor under load',
+        prompt: 'Build a BookingDispatcher with a ThreadPoolExecutor (4 workers, ArrayBlockingQueue of 8, AbortPolicy) in front of a fake database that allows 4 concurrent queries via a Semaphore and takes 50 ms per call. Submit 100 requests from 10 threads, count accepted, rejected and completed, and measure the 95th-percentile latency.',
+        acceptance: ['Accepted + rejected = 100.', 'No more than 4 queries run at once (asserted with the Semaphore).', 'Rejection is tested deterministically with a latch.', 'A short note explains how you would choose the numbers.'] },
+      { id: 'j-executors-01.stretch-set', minutes: 35, title: 'Stretch DSA · three array problems',
+        prompt: 'In one Java file solve: (1) the maximum circular subarray sum; (2) the best time to buy and sell once (max profit); (3) the product of the array except self without division. Test each against brute force on random arrays.',
+        acceptance: ['Circular case handles all-negative input.', 'Max profit is 0 when prices only fall.', 'Product-except-self is O(n) with O(1) extra space besides the output.', 'Complexity written for all three.'] },
+      { id: 'j-executors-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · executors and memory',
+        prompt: 'Answer aloud in 2 minutes each, without notes: workers versus tasks; how to size a pool for 8 database connections; Future timeout versus cancel; why private locals can still race; why deep recursion fails with free heap. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  8: {
+    assign: { 'l-uml-01.packet': 35, 'l-solid-01.packet': 35, 'b-testing-01.packet': 35, 'l-uml-01.stretch': 25, 'l-uml-01.dsa.packet': 30 },
+    extra: [
+      { id: 'l-solid-01.stretch-lab', minutes: 50, title: 'Stretch lab · add notifications without touching Seat',
+        prompt: 'Extend the booking lab with a Notifier interface, an EmailNotifier adapter and a SmsNotifier adapter with different fake APIs. BookingService publishes after a successful booking only. Write a sequence diagram for success and conflict, and a shared contract test that runs against both notifiers.',
+        acceptance: ['Seat and its tests are unchanged.', 'No notification on conflict.', 'One contract suite passes for both adapters.', 'The diagram shows the alternative branch.'] },
+      { id: 'l-uml-01.stretch-set', minutes: 35, title: 'Stretch DSA · three stack problems',
+        prompt: 'In one Java file solve: (1) evaluate a postfix expression; (2) next greater element for each array item with a monotonic stack; (3) a queue built from two stacks. Test each with edge cases.',
+        acceptance: ['Postfix handles negative results and division order.', 'Next greater returns -1 where none exists, in O(n).', 'The two-stack queue is amortized O(1).', 'Complexity written for all three.'] },
+      { id: 'l-uml-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · design and testing',
+        prompt: 'Answer aloud in 2 minutes each, without notes: what each booking class owns; where email confirmation belongs; when Adapter, Strategy or State is justified; why fake the repository but use a real Seat; what a sequence diagram shows. Then compare with the model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
@@ -6955,6 +7347,31 @@ export const lateInterviewGuides = {
     'Two JVMs each have their own A1 object and their own locks, so synchronized cannot coordinate them. The booking decision must move to a store both processes share, normally the database, and be made atomically there. A conditional update does it in one statement: UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL. The database guarantees that only one of two concurrent updates finds owner still null, so exactly one call updates one row. The code treats an update count of 1 as success and 0 as a conflict, which becomes 409. A unique constraint on the booking’s seat ID, or optimistic locking with a version column, are alternatives.',
     'The Java Memory Model defines a happens-before edge from the release of a monitor to every later acquisition of the same monitor. When T1 sets owner inside synchronized (seat) and leaves the block, it releases the monitor. When T2 later enters synchronized (seat), it acquires that same monitor, so everything T1 did before releasing, including the write to owner, is visible to T2. That is why T2 sees U1 and returns a conflict instead of booking again. The edge only exists for the same monitor object: if T2 locked a different object, there would be no guaranteed visibility and no mutual exclusion.'
   ],
+  4: [
+    'The contract is that if a.equals(b) is true, then a.hashCode() must equal b.hashCode(). The reverse is not required: different keys may share a hash code, which is a collision. A HashMap uses the hash to choose a bucket and then calls equals on the keys in that bucket to find the right one, so both methods must use the same fields. If equals is true but the hash codes differ, the map looks in the wrong bucket and misses the entry. The fields used must also stay stable while the key is in the map, so keys should be immutable, for example a record with final fields.',
+    'I normalize once, at the domain boundary, when the SeatId is created: strip spaces and convert to upper case with Locale.ROOT, then store only the canonical form in a final field. A record whose compact constructor does this gets equals and hashCode from that canonical field, so A1, a1 and " A1 " are all equal and hash the same way. I verify the contract with tests: put an entry with SeatId("a1"), look it up with a separately created SeatId(" A1 "), assert the two are equal and have equal hash codes, and check that unequal IDs such as A1 and A2 stay separate, including two keys that collide.',
+    'A HashMap places an entry in a bucket based on the key’s hash at the time of insertion. If a field used by equals or hashCode changes afterwards, the key now hashes to a different bucket, or no longer equals itself as stored, so get and remove miss the entry, even though it is still in the map taking up space. containsKey can return false for the very object you inserted. The fix is to use immutable keys, such as records or Strings, and keep any changing data in the value instead. If a key really must change, remove the entry first, update the key, and insert it again.'
+  ],
+  5: [
+    'An exception is for a call that breaks the method’s stated preconditions, such as a null or blank user ID, or an unknown seat ID if the API says callers must pass a valid one. That is a programming or input error, so failing fast with IllegalArgumentException makes the mistake visible. A competing claim on a seat that is already owned is different: the input is valid and the outcome is a normal part of the business, so the method returns false or a result type such as CONFLICT. Callers handle it with ordinary code, and the API layer can map it to 409, while invalid input becomes 400.',
+    'The domain API should return a result that names each case rather than a single boolean. For example, a sealed interface BookingResult with Booked, SeatNotFound and SeatTaken, or an enum with those values. The service validates the user ID first and throws IllegalArgumentException, or returns an InvalidUser result, if it is blank. The controller then maps each case to a status: Booked to 201, SeatNotFound to 404, SeatTaken to 409 and invalid user to 400. Typed outcomes make the controller’s switch exhaustive, so adding a case later causes a compile error instead of a silent wrong status, and tests can assert each outcome directly.',
+    'I let an exception propagate when the current layer cannot do anything useful about it, such as recover, retry or add context. A layer that sits at a boundary translates it: a repository catches SQLException and throws a domain StorageException, passing the original exception as the cause, so stack traces still show the real database error. The service usually lets that propagate, and the web layer maps it to a 503 or 500 response with a generic message, logging the details. I never swallow exceptions or replace them without the cause, because that destroys the information needed to diagnose the failure.'
+  ],
+  6: [
+    'The input is a typed collection, for example List<Seat>. seats.stream() creates a stream, filter(Seat::isFree) keeps only free seats, and map(Seat::id) transforms each one into its String ID. None of this runs yet: intermediate operations are lazy. A terminal operation such as toList() pulls the elements through and produces the result, here a List<String> of free seat IDs in the original order. The types flow through each step: Stream<Seat> after filter, Stream<String> after map, so the compiler catches mistakes. The original list is not modified; the stream produces a new result.',
+    'Both must use the same predicate and traverse the same ordered source, such as a List. The loop iterates in index order and returns the first seat for which isFree is true, or null or Optional.empty() if none matches. The stream version is seats.stream().filter(Seat::isFree).findFirst(), which returns an Optional<Seat>. Because a List’s stream is ordered and findFirst short-circuits, it also stops at the first match and returns the same seat. I would avoid findAny, which may return a different element in parallel streams, and avoid unordered sources such as a HashSet if the caller expects input order. A test compares both on the same fixtures.',
+    'An unmodifiable list, such as one from List.copyOf or Collections.unmodifiableList, prevents structural changes: callers cannot add, remove or replace elements, and those methods throw UnsupportedOperationException. It does not make the elements immutable. If Seat has a setter, any caller can still change a seat through the list. Also, Collections.unmodifiableList is a view, so changes to the original list show through, while List.copyOf takes a snapshot. For real read-only data, I combine an unmodifiable list with immutable elements, such as records, or return copies of the elements.'
+  ],
+  7: [
+    'Tasks are units of work submitted to an executor; worker threads are the threads that run them. A pool with four workers can accept a thousand tasks: four run at once, and the rest wait in the queue, or are rejected if the queue is bounded and full. So the worker count limits concurrency, and the task count is just demand. Each worker has its own stack for local variables and calls, but all of them share the heap, so any object reachable from more than one task, such as a shared Seat or a counter, is shared state that needs coordination.',
+    'The real limit is eight database connections, so more than about eight concurrent database tasks only adds waiting. I would size the pool to the connection pool, or slightly above if part of each request does not use the database, and use a small bounded queue, for example ArrayBlockingQueue, so waiting work and memory stay limited. When the queue is full, the request should be rejected quickly with 503 and a Retry-After header, or the caller should be slowed down, rather than piling up unbounded. I would measure latency and the connection wait time under load, then adjust the numbers.',
+    'future.get(2, SECONDS) only limits how long the caller waits. If it throws TimeoutException, the task is still running or queued, still holding resources, and may still complete its side effects. future.cancel(true) is a separate request: it marks the future cancelled and, if the task is running, interrupts its thread. The task stops only if its code responds to interruption, for example blocking calls that throw InterruptedException or loops that check the interrupt flag. So after a timeout I decide whether to cancel, and the task must be written to handle interruption and leave no half-finished state.'
+  ],
+  8: [
+    'Seat owns its state and the rule for changing it: it can be claimed only when it is free, and the owner never changes on a failed claim. BookingService owns the use case: it validates the request, finds the seat through a repository, asks the seat to change, and returns a result. The repository owns storage and lookup. The controller, if present, only maps HTTP to the service and results to status codes. My tests protect the core rule: U1 claims A1 and succeeds; U2 then fails and the owner is still U1; an unknown seat gives a not-found result; and an invalid user ID is rejected.',
+    'Sending email is a new responsibility that belongs outside Seat and outside the booking rule. The service, after the booking is saved, publishes an event such as SeatBooked or calls a Notifier interface. The email adapter implements that interface. The domain model is unchanged and knows nothing about email. In unit tests I pass a fake Notifier and assert that one notification is recorded after a successful booking and none after a conflict. A separate test checks that an email failure does not undo the booking, or that it is retried, depending on the requirement. The real adapter gets an integration test.',
+    'I add a pattern only when a real change needs it. Adapter fits when two notification providers expose different APIs and the service should depend on one Notifier interface. Strategy fits when a policy truly varies, for example different hold durations or pricing rules per venue, selected at run time. State fits when a seat gains several states with different allowed transitions, such as free, held, booked and cancelled, and the transition rules start filling methods with conditionals. Before any of these, the single Seat with one claim method is simpler and better. Naming the concrete change is what justifies the extra classes.'
+  ],
   // @@guides
 };
 
@@ -6963,6 +7380,43 @@ export const lateInterviewGuides = {
 // question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
 // Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
 export const lateTopicAnswers = {
+  'j-equality-01': {
+    'Why does HashMap need both equals and hashCode?': 'A HashMap stores entries in an array of buckets. hashCode lets it jump to the right bucket in O(1) instead of searching every entry. But many keys can share a bucket, because different keys can have the same hash code or be reduced to the same index, so the map then calls equals on each key in that bucket to find the exact match. That is why both are needed and must agree: equal keys must return equal hash codes, otherwise an equal key is searched for in the wrong bucket and get returns null. Unequal keys may share a hash code; that only makes the lookup a little slower.',
+    'Why can mutating a key break a successful lookup?': 'When an entry is inserted, the map uses the key’s hash code at that moment to place it in a bucket. If the key is mutable and a field used in hashCode or equals changes afterwards, a later lookup computes a different hash and searches a different bucket, or finds the stored key no longer equal. So get, containsKey and remove all miss the entry, even with the very same object, and the entry stays in the map as a leak. The fix is to use immutable keys, such as records or Strings, and keep changing data in the value. If a key really must change, remove the entry, change the key, and put it back.'
+  },
+  'j-collections-01': {
+    'When would you replace this map with LinkedHashMap, TreeMap or ConcurrentHashMap?': 'HashMap is the default for fast unordered lookups. I switch to LinkedHashMap when I need a predictable iteration order: insertion order for stable output, or access order with removeEldestEntry for a simple LRU cache. I use TreeMap when keys must be sorted or I need range queries such as floorKey, ceilingKey or subMap; it is a red-black tree with O(log n) operations. I use ConcurrentHashMap when several threads read and update the map; it allows concurrent access without one global lock and offers atomic per-key operations such as computeIfAbsent and merge. HashMap is not thread-safe, and Collections.synchronizedMap serializes every call.'
+  },
+  'j-oop-02': {
+    'What evidence justifies an interface here?': 'An interface is worth adding when there is a real contract with more than one meaningful implementation, or a boundary the caller should not depend on in detail. For a seat repository, an in-memory version for unit tests and a JDBC version for production is good evidence: the service depends on SeatRepository, and either can be supplied. I would prove they are interchangeable with a shared contract test suite that runs the same cases against both, such as find, save, unknown seat and conflict. If there is only one implementation and no test seam is needed, a plain class is simpler, and an interface can be extracted later when a second use appears.',
+    'What would violate substitutability for a repository?': 'The Liskov substitution principle says any implementation must work wherever the interface is expected, without surprising callers. A repository subtype violates it if it demands more than the contract, for example rejecting seat IDs the interface allows, or if it promises less, such as throwing an exception for a missing seat when the contract says it returns Optional.empty(). Other violations are different side effects, such as silently ignoring save, or different ordering guarantees. The caller would need special cases for that subtype, which defeats the abstraction. Running one contract test suite against every implementation catches these differences early.'
+  },
+  'j-exceptions-01': {
+    'What happens when both a try-with-resources body and close fail?': 'try-with-resources always closes the resource, even when the body throws. If the body throws exception A and then close() throws exception B, Java keeps A as the primary exception that propagates to the caller and attaches B to it with addSuppressed. The caller can read B with A.getSuppressed(), and stack traces print it under “Suppressed”. This is better than the old try-finally pattern, where an exception from close() in the finally block replaced the original one and hid the real cause. If only close() fails, its exception propagates normally. Resources are closed in the reverse order of declaration.'
+  },
+  'j-generics-01': {
+    'Why are mutable generic lists invariant?': 'If List<Integer> were a subtype of List<Number>, I could assign a List<Integer> to a List<Number> variable and then add a Double through it. The compiler would accept the add, but the original list, which is supposed to contain only Integers, would now hold a Double, and code reading it as Integer would fail with ClassCastException later, far from the bug. Java prevents this by making generic types invariant: List<Integer> and List<Number> are unrelated. When I only need to read Numbers I use List<? extends Number>, and when I only need to add Integers I use List<? super Integer>. Arrays are covariant and fail at run time instead.',
+    'What can you put into List<? super String>?': 'You can add String values, and null, because whatever the real element type is, it is String or a supertype of String, such as Object or CharSequence, so a String always fits. What you cannot rely on is reading: get returns Object, because the compiler only knows the list holds some supertype of String. This is the “consumer super” half of the PECS rule: producer extends, consumer super. A method that only writes Strings into a list should take List<? super String>, so callers can pass a List<String>, a List<CharSequence> or a List<Object>. A method that only reads should take List<? extends T>.'
+  },
+  'j-executors-01': {
+    'Does a Future timeout cancel the task?': 'No. future.get(timeout, unit) only bounds how long the calling thread waits; when it throws TimeoutException, the task itself keeps running or stays queued, still holding its thread and any database connection, and may still finish its side effects later. To stop it I must call future.cancel(true), which marks the future cancelled and interrupts the worker thread if the task has started. Even then the task stops only if its code responds to interruption, for example by letting InterruptedException propagate from a blocking call. So I design long tasks to check for interruption, make their side effects idempotent, and decide explicitly what a timeout means for the caller.',
+    'How can you test rejection deterministically?': 'I build a ThreadPoolExecutor with one worker and a bounded queue of one, so the limits are known. I submit a first task that blocks on a CountDownLatch, which keeps the only worker busy, then submit a second task, which waits in the queue. Now both are full, so a third submission must hit the rejection policy: with the default AbortPolicy, I assert that it throws RejectedExecutionException. Then I release the latch and assert that the first two tasks complete. No sleeps are used, so the test does not depend on timing. Finally I shut the executor down and await termination so threads do not leak into other tests.'
+  },
+  'j-jvm-01': {
+    'Can two threads have private local variables and still race?': 'Yes. Each thread has its own stack, so local variables themselves are never shared. But a local variable of a reference type holds a reference, and two threads’ locals can point to the same object on the shared heap. If both threads then call seat.claim on that object, they race on its fields exactly as if they shared a global variable. Thread safety depends on how the object’s state is accessed, not on where the reference is stored. The fix is to coordinate access to the shared object, for example with synchronized methods, or to give each thread its own object so nothing is shared.'
+  },
+  'l-solid-01': {
+    'What is a useful Single Responsibility Principle test?': 'I list the realistic reasons the code might change and the people who would ask for them, then check which class each change would touch. For booking: the rules for claiming a seat change when the business changes the policy; the storage changes when we move databases; the HTTP format changes when the API version changes; email wording changes when marketing asks. If one class would change for several of these unrelated reasons, it has too many responsibilities, and changes for one reason risk breaking another. Splitting along those lines, domain, repository, controller and notifier, keeps each change local and each test focused.'
+  },
+  'b-testing-01': {
+    'Why use a fake repository and a real Seat?': 'A unit test should replace boundaries that are slow, external or hard to control, and keep the logic it is supposed to verify. The repository is a boundary to the database, so an in-memory fake makes the test fast and deterministic. Seat contains the actual booking rule, that only a free seat can be claimed and a failed claim does not change the owner, so mocking it would mean testing my mock instead of the rule. With a real Seat, the test checks the true behaviour: U2’s claim returns a conflict and the owner is still U1. The real repository gets its own integration test against a real database.'
+  },
+  'j-streams-01': {
+    'What does laziness buy in a filtered findFirst pipeline?': 'Intermediate operations such as filter and map do nothing when they are declared; they only describe the work. When the terminal operation findFirst runs, elements are pulled through the whole pipeline one at a time, and as soon as one passes the filter, findFirst returns it and the remaining elements are never examined. So for a list of 10,000 seats where the third is free, a sequential stream calls the filter only three times. Without laziness, filter would process the whole list first. It also means side effects in map or peek may run fewer times than you expect, which is why they should not hold required logic.'
+  },
+  'l-uml-01': {
+    'What does a sequence diagram reveal that a class diagram does not?': 'A class diagram shows structure: which classes exist, their fields and methods, and how they are related, such as BookingService using a SeatRepository. It says nothing about what happens during one request. A sequence diagram shows behaviour over time for one scenario: the controller calls the service, the service asks the repository for A1, then calls seat.claim("U2"), which returns false, and the service returns a conflict. It reveals the order of calls, who is responsible for each decision, and alternative branches such as success versus conflict. That makes it easier to spot missing checks, extra round trips or a decision in the wrong layer.'
+  },
   'j-oop-01': {
     'Why does Seat require an ID in its constructor?': 'A seat without an ID cannot be booked, displayed or matched with a request, so a Seat with a null or blank ID would be an invalid object. Making the ID a constructor parameter and validating it there means every Seat that exists is valid from the moment it is created; there is no window where code can see a half-built object. Declaring the field private final means it cannot change later, so the seat’s identity is stable for maps, logs and equality. If validation fails, the constructor throws IllegalArgumentException, so the caller learns about the mistake immediately instead of much later, far from the cause.',
     'When does Java supply a default constructor?': 'The compiler adds a public no-argument default constructor only when a class declares no constructors at all. That default constructor calls super() and leaves fields at their default values, such as null for references and 0 for numbers. As soon as you declare any constructor, for example Seat(String id), the compiler no longer adds one, so new Seat() fails to compile unless you write Seat() yourself. That is useful for a class like Seat: it forces every caller to supply an ID. Frameworks such as JPA need a no-argument constructor, which you can add as protected so ordinary code still has to pass an ID.'
@@ -7021,6 +7475,59 @@ export const lateTopicAnswers = {
 
 // Day 39 (Grok): runnable Java for an existing Codex packet; applied only when the packet has no code.
 export const lateTopicCode = {
+  'd-hashing-02': {
+    title: 'HashLookups.java · two strings with the same hash stored side by side, put replacing a key, a canonical record key, and one-pass two-sum · java HashLookups.java',
+      text: String.raw`import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+public class HashLookups {
+    record SeatId(String code) {
+        SeatId {
+            if (code == null || code.isBlank()) throw new IllegalArgumentException("blank seat code");
+            code = code.strip().toUpperCase(java.util.Locale.ROOT);   // one canonical form for equals and hashCode
+        }
+    }
+
+    // One pass: look up the complement seen earlier. Expected O(n) time, O(n) space.
+    static int[] twoSum(int[] a, int target) {
+        Map<Integer, Integer> seenAt = new HashMap<>();
+        for (int i = 0; i < a.length; i++) {
+            Integer j = seenAt.get(target - a[i]);
+            if (j != null) return new int[] {j, i};
+            seenAt.putIfAbsent(a[i], i);
+        }
+        return new int[0];
+    }
+
+    public static void main(String[] args) {
+        // Different strings, same hash: the map keeps both and equals tells them apart.
+        System.out.println("\"Aa\".hashCode() = " + "Aa".hashCode() + ", \"BB\".hashCode() = " + "BB".hashCode());
+        Map<String, Integer> m = new HashMap<>();
+        m.put("Aa", 1);
+        m.put("BB", 2);
+        System.out.println("get Aa = " + m.get("Aa") + ", get BB = " + m.get("BB") + ", size " + m.size());
+        Integer old = m.put("Aa", 10);                       // same key: replaces, does not add
+        System.out.println("second put Aa returned " + old + ", size still " + m.size());
+
+        Map<SeatId, String> owners = new HashMap<>();
+        owners.put(new SeatId("a1"), "U1");
+        System.out.println("lookup with ' A1 ' finds " + owners.get(new SeatId(" A1 ")));
+
+        System.out.println("twoSum([2, 7, 11, 15], 9) = " + Arrays.toString(twoSum(new int[] {2, 7, 11, 15}, 9)));
+        System.out.println("twoSum([3, 3], 6) = " + Arrays.toString(twoSum(new int[] {3, 3}, 6)));
+        System.out.println("twoSum([1, 2], 7) = " + Arrays.toString(twoSum(new int[] {1, 2}, 7)));
+    }
+}
+`,
+      output: String.raw`"Aa".hashCode() = 2112, "BB".hashCode() = 2112
+get Aa = 1, get BB = 2, size 2
+second put Aa returned 1, size still 2
+lookup with ' A1 ' finds U1
+twoSum([2, 7, 11, 15], 9) = [0, 1]
+twoSum([3, 3], 6) = [0, 1]
+twoSum([1, 2], 7) = []`
+  },
   'ai-rag-01': {
     title: 'RagPipeline.java · retrieve current authorized passages, generate with a fixture, validate citations and claims, fall back by stage · java RagPipeline.java',
       text: String.raw`import java.util.*;
