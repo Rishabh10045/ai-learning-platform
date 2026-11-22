@@ -192,6 +192,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/')],
     recall: 'When does BFS give the wrong answer for a cheapest route?'
   },
+  32: {
+    title: 'Dynamic programming: weighted intervals',
+    concept: 'When bookings have different values, decide for each one whether to skip it or take it plus the best compatible earlier set: best[i] = max(best[i − 1], value[i] + best[p(i)]).',
+    example: '[0,2) and [2,4) worth 1 each against [0,4) worth 10: DP picks the long job for 10; earliest finish gets 2.',
+    practice: 'Implement the recurrence with binary-searched p(i) and reconstruct the chosen jobs; add a reset buffer.',
+    checks: ['Recurrence written before code.', 'Brute force agrees on small inputs.', 'O(n log n) explained.'],
+    readings: [reading('Princeton · Dynamic programming slides', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/06DynamicProgrammingI.pdf')],
+    recall: 'What are the two choices in the weighted interval recurrence?'
+  },
   // @@lanes
 };
 
@@ -4318,6 +4327,164 @@ cheapest S->T: [S, A, T] cost 2 (BFS would pick S->T, 1 hop, cost 5)`
       ['Routes and costs match for every vertex.', '0–1 BFS agrees with Dijkstra.', 'An unreachable vertex is reported.', 'Complexity stated for both.']],
     references: [['Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/']]
   },
+  'd-greedy-01': {
+    notes: [
+      'A greedy algorithm builds a solution by making the choice that looks best right now and never revisiting it. It is fast and simple, but it is only correct when you can prove that the local choice is always part of some optimal solution. Always state that proof, or a counterexample, in an interview.',
+      'Interval scheduling is the standard example: given bookings for one room, choose as many non-overlapping bookings as possible. Sort by end time and take each booking that starts no earlier than the previous chosen one ends. IntervalGreedy.java chooses A, C and E from five bookings. The proof is an exchange argument: take any optimal schedule and replace its first booking with the one that finishes earliest. That booking ends no later, so everything after it still fits, and the count is unchanged. Repeat the argument for the rest. Sorting costs O(n log n) and the scan is O(n).',
+      'Requirements change the compatibility rule, not the idea. With a 10-minute reset after each booking, the next booking must start at or after the previous end plus 10 minutes. The program tests bookings starting 9, 10 and 11 minutes after P ends: the one at 9 is rejected, the one at exactly 10 is accepted, and the one at 11 is then skipped because it overlaps the booking just chosen. Intervals are half-open, [start, end).',
+      'Greedy fails when its precondition is missing. Taking the largest coin first gives 4 + 1 + 1 = three coins for 6 with coins 1, 3 and 4, but 3 + 3 uses two. When bookings have different values, earliest finish can also lose, which is why the lane uses dynamic programming.'
+    ],
+    code: {
+      title: 'IntervalGreedy.java · earliest-finish interval selection, a 10-minute reset rule with edge cases, and greedy versus optimal coin change · java IntervalGreedy.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+
+public class IntervalGreedy {
+    record Booking(String id, int start, int end) {}   // half-open [start, end), minutes
+
+    // Earliest finish first: maximizes the NUMBER of non-overlapping bookings.
+    static List<String> select(List<Booking> bookings, int bufferMinutes) {
+        List<Booking> sorted = new ArrayList<>(bookings);
+        sorted.sort(Comparator.comparingInt(Booking::end).thenComparing(Booking::id));
+        List<String> chosen = new ArrayList<>();
+        long freeFrom = Long.MIN_VALUE;
+        for (Booking b : sorted) {
+            if (b.start() >= freeFrom) {
+                chosen.add(b.id());
+                freeFrom = (long) b.end() + bufferMinutes;   // reset time before the next one
+            }
+        }
+        return chosen;
+    }
+
+    static int greedyCoins(int[] coins, int target) {
+        int[] c = coins.clone();
+        Arrays.sort(c);
+        int count = 0;
+        for (int i = c.length - 1; i >= 0; i--) { count += target / c[i]; target %= c[i]; }
+        return target == 0 ? count : -1;
+    }
+
+    static int dpCoins(int[] coins, int target) {
+        int[] best = new int[target + 1];
+        Arrays.fill(best, Integer.MAX_VALUE);
+        best[0] = 0;
+        for (int t = 1; t <= target; t++)
+            for (int c : coins)
+                if (c <= t && best[t - c] != Integer.MAX_VALUE) best[t] = Math.min(best[t], best[t - c] + 1);
+        return best[target] == Integer.MAX_VALUE ? -1 : best[target];
+    }
+
+    public static void main(String[] args) {
+        List<Booking> day = List.of(new Booking("A", 540, 600), new Booking("B", 570, 630),
+            new Booking("C", 600, 660), new Booking("D", 610, 700), new Booking("E", 660, 720));
+        System.out.println("earliest finish: " + select(day, 0));
+        System.out.println("with 10-min reset: " + select(day, 10));
+        List<Booking> edge = List.of(new Booking("P", 0, 60), new Booking("Q", 69, 90),
+            new Booking("R", 70, 100), new Booking("S", 71, 120));
+        System.out.println("reset edge cases (9, 10, 11 min after P ends): " + select(edge, 10));
+        System.out.println("coins [1,3,4] for 6: greedy " + greedyCoins(new int[] {1, 3, 4}, 6)
+            + ", optimal " + dpCoins(new int[] {1, 3, 4}, 6));
+    }
+}
+`,
+      output: String.raw`earliest finish: [A, C, E]
+with 10-min reset: [A, D]
+reset edge cases (9, 10, 11 min after P ends): [P, R]
+coins [1,3,4] for 6: greedy 3, optimal 2`
+    },
+    takeaways: ['Greedy needs a proof or a counterexample.', 'Earliest finish maximizes the count of intervals.', 'A reset buffer changes only the compatibility test.', 'Largest coin first is not always optimal.'],
+    interview: [
+      ['Why does choosing the earliest-finishing interval maximize the number of bookings?', 'I use an exchange argument. Suppose an optimal schedule starts with some booking X, and G is the booking that finishes earliest overall. G ends no later than X, so if I replace X with G, every later booking in the optimal schedule still starts after G ends. The new schedule is valid and has the same number of bookings, so some optimal schedule starts with G. After choosing G, the remaining problem is the same type of problem on the bookings that start after G ends, so the same argument applies again. That proves the greedy choice is safe. It costs O(n log n) for sorting.'],
+      ['How do you know whether a greedy algorithm is correct?', 'I look for a proof that the greedy choice can always be part of an optimal solution, usually an exchange argument, and that the remaining problem has the same structure. If I cannot find one, I try to break it with small counterexamples. For coin change with coins 1, 3 and 4 and target 6, largest-first gives 4, 1, 1, three coins, while 3, 3 uses two, so greedy is wrong for those denominations. For weighted intervals, one long valuable booking beats two short cheap ones that finish earlier. When greedy fails, I usually switch to dynamic programming, which considers both choices for each item.'],
+      ['How does a required 10-minute reset between bookings change the interval algorithm?', 'The greedy idea and the earliest-finish sort stay the same; only the compatibility rule changes. Instead of next.start ≥ previous.end, the rule becomes next.start ≥ previous.end + 10 minutes. I keep a single “free from” time, which is the last chosen end plus the reset. I make units consistent, use half-open intervals, and test boundary cases: a booking starting 9 minutes after the previous end is rejected, one at exactly 10 is accepted, and one at 11 is accepted. The exchange argument still holds because the earliest finish also gives the earliest free time. I would also confirm the reset applies only within the same room.']
+    ],
+    check: ['Coins are 1, 3 and 4. How many coins does largest-first greedy use for 6, and what is the optimum?',
+      ['2 and 2', '3 and 2', '3 and 3', '6 and 2'], 1,
+      'Greedy takes 4, 1, 1 (three coins); 3 + 3 uses two.'],
+    practice: ['Copy IntervalGreedy.java. Add the minimum number of rooms needed for all bookings (sort starts and ends, or use a min-heap of end times), and a test that compares the greedy count with a brute force over all subsets for 10 random bookings.',
+      ['Minimum rooms matches a brute-force check.', 'Greedy count equals brute force every time.', 'Buffer edge cases pass.', 'Complexity stated.']],
+    references: [['Princeton · Greedy algorithms (Kleinberg–Tardos lecture slides)', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/04GreedyAlgorithmsI.pdf']]
+  },
+  'd-dp-01': {
+    notes: [
+      'Dynamic programming solves a problem by combining answers to smaller versions of it, storing each answer once. Weighted interval scheduling is a good first example. Sort jobs by end time. For job i, either skip it, giving best[i − 1], or take it, giving value[i] + best[p(i)], where p(i) is the number of earlier jobs that end before job i starts. best[i] is the larger of the two.',
+      'WeightedIntervals.java finds p(i) with binary search, so the total cost is O(n log n). On [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10, it chooses the long job for 10, where earliest finish would collect 2. To list the chosen jobs, walk back from the end: if taking job i beats skipping it, record it and jump to p(i); otherwise move to i − 1.',
+      'A reset buffer only changes p(i): a job is compatible if its end plus the buffer is at or before the start. With a buffer of 1, the best total for the sample day drops from 13 to 9. Ties can be broken either way, so define the rule if the output must be deterministic.'
+    ],
+    code: {
+      title: 'WeightedIntervals.java · weighted interval scheduling: sort by end, binary-search the compatible predecessor, skip-or-take recurrence and reconstruction · java WeightedIntervals.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+public class WeightedIntervals {
+    record Job(String id, int start, int end, int value) {}   // half-open [start, end)
+
+    // best[i] = max value using only the first i jobs (sorted by end time).
+    static List<String> solve(List<Job> input, int buffer, int[] totalOut) {
+        List<Job> jobs = new ArrayList<>(input);
+        jobs.sort(Comparator.comparingInt(Job::end).thenComparing(Job::id));
+        int n = jobs.size();
+        int[] pred = new int[n];          // number of jobs compatible before job i
+        for (int i = 0; i < n; i++) pred[i] = lastCompatible(jobs, i, buffer);
+        long[] best = new long[n + 1];
+        for (int i = 1; i <= n; i++) {
+            Job j = jobs.get(i - 1);
+            long take = j.value() + best[pred[i - 1]];
+            best[i] = Math.max(best[i - 1], take);            // skip vs take
+        }
+        List<String> chosen = new ArrayList<>();              // reconstruct by walking back
+        for (int i = n; i > 0; ) {
+            Job j = jobs.get(i - 1);
+            if (j.value() + best[pred[i - 1]] > best[i - 1]) { chosen.add(j.id()); i = pred[i - 1]; }
+            else i--;
+        }
+        Collections.reverse(chosen);
+        totalOut[0] = (int) best[n];
+        return chosen;
+    }
+
+    // Binary search: count of jobs (by end order) with end + buffer <= start of job i.
+    static int lastCompatible(List<Job> jobs, int i, int buffer) {
+        int lo = 0, hi = i;
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if ((long) jobs.get(mid).end() + buffer <= jobs.get(i).start()) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    public static void main(String[] args) {
+        int[] total = new int[1];
+        List<Job> simple = List.of(new Job("short1", 0, 2, 1), new Job("short2", 2, 4, 1), new Job("long", 0, 4, 10));
+        System.out.println("chosen " + solve(simple, 0, total) + " total " + total[0] + " (earliest finish would total 2)");
+
+        List<Job> day = List.of(new Job("A", 0, 3, 5), new Job("B", 1, 5, 6), new Job("C", 3, 6, 5),
+            new Job("D", 5, 8, 4), new Job("E", 6, 9, 3));
+        System.out.println("no buffer: " + solve(day, 0, total) + " total " + total[0]);
+        System.out.println("buffer 1 : " + solve(day, 1, total) + " total " + total[0]);
+    }
+}
+`,
+      output: String.raw`chosen [long] total 10 (earliest finish would total 2)
+no buffer: [A, C, E] total 13
+buffer 1 : [A, D] total 9`
+    },
+    takeaways: ['State the recurrence: skip or take.', 'p(i) by binary search gives O(n log n).', 'Reconstruct by walking back through choices.', 'A buffer changes only the compatibility test.'],
+    interview: [
+      ['How do you solve weighted interval scheduling?', 'I sort the jobs by end time and define best[i] as the maximum value using only the first i jobs. For job i there are two options: skip it, which gives best[i − 1], or take it, which gives its value plus best[p(i)], where p(i) counts the jobs that end before job i starts. best[i] is the maximum of those. Because jobs are sorted by end, p(i) can be found with binary search, so the whole algorithm is O(n log n) time and O(n) space. To return the chosen jobs, I walk backwards: if taking job i was better I add it and jump to p(i), otherwise I go to i − 1.']
+    ],
+    check: ['Jobs [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10. What is the best total value with no overlap?',
+      ['2', '10', '11', '12'], 1,
+      'The long job overlaps both short ones, and 10 is more than 1 + 1.'],
+    practice: ['Copy WeightedIntervals.java. Add a brute-force check over all subsets for 12 random jobs, a top-down memoized version, and a deterministic tie rule that prefers fewer jobs.',
+      ['DP equals brute force on random cases.', 'Memoized and bottom-up results agree.', 'Ties are broken consistently.', 'Complexity stated.']],
+    references: [['Princeton · Dynamic programming (Kleinberg–Tardos lecture slides)', 'https://www.cs.princeton.edu/~wayne/kleinberg-tardos/pdf/06DynamicProgrammingI.pdf']]
+  },
   // @@packets
 };
 
@@ -4406,6 +4573,10 @@ export const lateDistractors = {
     ['Fewest edges in any directed graph with negative weights.', 'The route found by DFS is always shortest.'],
     ['Never; the parent link is enough.', 'After the whole queue is empty.']
   ],
+  32: [
+    ['Yes, as long as the intervals are sorted by start time.', 'Only if every value is negative.'],
+    ['Its weight times the number of intervals it overlaps.', 'Its weight plus best[i − 1], even if that set overlaps it.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4451,6 +4622,8 @@ export const lateExplanations = {
     'To keep the k smallest, the item to discard is the largest one kept, so it must sit at the root of a max-heap where it can be replaced in O(log k).'],
   31: ['BFS explores in layers of edge count, so it guarantees the fewest edges only when every edge counts the same. For costs, use Dijkstra.',
     'Marking on enqueue keeps each vertex in the queue once and preserves its first parent, which lies on a fewest-edge route.'],
+  32: ['The exchange argument only preserves the count of intervals. A single high-value interval can be worth more than several short ones, so weighted cases need a recurrence.',
+    'Taking interval i means nothing that overlaps it can be used, so its value is added to the best total of the jobs that end before it starts, best[p(i)].'],
   // @@explanations
 };
 
@@ -4607,6 +4780,14 @@ export const lateAssessment = {
     { question: 'During a DFS of a directed graph, you reach a vertex that is grey (still on the current path). What does that mean?',
       choices: ['The graph is disconnected', 'There is a cycle', 'The vertex is unreachable', 'BFS would be faster'], answer: 1,
       explanation: 'An edge to a vertex on the current DFS path is a back edge, which closes a cycle.' }
+  ],
+  32: [
+    { question: 'Bookings must leave a 10-minute reset. Booking P is [0, 60). Which of these can follow P directly?',
+      choices: ['A booking starting at 69', 'A booking starting at 70', 'Any booking that starts after 60', 'None, resets forbid back-to-back bookings'], answer: 1,
+      explanation: 'The next start must be at least 60 + 10 = 70.' },
+    { question: 'What makes weighted interval scheduling O(n log n) rather than O(n²)?',
+      choices: ['Using a HashMap of values', 'Finding each compatible predecessor p(i) by binary search over jobs sorted by end time', 'Greedy selection by value', 'Recursion without memoization'], answer: 1,
+      explanation: 'Sorting is O(n log n) and each p(i) is one binary search; the recurrence itself is O(n).' }
   ],
   // @@assessment
 };
@@ -4813,6 +4994,11 @@ export const lateInterviewGuides = {
     'BFS uses a FIFO queue, so it processes the source, then every vertex one edge away, then every vertex two edges away. A vertex at distance d + 1 is first discovered from a vertex at distance d, so its first discovery is along a route with the fewest edges. The visited set, marked when a vertex is enqueued, prevents three problems: enqueuing the same vertex several times, overwriting its first parent with a worse one, and looping forever on cycles. To rebuild the route I follow parent links from the target back to the source and reverse them. With adjacency lists BFS costs O(V + E) time and O(V) extra space.',
     'No. BFS minimizes the number of edges, not the sum of costs. If S–T costs 5 while S–A and A–T cost 1 each, BFS finds S→T first because it is one hop, but S→A→T costs only 2. For non-negative costs I use Dijkstra’s algorithm, which takes the vertex with the smallest known total cost from a priority queue and relaxes its edges. If costs are only 0 or 1, a 0–1 BFS with a deque is faster, and with negative costs I would use Bellman–Ford. First I confirm whether the requirement is the fewest connections or the lowest total cost, because they lead to different algorithms.',
     'If a vertex is marked only when it is dequeued, it can be added to the queue many times before that happens. Take a diamond: A connects to B and C, and both B and C connect to D. Processing B enqueues D. Processing C checks D, sees it is not marked yet, and enqueues it again. In a dense graph this repeats for many vertices, so the queue can grow to O(E) entries and the same vertex is expanded repeatedly, and its parent may be overwritten. Marking on enqueue keeps a single discovery per vertex, preserves the first parent, which is on a shortest route, and caps the queue at V entries.'
+  ],
+  32: [
+    'Take three bookings: [0,2) worth 1, [2,4) worth 1 and [0,4) worth 10. Earliest finish takes [0,2) first, then [2,4), for a total of 2, and the long booking no longer fits. The best answer is the long booking alone, worth 10. Weighted interval scheduling fixes this with a recurrence over jobs sorted by end time: best[i] = max(best[i − 1], value[i] + best[p(i)]), where p(i) is the number of jobs that end before job i starts. It compares skipping job i with taking it plus the best compatible earlier set. With binary search for p(i), it runs in O(n log n).',
+    'The idea stays the same, but the compatibility rule becomes previous.end + 10 minutes ≤ next.start instead of previous.end ≤ next.start. In greedy selection, I track the time the room is free again, which is the chosen end plus 10. In the weighted DP, the reset changes how p(i) is computed. I keep all times in one unit, such as minutes, and use half-open intervals. Then I test the boundary: with a booking ending at 60, starts at 69, 70 and 71 must be rejected, accepted and accepted. I also confirm the reset applies per room, because two rooms would make it a different problem.',
+    'With equal weights, the goal is to maximize the count. Take any optimal schedule and look at its first booking, X. Let G be the booking that finishes earliest of all. G ends no later than X, so replacing X with G keeps every later booking compatible, and the schedule has the same number of bookings. So there is an optimal schedule that starts with G. After choosing G, what remains is the same problem on bookings that start after G ends, so the argument repeats. The exchange only keeps the count, not the total value, so with weights it can lose value.'
   ],
   // @@guides
 };
