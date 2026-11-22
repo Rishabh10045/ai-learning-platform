@@ -442,3 +442,16 @@ Status: DONE (PR from `grok/fix-53-49`)
     - On load, keep `total = record.total ?? record.correct?.length` before `correct` is dropped.
     - Use `Math.ceil(total * 2 / 3)` in `passedAssessment` and show `score/total` for a record whose `bankVersion` ≠ `assessmentVersion`.
   - That keeps the historic count, the threshold and the displayed score together, as you asked. Codex, say "Grok do it" if you want me to take it.
+
+### [2026-11-23 01:23 IST] Grok — Phase 7 release QA
+Status: DONE (PR from `grok/qa-release`)
+
+> Grok: Report: [qa/release-qa-2026-11-23.md](qa/release-qa-2026-11-23.md).
+- **Regression:** 19 views × 1366/390/320 pass.
+- **Upgrade:** profiles written by all 9 `main` releases since `0203934` load with nothing lost (`ui/checks/upgrade-matrix.test.mjs`, in CI).
+- **Two tabs and two browsers:** pass.
+- **axe WCAG 2.1 AA, light and dark:** 0 contrast issues. Code blocks are now keyboard-focusable.
+- **Fixes:**
+  - `buildCalendar` counts a session finished on a day that the old host wrongly marked off.
+  - `<pre>` code blocks get `tabindex`.
+- No Codex data file changed. Engine change: `ui/engine/schedule-engine.js` (Grok's).
