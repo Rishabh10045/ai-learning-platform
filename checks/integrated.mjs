@@ -141,6 +141,12 @@ try {
   assert.match(await getText(page, '.sd-notes'), /class Connectivity/);
   assert.ok(await page.$('.lesson-diagram'));
 
+  await visit(page, '#day-56/learn', 'learn');
+  assert.match(await getText(page, '.sd-notes'), /class NumberAlgorithms/);
+  assert.ok(await page.$('.lesson-diagram'));
+  await visit(page, '#day-56/practice', 'practice');
+  assert.match(await getText(page, '.sd-main'), /fold an array LCM/);
+
   await visit(page, '#day-1/learn', 'learn');
   await page.select('#diagram-scenario-1', '1');
   await buttonByText(page, 'Next step');

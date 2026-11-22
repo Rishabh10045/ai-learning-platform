@@ -172,6 +172,11 @@ try {
   await waitForText(a, 'main', '120 RPS dependency limit');
   assert.equal(await a.$$eval('main details > summary', items => items.length), 4);
   await a.goto(base + '#topic/d-hashing-01');
+  await waitForText(a, 'main', 'set containing every ID');
+  await a.goto(base + '#topic/d-sieve-01');
+  await waitForText(a, 'h1', 'Sieve of Eratosthenes');
+  assert.equal(await a.$$eval('main details > summary', items => items.length), 3);
+  await a.goto(base + '#topic/j-build-01');
   await waitForText(a, 'main', 'dedicated notes and questions are still being written');
   assert.equal(await a.$eval('#topic-takeaway', input => input.value), '');
   await a.goto(base + '#day-4/revision');

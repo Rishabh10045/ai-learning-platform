@@ -1,17 +1,26 @@
 # Study Desk day and topic readiness matrix
 
-22 November 2026 IST. Compared draft PR #5 at `dbe599b` with the Day 1 repair and the following Java Strings and scaling batch. This presence audit counts authored fields and timing blocks. The [LLD source matrix](curriculum-lld-coverage.md) makes separate editorial judgments based on actual notes and practice. Transcript accuracy, per-topic depth, worksheet execution and video playback require individual evidence.
+22 November 2026 IST. The starting draft was `17d3fc0`. Current rows include the Day 56 and foundation lesson batch. This presence audit counts authored fields and timing blocks. Read the source-level audit and run individual labs before treating a topic as fully verified.
 
-- 55 days with typed explanatory notes, a parent worked example, revision prompts and a direct reading field.
-- 167 daily interview questions and model answers, 169 scored quiz items, 26 interactive diagrams, and 51 days under 400 words of explanatory prose.
-- 13 of 117 topics now have dedicated explanations, interview answers, coach takeaways, criteria and readings. Every indexed topic has a learner takeaway field. The remaining topics point to parent lessons and require editorial coverage checks.
-- Four displayed standalone Java programs are on Days 1, 5, 26 and 55. The Java 21 execution results belong to those examples only. Other exercises generally have prompts and acceptance criteria.
-- Every core sums to 120 minutes. Day 1 allocates 15 explicit DSA minutes. Days 2–55 reserve 12 minutes for recall and do not expose an independent 30-minute DSA lane. DSA-focused sessions teach algorithms as the main subject. The agreed weekday split still needs the v2 scheduler and stable lesson migration.
-- Weekend preferences default to 390 minutes. The long Day 1 adds 270 minutes of named extensions. Other weekends allocate extra time through the generic practice, interview and revision planner. Reminder delivery and cross-device sync need the deployed account API.
+- 56 days have English lesson notes, a worked example, practice criteria, revision prompts and a direct reading field.
+- 170 day-level interview questions have answers. There are 172 scored quiz items and 27 interactive diagrams. 52 days have under 400 words of explanatory prose.
+- 28 of 122 indexed topics have dedicated packets. The other 94 use a parent-day link and have an individual learner takeaway field.
+- Day 1 and Day 56 have dedicated packets for every assigned topic. Days 1, 5, 26, 55 and 56 have displayed standalone Java. Other exercises mainly use prompts and acceptance criteria.
+- Every core is 120 minutes. Weekend defaults remain 390 minutes. The independent 30-minute daily DSA lane and live synced account release are open.
+
+| Subject | Indexed | Dedicated | Remaining |
+| --- | ---: | ---: | ---: |
+| Java | 15 | 10 | 5 |
+| Low-level design | 8 | 3 | 5 |
+| System design | 22 | 3 | 19 |
+| AI engineering | 19 | 2 | 17 |
+| DSA in Java | 31 | 8 | 23 |
+| Spring Boot & backend | 17 | 1 | 16 |
+| SQL and data | 10 | 1 | 9 |
 
 ## Day-by-day rendered content
 
-Reading and video columns count configured URLs. An exercise prompt or acceptance check establishes presence. Prose counts exclude code and headings.
+Reading and video columns count configured URLs. Prose excludes code and headings.
 
 | Day | Session | Prose words | Diagram | Displayed code | Practice / criteria | Read / video links | Interview Q / A | MCQs | Recall bullets | Core / explicit DSA min |
 | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -70,28 +79,29 @@ Reading and video columns count configured URLs. An exercise prompt or acceptanc
 | 53 | Math, matrices and deeper dynamic programming | 257 | Yes | text | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 54 | Java-first AI deployment and final review | 205 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 55 | Union-Find and minimum spanning trees | 423 | Yes | java | 1 / 1 | 2 / 0 | 3 / 3 | 5 | 3 | 120 / 0 |
+| 56 | Bits, number bases and prime algorithms | 357 | Yes | java | 1 / 1 | 2 / 0 | 3 / 3 | 3 | 3 | 120 / 0 |
 
 ## Topic-by-topic authoring status
 
-Zero means the topic has no dedicated field of that kind. Open its parent day to inspect shared notes and practice. Counts for a dedicated packet are screening signals. The readiness sign-off requires a worked mechanism, technical accuracy and useful questions.
+Zero means the topic has no dedicated field of that kind. The named parent lesson remains available. Counts track authoring progress. Technical depth, teaching fit and execution require individual checks.
 
 | Day | Subject | Topic | Stable topic ID | Parent lesson ID | Notes words | Interview Q / A | Coach takeaways | Diagnostic checks | Practice criteria | Read links |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | Java | Objects, encapsulation and ownership | `j-oop-01` | `j-oop-01` | 266 | 4 / 4 | 4 | 1 | 4 | 2 |
-| 1 | Low-level design | Domain invariants | `l-invariants-01` | `j-oop-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 1 | System design | Browser-to-server request flow | `h-request-01` | `j-oop-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 1 | AI engineering | Training, inference and application boundaries | `ai-foundations-01` | `j-oop-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 1 | DSA in Java | Find duplicate IDs with a set | `d-hashing-01` | `j-oop-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 2 | Java | Thread interleavings and races | `j-concurrency-01` | `j-concurrency-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 1 | Low-level design | Domain invariants | `l-invariants-01` | `j-oop-01` | 146 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 1 | System design | Browser-to-server request flow | `h-request-01` | `j-oop-01` | 143 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 1 | AI engineering | Training, inference and application boundaries | `ai-foundations-01` | `j-oop-01` | 133 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 1 | DSA in Java | Find duplicate IDs with a set | `d-hashing-01` | `j-oop-01` | 134 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 2 | Java | Thread interleavings and races | `j-concurrency-01` | `j-concurrency-01` | 146 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 3 | Java | Synchronization, visibility and atomicity | `j-concurrency-02` | `j-concurrency-02` | 169 | 4 / 4 | 3 | 1 | 2 | 1 |
 | 4 | Java | Equality and hash codes | `j-equality-01` | `j-equality-01` | 175 | 3 / 3 | 3 | 1 | 2 | 1 |
 | 4 | Java | HashMap internals and collection choice | `j-collections-01` | `j-equality-01` | 341 | 5 / 5 | 5 | 1 | 4 | 4 |
-| 4 | DSA in Java | Hash collisions and lookup costs | `d-hashing-02` | `j-equality-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 5 | Java | Java method and type contracts | `j-oop-02` | `j-oop-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 5 | Java | Exceptions and failure outcomes | `j-exceptions-01` | `j-oop-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 5 | Low-level design | Domain and service responsibilities | `l-responsibilities-01` | `j-oop-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 4 | DSA in Java | Hash collisions and lookup costs | `d-hashing-02` | `j-equality-01` | 133 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 5 | Java | Java method and type contracts | `j-oop-02` | `j-oop-02` | 140 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 5 | Java | Exceptions and failure outcomes | `j-exceptions-01` | `j-oop-02` | 147 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 5 | Low-level design | Domain and service responsibilities | `l-responsibilities-01` | `j-oop-02` | 125 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 5 | Java | String values, identity and the string pool | `j-strings-01` | `j-oop-02` | 272 | 5 / 5 | 4 | 1 | 4 | 4 |
-| 6 | Java | Generics and wildcards | `j-generics-01` | `j-generics-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 6 | Java | Generics and wildcards | `j-generics-01` | `j-generics-01` | 135 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 6 | Java | Lazy stream pipelines | `j-streams-01` | `j-generics-01` | 169 | 3 / 3 | 3 | 1 | 2 | 1 |
 | 7 | Java | Executors, futures and bounded work | `j-executors-01` | `j-executors-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 7 | Java | Thread stacks and shared objects | `j-jvm-01` | `j-executors-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
@@ -194,6 +204,11 @@ Zero means the topic has no dedicated field of that kind. Open its parent day to
 | 54 | Spring Boot & backend | Demonstrate an end-to-end Java build | `b-deployment-02` | `ai-operations-03` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 55 | DSA in Java | Union-Find and dynamic connectivity | `d-union-find-01` | `d-union-find-01` | 146 | 4 / 4 | 3 | 1 | 2 | 1 |
 | 55 | DSA in Java | Kruskal and minimum spanning forests | `d-mst-01` | `d-union-find-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 56 | DSA in Java | Bit masks, signed parity and XOR | `d-bits-01` | `d-bits-01` | 142 | 3 / 3 | 3 | 1 | 3 | 2 |
+| 56 | DSA in Java | Binary, octal and hexadecimal conversions | `d-bases-01` | `d-bits-01` | 134 | 3 / 3 | 3 | 1 | 3 | 2 |
+| 56 | DSA in Java | Primality and the square-root bound | `d-primes-01` | `d-bits-01` | 135 | 3 / 3 | 3 | 1 | 2 | 1 |
+| 56 | DSA in Java | Sieve of Eratosthenes | `d-sieve-01` | `d-bits-01` | 162 | 3 / 3 | 3 | 1 | 3 | 2 |
+| 56 | DSA in Java | Euclidean GCD and LCM folds | `d-lcm-01` | `d-bits-01` | 118 | 3 / 3 | 3 | 1 | 3 | 2 |
 
 ## Reading availability · 2026-11-22 10:42 IST
 
@@ -289,3 +304,7 @@ Zero means the topic has no dedicated field of that kind. Open its parent day to
 Day 5’s displayed Java 21 program verifies constant and runtime String identity, value-based map lookup, immutable String results, a builder snapshot, and the different results of numeric and string concatenation. Day 17’s capacity trace verifies the arithmetic separately from its still-pending two-process infrastructure exercise. The same-browser and two-browser check suite covers the new topic routes.
 
 The six references attached to the two new packets returned HTTP 200. Nine Node tests passed, and Chromium passed 30 route/layout checks plus the two-browser sync and conflict flow. Both new topic pages and the Java Strings example rendered in the browser.
+
+## Day 56 and foundation verification
+
+The exact displayed NumberAlgorithms.java ran on Java 21. It includes deterministic bit, radix, prime, sieve and LCM fixtures, and compares sieve output against trial division for every bound from 0 through 100. Fourteen distinct new packet reference URLs responded with HTTP 200. Nine Node tests, 30 Chromium route/layout checks, all 56 Learn and Coach routes, and the two-browser progress flow passed. The authenticated server must serve the new notes modules. The browser test caught those routes before the server allowlist was updated and passed after the fix.

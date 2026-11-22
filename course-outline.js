@@ -26,7 +26,8 @@ const trackSpecs = [
   ]],
   ['dsa', 'DSA in Java', [
     ['linear', 'Complexity, arrays, windows, lists and stacks', span(26, 29)],
-    ['nonlinear', 'Trees, graphs, DP and depth problems', [30, 31, 32, 52, 53, 55]]
+    ['nonlinear', 'Trees, graphs, DP and depth problems', [30, 31, 32, 52, 53, 55]],
+    ['number-algorithms', 'Bit operations, bases, primes and LCM', [56]]
   ]],
   ['ai', 'AI engineering', [
     ['llm', 'LLMs, prompts and output contracts', [35, 36]],
@@ -87,7 +88,7 @@ const coverageSpecs = [
     ['All source capstone implementations', []]
   ]],
   ['dsa', 'GFG · DSA and System Design', [
-    ['Complexity, arrays, math, prefix sums and sliding windows', [26, 27, 53]],
+    ['Complexity, arrays, math, prefix sums and sliding windows', [26, 27, 53, 56]],
     ['Hashing, recursion, search and sorting', [4, 26, 27, 28, 30, 52]],
     ['Lists, stack and queue operations, LRU and backtracking', [28, 29, 31, 52]],
     ['Trees, search ordering and heaps', [30]],

@@ -129,3 +129,18 @@ A row is **covered** when the topic has instructional evidence in notes and a tr
 2. Sequence the next missing DSA groups as number/math foundations → arrays/windows → hashing and search → sorting and matrices → linked lists/stacks/queues → backtracking → trees/heaps → graphs → greedy/DP. The open rows estimate 1,555 minutes before reuse. Counting the shared graph-cycle fixture once gives 1,530 minutes, or 25 hours 30 minutes. This is a first-pass estimate of gap work. Pair short exercises and split longer exercises when mapping them into 30-minute DSA slots.
 3. Build recurring DSA lesson slots in the subject-first schedule once the day/lesson adapter is ready. The existing core after Day 1 has 12 min revision, 28 min teaching, 65 min practice and 15 min review. It does not implement the agreed 12/78/30 allocation across all days. A mere reassignment of session titles would leave many hours of work unscheduled.
 4. Give each cluster both a worked case and an independent Java task with checks. Use weekend stretch for multi-problem mocks, the second Sudoku slot or slower recurrence derivations. Keep the one-session-per-date rule and the 9–11 PM IST core while estimating which additional study days are necessary.
+
+## Day 56 repair · 22 November 2026 IST
+
+The original 73-row audit stays available as the historical baseline. Day 56 `d-bits-01` now includes five source-backed topic packets and a single standalone Java 21 program. The following rows changed.
+
+| Source locator | Topic ID | Current status and evidence |
+| --- | --- | --- |
+| PDF p. 7 · Class 1.2 | `d-bits-01` | Covered. Signed odd/even, bit masks and XOR swap with independent and aliased indices. |
+| PDF p. 7 · Class 1.3 | `d-bases-01` | Covered. Binary, octal and hexadecimal signed round trips, invalid digit and signed int overflow checks. |
+| PDF p. 7 · Class 2.1 | `d-primes-01` | Covered. A factor-pair proof, inclusive sqrt boundary, prime square and maximum positive int fixture. |
+| PDF p. 7 · Class 2.2 | `d-sieve-01` | Covered. Interactive trace from p², primes through 30, plus exhaustive small-bound comparison with trial division. |
+| PDF p. 7 · Class 2.3 | `d-lcm-01` | Covered. Euclid and array LCM with zero/empty input, divide-first and checked overflow. |
+| PDF p. 7 · Class 2.4 | — | Still missing the fractions and modular-arithmetic practice cluster. |
+
+Re-evaluating the five changed rows against the original matrix gives 19 covered, 31 partial and 23 missing. This comparison concerns only the tracked 73 source rows. The 30-minute daily independent DSA lane remains open. Day 56 provides a prerequisite repair without renumbering prior study days.

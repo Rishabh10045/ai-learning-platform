@@ -365,5 +365,129 @@ class Connectivity {
         System.out.println(result);
     }
 }`]
+  },
+  56: {
+    source: ['Java 21 API · Integer radix and conversion', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html'],
+    table: {
+      title: 'Choose by query pattern and bounds', headers: ['Task', 'Approach', 'Boundary check'],
+      rows: [
+        ['One candidate', 'Trial division through its square root', 'Handle 0, 1, 2 and a perfect square'],
+        ['Many queries in a dense range', 'One sieve, then table lookups', 'Inclusive upper bound and table memory'],
+        ['Array LCM', 'Fold with Euclid and checked multiplication', 'Empty input, zero and overflow']
+      ]
+    },
+    code: ['Run NumberAlgorithms.java against the Day 56 fixtures', 'java', `import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+class NumberAlgorithms {
+    static boolean isOdd(int number) {
+        return (number & 1) != 0;
+    }
+
+    static void xorSwap(int[] values, int i, int j) {
+        if (i == j) return;
+        values[i] ^= values[j];
+        values[j] ^= values[i];
+        values[i] ^= values[j];
+    }
+
+    static boolean isPrime(int number) {
+        if (number < 2) return false;
+        if (!isOdd(number)) return number == 2;
+        for (int divisor = 3; divisor <= number / divisor; divisor += 2) {
+            if (number % divisor == 0) return false;
+        }
+        return true;
+    }
+
+    static List<Integer> primesThrough(int limit) {
+        if (limit < 2) return List.of();
+        boolean[] composite = new boolean[Math.addExact(limit, 1)];
+        for (int prime = 2; prime <= limit / prime; prime++) {
+            if (composite[prime]) continue;
+            for (long multiple = (long) prime * prime; multiple <= limit; multiple += prime) {
+                composite[(int) multiple] = true;
+            }
+        }
+        var result = new ArrayList<Integer>();
+        for (int number = 2; number <= limit; number++) {
+            if (!composite[number]) result.add(number);
+        }
+        return result;
+    }
+
+    static long gcd(long a, long b) {
+        if (a < 0 || b < 0) throw new IllegalArgumentException("Inputs must be nonnegative");
+        while (b != 0) {
+            long remainder = a % b;
+            a = b;
+            b = remainder;
+        }
+        return a;
+    }
+
+    static long lcmAll(long... values) {
+        boolean hasZero = false;
+        for (long value : values) {
+            if (value < 0) throw new IllegalArgumentException("Inputs must be nonnegative");
+            if (value == 0) hasZero = true;
+        }
+        if (hasZero) return 0;
+        long result = 1;
+        for (long value : values) {
+            result = Math.multiplyExact(result / gcd(result, value), value);
+        }
+        return result;
+    }
+
+    private static void require(boolean result, String label) {
+        if (!result) throw new AssertionError(label);
+    }
+
+    private static void requireThrows(Class<? extends RuntimeException> type, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException error) {
+            if (type.isInstance(error)) return;
+            throw error;
+        }
+        throw new AssertionError("Expected " + type.getSimpleName());
+    }
+
+    public static void main(String[] args) {
+        require(isOdd(-3) && !isOdd(-2) && !isOdd(0), "signed parity");
+        int[] positions = {-9, 10};
+        xorSwap(positions, 0, 1);
+        xorSwap(positions, 1, 1);
+        require(Arrays.equals(positions, new int[] {10, -9}), "distinct and identical positions");
+
+        for (int base : new int[] {2, 8, 16}) {
+            String digits = Integer.toString(42, base);
+            require(Integer.parseInt(digits, base) == 42, "radix " + base);
+            require(Integer.parseInt(Integer.toString(-42, base), base) == -42, "signed radix");
+        }
+        requireThrows(NumberFormatException.class, () -> Integer.parseInt("102", 2));
+        requireThrows(NumberFormatException.class, () -> Integer.parseInt("80000000", 16));
+
+        require(!isPrime(0) && !isPrime(1) && isPrime(2) && !isPrime(49), "prime boundaries");
+        require(isPrime(Integer.MAX_VALUE), "division bound for large inputs");
+        var primes = primesThrough(30);
+        require(primes.equals(List.of(2, 3, 5, 7, 11, 13, 17, 19, 23, 29)), "sieve through 30");
+        for (int limit = 0; limit <= 100; limit++) {
+            var trial = new ArrayList<Integer>();
+            for (int number = 2; number <= limit; number++) {
+                if (isPrime(number)) trial.add(number);
+            }
+            require(primesThrough(limit).equals(trial), "sieve through " + limit);
+        }
+        require(gcd(0, 0) == 0 && gcd(54, 24) == 6 && gcd(0, 9) == 9, "Euclidean GCD");
+        require(lcmAll() == 1 && lcmAll(6, 10, 15) == 30, "array LCM");
+        require(lcmAll(Long.MAX_VALUE, 2, 0) == 0, "zero takes precedence over intermediate overflow");
+        requireThrows(ArithmeticException.class, () -> lcmAll(Long.MAX_VALUE, 2));
+        System.out.println("Parity, radix, prime, sieve and LCM checks passed.");
+        System.out.println("Primes through 30: " + primes);
+    }
+}`]
   }
 };

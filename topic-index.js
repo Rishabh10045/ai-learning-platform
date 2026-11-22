@@ -117,7 +117,12 @@ const titles = {
   'ai-review-02': 'Grounding and independent booking checks',
   'b-deployment-02': 'Demonstrate an end-to-end Java build',
   'd-union-find-01': 'Union-Find and dynamic connectivity',
-  'd-mst-01': 'Kruskal and minimum spanning forests'
+  'd-mst-01': 'Kruskal and minimum spanning forests',
+  'd-bits-01': 'Bit masks, signed parity and XOR',
+  'd-bases-01': 'Binary, octal and hexadecimal conversions',
+  'd-primes-01': 'Primality and the square-root bound',
+  'd-sieve-01': 'Sieve of Eratosthenes',
+  'd-lcm-01': 'Euclidean GCD and LCM folds'
 };
 
 const subjectByPrefix = {

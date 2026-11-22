@@ -1,6 +1,6 @@
 # Study Desk
 
-Study Desk has a Java-first curriculum with 55 implemented sessions, a subject tree and a daily study schedule. Sessions include English notes, readings or videos, interactive examples where relevant, hands-on assignments, quizzes and interview questions. Day 1 starts on Sunday, 22 November 2026. The standard session is two hours from 9–11 PM IST, with a 12-minute recap from Day 2. Saturday and Sunday default to 390 minutes, including the two-hour core. Preferences can change the budget without changing what counts as a completed session.
+Study Desk has a Java-first curriculum with 56 implemented sessions, a subject tree and a daily study schedule. Sessions include English notes, readings or videos, interactive examples where relevant, hands-on assignments, quizzes and interview questions. Day 1 starts on Sunday, 22 November 2026. The standard session is two hours from 9–11 PM IST, with a 12-minute recap from Day 2. Saturday and Sunday default to 390 minutes, including the two-hour core. Preferences can change the budget without changing what counts as a completed session.
 
 ## Run with account sync
 

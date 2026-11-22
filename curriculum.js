@@ -76,7 +76,7 @@ export const phases = [
   { from: 17, to: 25, title: 'Design, traffic & reliability', description: 'Build a two-instance lab, then extend it with holds, caching, and measurements.' },
   { from: 26, to: 34, title: 'DSA & backend depth', description: 'Work through core algorithms and practice testing, security, and deployment.' },
   { from: 35, to: 45, title: 'Generative AI integration', description: 'Learn model basics, build a validated help feature, and evaluate it before the core capstone.' },
-  { from: 46, to: 55, title: 'Advanced practice and gaps', description: 'Deepen JVM, Spring, security, distributed systems, DSA and Java-first AI with targeted follow-up labs.' }
+  { from: 46, to: 56, title: 'Advanced practice and gaps', description: 'Deepen JVM, Spring, security, distributed systems, DSA and Java-first AI with targeted follow-up labs.' }
 ];
 
 const reading = (title, url) => ({ title, url });
@@ -214,7 +214,8 @@ const outline = [
   ['Backtracking and graph paths', ['D-BACKTRACKING-01','D-GRAPHS-02'], ['dsa'], 'Princeton Algorithms · Shortest Paths', algorithms + '44sp/', 'Enumerate feasible assignments with backtracking. Then compare topological sorting and Dijkstra on suitable graphs.', 'Choose a graph algorithm for prerequisites and state the weight assumptions for Dijkstra.'],
   ['Math, matrices and deeper dynamic programming', ['D-MATH-01','D-MATRIX-01','D-DP-02'], ['dsa'], 'GFG DSA syllabus · Classes 1–5 and 20–24', courses.dsa.links[1][1], 'Implement Euclid’s algorithm, clockwise matrix rotation and a trace of compressed 0/1 subset sum. Use matrix-chain multiplication to compare interval state as a stretch exercise.', 'Explain the state and iteration order for 0/1 subset sum and distinguish it from unbounded reuse.'],
   ['Java-first AI deployment and final review', ['AI-OPERATIONS-03','AI-REVIEW-02','B-DEPLOYMENT-02'], ['genai','supplement','design'], 'Spring AI · Ollama Chat', springAi + 'api/chat/ollama-chat.html', 'Compare fixture, local Ollama and hosted adapters. Run one reproducible end-to-end demonstration and summarize latency, grounding and booking safety.', 'Describe the model-provider trade-off and the exact evidence showing that booking works during an AI outage.'],
-  ['Union-Find and minimum spanning trees', ['D-UNION-FIND-01','D-MST-01'], ['supplement'], 'Princeton · Union–Find', algorithms + '15uf/', 'Implement union by size and path compression. Use the provided Java trace to predict the edges and cost selected by Kruskal’s algorithm. Add tests for a duplicate edge, equal weights, disconnected vertices and zero vertices.', 'Why does Kruskal skip an edge joining vertices that already have the same root?']
+  ['Union-Find and minimum spanning trees', ['D-UNION-FIND-01','D-MST-01'], ['supplement'], 'Princeton · Union–Find', algorithms + '15uf/', 'Implement union by size and path compression. Use the provided Java trace to predict the edges and cost selected by Kruskal’s algorithm. Add tests for a duplicate edge, equal weights, disconnected vertices and zero vertices.', 'Why does Kruskal skip an edge joining vertices that already have the same root?'],
+  ['Bits, number bases and prime algorithms', ['D-BITS-01','D-BASES-01','D-PRIMES-01','D-SIEVE-01','D-LCM-01'], ['dsa'], 'GFG DSA syllabus · Classes 1–2', courses.dsa.links[1][1] + '#page=7', 'Run the Java number algorithms, then test parity and XOR, round-trip a value through three bases, compare trial division with a sieve, and fold an array LCM. Record the expected and actual results.', 'How do you choose between trial division for one number and a sieve for many queries?']
 ];
 
 export const days = [

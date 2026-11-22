@@ -282,7 +282,12 @@ const rows = [
     ['What makes union return false?', 'Both vertices already have the same current root.', 'The raw vertex IDs have different values.'],
     ['What does Kruskal produce for a disconnected graph?', 'A minimum spanning forest, with one tree per component.', 'A spanning tree connecting all vertices through nonexistent edges.'],
     ['Why perform path halving in find?', 'Shorter parent paths make later root lookups cheaper.', 'Path halving deletes a graph edge and splits its component.'],
-    ['Which weight rule applies to Kruskal?', 'Negative weights are allowed on undirected edges.', 'Every weight must be nonnegative, as in Dijkstra’s algorithm.']]
+    ['Which weight rule applies to Kruskal?', 'Negative weights are allowed on undirected edges.', 'Every weight must be nonnegative, as in Dijkstra’s algorithm.']],
+  ['Assert odd(-3), even(0), successful base-2, base-8 and base-16 round trips, rejection of binary digit 2, primes through 30, and lcm(6,10,15)=30. Test bounds 0, 1 and 2, a prime square, gcd(0,0), a zero in the LCM array and checked overflow.',
+    'Compare the sieve and trial division for bounds 0 through 100. Show why reusing a sieve saves work for many queries and why its memory cost grows with the upper bound.',
+    'Why divide by the GCD before multiplying to find an LCM, and when is an overflow check still needed?',
+    ['What does (n & 1) measure?', 'The least-significant bit, which identifies parity even for signed ints.', 'Whether n has any set bit at all.'],
+    ['When can a prime trial scan stop?', 'Once the positive divisor exceeds n divided by itself.', 'Only after attempting every smaller integer.']]
 ];
 
 const dayOneExtra = [

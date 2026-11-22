@@ -276,5 +276,10 @@ export const interviewGuides = {
     'The maintained forest connects every pair with the same root. An edge between two vertices in that component adds a second route and creates a cycle. Skip it without changing the component count. An edge joining distinct roots can extend a forest, and processing edges in increasing weight gives the minimum under the cut property.',
     'When ties allow several optimal trees, assert the total minimum cost, that every connected input component is spanned, and that accepted edges contain no cycle. Test the edge count and component count. Assert an exact edge set only when the input has a unique optimum or the contract specifies a deterministic tie break.',
     'Union by size attaches a smaller representative tree below the larger one. Path compression shortens routes while finding a root. Together they give a very small amortized cost per operation. Deleting an edge may split a component, and the parent tree does not remember which original paths exist. Use repeated traversal or an algorithm designed for deletions.'
+  ],
+  56: [
+    'For an isolated candidate use trial division up to its square root, skipping even divisors after handling 2. This costs O(sqrt(n)) time and constant extra space. A dense set of queries inside a known bound can share a sieve that marks composites once up front, then answers table lookups in constant time.',
+    'First compare gap size and range. When the range is small enough for a boolean array, a sieve plus indexed lookup handles overlap efficiently. A few widely separated large numbers can favor trial division or another primality test. Test that zero, one, two and a perfect square are classified correctly.',
+    'For positive a and b, lcm(a,b) equals (a/gcd(a,b))*b. Dividing first avoids an unnecessarily large intermediate product. The true LCM can still exceed the selected integer range. Define zero separately, then use checked multiplication or an arbitrary-precision type when a wider result is needed.'
   ]
 };
