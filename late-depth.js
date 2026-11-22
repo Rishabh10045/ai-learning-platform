@@ -102,6 +102,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
     recall: 'What do find and union do in a disjoint set, and what does it mean when union returns false?'
   },
+  51: {
+    title: 'Prefix sums for range counts and worst windows',
+    concept: 'Store prefix[i], the total of the first i values, with prefix[0] = 0. Any half-open range [from, to) is prefix[to] − prefix[from], so each query is O(1) after O(n) setup. The worst k-window is the maximum of those subtractions.',
+    example: 'Bad requests per minute 0,1,0,0,7,9,4,0,1,0,0,2 give prefix …,1,8,17,21,…. Minutes [4, 7) contain 21 − 1 = 20, and the worst 3-minute window starts at minute 4.',
+    practice: 'Implement long[] prefix(int[]), range(p, from, to) and worstWindowStart(p, k). Then solve subarray sum equals k with a HashMap of prefix counts.',
+    checks: ['range(p, 4, 7) = 20, and the total = 24.', 'subarraySum([1,1,1], 2) = 2, including with negative numbers.', 'State O(n) setup, O(1) per query, and why long is used.'],
+    readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
+    recall: 'Why does a prefix-sum array start with 0, and how do you compute the sum of [from, to) from it?'
+  },
   // @@lanes
 };
 
@@ -2466,6 +2475,182 @@ union(2, 5) adds a link: false`
       ['Provinces for [[1,1,0],[1,1,0],[0,0,1]] = 2.', 'Accounts sharing any email are merged, and emails are sorted.', 'count() equals the number of groups after every union.', 'State the amortized time per operation.']],
     references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
   },
+  'h-cloud-01': {
+    notes: [
+      'A release pipeline turns a commit into running software the same way every time. For the booking service: on every pull request, CI compiles, runs unit and integration tests (with Testcontainers PostgreSQL) and builds the artifact. On merge to main, it builds one immutable container image tagged with the commit SHA, scans it, and pushes it to a registry. That same image is promoted through staging and then production, so production runs exactly what was tested. Never rebuild per environment. Configuration such as database URLs and secrets comes from the environment at runtime, following the twelve-factor rule.',
+      'Deploy gradually and decide automatically. A rolling update replaces instances a few at a time, while readiness probes (Spring Boot Actuator’s /actuator/health/readiness) keep traffic away from instances that are not ready. A canary sends a small share of traffic, say 5%, to the new version and compares it with the stable fleet before going further. CanaryGate.java encodes a promotion rule written before the release: wait until the canary has at least 500 attempts, roll back if its bad-request rate is more than 0.5 percentage points worse than the baseline, or if its p95 latency is more than 20% higher, otherwise promote to the next step.',
+      'Plan the rollback before you deploy. Rolling back the code is easy if the previous image is still in the registry and the database schema still works with it. Use expand-and-contract migrations. First add new columns or tables in a backward-compatible way and deploy code that writes both shapes. Switch reads later. Remove old columns only in a later release, once no running version needs them. A migration that renames a column in the same release as the code change makes rollback impossible.',
+      'Data placement is part of deployment. Keep the database in the same region as the application instances, because each booking claim makes several round trips. Use read replicas only for reads that tolerate lag, such as seat maps, and send claims to the primary. Keep backups with tested restores and a known recovery point objective (RPO) and recovery time objective (RTO). For a free-tier demo the same ideas apply at small scale: one region, a managed database with automated backups, and an image built by CI.'
+    ],
+    code: {
+      title: 'CanaryGate.java · an automatic promote, wait or rollback decision for a canary release · java CanaryGate.java',
+      text: String.raw`import java.util.*;
+
+public class CanaryGate {
+    // Metrics for one 10-minute window, for the stable fleet (baseline) and the new version (canary).
+    record Window(String name, long attempts, long bad, int p95Millis) {
+        double badRate() { return attempts == 0 ? 0 : (double) bad / attempts; }
+    }
+
+    // Promotion rule, decided before the release: enough traffic, bad rate not worse than baseline by more than
+    // 0.5 percentage points, and p95 within 20% of baseline. Anything else rolls back automatically.
+    static String decide(Window baseline, Window canary) {
+        if (canary.attempts() < 500) return "WAIT (only " + canary.attempts() + " canary attempts, need 500)";
+        double extra = canary.badRate() - baseline.badRate();
+        if (extra > 0.005) return String.format("ROLLBACK (bad rate %.2f%% vs %.2f%%)", 100 * canary.badRate(), 100 * baseline.badRate());
+        if (canary.p95Millis() > baseline.p95Millis() * 1.2) return "ROLLBACK (p95 " + canary.p95Millis() + " ms vs " + baseline.p95Millis() + " ms)";
+        return "PROMOTE to the next traffic step";
+    }
+
+    public static void main(String[] args) {
+        Window baseline = new Window("v41", 19_000, 38, 240);
+        List<Window> canaries = List.of(
+                new Window("v42 at 5% for 2 min", 210, 0, 230),
+                new Window("v42 at 5% for 10 min", 1_000, 3, 250),
+                new Window("v43 at 5% for 10 min", 1_000, 14, 245),
+                new Window("v44 at 5% for 10 min", 1_000, 2, 410));
+        for (Window c : canaries) System.out.println(c.name() + ": " + decide(baseline, c));
+    }
+}
+`,
+      output: String.raw`v42 at 5% for 2 min: WAIT (only 210 canary attempts, need 500)
+v42 at 5% for 10 min: PROMOTE to the next traffic step
+v43 at 5% for 10 min: ROLLBACK (bad rate 1.40% vs 0.20%)
+v44 at 5% for 10 min: ROLLBACK (p95 410 ms vs 240 ms)`
+    },
+    takeaways: ['Build one immutable image per commit and promote it unchanged.', 'Readiness probes plus rolling or canary deploys; the promotion rule is written before the release.', 'Expand-and-contract migrations keep rollback possible.', 'Claims go to the primary in the app’s region; replicas only for lag-tolerant reads.'],
+    interview: [
+      ['Describe a CI/CD pipeline for a Spring Boot booking service.', 'On every pull request CI compiles, runs unit tests and integration tests against a real PostgreSQL in Testcontainers, checks formatting and dependencies, and must pass before merge. On merge to main it builds a container image once, tags it with the commit SHA, scans it and pushes it to a registry. Deployment promotes that exact image to staging, runs smoke tests, then rolls it out to production gradually: a 5% canary compared against the stable version on error rate and p95 latency, then wider steps. Configuration and secrets come from the environment. Database migrations are backward compatible, so the previous image can be redeployed in minutes if a check fails.'],
+      ['How do you make a release safe to roll back when it includes a schema change?', 'I split the schema change into backward-compatible steps, often called expand and contract. In release one I add the new column or table without removing anything, and deploy code that writes both the old and new shape and still reads the old one. Then I backfill existing rows in batches. In release two I switch reads to the new shape. Only in a later release, once no running version uses it, do I drop the old column. At every point the previous application version still works with the current schema, so rolling back the code is just redeploying the previous image. Destructive changes, such as renames or drops, never ship together with the code that needs them.'],
+      ['What should decide whether a canary is promoted or rolled back?', 'A rule written before the release, evaluated automatically against metrics from the same time window for the canary and the stable baseline. I require a minimum amount of canary traffic first, because a few requests cannot show a difference. Then I compare the SLI-related signals that matter to users: the rate of bad booking attempts (5xx and timeouts, not legitimate 409s) and tail latency, with thresholds such as no more than 0.5 percentage points worse and p95 within 20%. If either fails, the pipeline rolls back without waiting for a human. If both pass, it promotes to the next traffic step and repeats. Saturation metrics, such as connection-pool waits, are useful secondary checks.']
+    ],
+    check: ['In CanaryGate.java, v44 has a normal error rate but p95 410 ms against a 240 ms baseline. What is the decision?',
+      ['PROMOTE, because errors are fine', 'ROLLBACK, because p95 is more than 20% above baseline', 'WAIT for more traffic', 'PROMOTE, because latency is not part of the rule'], 1,
+      'The rule has three parts. 410 ms is far above 240 × 1.2 = 288 ms, so the canary fails on latency.'],
+    practice: ['Write the deployment plan for your lab as a checklist: pipeline stages, image tag, the readiness probe, the canary rule from CanaryGate.java with your own thresholds, and an expand-and-contract plan for adding a hold_expires_at column. Then extend CanaryGate.java with a second check on connection-pool wait time.',
+      ['Every stage names its command and its pass condition.', 'The schema plan has three releases, and each can be rolled back.', 'The new pool-wait check rolls back a canary whose p95 pool wait doubles.', 'Thresholds are written before any test run.']],
+    references: [['Google SRE Workbook · Canarying releases', 'https://sre.google/workbook/canarying-releases/'], ['Spring Boot · Actuator (health, readiness)', 'https://docs.spring.io/spring-boot/reference/actuator/index.html'], ['Kubernetes · Deployments and rolling updates', 'https://kubernetes.io/docs/concepts/workloads/controllers/deployment/'], ['The Twelve-Factor App · Config', 'https://12factor.net/config']]
+  },
+  'h-observability-03': {
+    notes: [
+      'A service level indicator (SLI) is a measured ratio of good events to eligible events, chosen to reflect what users care about. For booking: eligible events are booking attempts, excluding ones the user caused, such as invalid input, expired tokens and legitimate 409 conflicts when the seat was already taken. Good events are eligible attempts that succeeded within 1 second. A service level objective (SLO) is a target for that SLI over a window, for example 99% over 28 days. The error budget is what the SLO allows to fail: 1% of eligible attempts.',
+      'Write the definitions before looking at data, and be careful with the denominator. ErrorBudget.java classifies 1,000 log entries. 25 legitimate 409s and 5 expired-token 401s are not eligible, so 970 attempts remain. Of those, 960 are good: 6 database timeouts returned 503, and 4 bookings succeeded but took 2.4 seconds, so they count as bad. The SLI is 98.97%, below the 99% SLO, and the budget is 103% used. Counting 409s as failures would punish correct behavior, and counting slow successes as good would hide the timeout problem.',
+      'Burn rate is the observed bad fraction divided by the allowed bad fraction. A burn rate of 1 spends the budget exactly over the SLO window, 2 spends it in half the time, and 14.4 sustained for one hour spends 2% of a 30-day budget. The Google SRE Workbook recommends alerting on burn rate over two windows, for example a page when the 1-hour burn rate is above 14.4 and the 5-minute rate confirms it, another page when the 6-hour burn rate is above 6, and a ticket when a burn rate around 1 is sustained over 3 days. That catches both sudden outages and slow leaks without paging on every blip.',
+      'Use the budget to make decisions. If the budget is healthy, the team can release faster and take more risk. If it is exhausted, releases slow down and reliability work takes priority. Tie releases to it: a canary that burns budget faster than the baseline rolls back. Measure the SLI where users experience it, at the load balancer or gateway, rather than only inside the application, which cannot see requests that never reached it.'
+    ],
+    code: {
+      title: 'ErrorBudget.java · SLI numerator and denominator, error budget used and burn rate from a request log · java ErrorBudget.java',
+      text: String.raw`import java.util.*;
+
+public class ErrorBudget {
+    // One booking attempt as seen by the load balancer / service logs.
+    record Attempt(int status, int millis) {}
+
+    // SLI definition, written down before looking at data:
+    //   eligible  = every booking attempt except client errors the user caused (400, 401, 403) and legitimate 409 conflicts
+    //   good      = eligible AND status 2xx AND answered within 1000 ms
+    static boolean eligible(Attempt a) { return !(a.status() == 400 || a.status() == 401 || a.status() == 403 || a.status() == 409); }
+    static boolean good(Attempt a) { return a.status() >= 200 && a.status() < 300 && a.millis() <= 1000; }
+
+    public static void main(String[] args) {
+        List<Attempt> log = new ArrayList<>();
+        for (int i = 0; i < 960; i++) log.add(new Attempt(201, 180));     // fast successful bookings
+        for (int i = 0; i < 25; i++) log.add(new Attempt(409, 90));       // seat already taken: correct behaviour
+        for (int i = 0; i < 6; i++) log.add(new Attempt(503, 30));        // database timeouts surfaced as 503
+        for (int i = 0; i < 4; i++) log.add(new Attempt(201, 2400));      // succeeded, but too slow to count as good
+        for (int i = 0; i < 5; i++) log.add(new Attempt(401, 10));        // expired tokens: the client's problem
+
+        long eligibleCount = log.stream().filter(ErrorBudget::eligible).count();
+        long goodCount = log.stream().filter(a -> eligible(a) && good(a)).count();
+        double sli = 100.0 * goodCount / eligibleCount;
+        System.out.printf("SLI = %d good / %d eligible = %.2f%%%n", goodCount, eligibleCount, sli);
+
+        double slo = 99.0;                                     // target over a 28-day window
+        double allowedBadFraction = (100 - slo) / 100;          // 1% of eligible attempts may be bad
+        long bad = eligibleCount - goodCount;
+        double budgetUsed = bad / (allowedBadFraction * eligibleCount);
+        System.out.printf("SLO %.1f%%: error budget allows %.1f bad of %d, used %d = %.0f%% of the budget%n",
+                slo, allowedBadFraction * eligibleCount, eligibleCount, bad, 100 * budgetUsed);
+
+        // Burn rate = observed bad fraction / allowed bad fraction. 1.0 spends the budget exactly over the window.
+        double burn = ((double) bad / eligibleCount) / allowedBadFraction;
+        System.out.printf("burn rate %.2f -> %s%n", burn, burn >= 14.4 ? "page now" : burn >= 1 ? "budget will run out early: ticket" : "within budget");
+    }
+}
+`,
+      output: String.raw`SLI = 960 good / 970 eligible = 98.97%
+SLO 99.0%: error budget allows 9.7 bad of 970, used 10 = 103% of the budget
+burn rate 1.03 -> budget will run out early: ticket`
+    },
+    takeaways: ['SLI = good / eligible; define both before looking at data.', 'Exclude user-caused errors and legitimate 409s; count slow successes as bad.', 'Error budget = 1 − SLO; burn rate = observed bad fraction / allowed bad fraction.', 'Alert on multi-window burn rates; let the budget steer release speed.'],
+    interview: [
+      ['Define an availability SLI for booking. Which failures burn the error budget?', 'The SLI is the ratio of good booking attempts to eligible ones, measured at the load balancer. Eligible means every POST /bookings except requests the client caused: invalid payloads (400), missing or expired credentials (401), forbidden actions (403) and legitimate 409 conflicts where the seat was already taken, because rejecting a double booking is correct behavior. Good means a 2xx response within the latency threshold, for example 1 second. So 5xx responses, timeouts, dropped connections and slow successes all burn the budget. Correct rejections do not. I write this down before collecting data, so the definition cannot be bent to make a bad week look good.'],
+      ['The service returns fast responses, but database timeouts make many eligible bookings fail. Which SLI exposes it?', 'An availability SLI whose numerator only counts eligible attempts that actually succeeded. A latency-only SLI would look fine, because timeouts that fail fast, or fast 503s, are quick, and a "responses served" SLI would count the failures as served. With good = 2xx within 1 second and eligible = all booking attempts except user errors and legitimate conflicts, every database timeout that surfaces as a 503 or a client-side timeout counts as bad, and the SLI drops immediately. I would add a supporting signal, such as connection-pool wait time or database timeout counts, to diagnose the cause, but the user-facing availability SLI is what reveals the impact.'],
+      ['How would you turn the booking SLI into a release rollback condition?', 'During a canary, I compute the same SLI for canary traffic and for the stable baseline over the same window, for example 10 minutes, after a minimum number of eligible attempts, say 500. The rule says roll back if the canary’s bad fraction exceeds the baseline’s by more than a set margin, or if its burn rate would exhaust the remaining monthly budget early. In practice that is a burn rate above about 10 over the window. I need evidence that the measurement is valid: enough traffic in both groups, the same eligibility rules, and requests attributed to the right version through a version label on metrics. The pipeline evaluates the rule automatically and records the numbers with the decision.']
+    ],
+    check: ['1,000 eligible booking attempts: 30 time out and all others succeed fast. With a 99% SLO, how much of the budget did this window use?',
+      ['30%', '300%: 30 bad against 10 allowed', '3%', '97%'], 1,
+      'The budget allows 1% of 1,000 = 10 bad attempts. 30 bad attempts use three times the budget, so the burn rate is 3.'],
+    practice: ['Copy ErrorBudget.java. Add per-hour buckets over a simulated day, compute the 1-hour and 6-hour burn rates, and print when the fast alert (1 h burn ≥ 14.4, 2% of a 30-day budget) or the slower alert (6 h burn ≥ 6, 5% of the budget) would fire. Then change the SLI to count 409s as bad and explain why the result is misleading.',
+      ['A sharp outage hour triggers the 1-hour alert, and a smaller sustained problem triggers only the 6-hour alert.', 'Counting 409s inflates the bad count, and the explanation names why that is wrong.', 'The SLI definition is written above the code.']],
+    references: [['Google SRE Workbook · Implementing SLOs', 'https://sre.google/workbook/implementing-slos/'], ['Google SRE Workbook · Alerting on SLOs (burn rates)', 'https://sre.google/workbook/alerting-on-slos/'], ['Google SRE Book · Service level objectives', 'https://sre.google/sre-book/service-level-objectives/']]
+  },
+  'h-cloud-01.dsa': {
+    notes: [
+      'Prefix sums turn repeated range-sum queries into O(1) lookups after O(n) preparation. Store prefix[i], the total of the first i elements, with prefix[0] = 0. The sum of the half-open range [from, to) is prefix[to] − prefix[from]. Monitoring uses this idea constantly: "how many bad requests between minute 4 and minute 7?" becomes one subtraction instead of a loop.',
+      'PrefixWindows.java builds prefix sums over bad requests per minute, answers a range query (20 bad in minutes [4, 7)) and finds the worst 3-minute window by evaluating every window with a subtraction, which is O(n) overall. The extra leading 0 removes the special case for ranges starting at 0. Use long for the sums, because many large counts can overflow int.',
+      'Related problems reuse the idea: subarray sum equals k, which uses prefix sums plus a HashMap counting earlier prefix values (O(n)); 2-D prefix sums for rectangle queries on a grid; and difference arrays, the inverse operation, for applying many range increments and then reading the final values. If the underlying values change between queries, a Fenwick tree (binary indexed tree) supports both updates and prefix queries in O(log n).'
+    ],
+    code: {
+      title: 'PrefixWindows.java · prefix sums for O(1) range counts and the worst k-minute window · java PrefixWindows.java',
+      text: String.raw`import java.util.*;
+
+public class PrefixWindows {
+    // prefix[i] = total bad requests in minutes 0..i-1, so any range [from, to) costs O(1) after O(n) setup.
+    static long[] prefix(int[] perMinute) {
+        long[] p = new long[perMinute.length + 1];
+        for (int i = 0; i < perMinute.length; i++) p[i + 1] = p[i] + perMinute[i];
+        return p;
+    }
+
+    static long range(long[] p, int from, int to) { return p[to] - p[from]; }
+
+    // Worst (largest) total over any window of k consecutive minutes, using the same prefix sums.
+    static int worstWindowStart(long[] p, int k) {
+        int best = 0;
+        for (int s = 1; s + k < p.length; s++) if (range(p, s, s + k) > range(p, best, best + k)) best = s;
+        return best;
+    }
+
+    public static void main(String[] args) {
+        int[] badPerMinute = {0, 1, 0, 0, 7, 9, 4, 0, 1, 0, 0, 2};
+        long[] p = prefix(badPerMinute);
+        System.out.println("prefix: " + Arrays.toString(p));
+        System.out.println("bad in minutes [4, 7): " + range(p, 4, 7));
+        System.out.println("bad in all 12 minutes: " + range(p, 0, badPerMinute.length));
+        int s = worstWindowStart(p, 3);
+        System.out.println("worst 3-minute window starts at minute " + s + " with " + range(p, s, s + 3) + " bad");
+    }
+}
+`,
+      output: String.raw`prefix: [0, 0, 1, 1, 1, 8, 17, 21, 21, 22, 22, 22, 24]
+bad in minutes [4, 7): 20
+bad in all 12 minutes: 24
+worst 3-minute window starts at minute 4 with 20 bad`
+    },
+    takeaways: ['prefix[0] = 0; sum[from, to) = prefix[to] − prefix[from].', 'O(n) setup, O(1) per query; use long.', 'Subarray sum = k: prefix sums plus a HashMap of counts.', 'Updates between queries: use a Fenwick tree.'],
+    interview: [
+      ['Count the subarrays whose sum equals k.', 'I scan once, keeping the running prefix sum and a HashMap from each prefix value seen so far to how many times it occurred, starting with {0: 1} for the empty prefix. At each index, a subarray ending here sums to k exactly when an earlier prefix equals current − k, so I add the count of current − k from the map, then record the current prefix. This handles negative numbers, which break a sliding-window approach because the window sum is no longer monotonic. The time is O(n) and the space is O(n). For [1, 1, 1] with k = 2 the answer is 2.'],
+      ['Why store a leading zero in the prefix array?', 'With prefix[0] = 0 and prefix[i] equal to the sum of the first i elements, every half-open range [from, to) is simply prefix[to] − prefix[from], including ranges that start at index 0. Without the leading zero, ranges starting at 0 need a special case, and off-by-one bugs creep in when switching between inclusive and exclusive ends. The same trick appears in the subarray-sum-equals-k solution, where seeding the map with {0: 1} counts subarrays that start at the beginning. The array is one element longer than the input, which is a small price for removing a whole class of boundary errors.'],
+      ['How would you support updates as well as range sums?', 'Plain prefix sums need O(n) work to rebuild after a single update, which is too slow if updates and queries interleave. A Fenwick tree, or binary indexed tree, stores partial sums over ranges determined by the lowest set bit of each index. Both a point update and a prefix query walk O(log n) entries, and a range sum is two prefix queries. A segment tree also gives O(log n) for both and supports other operations, such as range minimum or lazy range updates, at the cost of more code and memory. For monitoring data that only appends, a ring buffer of per-minute counts with running totals is often enough.']
+    ],
+    check: ['prefix = [0, 0, 1, 1, 1, 8, 17, 21]. How many bad requests are in minutes [4, 7)?',
+      ['17', '20: prefix[7] − prefix[4] = 21 − 1', '21', '16'], 1,
+      'A half-open range uses prefix[to] − prefix[from].'],
+    practice: ['Copy PrefixWindows.java. Add subarraySumEqualsK with a HashMap, and a 2-D prefix sum for a 3×3 grid with one rectangle query. Then write a difference-array version that applies three range increments.',
+      ['subarraySum([1,1,1], 2) = 2, and subarraySum([1,-1,0], 0) = 3.', 'The rectangle query matches a brute-force sum.', 'Difference-array results match applying the increments one by one.', 'State the time of each method.']],
+    references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
+  },
   // @@packets
 };
 
@@ -2512,6 +2697,10 @@ export const lateDistractors = {
     ['The broker’s acknowledgement and the consumer’s offset commit.', 'Every service’s database write in one distributed transaction.'],
     ['Each event is delivered exactly once, so no check is needed.', 'Events always arrive in global timestamp order across partitions.']
   ],
+  51: [
+    ['A promise that every request will succeed within the window.', 'The highest latency observed during the last deployment.'],
+    ['Count every 409 only on weekends, when traffic is low.', 'Count it as a failure only if the user retries.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -2535,6 +2724,8 @@ export const lateExplanations = {
     'A live update reports something that happened at the source. It reserves nothing and guarantees nothing about future requests or other clients.'],
   50: ['The outbox makes one database’s state change and its event record commit together. Publication and remote side effects stay separate, and they are at least once.',
     'Relays retry, and brokers redeliver after failures. Consumers must treat a repeated event ID as already handled.'],
+  51: ['An SLO is a target for a defined indicator over a window, such as 99% of eligible bookings good over 28 days. It is not an observation of one request or a guarantee.',
+    'A legitimate conflict is the service working correctly. The SLI definition normally excludes it deliberately, so the budget reflects real failures.'],
   // @@explanations
 };
 
@@ -2619,6 +2810,14 @@ export const lateAssessment = {
     { question: 'Which statement about saga compensation is correct?',
       choices: ['It restores the database to its exact earlier state, invisibly', 'It is a new, visible business action, such as a refund or a hold release, that must be idempotent', 'It is only needed when the database supports two-phase commit', 'It runs in the same order as the original steps'], answer: 1,
       explanation: 'Each saga step commits locally. Undoing it means a new compensating action, run in reverse order and safe to repeat.' }
+  ],
+  51: [
+    { question: 'Why should a release that renames a database column ship in several steps (expand and contract)?',
+      choices: ['Because databases cannot rename columns', 'So the previous application version keeps working with the schema and rollback stays possible', 'To make the migration run faster', 'Because CI cannot test renames'], answer: 1,
+      explanation: 'Add the new shape first, switch code, and remove the old shape only later. Every intermediate schema works with both the current and previous code.' },
+    { question: 'The booking SLO is 99% over 28 days. What does a burn rate of 2 mean?',
+      choices: ['2% of requests failed in total', 'The budget is being spent twice as fast as allowed and would run out in about 14 days', 'Two incidents happened', 'The SLO was met twice over'], answer: 1,
+      explanation: 'Burn rate = observed bad fraction / allowed bad fraction. At 2, a 28-day budget lasts about half the window.' }
   ],
   // @@assessment
 };
@@ -2736,6 +2935,11 @@ export const lateInterviewGuides = {
     'The outbox makes the local state change and the event record atomic, so an event exists exactly when its booking committed. Delivery after that is still at least once. The relay can publish an event and then crash before marking the row sent, so it publishes again after restart, and the broker can also redeliver after consumer failures. Consumers therefore deduplicate by event ID in the same transaction as their effect. A saga handles a failed step differently from a transaction. Each step has already committed locally, so when a later step fails permanently, the orchestrator runs compensating actions, such as refund or release hold, for the completed steps in reverse order. Those actions are visible, recorded and idempotent.',
     'The relay will publish the same event again, with the same event ID, because the row still looks unsent. The consumer protects its effect by making the deduplication record and the effect part of one local transaction. It inserts the event ID into a processed_events table with a unique key and performs its write, for example queueing the confirmation email, in the same commit. On replay the insert fails, or a lookup finds the ID, so the consumer skips the effect and acknowledges the message. If the consumer crashed before its commit, neither the marker nor the effect exists, so reprocessing is correct. For external calls, the event ID becomes the idempotency key of that call.',
     'The saga should mark the payment step as failed and run the compensation for every step that already committed, in reverse order. Here it releases the seat hold, then marks the booking saga as cancelled and informs the user. This differs from rolling back a transaction. A rollback discards uncommitted changes, so it is as if they never happened, and nobody else could have seen them. The hold did commit, so other users may have seen the seat as unavailable. Releasing it is a new, committed business action that is logged, may be retried, and must be idempotent in case the release message is delivered twice. The hold’s expiry is a safety net if compensation is delayed.'
+  ],
+  51: [
+    'Failures that users experience as the service not doing its job should burn the budget: 5xx responses, timeouts, dropped connections, and successful bookings that were slower than the latency threshold in the SLI, for example 1 second. The denominator is eligible attempts, so requests the client caused are excluded: malformed input, missing or expired credentials, forbidden actions, and legitimate 409 conflicts when the seat was already taken. A 409 there is the invariant working correctly, so counting it would punish correct behavior and push the team to weaken the rule. I write the definition before collecting data, measure at the load balancer so requests that never reached the app still count, and review the rules when the API changes.',
+    'An availability SLI defined as good eligible attempts divided by eligible attempts, where good means a 2xx response within the latency threshold. Fast 503s and quick timeout errors still count as bad, so the SLI drops even though average latency looks excellent. A latency SLI computed only over successful responses would miss the problem completely, and so would a "requests answered" metric. To diagnose the cause I would add supporting signals, such as database timeout counts, connection-pool wait time and pool saturation, plus traces of failed attempts. The user-facing availability SLI is what shows the impact and burns the error budget, which is what should drive the response.',
+    'I compute the availability SLI separately for the new version and for the stable baseline over the same window during a canary. For example, after at least 500 eligible attempts in 10 minutes, the rule rolls back if the canary’s bad fraction exceeds the baseline’s by more than 0.5 percentage points, or if its burn rate, observed bad fraction divided by allowed bad fraction, is above about 10, which would exhaust the monthly budget within days. The evidence I need is version-labelled metrics, enough traffic in both groups to make the comparison meaningful, identical eligibility rules, and a record of the numbers next to the decision. The pipeline evaluates the rule automatically and redeploys the previous image on failure.'
   ],
   // @@guides
 };
