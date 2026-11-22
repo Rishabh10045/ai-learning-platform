@@ -75,7 +75,8 @@ const routes = [
   ["", "today"], ["#today", "today"], ["#course", "course"], ["#calendar", "calendar"],
   ["#day-1", "plan", "1"], ["#day-1/learn", "learn", "1"], ["#day-1/practice", "practice", "1"], ["#day-2/revision", "revision", "2"],
   ["#day-2/my-notes", "my-notes", "2"], ["#day-2/coach", "coach", "2"], ["#day-3/test", "test", "3"], ["#day-999", "not-found"],
-  ["#day-0", "not-found"], ["#%E0%A4%A", "not-found"], ["#lesson/NOPE", "not-found"]
+  ["#day-0", "not-found"], ["#%E0%A4%A", "not-found"], ["#lesson/NOPE", "not-found"],
+  ["#activity", "activity"], ["#settings", "settings"]
 ];
 for (const [vpName, vp] of Object.entries(viewports)) {
   const errors = [];
@@ -431,14 +432,157 @@ for (const vpName of ["mobile", "mobile320"]) {
   await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
   check("axe-core available for the contrast check", !!AXE, "npm i axe-core into NODE_PATH");
   const bad = [];
-  if (AXE) for (const [q, h] of [["store=0&today=2026-11-22", "#today"], ["store=0&today=2026-11-22", "#day-1/learn"], ["store=0&today=2026-11-22", "#day-1/practice"], ["store=0&today=2026-11-22", "#calendar"], ["store=0&today=2026-11-22", "#course"], ["store=0&today=2026-11-23", "#day-2/revision"], ["store=0&today=2026-11-22", "#day-3/test"]]) {
+  if (AXE) for (const [q, h] of [["store=0&today=2026-11-22", "#today"], ["store=0&today=2026-11-22", "#day-1/learn"], ["store=0&today=2026-11-22", "#day-1/practice"], ["store=0&today=2026-11-22", "#calendar"], ["store=0&today=2026-11-22", "#course"], ["store=0&today=2026-11-23", "#day-2/revision"], ["store=0&today=2026-11-22", "#day-3/test"],
+    ["store=0&today=2026-11-22", "#activity"], ["store=0&today=2026-11-22", "#settings"], ["engagement=example", "#today"], ["engagement=example", "#activity"], ["engagement=example", "#settings"], ["engagement=example", "#day-5/coach"]]) {
     await go(page, q, h); await page.addScriptTag({ content: AXE });
     const v = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ["color-contrast"] })).violations.flatMap(x => x.nodes.map(n => n.target.join(" ") + " " + (n.any[0] && n.any[0].data ? n.any[0].data.contrastRatio : ""))));
     v.forEach(x => bad.push(h + " " + x));
   }
   if (AXE) { await page.goto(`${origin}/ui/coverage.html`, { waitUntil: "load" }); await page.addScriptTag({ content: AXE });
     (await page.evaluate(async () => (await window.axe.run(document, { runOnly: ["color-contrast"] })).violations.flatMap(x => x.nodes.map(n => n.target.join(" "))))).forEach(x => bad.push("coverage " + x)); }
-  check("QA M9: light theme has no axe color-contrast violations (Today, Learn, Practice, Calendar, Course, Revision, Test, Coverage)", AXE && bad.length === 0, bad.slice(0, 4).join(" | "));
+  check("QA M9: light theme has no axe color-contrast violations (Today, Learn, Practice, Calendar, Course, Revision, Test, Coverage, Activity, Reminders, example engagement)", AXE && bad.length === 0, bad.slice(0, 4).join(" | "));
+  // Dark theme on the new engagement views
+  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
+  const badDark = [];
+  if (AXE) for (const [q, h] of [["engagement=example", "#today"], ["engagement=example", "#activity"], ["engagement=example", "#settings"]]) {
+    await go(page, q, h); await page.addScriptTag({ content: AXE });
+    (await page.evaluate(async () => (await window.axe.run(document.querySelector(".sd-main"), { runOnly: ["color-contrast"] })).violations.flatMap(x => x.nodes.map(n => n.target.join(" ") + " " + (n.any[0] && n.any[0].data ? n.any[0].data.contrastRatio : "")))))
+      .forEach(x => badDark.push(h + " " + x));
+  }
+  check("Engagement: dark theme has no axe color-contrast violations (example Today, Activity, Reminders)", AXE && badDark.length === 0, badDark.slice(0, 4).join(" | "));
+  await page.close();
+}
+
+/* ---------- 8. engagement: XP / level / streak, tasks, challenges, activity, reminder settings ---------- */
+{
+  const shotDir = process.env.ENG_SHOTS || path.join(outDir, "engagement");
+  fs.mkdirSync(shotDir, { recursive: true });
+  const errors = [];
+  const page = await newPage(viewports.desktop, errors);
+  // Fresh learner, Day 1
+  await go(page, "store=0&today=2026-11-22", "#today");
+  const strip = await text(page, ".sd-eng-strip");
+  check("Engagement: Today shows XP, level and streak header (fresh: 0 XP, level 1, no streak)", /0 XP/.test(strip) && /Level 1 · Rookie/.test(strip) && /No streak yet/.test(strip), strip);
+  const ringLabel = await page.$eval(".sd-tasks .sd-ring", e => e.getAttribute("aria-label")).catch(() => "");
+  const nTasks = await page.$$eval(".sd-tasklist .sd-task", es => es.length);
+  check("Engagement: today's tasks checklist with an accessible progress ring", nTasks >= 6 && ringLabel === `0 of ${nTasks} tasks done today`, ringLabel + " / " + nTasks);
+  check("Engagement: daily and weekly challenge cards", (await page.$$eval(".sd-chal", es => es.map(e => e.dataset.period))).join(",") === "daily,weekly");
+  check("Engagement: no 'Example data' label on real (derived) numbers", !(await page.$(".sd-chip-example")));
+  // A locked challenge cannot be claimed
+  await page.click(".sd-chal-daily button[data-challenge]"); await sleep(80);
+  check("Engagement: a locked challenge explains what is missing instead of claiming", /Not yet/.test(await text(page, ".sd-toast")) && !(await page.evaluate(() => (window.__studyDeskProgress().challenges || {})["daily-2026-11-22"])));
+  // Finish the warm-up through the host: XP, ring and activity log update
+  const ok = await finishLessonViaHost(page, "JC-01"); await sleep(50);
+  const xpAfter = await page.evaluate(() => window.__studyDesk.getDerived().eng.xp);
+  check("Engagement: finishing JC-01 (check 100% + lesson) earns 80 XP and ticks two tasks", ok && xpAfter === 80 && /80 XP/.test(await text(page, ".sd-eng-strip")) &&
+    (await page.$eval(".sd-tasks .sd-ring", e => e.getAttribute("aria-label"))) === `2 of ${nTasks} tasks done today`, "xp=" + xpAfter);
+  check("Engagement: streak starts on the first study action", /1-day streak/.test(await text(page, ".sd-eng-strip")));
+  const prog = await page.evaluate(() => window.__studyDeskProgress());
+  check("Engagement: every change is logged with an ISO timestamp and lastActiveAt is set", Array.isArray(prog.activity) && prog.activity.length === 2 && prog.activity.every(a => /^\d{4}-\d\d-\d\dT.*Z$/.test(a.at) && a.date === "2026-11-22") && prog.lastActiveAt === prog.activity[1].at,
+    JSON.stringify(prog.activity && prog.activity[1]));
+  // Claim the teach-back / interview / etc challenge after meeting it
+  const ch = await page.evaluate(() => window.__studyDesk.getDerived().eng.challenges[0]);
+  await page.evaluate(() => {
+    const S = window.StudyDeskSchedule, c = window.STUDY_DESK_FIXTURES.course, E = window.StudyDeskEngagement, r = S.resolveSessions(c).sessions[0];
+    r.lessons.concat(r.dsa).forEach(l => {
+      if (l.quiz) { const a = {}; l.quiz.questions.forEach(q => a[q.id] = q.answer); window.__studyDeskApply({ type: "quiz", id: l.id, answers: a }); }
+      (l.practice || []).forEach(p => window.__studyDeskApply({ type: "practice", id: p.id, status: "complete", evidence: "https://github.com/example/" + p.id }));
+      window.__studyDeskApply({ type: "lesson", id: l.id, status: "complete" });
+      E.questionsOf(l).forEach(q => window.__studyDeskApply({ type: "interview", id: q.id, lessonId: l.id }));
+    });
+    window.__studyDeskApply({ type: "note", key: r.id, text: "one\ntwo\nthree" });
+  });
+  await sleep(50);
+  const chBtn = await page.$(".sd-chal-daily button[data-challenge]");
+  const enabled = chBtn && await chBtn.evaluate(b => b.getAttribute("aria-disabled") !== "true");
+  const xpBefore = await page.evaluate(() => window.__studyDesk.getDerived().eng.xp);
+  if (chBtn) { await chBtn.focus(); await page.keyboard.press("Enter"); await sleep(80); }
+  const xpClaim = await page.evaluate(() => window.__studyDesk.getDerived().eng.xp);
+  check(`Engagement: a met daily challenge (${ch.kind}) is claimable by keyboard and pays 30 XP`, enabled && xpClaim - xpBefore === 30 && /Claimed \+30 XP/.test(await text(page, ".sd-chal-daily")), `${xpBefore} -> ${xpClaim}`);
+  const tk = await page.evaluate(() => window.__studyDesk.getDerived().eng.tasks);
+  check("Engagement: all of Day 1's tasks done -> ring full and 'All done' message", tk.allDone && /All done/.test(await text(page, ".sd-tasks")), `${tk.done}/${tk.total}`);
+  await page.screenshot({ path: path.join(shotDir, "desktop-today-day1-all-done.png"), fullPage: true });
+  // Activity view
+  await page.evaluate(() => { location.hash = "#activity"; }); await sleep(80);
+  const act = await text(page, ".sd-main");
+  check("Engagement: #activity says numbers are calculated locally and shows streak, badges, points history, activity log with IST times, and the points table",
+    /Calculated in this browser from your progress/.test(act) && /Streak/.test(act) && /Badges/.test(act) && /Points history/.test(act) && /Activity log/.test(act) && /Last study activity: Sun, 22 Nov, \d+:\d\d (AM|PM) IST/.test(act) && /How points work/.test(act) && /First step/.test(act), act.slice(0, 120));
+  check("Engagement: sidebar links to Activity and Reminders", (await allText(page, ".sd-sidenav a")).join("|").includes("Activity") && (await allText(page, ".sd-sidenav a")).join("|").includes("Reminders"));
+  // Coach: mark an interview answer
+  await go(page, "store=0&today=2026-11-23", "#day-2/coach");
+  const qBtn = await page.$("button[data-qid]");
+  check("Engagement: coach questions have a 'Mark answered' toggle", !!qBtn && /Mark answered/.test(await qBtn.evaluate(b => b.textContent)) && (await qBtn.evaluate(b => b.getAttribute("aria-pressed"))) === "false");
+  if (qBtn) { await qBtn.click(); await sleep(60); }
+  check("Engagement: marking an answer stores it and earns 5 XP", await page.evaluate(() => Object.keys(window.__studyDeskProgress().interview || {}).length === 1 && window.__studyDesk.getDerived().eng.xp === 5) &&
+    (await page.$eval("button[data-qid]", b => b.getAttribute("aria-pressed"))) === "true");
+  check("Engagement: no console errors (desktop flow)", errors.length === 0, errors.slice(0, 3).join(" | "));
+  await page.close();
+}
+{
+  // Reminder settings: validation, save, persistence (localStorage host), 'not wired' notice
+  const errors = [];
+  const page = await newPage(viewports.desktop, errors);
+  await go(page, "today=2026-11-22", "#settings");
+  await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: "load" });
+  check("Engagement: settings say email sending is not wired yet", /Email sending is not wired yet/.test(await text(page, ".sd-main")));
+  check("Engagement: reminder defaults are off, every 2½ h, quiet 00:00–06:00, max 6", await page.evaluate(() =>
+    !document.getElementById("sd-pref-email").checked && document.getElementById("sd-pref-iv").value === "2.5" && document.getElementById("sd-pref-qs").value === "00:00" && document.getElementById("sd-pref-qe").value === "06:00" && document.getElementById("sd-pref-max").value === "6"));
+  await page.click("#sd-pref-email"); await page.click("button[type=submit]"); await sleep(60);
+  check("Engagement: turning email on without an address is refused with a message and focus on the address field",
+    /email address/i.test(await text(page, "#sd-pref-err")) && await page.evaluate(() => document.activeElement.id === "sd-pref-addr") && !(await page.evaluate(() => (window.__studyDeskProgress().prefs || {}).notifications)));
+  await page.type("#sd-pref-addr", "deepak@example.com"); await page.select("#sd-pref-iv", "3");
+  await page.$eval("#sd-pref-qs", e => { e.value = "23:30"; }); await page.$eval("#sd-pref-qe", e => { e.value = "07:00"; });
+  await page.click("button[type=submit]"); await sleep(80);
+  const n = await page.evaluate(() => (window.__studyDeskProgress().prefs || {}).notifications);
+  check("Engagement: valid reminder settings are saved with progress", n && n.email === true && n.address === "deepak@example.com" && n.intervalHours === 3 && n.quietStart === "23:30" && n.quietEnd === "07:00", JSON.stringify(n));
+  check("Engagement: save confirmation repeats that email is not wired", /not wired/.test(await text(page, ".sd-toast")));
+  await page.reload({ waitUntil: "load" }); await sleep(50);
+  check("Engagement: reminder settings survive a reload", await page.evaluate(() => document.getElementById("sd-pref-email").checked && document.getElementById("sd-pref-addr").value === "deepak@example.com" && document.getElementById("sd-pref-qs").value === "23:30"));
+  check("Engagement: settings preview the next reminder time in IST", /would go out around .* IST|No study activity/.test(await text(page, "#sd-pref-next")), await text(page, "#sd-pref-next"));
+  check("Engagement: settings changes are logged but do not count as study activity", await page.evaluate(() => { const p = window.__studyDeskProgress(); return p.activity.some(a => a.type === "prefs") && !p.lastActiveAt; }));
+  await page.evaluate(() => localStorage.clear());
+  check("Engagement: no console errors (settings)", errors.length === 0, errors.slice(0, 3).join(" | "));
+  await page.close();
+}
+{
+  // Example data mode, host override, engagement:false, 320px and screenshots
+  const shotDir = process.env.ENG_SHOTS || path.join(outDir, "engagement");
+  for (const [vpName, vp] of [["desktop", viewports.desktop], ["mobile320", viewports.mobile320]]) {
+    const errors = [];
+    const page = await newPage(vp, errors);
+    for (const [hash, name] of [["#today", "today"], ["#activity", "activity"], ["#settings", "settings"], ["#day-5/coach", "coach"]]) {
+      await go(page, "engagement=example", hash);
+      const i = await info(page);
+      const labelled = await page.evaluate(() => /Example data/.test(document.body.innerText));
+      check(`Engagement example ${vpName} ${hash}: labelled 'Example data', no horizontal overflow`, labelled && !i.overflowX, `sw=${i.sw} cw=${i.cw}`);
+      await page.screenshot({ path: path.join(shotDir, `${vpName}-example-${name}.png`), fullPage: true });
+    }
+    await go(page, "engagement=example", "#today");
+    const strip = await text(page, ".sd-eng-strip");
+    check(`Engagement example ${vpName}: example history shows a 5-day streak, level 4 and an 'Example data' chip`, /5-day streak/.test(strip) && /Level 4/.test(strip) && /Example data/.test(strip), strip);
+    for (const [hash, name] of [["#today", "today"], ["#activity", "activity"], ["#settings", "settings"]]) {
+      await go(page, "store=0&today=2026-11-22", hash);
+      await page.screenshot({ path: path.join(shotDir, `${vpName}-fresh-${name}.png`), fullPage: true });
+    }
+    check(`Engagement ${vpName}: no console errors`, errors.length === 0, errors.slice(0, 3).join(" | "));
+    await page.close();
+  }
+  const errors = [];
+  const page = await newPage(viewports.desktop, errors);
+  await go(page, "store=0&today=2026-11-22", "#today");
+  await page.evaluate(() => window.__studyDesk.update({ engagement: { xp: 2000, source: "host", streak: { current: 9 } } })); await sleep(50);
+  const st = await text(page, ".sd-eng-strip");
+  check("Engagement: host-supplied options.engagement overrides derived numbers (level recomputed)", /2,000 XP/.test(st) && /Level 5/.test(st) && /9-day streak/.test(st) && !(await page.$(".sd-chip-example")), st);
+  await go(page, "store=0&today=2026-11-22&engagement=off", "#today");
+  const offOk = !(await page.$(".sd-eng-strip")) && !(await page.$(".sd-tasks")) && (await allText(page, ".sd-sidenav a")).length === 3;
+  await go(page, "store=0&today=2026-11-22&engagement=off", "#activity");
+  check("Engagement: engagement:false keeps the old UI (no strip, no tasks, 3 nav links, #activity not found)", offOk && (await info(page)).view === "not-found");
+  // Keyboard: the stat links and task links are reachable with Tab
+  await go(page, "store=0&today=2026-11-22", "#today");
+  const seen = new Set();
+  for (let k = 0; k < 60; k++) { await page.keyboard.press("Tab"); seen.add(await page.evaluate(() => (document.activeElement.className || "") + "")); }
+  check("Engagement: XP/streak links and task links are keyboard reachable", [...seen].some(c => /sd-stat/.test(c)) && [...seen].some(c => /sd-task-t/.test(c)), [...seen].slice(0, 8).join(","));
+  check("Engagement: no console errors (override/off)", errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();
 }
 

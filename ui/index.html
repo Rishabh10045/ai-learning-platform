@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="study-desk.css">
   <style>
     .demo-banner { margin: 0; padding: 6px 16px; font: 13px/1.4 system-ui, sans-serif; background: #fff2d9; color: #6b3d00; border-bottom: 1px solid #f0d9a8; text-align: center; }
+    .demo-banner a { color: #8a3b00; }
     .demo-banner button { font: inherit; background: none; border: 0; color: #8a3b00; text-decoration: underline; cursor: pointer; padding: 0 2px; }
     .host-notice { margin: 0; padding: 8px 16px; font: 14px/1.4 system-ui, sans-serif; background: #f8e4e4; color: #6e2020; border-bottom: 1px solid #ecc; }
   </style>
@@ -18,17 +19,20 @@
   <p class="host-notice" id="host-notice" role="alert" hidden></p>
   <div id="study-desk"></div>
   <script src="engine/schedule-engine.js"></script>
+  <script src="engine/engagement-engine.js"></script>
   <script src="fixtures/course.fixture.js"></script>
   <script src="fixtures/legacy-progress.fixture.js"></script>
+  <script src="fixtures/engagement.fixture.js"></script>
   <script src="study-desk.js"></script>
   <script>
     // DEMO HOST ONLY. The real host (Codex's app.js + progress.js) owns persistence and account sync.
     // ?today=YYYY-MM-DD pins the IST study date; ?migrate=1 seeds old day-based progress (only when nothing is stored);
-    // ?store=0 keeps progress in memory only.
+    // ?store=0 keeps progress in memory only. ?engagement=example shows a made-up history (memory only, labelled Example data); ?engagement=off hides the engagement UI.
     (function () {
-      var S = window.StudyDeskSchedule, F = window.STUDY_DESK_FIXTURES, qs = new URLSearchParams(location.search);
-      var KEY = "studydesk.preview.v2", useStore = qs.get("store") !== "0";
-      var pinned = S.isISO(qs.get("today")) ? qs.get("today") : null;
+      var S = window.StudyDeskSchedule, E = window.StudyDeskEngagement, F = window.STUDY_DESK_FIXTURES, qs = new URLSearchParams(location.search);
+      var example = qs.get("engagement") === "example";
+      var KEY = "studydesk.preview.v2", useStore = qs.get("store") !== "0" && !example;
+      var pinned = S.isISO(qs.get("today")) ? qs.get("today") : example ? F.engagementExample.today : null;
       var cutoff = (F.course.schedule && F.course.schedule.dayCutoff) || S.DEFAULTS.dayCutoff;
       // Study date: before 04:00 IST still counts as the previous evening (QA H3).
       var today = pinned || S.studyDayIST(Date.now(), cutoff);
@@ -64,6 +68,12 @@
         if (progress) console.info("?migrate=1 ignored: progress is already stored (Reset preview first)");
         else { var mg = S.migrateProgress(F.course, F.legacyProgress); progress = mg.progress; console.info("Migrated legacy progress", mg.report); }
       }
+      if (example) {
+        progress = F.engagementExample.build(S, E, F.course);
+        var eb = document.createElement("p"); eb.className = "demo-banner"; eb.setAttribute("role", "note");
+        eb.innerHTML = "<strong>Example data</strong>: XP, streak, tasks and activity below come from a made-up history (22–27 Nov), kept in memory only. <a href=\"?\">Back to my preview</a>";
+        document.body.insertBefore(eb, document.getElementById("study-desk"));
+      }
       progress = S.normalize(progress || S.emptyProgress());
 
       // Returns "" or the reason the save failed (QA M3: storage full is reported, not swallowed).
@@ -78,7 +88,8 @@
       var firstErr = save(); setSync(firstErr);
       function hostChange(change) {
         change.date = change.date || today;
-        var r = S.applyChange(F.course, progress, change);
+        // Engagement reducer: schedule rules + challenge/prefs checks + timestamped activity log.
+        var r = E.applyChange(F.course, progress, change, change.at);
         if (!r.ok) return r;
         progress = r.progress;
         var err = save(); setSync(err);
@@ -87,6 +98,7 @@
       }
       var desk = StudyDesk.mount(document.getElementById("study-desk"), {
         course: F.course, progress: progress, today: today, sync: sync,
+        engagement: example ? { example: true } : qs.get("engagement") === "off" ? false : undefined,   // ?engagement=off: engagement UI hidden (old behaviour)
         headerLinks: [{ label: "Coverage", href: "coverage.html" }],
         onChange: function (change) { return hostChange(change); }
       });

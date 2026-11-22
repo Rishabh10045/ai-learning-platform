@@ -393,3 +393,181 @@ test("QA fixture structure: prerequisites in order (generics, SQL/JDBC, HTTP, LL
     if (["hld", "lld", "genai", "databases", "spring-boot"].includes(s.id)) assert.ok(!/search_query=java%20/.test(v.url), v.url);
   }
 });
+
+/* ---------- engagement engine (ui/engine/engagement-engine.js) ---------- */
+globalThis.window.StudyDeskSchedule = S;
+const E = require("../engine/engagement-engine.js");
+require("../fixtures/engagement.fixture.js");
+const xpOf = p => E.ledger(course, p).reduce((a, e) => a + e.xp, 0);
+const EA = (p, change, at) => E.applyChange(course, p, change, at);
+
+test("engagement: point values and level thresholds", () => {
+  assert.equal(E.POINTS.lessonComplete, 50); assert.equal(E.POINTS.moduleTestPass, 100); assert.equal(E.POINTS.dailyChallenge, 30); assert.equal(E.POINTS.weeklyChallenge, 150);
+  assert.deepEqual([0, 199, 200, 999, 1000, 4000].map(x => E.levelFor(x).n), [1, 1, 2, 3, 4, 7]);
+  const l8 = E.levelFor(5500); assert.equal(l8.n, 8); assert.equal(l8.from, 5500); assert.equal(l8.to, 7000);
+  assert.equal(E.levelFor(350).pct, 50); assert.equal(E.levelFor(350).toNext, 150);
+});
+
+test("engagement: ledger awards XP once per item, on the date it was earned", () => {
+  let p = finishLesson(S.emptyProgress(), "JC-02", "2026-11-22");
+  const led = E.ledger(course, p);
+  // quiz 20 + 10 (100%), practice 25 + 10 (evidence), lesson 50
+  assert.equal(xpOf(p), 115);
+  assert.ok(led.every(e => e.date === "2026-11-22"));
+  // retaking a passed quiz does not pay again
+  const a = {}; L("JC-02").quiz.questions.forEach(q => a[q.id] = q.answer);
+  p = S.applyChange(course, p, { type: "quiz", id: "JC-02", answers: a, date: "2026-11-23" }).progress;
+  assert.equal(xpOf(p), 115);
+  // videos: 1 XP per 10 min, capped at 12/day
+  const vid = L("JC-02").videos[0].id;
+  p = S.applyChange(course, p, { type: "watch", id: vid, minutes: 25, date: "2026-11-23" }).progress;
+  assert.equal(xpOf(p), 117);
+  p = S.applyChange(course, p, { type: "watch", id: vid, minutes: 500, date: "2026-11-23" }).progress;
+  assert.equal(xpOf(p), 115 + 12);
+});
+
+test("engagement: streak counts study days; unavailable days never break it, a missed study day does", () => {
+  let p = S.emptyProgress();
+  p = S.applyChange(course, p, { type: "revision", id: "S02", done: true, date: "2026-11-22" }).progress;
+  p = S.applyChange(course, p, { type: "revision", id: "S03", done: true, date: "2026-11-23" }).progress;
+  p = S.applyChange(course, p, { type: "unavailable", date: "2026-11-24", value: true }).progress;
+  p = S.applyChange(course, p, { type: "revision", id: "S04", done: true, date: "2026-11-25" }).progress;
+  let st = E.streak(course, p, "2026-11-25");
+  assert.equal(st.current, 3); assert.equal(st.best, 3); assert.equal(st.skippedDays, 1); assert.equal(st.todayDone, true);
+  // the next evening, before studying: still 3, at risk
+  st = E.streak(course, p, "2026-11-26");
+  assert.equal(st.current, 3); assert.equal(st.atRisk, true); assert.equal(st.todayDone, false);
+  // a 0-minute day is a day off too
+  p = S.applyChange(course, p, { type: "minutes", targetDate: "2026-11-26", minutes: 0, date: "2026-11-25" }).progress;
+  st = E.streak(course, p, "2026-11-27"); assert.equal(st.current, 3); assert.equal(st.atRisk, true);
+  // a missed available day (27th) breaks it
+  st = E.streak(course, p, "2026-11-28"); assert.equal(st.current, 0); assert.equal(st.best, 3);
+  assert.equal(st.history.find(h => h.date === "2026-11-27").state, "missed");
+  assert.equal(st.history.find(h => h.date === "2026-11-24").state, "off");
+});
+
+test("engagement: today's tasks follow tonight's session (Day 1 warm-up, quiz, practice, DSA, interview, notes)", () => {
+  let t = E.tasksFor(course, S.emptyProgress(), "2026-11-22");
+  assert.equal(t.sessionN, 1); assert.equal(t.done, 0);
+  const kinds = t.tasks.map(x => x.kind);
+  for (const k of ["quiz", "lesson", "practice", "dsa", "interview", "notes"]) assert.ok(kinds.includes(k), k);
+  assert.ok(!kinds.includes("revision"), "Day 1 has no revision task (Java foundations instead)");
+  assert.ok(t.tasks.some(x => /^Java foundations/.test(x.title) && !/Java foundations: Java foundations/.test(x.title)));
+  let p = finishSession(S.emptyProgress(), 1, "2026-11-22");
+  p = S.applyChange(course, p, { type: "note", key: "S01", text: "mine", date: "2026-11-22" }).progress;
+  const q = E.questionsOf(L(S.resolveSessions(course).sessions[0].lessons[0].id))[0];
+  p = EA(p, { type: "interview", id: q.id, lessonId: S.resolveSessions(course).sessions[0].lessons[0].id, date: "2026-11-22" }).progress;
+  t = E.tasksFor(course, p, "2026-11-22");
+  assert.equal(t.done, t.total); assert.equal(t.allDone, true); assert.equal(t.xpAvailable, 0);
+  // Session 2 on Monday has the quick revision task; an unavailable day has no tasks
+  assert.ok(E.tasksFor(course, p, "2026-11-23").tasks.some(x => x.kind === "revision"));
+  const off = S.applyChange(course, p, { type: "unavailable", date: "2026-11-23", value: true }).progress;
+  assert.equal(E.tasksFor(course, off, "2026-11-23").off, true);
+});
+
+test("engagement: challenges are claimed only when met, only today / this week, once", () => {
+  let p = S.emptyProgress(), d = "2026-11-22";
+  const c = E.dailyChallenge(course, p, d);
+  assert.equal(c.id, "daily-" + d); assert.equal(c.met, false);
+  assert.equal(EA(p, { type: "challenge", id: c.id, date: d }).ok, false);
+  assert.equal(EA(p, { type: "challenge", id: "daily-2026-11-21", date: d }).ok, false, "past challenge");
+  // meet it: every candidate is met by finishing the session properly + 3 lines of notes + interview answers
+  p = finishSession(p, 1, d);
+  p = S.applyChange(course, p, { type: "note", key: "S01", text: "a\nb\nc", date: d }).progress;
+  for (const l of S.resolveSessions(course).sessions[0].lessons.concat(S.resolveSessions(course).sessions[0].dsa))
+    for (const q of E.questionsOf(l)) p = EA(p, { type: "interview", id: q.id, lessonId: l.id, date: d }).progress;
+  assert.equal(E.dailyChallenge(course, p, d).met, true, E.dailyChallenge(course, p, d).kind);
+  const before = xpOf(p), r = EA(p, { type: "challenge", id: c.id, date: d });
+  assert.ok(r.ok, r.reason); assert.equal(xpOf(r.progress) - before, 30);
+  assert.equal(E.dailyChallenge(course, r.progress, d).claimed, true);
+  assert.equal(EA(r.progress, { type: "challenge", id: c.id, date: d }).ok, false, "claimed twice");
+  // weekly: partial first week is "show up"; Sunday 22 Nov is the only plan day of week 16–22 Nov
+  const w = E.weeklyChallenge(course, r.progress, d);
+  assert.equal(w.kind, "show-up"); assert.equal(w.availableDays, 1); assert.equal(w.met, true);
+  const rw = EA(r.progress, { type: "challenge", id: w.id, date: d }); assert.ok(rw.ok, rw.reason); assert.equal(xpOf(rw.progress) - xpOf(r.progress), 150);
+  // unavailable days are not required for "show up"
+  let q2 = S.applyChange(course, S.emptyProgress(), { type: "unavailable", date: "2026-11-25", value: true }).progress;
+  const w2 = E.weeklyChallenge(course, q2, "2026-11-23"); if (w2.kind === "show-up") assert.equal(w2.availableDays, 6);
+});
+
+test("engagement: interview answers are validated and pay 5 XP each", () => {
+  const l = L("JC-02"), q = E.questionsOf(l)[0];
+  assert.equal(EA(S.emptyProgress(), { type: "interview", id: "nope", lessonId: "JC-02", date: "2026-11-22" }).ok, false);
+  const r = EA(S.emptyProgress(), { type: "interview", id: q.id, lessonId: "JC-02", date: "2026-11-22" });
+  assert.ok(r.ok); assert.equal(xpOf(r.progress), 5);
+  assert.equal(xpOf(EA(r.progress, { type: "interview", id: q.id, lessonId: "JC-02", answered: false, date: "2026-11-22" }).progress), 0);
+});
+
+test("engagement: notification preferences (defaults 00:00–06:00 IST, 2–3 h, validated)", () => {
+  const d = E.notificationPrefs(S.emptyProgress());
+  assert.deepEqual([d.email, d.quietStart, d.quietEnd, d.intervalHours, d.maxPerDay, d.timezone], [false, "00:00", "06:00", 2.5, 6, "Asia/Kolkata"]);
+  const p = S.emptyProgress();
+  assert.equal(EA(p, { type: "prefs", notifications: { intervalHours: 4 } }).ok, false);
+  assert.equal(EA(p, { type: "prefs", notifications: { email: true } }).ok, false, "email on needs an address");
+  assert.equal(EA(p, { type: "prefs", notifications: { quietStart: "25:00" } }).ok, false);
+  const r = EA(p, { type: "prefs", notifications: { email: true, address: "d@example.com", intervalHours: 3, quietStart: "23:30", quietEnd: "07:00" }, date: "2026-11-22" }, "2026-11-22T10:00:00Z");
+  assert.ok(r.ok, r.reason);
+  const n = E.notificationPrefs(r.progress);
+  assert.deepEqual([n.email, n.address, n.intervalHours, n.quietStart, n.quietEnd], [true, "d@example.com", 3, "23:30", "07:00"]);
+  assert.equal(r.progress.lastActiveAt, undefined, "settings changes are not study activity");
+});
+
+test("engagement: next reminder time respects interval, quiet hours, done-for-today and daily limit", () => {
+  const on = Object.assign({}, E.NOTIFY_DEFAULTS, { email: true, address: "d@example.com" });
+  assert.equal(E.nextNudge(E.NOTIFY_DEFAULTS, null, 0).at, null);
+  // last activity 9:00 PM IST, now 9:30 PM: next at 11:30 PM IST
+  let n = E.nextNudge(on, "2026-11-22T15:30:00Z", Date.parse("2026-11-22T16:00:00Z"));
+  assert.equal(n.at, "2026-11-22T18:00:00.000Z"); assert.match(n.label, /11:30 PM IST/);
+  // last activity 10:30 PM IST: +2.5 h = 1:00 AM, inside quiet hours -> 6:00 AM IST
+  n = E.nextNudge(on, "2026-11-22T17:00:00Z", Date.parse("2026-11-22T17:30:00Z"));
+  assert.equal(n.at, "2026-11-23T00:30:00.000Z"); assert.match(n.label, /6:00 AM IST/);
+  // quiet window not crossing midnight (13:00–15:00)
+  n = E.nextNudge(Object.assign({}, on, { quietStart: "13:00", quietEnd: "15:00" }), "2026-11-23T05:00:00Z", Date.parse("2026-11-23T05:10:00Z"));
+  assert.match(n.label, /3:00 PM IST/);
+  // long inactivity: the next slot on the interval grid after now
+  n = E.nextNudge(on, "2026-11-22T04:30:00Z", Date.parse("2026-11-22T10:00:00Z"));   // last 10:00 AM IST, now 3:30 PM -> grid 12:30, 3:00, 5:30 PM
+  assert.match(n.label, /5:30 PM IST/);
+  assert.equal(E.nextNudge(on, "2026-11-22T15:30:00Z", 0, { todayDone: true }).at, null);
+  assert.equal(E.nextNudge(on, "2026-11-22T15:30:00Z", 0, { sentToday: 6 }).at, null);
+});
+
+test("engagement: activity log is timestamped, capped, and drives lastActiveAt", () => {
+  let p = S.emptyProgress();
+  const l = L("JC-02"), a = {}; l.quiz.questions.forEach(q => a[q.id] = q.answer);
+  let r = EA(p, { type: "quiz", id: "JC-02", answers: a, date: "2026-11-22" }, "2026-11-22T15:45:00Z");
+  assert.ok(r.ok); p = r.progress;
+  assert.equal(p.activity.length, 1);
+  assert.deepEqual(p.activity[0], { at: "2026-11-22T15:45:00.000Z", date: "2026-11-22", type: "quiz", id: "JC-02", xp: 30 });
+  assert.equal(p.lastActiveAt, "2026-11-22T15:45:00.000Z");
+  r = EA(p, { type: "unavailable", date: "2026-11-30", value: true }, "2026-11-22T16:00:00Z"); p = r.progress;
+  assert.equal(p.activity.length, 2); assert.equal(p.lastActiveAt, "2026-11-22T15:45:00.000Z", "a day-off change is logged but is not study activity");
+  // refused changes are not logged
+  assert.equal(EA(p, { type: "lesson", id: "JC-02", status: "complete", date: "2026-11-22" }, "2026-11-22T16:05:00Z").ok, false);
+  // cap
+  p.activity = Array.from({ length: 1000 }, (_, i) => ({ at: "2026-11-22T10:00:00.000Z", date: "2026-11-22", type: "note", id: "x" + i, xp: 0 }));
+  p = EA(p, { type: "note", key: "S01", text: "hi", date: "2026-11-22" }, "2026-11-22T17:00:00Z").progress;
+  assert.equal(p.activity.length, 1000); assert.equal(p.activity[999].id, "S01");
+  // survives normalize / validateProgress (the hosts' load path)
+  assert.deepEqual(S.validateProgress(p), []); assert.equal(S.normalize(p).activity.length, 1000);
+  const d = E.derive(course, p, "2026-11-22");
+  assert.equal(d.lastActiveAt, "2026-11-22T17:00:00.000Z"); assert.equal(d.activity[0].id, "S01", "newest first");
+});
+
+test("engagement: derive() view-model and host override (options.engagement)", () => {
+  const d = E.derive(course, {}, "2026-11-22");
+  assert.equal(d.contractVersion, 1); assert.equal(d.source, "derived"); assert.equal(d.xp, 0); assert.equal(d.level.n, 1);
+  assert.equal(d.challenges.length, 2); assert.equal(d.badges.length, 12); assert.equal(d.nextNudge.at, null);
+  const m = E.merge(d, { xp: 2000, streak: { current: 9 } });
+  assert.equal(m.source, "host"); assert.equal(m.level.n, 5); assert.equal(m.streak.current, 9); assert.equal(m.streak.best, 0);
+  assert.equal(E.merge(d, { example: true }).source, "example");
+  assert.equal(E.merge(d, null), d);
+});
+
+test("engagement: example fixture history derives the documented numbers", () => {
+  const F = window.STUDY_DESK_FIXTURES, p = F.engagementExample.build(S, E, course);
+  const d = E.derive(course, p, F.engagementExample.today, { now: Date.parse("2026-11-27T17:30:00Z") });
+  assert.equal(d.streak.current, 5); assert.equal(d.streak.skippedDays, 1);
+  assert.equal(d.level.n, 4); assert.ok(d.xp >= 1000 && d.xp < 1750, String(d.xp));
+  assert.equal(Object.keys(p.challenges).length, 4);
+  assert.ok(d.activity.length > 30); assert.ok(d.nextNudge.at);
+});

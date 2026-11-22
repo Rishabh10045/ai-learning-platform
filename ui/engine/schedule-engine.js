@@ -429,7 +429,7 @@
         var me = idx.moduleById[change.id]; if (!me || !me.module.test) return fail("No test for " + change.id);
         if (testState(me.module, p) === "locked") return fail("Test is locked until every lesson in " + me.module.title + " is complete");
         var ts = scoreQuiz(me.module.test, change.answers, s.testPassPct), old = p.tests[change.id] || {};
-        p.tests[change.id] = { score: ts.pct, passed: ts.passed || !!old.passed, takenOn: ts.passed ? date : (old.takenOn || date), attempts: (old.attempts || 0) + 1 };
+        p.tests[change.id] = { score: ts.pct, best: Math.max(ts.pct, old.best != null ? old.best : (old.score || 0)), passed: ts.passed || !!old.passed, takenOn: ts.passed ? date : (old.takenOn || date), attempts: (old.attempts || 0) + 1 };
         return { progress: p, ok: true, result: ts };
       }
       case "watch": {
@@ -444,6 +444,28 @@
       case "revision":   // {id: sessionId, done: true|false}: the 12-minute quick revision of the previous session (QA L6)
         if (change.done) p.revisions[change.id] = { doneOn: date }; else delete p.revisions[change.id];
         break;
+      // Engagement (collab/engagement-contract.md). Semantic checks live in engagement-engine.js applyChange().
+      case "interview": {   // {id: questionId, lessonId, answered: true|false}
+        var ile = idx.lessonById[change.lessonId];
+        var qok = ile && ((ile.lesson.interview && ile.lesson.interview.length ? ile.lesson.interview : ile.lesson.coach) || []).some(function (q) { return q.id === change.id; });
+        if (!qok) return fail("Unknown interview question " + change.id);
+        p.interview = isObj(p.interview) ? p.interview : {};
+        if (change.answered === false) delete p.interview[change.id]; else p.interview[change.id] = { lessonId: change.lessonId, answeredOn: date };
+        break;
+      }
+      case "challenge": {   // {id: "daily-YYYY-MM-DD" | "weekly-YYYY-MM-DD", done, kind, title}
+        if (!/^(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(change.id || "")) return fail("Unknown challenge " + change.id);
+        p.challenges = isObj(p.challenges) ? p.challenges : {};
+        if (change.done === false) delete p.challenges[change.id];
+        else p.challenges[change.id] = { doneOn: date, kind: change.kind || null, title: change.title || null };
+        break;
+      }
+      case "prefs": {       // {notifications: {email, address, intervalHours, quietStart, quietEnd, maxPerDay}}
+        if (!isObj(change.notifications)) return fail("prefs needs notifications");
+        p.prefs = isObj(p.prefs) ? p.prefs : {};
+        p.prefs.notifications = Object.assign({}, isObj(p.prefs.notifications) ? p.prefs.notifications : {}, change.notifications);
+        break;
+      }
       case "unavailable":
         if (!isISO(change.date)) return fail("Bad date " + change.date);
         if (change.value) p.schedule.unavailable[change.date] = true; else delete p.schedule.unavailable[change.date];

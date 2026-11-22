@@ -2,8 +2,14 @@
  * Study Desk presentation layer v2 (subject-first). No build step, no dependencies.
  * Needs ui/engine/schedule-engine.js (window.StudyDeskSchedule) loaded first.
  *
- *   const desk = StudyDesk.mount(el, { course, progress, today, sync, onChange, onCoachAsk, headerLinks });
- *   desk.update({ progress, sync, today, course });
+ *   const desk = StudyDesk.mount(el, { course, progress, today, sync, onChange, onCoachAsk, headerLinks, engagement });
+ *   desk.update({ progress, sync, today, course, engagement });
+ *
+ * Engagement (XP, level, streak, today's tasks, challenges, badges, activity, reminder
+ * preferences) needs ui/engine/engagement-engine.js (window.StudyDeskEngagement). It is
+ * derived from progress; options.engagement (collab/engagement-contract.md) overrides
+ * field by field, and engagement:false turns the engagement UI off. Every change the UI
+ * emits carries change.at (ISO timestamp) for the activity log.
  *
  * The UI never stores anything. Every user action calls onChange(change) with the
  * change shapes documented in schedule-engine.js applyChange(); the host persists
@@ -13,6 +19,7 @@
 (function (global) {
   "use strict";
   var S = global.StudyDeskSchedule;
+  function E() { return global.StudyDeskEngagement || null; }
   var STATUS = {
     "pending": { label: "Not started", icon: "○", cls: "is-pending" },
     "in-progress": { label: "In progress", icon: "◐", cls: "is-progress" },
@@ -78,7 +85,7 @@
   function mount(root, opts) {
     if (!S) throw new Error("StudyDesk needs StudyDeskSchedule (ui/engine/schedule-engine.js) loaded first");
     opts = opts || {};
-    var data = { course: opts.course, progress: S.normalize(opts.progress), today: opts.today || S.studyDayIST(), sync: opts.sync || null };
+    var data = { course: opts.course, progress: S.normalize(opts.progress), today: opts.today || S.studyDayIST(), sync: opts.sync || null, engagement: opts.engagement };
     var state = { route: { view: "today" }, query: "", navOpen: false, toast: "", openModules: {}, focusLesson: null, drafts: {}, pendingNotes: {} };
     var derived;
     root.classList.add("sd-root");
@@ -89,6 +96,11 @@
       var cal = S.buildCalendar(data.course, data.progress, { idx: idx, resolved: res, today: data.today });
       var tp = S.todayPlan(data.course, data.progress, { idx: idx, resolved: res, today: data.today });
       derived = { idx: idx, res: res, cal: cal, today: tp, cont: S.continueTarget(data.course, data.progress), settings: S.settingsOf(data.course, data.progress) };
+      derived.eng = null;
+      if (E() && data.engagement !== false) {
+        try { derived.eng = E().merge(E().derive(data.course, data.progress, data.today), data.engagement); }
+        catch (err) { console.error("Study Desk: engagement could not be derived", err); derived.eng = null; }
+      }
     }
 
     /* ---------- routing ---------- */
@@ -99,7 +111,7 @@
       if (m) return { view: m[2] || "plan", day: +m[1], canonical: "day-" + (+m[1]) + (m[2] ? "/" + m[2] : "") };
       m = /^lesson\/(.+)$/.exec(hs);
       if (m) return { view: "lesson", lessonId: m[1] };
-      if (hs === "course" || hs === "calendar" || hs === "today") return { view: hs };
+      if (hs === "course" || hs === "calendar" || hs === "today" || hs === "activity" || hs === "settings") return { view: hs };
       if (!hs) return { view: "today" };
       return { view: "not-found", raw: hs };
     }
@@ -125,6 +137,7 @@
     /* ---------- change plumbing ---------- */
     function emit(change) {
       change.date = change.date || data.today;
+      change.at = change.at || new Date().toISOString();   // activity log + last-activity time (engagement contract)
       var out;
       try { out = opts.onChange ? opts.onChange(change) : null; } catch (e) { out = Promise.reject(e); }
       return Promise.resolve(out).then(function (r) {
@@ -229,7 +242,7 @@
     function titleFor() {
       var r = state.route;
       if (r.day) { var v = VIEWS.find(function (x) { return x.id === r.view; }); return "Session " + r.day + (v && v.id !== "plan" ? " · " + v.label : ""); }
-      return { today: "Today", course: "Course", calendar: "Calendar" }[r.view] || "Not found";
+      return { today: "Today", course: "Course", calendar: "Calendar", activity: "Activity & XP", settings: "Reminder settings" }[r.view] || "Not found";
     }
 
     function matchText(q, hay) { return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (t) { return hay.toLowerCase().indexOf(t) >= 0; }); }
@@ -237,7 +250,7 @@
     function renderSidebar() {
       var r = state.route, q = state.query.trim();
       sideNav.innerHTML = "";
-      [["today", "Today", "☀"], ["course", "Course", "▦"], ["calendar", "Calendar", "▤"]].forEach(function (x) {
+      [["today", "Today", "☀"], ["course", "Course", "▦"], ["calendar", "Calendar", "▤"]].concat(derived.eng ? [["activity", "Activity", "★"], ["settings", "Reminders", "⚙"]] : []).forEach(function (x) {
         sideNav.appendChild(h("li", null, h("a", { href: "#" + x[0], class: "sd-sidelink", "aria-current": r.view === x[0] ? "page" : null }, h("span", { "aria-hidden": "true", text: x[2] + " " }), x[1])));
       });
       tree.innerHTML = "";
@@ -309,6 +322,8 @@
       if (r.view === "today") return viewToday();
       if (r.view === "course") return viewCourse();
       if (r.view === "calendar") return viewCalendar();
+      if (r.view === "activity" && derived.eng) return viewActivity();
+      if (r.view === "settings" && derived.eng) return viewSettings();
       if (r.day && derived.res.sessions[r.day - 1]) return viewSession(derived.res.sessions[r.day - 1], r.view);
       main.dataset.view = "not-found";
       add(main, [h("h1", { text: "Not in this plan" }), h("p", { text: "There is no page for “" + (r.raw || "day-" + r.day) + "”. This plan has " + derived.res.count + " sessions." }), h("p", null, h("a", { href: "#today", text: "Go to Today" }))]);
@@ -368,8 +383,10 @@
           h("span", { class: "sd-chip sd-chip-budget", text: (e.budget.kind === "weekend" ? "Weekend long day · " + e.budget.dayName + " · " : e.budget.dayName + " · ") + fmtMin(e.budget.minutes) + (e.budget.stretch ? " (" + fmtMin(coreMin()) + " core + " + fmtMin(e.budget.stretch) + " stretch)" : "") }),
           e.carried ? h("span", { class: "sd-chip sd-chip-carry", text: "Carried forward: unfinished from an earlier date" }) : null,
           e.budget.short ? h("span", { class: "sd-chip sd-chip-carry", text: "Short day: the core is scaled down; unfinished work carries forward" }) : null)]);
+      if (derived.eng) head.appendChild(engStrip(derived.eng));
       main.appendChild(head);
       main.appendChild(continueCard());
+      if (derived.eng) main.appendChild(engToday(derived.eng));
       if (e.unavailable) {
         main.appendChild(h("section", { class: "sd-card sd-offcard" }, h("h2", { text: e.reason === "zero-minutes" ? "0 minutes planned on " + fmtDate(e.date) + ": day off" : "You marked " + fmtDate(e.date) + " as unavailable" }),
           h("p", { text: "Session " + e.carries + " stays pending and moves to your next available date. Nothing is skipped." })));
@@ -676,9 +693,10 @@
 
     function vCoach(panel, rs) {
       var qs = [];
-      sessionLessons(rs).forEach(function (l) { (l.coach || []).forEach(function (q) { qs.push(q); }); });
+      sessionLessons(rs).forEach(function (l) { ((E() ? E().questionsOf(l) : l.coach) || []).forEach(function (q) { qs.push({ q: q, lessonId: l.id }); }); });
       if (!qs.length) { panel.appendChild(h("p", { class: "sd-emptynote", text: "No coach prompts for this session." })); return; }
-      qs.forEach(function (q) {
+      qs.forEach(function (item) {
+        var q = item.q, answered = !!(data.progress.interview && data.progress.interview[q.id]);
         var ans = h("textarea", { rows: "3", class: "sd-evidence", "aria-label": "Your answer to: " + q.prompt, placeholder: "Answer as you would in an interview" });
         var msg = h("p", { class: "sd-muted", "aria-live": "polite" });
         panel.appendChild(h("article", { class: "sd-card" }, h("h3", { text: q.prompt }), ans,
@@ -690,7 +708,10 @@
             opts.onCoachAsk ? h("button", { type: "button", class: "sd-btn sd-btn-primary", onclick: function () {
               msg.textContent = "Asking…";
               Promise.resolve(opts.onCoachAsk({ session: rs.n, questionId: q.id, question: q.prompt, answer: ans.value })).then(function (r) { msg.textContent = typeof r === "string" ? r : (r && r.text) || ""; }, function () { msg.textContent = "Coach unavailable."; });
-            } }, "Ask coach") : null), msg));
+            } }, "Ask coach") : null,
+            derived.eng ? h("button", { type: "button", class: "sd-btn" + (answered ? "" : " sd-btn-primary"), "aria-pressed": answered ? "true" : "false", "data-qid": q.id,
+              onclick: function () { emit({ type: "interview", id: q.id, lessonId: item.lessonId, answered: !answered }); } },
+              answered ? "✓ Answered (undo)" : "Mark answered out loud · +" + E().POINTS.interviewAnswer + " XP") : null), msg));
       });
     }
 
@@ -708,6 +729,167 @@
       panel.appendChild(card);
     }
 
+    /* ---------- engagement (XP, streak, tasks, challenges, activity, reminders) ---------- */
+    function fmtNum(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+    function isExample(eng) { return !!(eng.example || eng.source === "example"); }
+    function sourceNote(eng) {
+      if (isExample(eng)) return h("p", { class: "sd-example", role: "note" }, h("strong", { text: "Example data" }), " · these numbers are sample values to preview the design, not your real progress.");
+      return h("p", { class: "sd-muted sd-eng-src", text: eng.source === "host" ? "From your synced progress." : "Calculated in this browser from your progress." });
+    }
+    function exampleChip(eng) { return isExample(eng) ? h("span", { class: "sd-chip sd-chip-example", text: "Example data" }) : null; }
+    function ring(done, total, label) {
+      var r = 26, c = 2 * Math.PI * r, pct = total ? done / total : 0;
+      var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("viewBox", "0 0 64 64"); svg.setAttribute("class", "sd-ring-svg"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
+      [["sd-ring-bg", c], ["sd-ring-fg", c * (1 - pct)]].forEach(function (x, i) {
+        var ci = document.createElementNS(ns, "circle");
+        ci.setAttribute("cx", "32"); ci.setAttribute("cy", "32"); ci.setAttribute("r", String(r)); ci.setAttribute("class", x[0]);
+        if (i) { ci.setAttribute("stroke-dasharray", c.toFixed(2)); ci.setAttribute("stroke-dashoffset", x[1].toFixed(2)); ci.setAttribute("transform", "rotate(-90 32 32)"); }
+        svg.appendChild(ci);
+      });
+      return h("div", { class: "sd-ring", role: "img", "aria-label": label }, svg, h("span", { class: "sd-ring-txt", "aria-hidden": "true" }, h("strong", { text: done }), h("small", { text: "/" + total })));
+    }
+    function engStrip(eng) {
+      var lv = eng.level, st = eng.streak || {};
+      var streakTxt = st.current ? st.current + "-day streak" : "No streak yet";
+      var streakSub = st.todayOff ? "Today is a day off: your streak is safe" : st.todayDone ? "Today counted ✓" : st.atRisk ? "Study tonight to keep it" : "Start one tonight";
+      return h("div", { class: "sd-eng-strip", "aria-label": "Your score" },
+        h("a", { class: "sd-stat sd-stat-xp", href: "#activity" }, h("span", { class: "sd-stat-ico", "aria-hidden": "true", text: "★" }),
+          h("span", { class: "sd-stat-body" }, h("strong", { class: "sd-stat-v", text: fmtNum(eng.xp) + " XP" }), h("small", { text: "+" + fmtNum(eng.todayXp) + " today" }))),
+        h("a", { class: "sd-stat sd-stat-lv", href: "#activity" }, h("span", { class: "sd-stat-ico", "aria-hidden": "true", text: "▲" }),
+          h("span", { class: "sd-stat-body" }, h("strong", { class: "sd-stat-v", text: "Level " + lv.n + " · " + lv.name }),
+            meter(lv.pct, "Level progress: " + lv.pct + "% to level " + (lv.n + 1)), h("small", { text: fmtNum(lv.toNext) + " XP to level " + (lv.n + 1) }))),
+        h("a", { class: "sd-stat sd-stat-streak" + (st.atRisk ? " is-risk" : ""), href: "#activity" }, h("span", { class: "sd-stat-ico", "aria-hidden": "true", text: "🔥" }),
+          h("span", { class: "sd-stat-body" }, h("strong", { class: "sd-stat-v", text: streakTxt }), h("small", { text: streakSub + (st.best ? " · best " + st.best : "") }))),
+        exampleChip(eng));
+    }
+    function taskRow(t) {
+      return h("li", { class: "sd-task" + (t.done ? " is-complete" : ""), "data-task": t.id },
+        h("span", { class: "sd-task-ico", "aria-hidden": "true", text: t.done ? "✓" : "○" }),
+        h("a", { href: t.href, class: "sd-task-t", text: t.title }),
+        t.xp ? h("span", { class: "sd-xp", text: (t.done ? "" : "+") + t.xp + " XP" }) : null,
+        h("span", { class: "sd-vh", text: t.done ? ", done" : ", to do" }));
+    }
+    function challengeCard(c, eng) {
+      var mine = !isExample(eng);
+      var btn = c.claimed ? h("span", { class: "sd-badge is-complete" }, h("span", { "aria-hidden": "true", text: "✓" }), " Claimed +" + c.xp + " XP")
+        : h("button", { type: "button", class: "sd-btn" + (c.met ? " sd-btn-primary" : ""), "aria-disabled": c.met && mine ? null : "true", "data-challenge": c.id,
+            onclick: function () { if (!c.met || !mine) { toast(mine ? "Not yet: " + c.text : "Example data: nothing to claim."); return; } emit({ type: "challenge", id: c.id }); } },
+          c.met ? "Claim +" + c.xp + " XP" : "Claim +" + c.xp + " XP (locked)");
+      return h("article", { class: "sd-chal sd-chal-" + c.period + (c.claimed ? " is-complete" : c.met ? " is-ready" : ""), "data-period": c.period },
+        h("p", { class: "sd-eyebrow", text: (c.period === "daily" ? "Daily challenge" : "Weekly challenge") + " · +" + c.xp + " XP" }),
+        h("h3", { text: c.title }), h("p", { class: "sd-chal-text", text: c.text }),
+        h("div", { class: "sd-progline" }, meter(c.pct, c.title + " progress"), h("span", { class: "sd-muted", text: fmtNum(Math.min(c.value, c.target)) + "/" + fmtNum(c.target) })),
+        h("div", { class: "sd-chal-actions" }, btn, c.href && !c.claimed ? h("a", { class: "sd-link", href: c.href, text: "Go ▸" }) : null));
+    }
+    function engToday(eng) {
+      var tk = eng.tasks || { tasks: [] }, wrap = h("div", { class: "sd-eng-grid" });
+      var card = h("section", { class: "sd-card sd-tasks", "aria-labelledby": "sd-tasks-h" });
+      var head = h("div", { class: "sd-tasks-head" }, ring(tk.done || 0, tk.total || 0, (tk.done || 0) + " of " + (tk.total || 0) + " tasks done today"),
+        h("div", null, h("h2", { id: "sd-tasks-h", text: "Today’s tasks" }),
+          h("p", { class: "sd-muted", text: tk.off ? "Day off: no tasks today. Your streak is safe." : !tk.total ? "Nothing scheduled." : tk.allDone ? "All done. Session finished for today: well played." : fmtNum(tk.xpAvailable) + " XP still on the table tonight." }),
+          exampleChip(eng)));
+      card.appendChild(head);
+      if (tk.tasks && tk.tasks.length) card.appendChild(h("ul", { class: "sd-tasklist" }, tk.tasks.map(taskRow)));
+      wrap.appendChild(card);
+      var chs = eng.challenges || [];
+      var cc = h("section", { class: "sd-card sd-chals", "aria-labelledby": "sd-chal-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-chal-h", text: "Challenges" }), h("a", { class: "sd-link", href: "#activity", text: "Activity & badges ▸" })));
+      if (chs.length) chs.forEach(function (c) { cc.appendChild(challengeCard(c, eng)); }); else cc.appendChild(h("p", { class: "sd-emptynote", text: "No challenge today." }));
+      wrap.appendChild(cc);
+      return wrap;
+    }
+    function fmtAt(iso) {
+      var ms = Date.parse(iso); if (isNaN(ms)) return "";
+      var d = new Date(ms + 330 * 60000), H = d.getUTCHours(), M = d.getUTCMinutes();
+      return fmtDate(d.toISOString().slice(0, 10)) + ", " + ((H + 11) % 12 + 1) + ":" + String(M).padStart(2, "0") + " " + (H < 12 ? "AM" : "PM") + " IST";
+    }
+    var ACT_LABEL = { lesson: "Lesson", practice: "Practice", quiz: "Lesson check", test: "Module test", watch: "Video", note: "Notes", revision: "Revision", interview: "Interview answer", challenge: "Challenge", prefs: "Reminder settings", unavailable: "Day off", minutes: "Study minutes" };
+    // First 10 rows visible, the rest behind a native <details> (keyboard accessible, no JS state).
+    function moreList(cls, items, row, noun) {
+      var first = items.slice(0, 10), rest = items.slice(10), wrap = h("div", null, h("ul", { class: cls }, first.map(row)));
+      if (rest.length) wrap.appendChild(h("details", { class: "sd-more" }, h("summary", { text: "Show " + rest.length + " older " + noun }), h("ul", { class: cls }, rest.map(row))));
+      return wrap;
+    }
+    function viewActivity() {
+      var eng = derived.eng, st = eng.streak || {}, lv = eng.level;
+      add(main, [h("header", { class: "sd-hero" }, h("p", { class: "sd-eyebrow", text: "Activity · " + fmtDate(data.today, true) }), h("h1", { text: "Activity & XP" }), engStrip(eng)), sourceNote(eng)]);
+      // last 28 study dates (streak history)
+      var hist = (st.history || []).slice(-28);
+      var LBL = { active: "studied", off: "day off (streak safe)", missed: "missed", pending: "today, not yet" };
+      main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-heat-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-heat-h", text: "Streak" }),
+          h("span", { class: "sd-muted", text: "Current " + (st.current || 0) + " · best " + (st.best || 0) + (st.skippedDays ? " · " + st.skippedDays + " day" + (st.skippedDays === 1 ? "" : "s") + " off kept it alive" : "") })),
+        hist.length ? h("ol", { class: "sd-heat", "aria-label": "Last " + hist.length + " dates" }, hist.map(function (x) {
+          return h("li", { class: "sd-heat-d is-" + x.state, title: fmtDate(x.date) + ": " + LBL[x.state] }, h("span", { class: "sd-vh", text: fmtDate(x.date) + ": " + LBL[x.state] }), h("span", { "aria-hidden": "true", text: +x.date.slice(8) }));
+        })) : h("p", { class: "sd-emptynote", text: "No study dates yet. Your first study day starts the streak." }),
+        h("ul", { class: "sd-heat-key", "aria-hidden": "true" }, ["active", "off", "missed", "pending"].map(function (k) { return h("li", null, h("span", { class: "sd-heat-sw is-" + k }), LBL[k]); })),
+        h("p", { class: "sd-muted", text: "Streaks count study days, not calendar days: a date you mark unavailable (or set to 0 minutes) never breaks it, the same rule that carries your session forward." })));
+      // badges
+      var bs = eng.badges || [], earned = bs.filter(function (b) { return b.earned; }).length;
+      main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-badge-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-badge-h", text: "Badges" }), h("span", { class: "sd-muted", text: earned + " of " + bs.length + " earned" })),
+        h("ul", { class: "sd-badges" }, bs.map(function (b) {
+          return h("li", { class: "sd-bdg" + (b.earned ? " is-earned" : "") }, h("span", { class: "sd-bdg-ico", "aria-hidden": "true", text: b.earned ? "🏅" : "🔒" }),
+            h("span", null, h("strong", { text: b.title }), h("small", { text: b.text + (b.earned ? " · earned" : " · " + fmtNum(b.value) + "/" + fmtNum(b.target)) })));
+        }))));
+      // points ledger
+      var led = (eng.ledger || []).slice(0, 100);
+      main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-led-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-led-h", text: "Points history" }), h("span", { class: "sd-muted", text: fmtNum(eng.xp) + " XP total" })),
+        led.length ? moreList("sd-ledger", led, function (e) { return h("li", null, h("span", { class: "sd-led-d", text: e.date ? fmtDate(e.date) : "Earlier" }), h("span", { class: "sd-led-t", text: e.label }), h("span", { class: "sd-xp", text: "+" + e.xp })); }, "points")
+          : h("p", { class: "sd-emptynote", text: "No points yet. Finish a lesson check or a practice item to earn your first XP." })));
+      // activity log
+      var log = (eng.activity || []).slice(0, 100);
+      main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-log-h" }, h("div", { class: "sd-card-h" }, h("h2", { id: "sd-log-h", text: "Activity log" }),
+          h("span", { class: "sd-muted", text: eng.lastActiveAt ? "Last study activity: " + fmtAt(eng.lastActiveAt) : "No study activity recorded yet" })),
+        log.length ? moreList("sd-ledger sd-actlog", log, function (a) {
+          return h("li", null, h("span", { class: "sd-led-d", text: fmtAt(a.at) }), h("span", { class: "sd-led-t" }, h("strong", { text: (ACT_LABEL[a.type] || a.type) + " " }), a.id ? h("code", { text: a.id }) : null, a.status ? " · " + a.status : ""),
+            h("span", { class: "sd-xp" + (a.xp < 0 ? " is-neg" : ""), text: a.xp ? (a.xp > 0 ? "+" : "") + a.xp : "" }));
+        }, "events") : h("p", { class: "sd-emptynote", text: "Timestamped events appear here as you study (this preview records them from now on)." })));
+      // how points work
+      var P = E().POINTS;
+      var rows = [["Finish a lesson", P.lessonComplete], ["Pass a lesson check", P.quizPass + " (+" + P.quizPerfectBonus + " for 100%)"], ["Practice item done", P.practiceComplete + " (+" + P.practiceEvidenceBonus + " with evidence)"],
+        ["Quick revision", P.revisionDone], ["Interview question answered", P.interviewAnswer + " each"], ["Module test passed", P.moduleTestPass + " (+" + P.moduleTestHighBonus + " for 90%+)"],
+        ["Whole session finished", P.sessionComplete], ["Videos", P.watchPer10Min + " per 10 min, max " + P.watchDailyCap + "/day"], ["Daily challenge", P.dailyChallenge], ["Weekly challenge", P.weeklyChallenge]];
+      main.appendChild(h("section", { class: "sd-card", "aria-labelledby": "sd-pts-h" }, h("h2", { id: "sd-pts-h", text: "How points work" }),
+        h("table", { class: "sd-pts" }, h("thead", null, h("tr", null, h("th", { scope: "col", text: "Action" }), h("th", { scope: "col", text: "XP" }))),
+          h("tbody", null, rows.map(function (r) { return h("tr", null, h("th", { scope: "row", text: r[0] }), h("td", { text: String(r[1]) })); }))),
+        h("p", { class: "sd-muted", text: "Levels: " + E().LEVELS.map(function (l, i) { return (i + 1) + " " + l.name + " (" + fmtNum(l.xp) + ")"; }).join(" · ") + ", then +1,500 XP per level." })));
+    }
+    function viewSettings() {
+      var eng = derived.eng, n = eng.notifications || E().NOTIFY_DEFAULTS;
+      add(main, [h("header", { class: "sd-hero" }, h("p", { class: "sd-eyebrow", text: "Settings" }), h("h1", { text: "Reminder settings" })),
+        h("div", { class: "sd-alert sd-alert-info", role: "note" }, h("strong", { text: "Email sending is not wired yet. " }), "These preferences are saved with your progress (in this browser for the preview) so the reminder job can use them once it exists. No email is sent today.")]);
+      var form = h("form", { class: "sd-card sd-prefs", "aria-labelledby": "sd-pref-h", novalidate: true });
+      var email = h("input", { type: "checkbox", id: "sd-pref-email", checked: !!n.email });
+      var addr = h("input", { type: "email", id: "sd-pref-addr", class: "sd-input", value: n.address || "", autocomplete: "email", placeholder: "you@example.com" });
+      var iv = h("select", { id: "sd-pref-iv", class: "sd-input" }, [[2, "Every 2 hours"], [2.5, "Every 2½ hours"], [3, "Every 3 hours"]].map(function (o) { return h("option", { value: String(o[0]), selected: +n.intervalHours === o[0] }, o[1]); }));
+      var qs = h("input", { type: "time", id: "sd-pref-qs", class: "sd-input", value: n.quietStart, step: "900" });
+      var qe = h("input", { type: "time", id: "sd-pref-qe", class: "sd-input", value: n.quietEnd, step: "900" });
+      var mx = h("input", { type: "number", id: "sd-pref-max", class: "sd-input sd-num", min: "1", max: "12", value: String(n.maxPerDay) });
+      var err = h("p", { class: "sd-pref-err", id: "sd-pref-err", role: "alert" });
+      var nx = eng.nextNudge || {};
+      add(form, [h("h2", { id: "sd-pref-h", text: "Email nudges when you go quiet" }),
+        h("div", { class: "sd-ctl-row" }, email, h("label", { for: "sd-pref-email" }, h("strong", { text: "Email me when I haven’t studied for a while" }))),
+        h("div", { class: "sd-field" }, h("label", { for: "sd-pref-addr", text: "Send reminders to" }), addr),
+        h("div", { class: "sd-field" }, h("label", { for: "sd-pref-iv", text: "How often, while there is no activity" }), iv),
+        h("fieldset", { class: "sd-field sd-quiet" }, h("legend", { text: "Quiet hours (IST): no emails between" }),
+          h("label", { for: "sd-pref-qs", class: "sd-vh", text: "Quiet hours start" }), qs, h("span", { "aria-hidden": "true", text: " and " }), h("label", { for: "sd-pref-qe", class: "sd-vh", text: "Quiet hours end" }), qe),
+        h("div", { class: "sd-field" }, h("label", { for: "sd-pref-max", text: "At most this many reminders a day" }), mx),
+        err,
+        h("div", { class: "sd-ev-actions" }, h("button", { type: "submit", class: "sd-btn sd-btn-primary" }, "Save reminder settings"),
+          h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { var d = E().NOTIFY_DEFAULTS; emit({ type: "prefs", notifications: { email: false, address: n.address || "", intervalHours: d.intervalHours, quietStart: d.quietStart, quietEnd: d.quietEnd, maxPerDay: d.maxPerDay } }); } }, "Reset to defaults")),
+        h("p", { class: "sd-muted", id: "sd-pref-next" }, h("strong", { text: "Preview: " }), nx.at ? "the next reminder would go out around " + nx.label + " (" + nx.reason + ")." : nx.reason + "."),
+        h("p", { class: "sd-muted", text: "Defaults: off, every 2½ hours, quiet 12:00 AM–6:00 AM IST, at most 6 a day. No reminder once today’s tasks are done." })]);
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var next = { email: email.checked, address: addr.value.trim(), intervalHours: +iv.value, quietStart: qs.value, quietEnd: qe.value, maxPerDay: Math.round(+mx.value) };
+        var bad = E().validateNotificationPrefs(next);
+        if (bad.length) { err.textContent = bad.join(". ") + "."; (bad[0].indexOf("address") >= 0 || bad[0].indexOf("email address") >= 0 ? addr : bad[0].indexOf("interval") >= 0 ? iv : bad[0].indexOf("Quiet") >= 0 ? qs : bad[0].indexOf("most") >= 0 ? mx : email).focus(); return; }
+        err.textContent = "";
+        emit({ type: "prefs", notifications: next }).then(function (r) { if (!r || r.ok !== false) toast("Reminder settings saved. Email sending is not wired yet."); });
+      });
+      main.appendChild(form);
+      main.appendChild(sourceNote(eng));
+    }
+
     /* ---------- lifecycle ---------- */
     var routing = opts.routing !== false;
     if (routing) window.addEventListener("hashchange", onHash);
@@ -722,6 +904,7 @@
         if (next.progress) data.progress = S.normalize(next.progress);
         if (next.today) data.today = next.today;
         if ("sync" in next) data.sync = next.sync;
+        if ("engagement" in next) data.engagement = next.engagement;
         var a = document.activeElement, aid = a && a.id, sel = null, y = window.scrollY, sig = null;
         try { sel = a && a.selectionStart; } catch (e) {}
         if (a && !aid && root.contains(a)) { var anc = a.parentElement && a.parentElement.closest("[id]"); sig = { anc: anc && anc.id, tag: a.tagName, text: a.textContent.trim(), cls: (a.className || "").split(" ")[1] || "" }; }

@@ -147,3 +147,16 @@ Deepak asked for a full QA pass and approved the fixes. Full report: [`collab/qa
 1. Push `gpt/curriculum` and `gpt/qa` to `origin`. If GitHub rejects the push again, paste the exact error here.
 2. Reply here with where your data exposes subjects/modules/lessons/sessions and progress, so I can write the adapter to Course contract v2 and run this checklist, `coverage.html`, and the browser checks on the real 54 sessions.
 3. **Proposed decision (needs Deepak):** add a "SQL & JDBC" subject between Concurrency and Spring Boot, as the example fixture now does. Either confirm this or say where your plan teaches SQL.
+
+### [2026-11-22 10:30 IST] Grok — engagement UI (scoring, tasks, streaks, reminders): contract for your backend
+Deepak asked for Scaler/Coding Ninjas-style engagement: tasks, challenges, a scoring system, and email nudges every 2–3 h when he goes quiet. I built the **UI layer** on `grok/engagement-ui`, which stacks on PR #3 `grok/subject-first`. It's a draft PR into main, not merged. Only `ui/**` and this folder changed.
+- **Contract: [`collab/engagement-contract.md`](engagement-contract.md).** It covers XP per action, levels, today's task checklist, daily/weekly challenges, the study-day streak (unavailable days never break it), the activity log + `lastActiveAt`, badges, and notification prefs (default off, 2½ h, quiet 00:00–06:00 IST, max 6/day).
+- Everything is **derived from progress** in `ui/engine/engagement-engine.js`, so it works with no backend change. Numbers built from `ui/fixtures/engagement.fixture.js` (`?engagement=example`) are labelled **Example data**.
+- **Email sending is not wired.** The settings page says so. `nextNudge()` is the rule the reminder job should use.
+
+**Ask (GPT):**
+1. In `app.js`, reduce with `StudyDeskEngagement.applyChange(course, progress, change, change.at)` instead of `StudyDeskSchedule.applyChange`, and load `ui/engine/engagement-engine.js` after the schedule engine. See `ui/index.html` for the wiring.
+2. In `progress.js`, persist and sync the new progress fields: `interview`, `challenges`, `prefs.notifications`, `activity` (≤1000, oldest first), `lastActiveAt`, `tests[id].best`. Add them to your account sync. The reminder job needs `lastActiveAt` + prefs server-side.
+3. Content: give each lesson `interview: [{ id, prompt, … }]` with stable, globally unique ids. The UI falls back to `coach[]`. The "answer 3 interview questions" task, the Interview sprint challenge, and +5 XP per answer key on these ids.
+4. If you'd rather compute engagement on the server, send it as `StudyDesk.mount(el, { …, engagement })` in the `derive()` shape (§10). Host numbers override the derived ones field by field.
+5. Reply here if any point value or rule should change. The values are in one table (`POINTS`) and in the contract §3.
