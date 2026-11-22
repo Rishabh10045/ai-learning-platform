@@ -408,6 +408,69 @@ export const lateLanes = {
     readings: [reading('Google SRE book · Handling overload', 'https://sre.google/sre-book/handling-overload/')],
     recall: 'Why size capacity for the peak window rather than the average?'
   },
+  19: {
+    title: 'Ordered maps: an expiry index',
+    concept: 'Keep holds in a TreeMap ordered by expiry time so “everything expired by now” is one headMap range and “next expiry” is one higherKey lookup, both O(log n).',
+    example: 'Holds expiring at 1000, 1500, 1500 and 3000: at now = 1000 only the first is expired, because a hold is valid only while now < expiresAt.',
+    practice: 'Implement the index with a composite key (expiry, hold ID), then add renew and remove operations.',
+    checks: ['Equal expiry times do not overwrite each other.', 'Equality counts as expired.', 'Next expiry is null when nothing is left.'],
+    readings: [reading('Java 21 API · TreeMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html')],
+    recall: 'Why does the key include the hold ID as well as the expiry time?'
+  },
+  20: {
+    title: 'Sliding-window duplicates',
+    concept: 'Detect repeats within k positions with a set that holds only the last k items, and repeats within a time window with a map of last-seen times. Both are O(n).',
+    example: 'IDs k1, k2, k3, k1 repeat within 3 positions but not within 2; key a seen at 0 and 50 is a replay inside a 100 ms window.',
+    practice: 'Implement both checks, then evict expired keys from the time-window map so memory stays bounded.',
+    checks: ['Window shrinks before the next item is added.', 'Expired keys count as first uses.', 'Memory is bounded by the window.'],
+    readings: [reading('Java 21 API · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html')],
+    recall: 'What does Set.add returning false tell you?'
+  },
+  21: {
+    title: 'Consistent hashing ring',
+    concept: 'Place nodes and keys on a hash ring and give each key to the first node clockwise; adding a node moves only about 1/N of the keys. Virtual nodes even out the load.',
+    example: 'With 3 nodes and 100 virtual nodes each, 10,000 keys split roughly 3,400/3,000/3,600, and adding a fourth node moves about 2,100 keys instead of about 7,500 with modulo hashing.',
+    practice: 'Implement the ring with a TreeMap, measure load with 1, 10 and 100 virtual nodes, and count moved keys when a node is removed.',
+    checks: ['Lookup wraps from the end of the ring to the start.', 'Hashing is deterministic.', 'Moved-key count is measured, not assumed.'],
+    readings: [reading('Java 21 API · TreeMap.tailMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html')],
+    recall: 'Why does consistent hashing not fix a single hot key?'
+  },
+  22: {
+    title: 'LRU versus LFU on real traces',
+    concept: 'LRU evicts the entry unused for longest; LFU evicts the least frequently used. Which one wins depends on the access pattern, so measure hit counts on a trace.',
+    example: 'A one-off scan flushes a popular key from LRU (3 hits) but not from LFU (5 hits); when interest shifts, LFU keeps a stale favourite (3 hits) while LRU adapts (7 hits).',
+    practice: 'Run both policies on the two traces, then add an aging rule to LFU and re-measure.',
+    checks: ['Capacity is respected.', 'LFU ties are broken by recency.', 'Hit counts are reported for both traces.'],
+    readings: [reading('Java 21 API · LinkedHashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html')],
+    recall: 'Which trace makes LFU worse than LRU, and why?'
+  },
+  23: {
+    title: 'Hash partitioning and deduplication',
+    concept: 'Hash the key to choose a partition so events for one key stay in order, and keep a set of processed event IDs so a redelivered event is skipped.',
+    example: 'Events for seat A1 land in one partition in order HELD then BOOKED; when e1 is delivered again after a crash, the processed set skips it, so A1 stays BOOKED.',
+    practice: 'Add a second consumer that owns one partition and show that per-seat order still holds.',
+    checks: ['Same key always maps to the same partition.', 'A duplicate is skipped, not applied.', 'Final state matches a run without duplicates.'],
+    readings: [reading('Apache Kafka documentation · Design', 'https://kafka.apache.org/documentation/#design')],
+    recall: 'Why would applying e1 a second time be harmful here?'
+  },
+  24: {
+    title: 'Min-heap routing and percentiles',
+    concept: 'A min-heap of “free at” times sends each request to the instance that frees up first; nearest-rank percentiles describe the latency tail that a mean hides.',
+    example: 'With every fourth request slow, round robin sends all slow ones to one instance: p95 520 ms. Least-loaded routing gives p95 100 ms with the same traffic.',
+    practice: 'Simulate both policies, then add a fifth instance and report mean, p50, p95 and max for each.',
+    checks: ['Percentile uses a stated rank rule.', 'Same traffic for both policies.', 'Tail and mean both reported.'],
+    readings: [reading('Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html')],
+    recall: 'Why does round robin perform badly with this traffic pattern?'
+  },
+  25: {
+    title: 'Quorum overlap',
+    concept: 'With N replicas, a write acknowledged by W and a read from R always overlap when R + W > N, so the read sees the newest version if it keeps the highest version number.',
+    example: 'N = 3, W = 2: a read from the lagging replica alone returns the old value, but any 2-replica read returns version 1.',
+    practice: 'Enumerate all read and write sets for N = 5 and several W and R values, and count the overlapping pairs.',
+    checks: ['Highest version wins.', 'R + W > N gives full overlap.', 'A non-overlapping case is shown.'],
+    readings: [reading('Amazon Dynamo paper (2007)', 'https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf')],
+    recall: 'Why must R + W be greater than N?'
+  },
   // @@lanes
 };
 
@@ -7155,6 +7218,431 @@ instances needed at peak with 4 req/s each: 2`
       ['Peaks reported for three widths.', 'p99 computed from per-second buckets.', 'Headroom applied and rounded up.', 'Assumptions written down.']],
     references: [['Google SRE book · Handling overload', 'https://sre.google/sre-book/handling-overload/']]
   },
+  'l-invariants-02.dsa': {
+    notes: [
+      'A cleanup job needs two questions answered quickly: which holds have expired by now, and how long can I sleep until the next one expires? Scanning every hold is O(n) each time. A TreeMap keyed by expiry time keeps holds sorted, so the first question is a headMap range and the second is a higherKey lookup, each O(log n) plus the size of the answer.',
+      'ExpiryIndex.java uses a composite key of expiry time and hold ID. If the key were only the time, two holds expiring at 1500 would collide and the second put would silently replace the first. The hold ID breaks ties and keeps every hold distinct. The headMap bound uses the largest possible ID at time now, inclusive, which encodes the rule that a hold is valid only while now < expiresAt, so equality counts as expired.',
+      'The index helps cleanup, but it is not the authority. Confirmation must still check expiry inside the guarded database write, because cleanup can run late. The data structure decides what to clean; the transition decides what is allowed.'
+    ],
+    code: {
+      title: 'ExpiryIndex.java · holds ordered by expiry in a TreeMap, expired-by-now range and next-expiry lookup · java ExpiryIndex.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+public class ExpiryIndex {
+    // Holds ordered by expiry time (then ID, so equal times stay distinct). Range queries are O(log n + k).
+    record Key(long expiresAt, String holdId) implements Comparable<Key> {
+        public int compareTo(Key o) {
+            int c = Long.compare(expiresAt, o.expiresAt);
+            return c != 0 ? c : holdId.compareTo(o.holdId);
+        }
+    }
+
+    private final TreeMap<Key, String> bySeat = new TreeMap<>();   // key -> seat
+
+    void add(String holdId, String seat, long expiresAt) { bySeat.put(new Key(expiresAt, holdId), seat); }
+
+    // A hold is valid while now < expiresAt, so a hold expiring exactly at now is expired.
+    List<String> expired(long now) {
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<Key, String> e : bySeat.headMap(new Key(now, "\uffff"), true).entrySet())
+            out.add(e.getKey().holdId() + "@" + e.getValue());
+        return out;
+    }
+
+    // Earliest upcoming expiry after now: tells a cleanup job how long it may sleep.
+    Long nextExpiry(long now) {
+        Key k = bySeat.higherKey(new Key(now, "\uffff"));
+        return k == null ? null : k.expiresAt();
+    }
+
+    public static void main(String[] args) {
+        ExpiryIndex idx = new ExpiryIndex();
+        idx.add("H1", "A1", 1_000);
+        idx.add("H2", "A2", 1_500);
+        idx.add("H3", "B7", 1_500);
+        idx.add("H4", "C3", 3_000);
+        System.out.println("expired at 999:  " + idx.expired(999));
+        System.out.println("expired at 1000: " + idx.expired(1_000) + " - equality counts as expired");
+        System.out.println("expired at 1500: " + idx.expired(1_500));
+        System.out.println("next expiry after 1500: " + idx.nextExpiry(1_500));
+        System.out.println("next expiry after 3000: " + idx.nextExpiry(3_000));
+    }
+}
+`,
+      output: String.raw`expired at 999:  []
+expired at 1000: [H1@A1] - equality counts as expired
+expired at 1500: [H1@A1, H2@A2, H3@B7]
+next expiry after 1500: 3000
+next expiry after 3000: null`
+    },
+    takeaways: ['A TreeMap answers range and next-key questions in O(log n).', 'Break ties so equal times do not collide.', 'Encode the boundary rule in the range bound.', 'Cleanup is housekeeping, not authority.'],
+    interview: [
+      ['How would you find all expired holds efficiently?', 'I keep holds in a sorted structure keyed by expiry time, for example a TreeMap in Java. Everything that has expired by now is the prefix of that map up to now, so headMap(now, inclusive) returns exactly those entries in O(log n + k), where k is the number returned, instead of scanning all n holds. The key must include the hold ID as a tie-breaker, otherwise two holds with the same expiry overwrite each other. The same map tells the cleanup worker the next expiry with higherKey, so it can sleep exactly until then instead of polling.'],
+      ['Why is the index not enough to stop an expired hold being confirmed?', 'Because the index lives in one process and is only used by cleanup, which can be delayed, crash or run on another node. A confirmation can arrive after the hold expired but before cleanup removed it. If confirmation only checked that the hold row exists, it would accept an expired hold. The rule must be part of the authoritative transition, for example an UPDATE that requires state = HELD, the hold ID and owner to match, and now < expires_at, all in one statement. The index makes cleanup efficient; the guarded write makes the system correct.'],
+      ['What boundary rule do you use at exactly expiresAt, and how do you test it?', 'I state it explicitly: the hold is valid only while now < expiresAt, so at exactly expiresAt it is expired. In the index the range bound is inclusive at now, and in SQL the confirmation predicate is now() < expires_at. I test it with a controllable clock: create a hold expiring at 1000, then check confirmation at 999 succeeds, at 1000 fails and at 1001 fails. Using a fake clock makes the boundary deterministic, whereas sleeping in a test is slow and flaky.']
+    ],
+    check: ['Why does ExpiryIndex.java include the hold ID in the TreeMap key?',
+      ['To make lookups faster', 'So two holds with the same expiry time do not overwrite each other', 'Because TreeMap requires string keys', 'To sort by owner'], 1,
+      'A map keeps one value per key; without the tie-breaker, the second hold expiring at 1500 would replace the first.'],
+    practice: ['Copy ExpiryIndex.java. Add renew(holdId, newExpiry) and remove(holdId), keeping a second HashMap from hold ID to its current key so both run in O(log n).',
+      ['Renew removes the old key before adding the new one.', 'Remove of an unknown ID is a no-op.', 'Expired range is still correct after renewals.', 'Complexity stated.']],
+    references: [['Java 21 API · NavigableMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/NavigableMap.html']]
+  },
+  'b-http-02.dsa': {
+    notes: [
+      'Idempotency is a duplicate-detection problem with a window. A classic version asks whether any value repeats within k positions. The brute-force answer compares each item with the previous k items, O(n·k). A HashSet that holds only the last k items does it in O(n): add each item, and if add returns false, it is a repeat; when the set grows past k, remove the item that just left the window.',
+      'RecentRepeats.java also solves the time-based version an idempotency store faces: is this key a replay within ttl of its first use? A HashMap from key to first-seen time answers it in O(1) per request. When an old record has expired, the next use counts as a first use again and replaces the timestamp, which mirrors what happens after an idempotency key expires on a server.',
+      'In production the map is a database table with a unique key, because duplicates arrive at different instances and must be detected across them. The algorithm is the same; the storage must be shared and the record must commit together with the effect.'
+    ],
+    code: {
+      title: 'RecentRepeats.java · repeats within k positions with a sliding HashSet, and replays within a time window with a last-seen map · java RecentRepeats.java',
+      text: String.raw`import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+public class RecentRepeats {
+    // Is any request ID repeated within k positions? Keep a sliding set of the last k IDs: O(n) time, O(k) space.
+    static boolean repeatWithin(String[] ids, int k) {
+        Set<String> window = new HashSet<>();
+        for (int i = 0; i < ids.length; i++) {
+            if (!window.add(ids[i])) return true;          // add returns false if already present
+            if (window.size() > k) window.remove(ids[i - k]);
+        }
+        return false;
+    }
+
+    // Is any key repeated within ttl time units? Remember when each key was last seen.
+    static int replaysWithin(String[] keys, long[] at, long ttl) {
+        Map<String, Long> lastSeen = new HashMap<>();
+        int replays = 0;
+        for (int i = 0; i < keys.length; i++) {
+            Long prev = lastSeen.get(keys[i]);
+            if (prev != null && at[i] - prev < ttl) replays++;
+            else lastSeen.put(keys[i], at[i]);              // first use, or the old record expired
+        }
+        return replays;
+    }
+
+    public static void main(String[] args) {
+        String[] ids = {"k1", "k2", "k3", "k1", "k4"};
+        System.out.println("repeat within 3: " + repeatWithin(ids, 3));
+        System.out.println("repeat within 2: " + repeatWithin(ids, 2));
+        String[] keys = {"a", "b", "a", "a", "b"};
+        long[] at = {0, 10, 50, 200, 400};
+        System.out.println("replays within ttl 100: " + replaysWithin(keys, at, 100));
+        System.out.println("replays within ttl 1000: " + replaysWithin(keys, at, 1000));
+    }
+}
+`,
+      output: String.raw`repeat within 3: true
+repeat within 2: false
+replays within ttl 100: 1
+replays within ttl 1000: 3`
+    },
+    takeaways: ['A set of the last k items finds near repeats in O(n).', 'Set.add returns false for a duplicate.', 'Expired records count as first uses.', 'Shared storage is needed across instances.'],
+    interview: [
+      ['How do you check whether any element repeats within k positions?', 'I slide a window of size k over the array with a HashSet holding the items currently in the window. For each index i, I try to add a[i]; if add returns false, the same value is already in the window, so there is a repeat within k positions and I return true. Otherwise, if the set now holds more than k items, I remove a[i − k], the item that just fell out of the window. Each item is added and removed at most once, so it runs in O(n) time with O(k) extra space, compared with O(n·k) for comparing each item with its k predecessors.'],
+      ['How does that relate to an idempotency key store?', 'An idempotency store asks the same question in time instead of positions: has this key been seen within the retention window? A map from key to first-seen time gives O(1) lookups. Inside the window, a repeated key replays the stored result; after the window, the record has expired and the next request is treated as new. The difference in production is that the map must be shared and durable, usually a table with a unique constraint on caller and key, and the record must commit in the same transaction as the booking, otherwise a crash between the two can duplicate the effect or replay a result that never happened.'],
+      ['How do you keep the time-window map from growing without limit?', 'I evict expired entries. In memory, I can keep keys in a queue or LinkedHashMap ordered by first-seen time and remove from the front while the oldest entry is older than the window, so each key is removed once and the work is amortized O(1). In a database, a scheduled job deletes rows whose expiry has passed, using an index on the expiry column. Either way, lookups must still treat an expired record as absent even if cleanup has not yet removed it, so correctness does not depend on cleanup timing.']
+    ],
+    check: ['In RecentRepeats.java, what does it mean when window.add(id) returns false?',
+      ['The set is full', 'The ID is already in the current window, so it repeats within k positions', 'The ID is null', 'The window must be cleared'], 1,
+      'HashSet.add returns false when an equal element is already present.'],
+    practice: ['Copy RecentRepeats.java. Add eviction to replaysWithin using an ArrayDeque of (key, time) so the map never holds keys older than ttl, and test with 100,000 random keys.',
+      ['Map size stays bounded by the window.', 'Results match the version without eviction.', 'Each key is evicted at most once.', 'Complexity stated.']],
+    references: [['IETF draft · The Idempotency-Key HTTP header field', 'https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/']]
+  },
+  'h-databases-01.dsa': {
+    notes: [
+      'Sharding by hash(key) mod N is simple, but changing N moves almost every key: going from 3 to 4 shards moves about three quarters of them, which means a huge data migration. Consistent hashing places both nodes and keys on a ring of hash values, and each key belongs to the first node clockwise from it. Adding a node only takes keys from its neighbours, about 1/N of the total.',
+      'HashRing.java stores the ring in a TreeMap from hash to node. Lookup is tailMap(hash(key)): the first entry is the owner, and if the tail is empty the search wraps around to the first entry of the ring. Each physical node is placed at 100 virtual positions so that the load evens out; with only one position per node, the arcs between nodes are very uneven.',
+      'The run shows the limits as well as the benefits. Adding db-4 moves about 2,100 of 10,000 keys instead of about 7,500. But a single hot key, such as one very popular event, still lives on one node. Consistent hashing spreads many keys; it cannot split one key. A hot event needs caching, read replicas or splitting the event into sub-keys such as sections.'
+    ],
+    code: {
+      title: 'HashRing.java · consistent hashing with virtual nodes in a TreeMap, load per node and keys moved when a node is added · java HashRing.java',
+      text: String.raw`import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+public class HashRing {
+    // Consistent hashing: nodes and keys hash onto a ring; a key belongs to the first node clockwise.
+    private final TreeMap<Long, String> ring = new TreeMap<>();
+    private final int virtualNodes;
+
+    HashRing(int virtualNodes) { this.virtualNodes = virtualNodes; }
+
+    static long hash(String s) {
+        try {
+            byte[] d = MessageDigest.getInstance("MD5").digest(s.getBytes(StandardCharsets.UTF_8));
+            long h = 0;
+            for (int i = 0; i < 8; i++) h = (h << 8) | (d[i] & 0xff);
+            return h;
+        } catch (Exception e) { throw new IllegalStateException(e); }
+    }
+
+    void add(String node) { for (int v = 0; v < virtualNodes; v++) ring.put(hash(node + "#" + v), node); }
+    void remove(String node) { for (int v = 0; v < virtualNodes; v++) ring.remove(hash(node + "#" + v)); }
+
+    String nodeFor(String key) {
+        SortedMap<Long, String> tail = ring.tailMap(hash(key));
+        return tail.isEmpty() ? ring.firstEntry().getValue() : tail.get(tail.firstKey());
+    }
+
+    public static void main(String[] args) {
+        HashRing r = new HashRing(100);
+        for (String n : new String[] {"db-1", "db-2", "db-3"}) r.add(n);
+        int keys = 10_000;
+        Map<String, Integer> load = new TreeMap<>();
+        String[] before = new String[keys];
+        for (int i = 0; i < keys; i++) { before[i] = r.nodeFor("event-" + i); load.merge(before[i], 1, Integer::sum); }
+        System.out.println("load on 3 nodes: " + load);
+        r.add("db-4");
+        int moved = 0;
+        for (int i = 0; i < keys; i++) if (!r.nodeFor("event-" + i).equals(before[i])) moved++;
+        System.out.println("adding db-4 moved " + moved + " of " + keys + " keys (modulo hashing would move about 7500)");
+        System.out.println("a hot key still lives on one node: event-42 -> " + r.nodeFor("event-42"));
+    }
+}
+`,
+      output: String.raw`load on 3 nodes: {db-1=3394, db-2=2958, db-3=3648}
+adding db-4 moved 2102 of 10000 keys (modulo hashing would move about 7500)
+a hot key still lives on one node: event-42 -> db-4`
+    },
+    takeaways: ['Modulo sharding moves most keys when N changes.', 'Consistent hashing moves about 1/N of keys.', 'Virtual nodes balance the load.', 'One hot key still lands on one node.'],
+    interview: [
+      ['What problem does consistent hashing solve?', 'It reduces data movement when the number of nodes changes. With hash(key) mod N, changing N from 3 to 4 reassigns roughly three quarters of the keys, so almost all data must move. With consistent hashing, nodes and keys are placed on the same hash ring and each key belongs to the next node clockwise. Adding a node only takes over the keys between it and its predecessor, about 1/N of the total, and removing a node hands its keys to its successor. Lookups use a sorted map, so finding the owner is O(log V), where V is the number of virtual node positions.'],
+      ['Why use virtual nodes?', 'With one position per physical node, the ring is divided into a few arcs of random length, so one node can own far more keys than another. Placing each node at many positions, for example 100, splits its share into many small arcs, and the totals average out, so load is much more even. Virtual nodes also make rebalancing smoother: when a node leaves, its many small arcs are spread across many successors instead of all landing on one neighbour. They also allow weighting, giving a larger machine more virtual nodes.'],
+      ['Does consistent hashing fix a hotspot on one popular event?', 'No. It distributes many different keys, but every request for the same key still maps to the same node, so one very popular event still lands on one shard. To handle that I would measure the hot key first, then cache the read-heavy seat map, serve display reads from replicas where staleness is acceptable, and if writes are the problem, split the event into finer keys such as event plus section so that booking writes spread across nodes. The booking guard must still be enforced on whichever node owns each seat.']
+    ],
+    check: ['In HashRing.java, what happens when tailMap(hash(key)) is empty?',
+      ['The key has no owner', 'The lookup wraps around to the first node on the ring', 'A new node is created', 'An exception is thrown'], 1,
+      'The ring is circular, so a hash larger than every node position belongs to the first position.'],
+    practice: ['Copy HashRing.java. Measure the largest and smallest node load with 1, 10 and 100 virtual nodes, then remove db-2 and count how many keys move and where they go.',
+      ['Load spread reported for each virtual-node count.', 'Only db-2’s keys move on removal.', 'Results are deterministic.', 'A short conclusion written.']],
+    references: [['Karger et al. · Consistent hashing and random trees (1997)', 'https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf']]
+  },
+  'b-messaging-01.dsa': {
+    notes: [
+      'Kafka chooses a partition by hashing the record key, so all events for one key go to the same partition and are read in offset order. That is the guarantee: order per partition, not across the whole topic. If booking events use the seat ID as the key, HELD and BOOKED for seat A1 are always consumed in the order they were produced.',
+      'DedupConsumer.java simulates this with three in-memory lists and Math.floorMod(key.hashCode(), 3). floorMod matters because hashCode can be negative and the % operator would then return a negative partition number. The consumer keeps a set of processed event IDs and applies an event only if the ID is new. The demo crashes after applying e1 but before committing the offset, so e1 is delivered again; the set skips it.',
+      'Skipping matters for correctness, not just efficiency. If e1 (HELD) were applied again after e3 (BOOKED), seat A1 would move backwards to HELD. In a real consumer, the processed-ID row and the state change must commit in the same database transaction, so either both happen or neither does.'
+    ],
+    code: {
+      title: 'DedupConsumer.java · key-hash partitioning that keeps per-seat order, and a processed-ID set that skips a redelivered event · java DedupConsumer.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public class DedupConsumer {
+    record Event(String id, String seat, String type) {}
+
+    // Same key -> same partition, so events for one seat stay in order.
+    static int partitionFor(String key, int partitions) { return Math.floorMod(key.hashCode(), partitions); }
+
+    // The processed-ID set and the effect change together, as one database transaction would.
+    static final Set<String> processed = new HashSet<>();
+    static final Map<String, String> seatState = new LinkedHashMap<>();
+    static int applied = 0, skipped = 0;
+
+    static void handle(Event e) {
+        if (!processed.add(e.id())) { skipped++; return; }    // already applied: acknowledge and skip
+        seatState.put(e.seat(), e.type());
+        applied++;
+    }
+
+    public static void main(String[] args) {
+        int partitions = 3;
+        List<List<Event>> log = new ArrayList<>();
+        for (int p = 0; p < partitions; p++) log.add(new ArrayList<>());
+        Event[] produced = {
+            new Event("e1", "A1", "HELD"), new Event("e2", "B4", "HELD"), new Event("e3", "A1", "BOOKED"),
+            new Event("e4", "C2", "HELD"), new Event("e5", "B4", "RELEASED")
+        };
+        for (Event e : produced) log.get(partitionFor(e.seat(), partitions)).add(e);
+        for (int p = 0; p < partitions; p++) System.out.println("partition " + p + ": " + log.get(p));
+
+        // Consume partition by partition; the consumer crashes after applying offset 0 of the
+        // first non-empty partition but before committing it, so that record is delivered again.
+        for (List<Event> part : log) {
+            int committed = 0;
+            for (int offset = committed; offset < part.size(); offset++) handle(part.get(offset));
+            if (!part.isEmpty() && applied == part.size() && skipped == 0) {
+                System.out.println("crash before commit; redelivering " + part.get(0).id());
+                handle(part.get(0));
+            }
+        }
+        System.out.println("applied " + applied + ", duplicates skipped " + skipped);
+        System.out.println("final seat states: " + seatState);
+    }
+}
+`,
+      output: String.raw`partition 0: [Event[id=e1, seat=A1, type=HELD], Event[id=e3, seat=A1, type=BOOKED], Event[id=e4, seat=C2, type=HELD]]
+partition 1: [Event[id=e2, seat=B4, type=HELD], Event[id=e5, seat=B4, type=RELEASED]]
+partition 2: []
+crash before commit; redelivering e1
+applied 5, duplicates skipped 1
+final seat states: {A1=BOOKED, C2=HELD, B4=RELEASED}`
+    },
+    takeaways: ['Same key, same partition, same order.', 'Use floorMod for hash-based buckets.', 'At-least-once delivery means duplicates.', 'Record the event ID with the effect atomically.'],
+    interview: [
+      ['How does Kafka keep events for one booking in order?', 'The producer sets a key, for example the seat or booking ID, and the default partitioner hashes the key to choose a partition, so every event with that key goes to the same partition. Within a partition, records have increasing offsets and a consumer in a group reads them in that order. There is no order across partitions, so events for different seats can interleave. Order can still break if the number of partitions changes, because keys then hash to different partitions, or if the producer retries without idempotence enabled, so I keep producer idempotence on and avoid repartitioning live topics.'],
+      ['Why must a consumer deduplicate, and how?', 'Kafka consumers normally get at-least-once delivery: if a consumer applies an event and crashes before committing its offset, the event is delivered again after restart or rebalance. Without deduplication the effect runs twice, which can send two emails or, worse, move a seat back to an older state. I give every event a stable ID, and in the same database transaction as the effect I insert that ID into a processed_events table with a unique constraint. If the insert conflicts, the event was already applied, so I skip the effect and commit the offset.'],
+      ['Why use Math.floorMod rather than % to pick a bucket from a hashCode?', 'hashCode can be negative in Java, and the % operator keeps the sign of the dividend, so -7 % 3 is -1, which is not a valid partition index and would throw or misroute. Math.floorMod(-7, 3) returns 2, always in the range 0 to n − 1. An alternative is masking off the sign bit with hash & 0x7fffffff before %, which Kafka itself does with its murmur2 hash. Either way, the mapping must be deterministic so the same key always lands in the same bucket.']
+    ],
+    check: ['What would go wrong in DedupConsumer.java if the redelivered e1 were applied again?',
+      ['Nothing', 'Seat A1 would move back from BOOKED to HELD', 'Partition 2 would receive events', 'The offset would be lost'], 1,
+      'e1 is the older HELD event; reapplying it after BOOKED moves the seat backwards.'],
+    practice: ['Copy DedupConsumer.java. Add a version number per seat and make handle reject any event older than the current version, then show that this also protects against out-of-order delivery across partitions.',
+      ['Duplicate and stale events are both skipped.', 'Final state is unchanged by redelivery.', 'A test reorders two events.', 'The trade-off with an ID set is written down.']],
+    references: [['Apache Kafka documentation · Message delivery semantics', 'https://kafka.apache.org/documentation/#semantics']]
+  },
+  'h-loadbalance-01.dsa': {
+    notes: [
+      'Round robin sends request i to instance i mod n. It is fair in request count but blind to request cost. LeastLoaded.java uses traffic where every fourth request is a slow 100 ms booking and the rest take 10 ms. With 4 instances, round robin sends every slow request to instance 0, which queues up, while the others sit idle.',
+      'Least-loaded routing keeps a min-heap of the time each instance will next be free and sends each request to the top of the heap. Polling and re-inserting is O(log n), so routing stays cheap even with many instances. On the same traffic, p95 drops from 520 ms to 100 ms. Real balancers approximate this with least-outstanding-requests or “power of two choices”, because they do not know service times in advance.',
+      'The percentile function uses nearest rank: sort the samples and take the value at position ceil(p/100 × n). Always state the rule and the sample count, because different tools interpolate differently. Notice that the mean, 100 ms for round robin, hides the fact that some requests wait over half a second.'
+    ],
+    code: {
+      title: 'LeastLoaded.java · round robin versus min-heap least-loaded routing on uneven traffic, with nearest-rank p50, p95 and max · java LeastLoaded.java',
+      text: String.raw`import java.util.Arrays;
+import java.util.PriorityQueue;
+
+public class LeastLoaded {
+    // Route each request to the instance that becomes free first (a min-heap on free time),
+    // compared with plain round robin. Returns each request's latency = wait + service time.
+    static long[] simulate(long[] arrival, long[] service, int instances, boolean leastLoaded) {
+        long[] freeAt = new long[instances];
+        PriorityQueue<long[]> heap = new PriorityQueue<>((a, b) -> a[0] != b[0] ? Long.compare(a[0], b[0]) : Long.compare(a[1], b[1]));
+        for (int i = 0; i < instances; i++) heap.add(new long[] {0, i});
+        long[] latency = new long[arrival.length];
+        for (int r = 0; r < arrival.length; r++) {
+            int target;
+            if (leastLoaded) target = (int) heap.poll()[1];
+            else target = r % instances;
+            long start = Math.max(arrival[r], freeAt[target]);
+            freeAt[target] = start + service[r];
+            if (leastLoaded) heap.add(new long[] {freeAt[target], target});
+            latency[r] = freeAt[target] - arrival[r];
+        }
+        return latency;
+    }
+
+    // Nearest-rank percentile: the smallest value with at least p percent of samples at or below it.
+    static long percentile(long[] values, int p) {
+        long[] s = values.clone();
+        Arrays.sort(s);
+        int rank = (int) Math.ceil(p / 100.0 * s.length);
+        return s[Math.max(rank, 1) - 1];
+    }
+
+    public static void main(String[] args) {
+        int n = 40;
+        long[] arrival = new long[n], service = new long[n];
+        for (int i = 0; i < n; i++) {
+            arrival[i] = i * 10L;
+            service[i] = (i % 4 == 0) ? 100 : 10;      // every fourth request is a slow hot-seat booking
+        }
+        for (boolean ll : new boolean[] {false, true}) {
+            long[] lat = simulate(arrival, service, 4, ll);
+            long sum = 0;
+            for (long v : lat) sum += v;
+            System.out.println((ll ? "least loaded" : "round robin ") + ": mean " + (sum / n) + " ms, p50 "
+                + percentile(lat, 50) + " ms, p95 " + percentile(lat, 95) + " ms, max " + percentile(lat, 100) + " ms");
+        }
+    }
+}
+`,
+      output: String.raw`round robin : mean 100 ms, p50 10 ms, p95 520 ms, max 640 ms
+least loaded: mean 32 ms, p50 10 ms, p95 100 ms, max 100 ms`
+    },
+    takeaways: ['Round robin ignores request cost.', 'A min-heap picks the least-loaded instance in O(log n).', 'State the percentile rule and sample count.', 'The mean hides the tail.'],
+    interview: [
+      ['When does round robin perform badly?', 'Round robin assumes requests cost about the same and instances are equally fast. When costs vary, it can pile expensive requests on one instance while others are idle; in the simulation every fourth request is slow and all of them land on the same instance, so its queue grows and p95 reaches 520 ms. It also ignores an instance that has become slow, for example because of a bad database connection. Least-outstanding-requests or power-of-two-choices routing adapts to actual load, and health checks or outlier detection remove an instance that is consistently failing or slow.'],
+      ['How would you compute p95 latency, and what can go wrong?', 'Collect latencies for a defined window, sort them and take the nearest-rank value at position ceil(0.95 × n), or use a histogram or sketch when there are too many samples to keep. Common mistakes are averaging percentiles across instances, which is mathematically wrong, so merge histograms instead; too few samples, where p95 of 20 requests is essentially the second slowest; and measuring only server time, which hides queueing in the client or load balancer. I always report the window, sample count, rule and whether errors are included.'],
+      ['Why is least-loaded routing implemented with a heap?', 'The router needs the instance with the smallest current load for every request, and the loads change after each assignment. A min-heap gives the minimum in O(1) and updates in O(log n), so each routing decision is O(log n) rather than O(n) for scanning all instances. In practice large balancers often sample two random instances and pick the less loaded one, which avoids shared global state and gives most of the benefit, but the heap is the clearest exact version and is what the simulation uses.']
+    ],
+    check: ['Why does round robin give a p95 of 520 ms in LeastLoaded.java?',
+      ['The heap is unbalanced', 'Every slow request lands on the same instance, so its queue grows', 'Percentiles are computed wrongly', 'There are too few instances'], 1,
+      'Request i goes to instance i mod 4, and the slow requests are exactly those with i mod 4 = 0.'],
+    practice: ['Copy LeastLoaded.java. Add power-of-two-choices routing with a seeded Random, compare all three policies, and add a fifth instance.',
+      ['Same traffic for every policy.', 'Seeded randomness gives repeatable output.', 'Mean, p50, p95 and max reported.', 'A short recommendation written.']],
+    references: [['Mitzenmacher · The power of two choices in randomized load balancing', 'https://www.eecs.harvard.edu/~michaelm/postscripts/mythesis.pdf']]
+  },
+  'h-consistency-01.dsa': {
+    notes: [
+      'Replicated stores often let you choose how many replicas must acknowledge a write (W) and how many must answer a read (R) out of N. If R + W > N, every read set shares at least one replica with every write set, so a read that keeps the highest version sees the latest acknowledged write. If R + W ≤ N, a read can miss every replica that took the write.',
+      'QuorumReads.java uses N = 3 and W = 2. Reading only the lagging replica returns the old value, free, version 0. Any two-replica read includes at least one up-to-date replica and returns version 1. The program then enumerates every two-replica write set against every two-replica read set and confirms all 9 pairs overlap.',
+      'Quorums trade latency and availability for consistency: larger R or W means waiting for more replicas and failing when too few are reachable. Even with quorums, a strict rule such as one owner per seat still needs a single conditional write or consensus, because two concurrent writers can each reach a quorum with different values.'
+    ],
+    code: {
+      title: 'QuorumReads.java · N = 3 replicas with versions, reads that keep the highest version, and an overlap count for R + W > N · java QuorumReads.java',
+      text: String.raw`import java.util.Arrays;
+
+public class QuorumReads {
+    // N replicas each hold (version, value). A write reaches W replicas; a read asks R replicas
+    // and keeps the highest version. If R + W > N, every read set overlaps every write set.
+    static final int N = 3;
+    static long[] version = new long[N];
+    static String[] value = new String[N];
+
+    static void write(String v, long ver, int[] reached) {
+        for (int i : reached) { version[i] = ver; value[i] = v; }
+    }
+
+    static String read(int[] asked) {
+        int best = asked[0];
+        for (int i : asked) if (version[i] > version[best]) best = i;
+        return value[best] + " (v" + version[best] + ")";
+    }
+
+    public static void main(String[] args) {
+        Arrays.fill(value, "free");
+        write("owned by U1", 1, new int[] {0, 1});          // W = 2; replica 2 lags
+        System.out.println("R=1 from the lagging replica: " + read(new int[] {2}));
+        System.out.println("R=2 from replicas 1 and 2:    " + read(new int[] {1, 2}));
+        System.out.println("R=2 from replicas 0 and 2:    " + read(new int[] {0, 2}));
+        int overlapsFound = 0, pairs = 0;
+        int[][] writeSets = {{0, 1}, {0, 2}, {1, 2}};
+        int[][] readSets = {{0, 1}, {0, 2}, {1, 2}};
+        for (int[] w : writeSets) for (int[] r : readSets) {
+            pairs++;
+            boolean overlap = false;
+            for (int a : w) for (int b : r) if (a == b) overlap = true;
+            if (overlap) overlapsFound++;
+        }
+        System.out.println("W=2, R=2, N=3: " + overlapsFound + " of " + pairs + " read/write quorum pairs overlap");
+        System.out.println("W=1, R=1, N=3: a read can miss the only replica that took the write");
+    }
+}
+`,
+      output: String.raw`R=1 from the lagging replica: free (v0)
+R=2 from replicas 1 and 2:    owned by U1 (v1)
+R=2 from replicas 0 and 2:    owned by U1 (v1)
+W=2, R=2, N=3: 9 of 9 read/write quorum pairs overlap
+W=1, R=1, N=3: a read can miss the only replica that took the write`
+    },
+    takeaways: ['R + W > N guarantees overlap.', 'Keep the highest version on read.', 'Bigger quorums cost latency and availability.', 'Uniqueness still needs a conditional write or consensus.'],
+    interview: [
+      ['What does R + W > N guarantee?', 'It guarantees that any set of R replicas answering a read and any set of W replicas that acknowledged a write share at least one replica, because there are only N replicas and the two sets together are larger than N. If the read keeps the value with the highest version, it therefore sees the latest acknowledged write. With N = 3, W = 2 and R = 2, every combination overlaps. With W = 1 and R = 1, a read can hit a replica that has not received the write and return stale data, which is acceptable for a seat map but not for a booking decision.'],
+      ['What does a quorum not guarantee?', 'It does not by itself give linearizability or uniqueness under concurrent writes. Two clients can write different owners for the same seat at the same time, each reaching a different write quorum, and the replicas then disagree until a conflict rule such as last-writer-wins picks one, silently losing the other booking. Sloppy quorums and hinted handoff can weaken the overlap further during failures. For a one-owner rule I use a single authoritative conditional write, or a consensus-based store such as one built on Raft, rather than relying on quorum reads.'],
+      ['How do you choose R and W?', 'I start from the operation’s needs. A read-heavy display can use a small R for low latency if it tolerates staleness. A write that must survive a node loss needs W of at least 2. If reads must see the latest write, I keep R + W > N, for example R = W = 2 with N = 3, which also tolerates one node being down for both reads and writes. Larger values increase latency, because the slowest of the needed replicas determines response time, and reduce availability, so I measure p99 with realistic replica delays before fixing the numbers.']
+    ],
+    check: ['Why does a read from replicas 0 and 2 return version 1 in QuorumReads.java?',
+      ['Replica 2 was updated later', 'Replica 0 took the write, and the read keeps the highest version', 'Reads always return the newest value', 'Replica 2 is the leader'], 1,
+      'The write reached replicas 0 and 1; any two-replica read includes at least one of them.'],
+    practice: ['Copy QuorumReads.java. Generalize it to N = 5, enumerate all write sets of size W and read sets of size R, and print which (R, W) pairs always overlap.',
+      ['All combinations are enumerated.', 'The R + W > N rule is confirmed.', 'A failing case is printed.', 'Complexity of the enumeration stated.']],
+    references: [['Designing Data-Intensive Applications · Chapter 5 summary (quorums)', 'https://dataintensive.net/']]
+  },
   // @@packets
 };
 
@@ -7347,6 +7835,34 @@ export const lateDistractors = {
     ['As the number of servers needed, without assumptions.', 'As a single daily total that includes peaks implicitly.'],
     ['Only if the total traffic exceeds the database limit.', 'No, hot keys are a caching myth.']
   ],
+  19: [
+    ['The hold is valid for one extra second as a grace period.', 'The result depends on which server receives the request.'],
+    ['It makes cleanup run more often.', 'It is needed only for logging.']
+  ],
+  20: [
+    ['In a cache that is written after the response is sent.', 'In the client’s local storage.'],
+    ['Apply the new payload and overwrite the stored result.', 'Return 500 and delete the key.']
+  ],
+  21: [
+    ['It rewrites the query to use every index.', 'It only checks the SQL syntax.'],
+    ['Yes, if the replica is in the same data centre.', 'Yes, once a second has passed since the write.']
+  ],
+  22: [
+    ['In Redis, because it is faster.', 'In the browser, using the last seat map it showed.'],
+    ['Before the transaction starts, so readers see the change early.', 'Only when the TTL expires.']
+  ],
+  23: [
+    ['Ordering by the time each consumer receives the record.', 'Ordering by event type across all topics.'],
+    ['Adding more consumers than partitions.', 'Using a key on every record.']
+  ],
+  24: [
+    ['The fastest single request observed.', 'The number of instances, with no traffic details.'],
+    ['How seat ownership is enforced.', 'How data is replicated between regions.']
+  ],
+  25: [
+    ['The client should assume it succeeded and continue.', 'The server rolled back, so a retry with a new key is safe.'],
+    ['Any replica that answers quickly.', 'The client’s last cached seat map.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -7444,6 +7960,20 @@ export const lateExplanations = {
     'An availability read is a snapshot; another request can book the seat before this user’s booking arrives.'],
   18: ['Useful estimates state requests per second with their assumptions and call out the peak separately from the average.',
     'Load can concentrate on one hot key, such as a single popular seat or event, which can saturate even when total traffic is low.'],
+  19: ['Under the strict rule now < expiry, equality fails the condition, so the hold is expired for confirmation whether or not cleanup has removed the row.',
+    'Cleanup that matches the expected expiry cannot delete a hold that was renewed after the worker read it, because the renewed row no longer matches.'],
+  20: ['If the replay record and the booking commit in one transaction, a crash leaves either both or neither, so a retry can never duplicate the effect or replay a missing one.',
+    'A changed payload with the same key means the caller’s intent differs; replaying the old result or applying the new one would both be wrong, so the contract rejects it.'],
+  21: ['EXPLAIN ANALYZE runs the statement and reports actual row counts and timings next to the planner’s estimates, which is how you see a bad estimate.',
+    'An asynchronous replica can be behind the primary, so it may still show a seat as free; the booking must go through the path that enforces uniqueness.'],
+  22: ['The cache is a copy that can be stale; only the guarded database write sees every concurrent booking and can decide ownership.',
+    'Invalidating before commit lets a reader refill the cache with the old value before the write is visible; after commit, the next fill reads the new state.'],
+  23: ['Kafka orders records by offset within one partition; records in different partitions have no defined order relative to each other.',
+    'If the consumer applies an effect and dies before committing its offset, the record is delivered again, so the handler must be idempotent.'],
+  24: ['A load-test number means little without its inputs: workload mix, request rate, duration, error count and sample size make it reproducible and comparable.',
+    'A load balancer decides which instance receives each request; it does not enforce business rules, which still belong to the authoritative store.'],
+  25: ['A timeout tells the caller only that no response arrived in time; the server may have committed, so the outcome is unknown until checked or retried with the same key.',
+    'A strict confirmation must come from the component that enforces the rule; a remote cache can be stale during a partition.'],
   // @@explanations
 };
 
@@ -7814,6 +8344,62 @@ export const lateAssessment = {
       choices: ['The steady 95% hit rate applies immediately', 'Most requests miss and reach the origin until the cache fills, so origin load must be bounded, for example with request coalescing', 'Cold caches reduce origin load', 'Nothing; caches never start empty'], answer: 1,
       explanation: 'A cold cache breaks the steady-state hit assumption; plan for the fill period.' }
   ],
+  19: [
+    { question: 'Cleanup runs every 5 minutes. A hold expired 2 minutes ago and its row still says HELD. Another user tries to claim the seat. What should happen?',
+      choices: ['Reject the claim until cleanup runs', 'Allow the claim if the guarded write treats the expired hold as reclaimable', 'Extend the old hold automatically', 'Delete all holds and start again'], answer: 1,
+      explanation: 'Correctness must not depend on cleanup timing; the claim’s own predicate can treat now ≥ expires_at as free.' },
+    { question: 'Why should expiry tests use a controllable clock?',
+      choices: ['It makes the code run faster in production', 'It lets the test set the exact time, so boundary cases like now = expiresAt are deterministic', 'Real clocks cannot represent milliseconds', 'It removes the need for a database'], answer: 1,
+      explanation: 'A fake clock avoids sleeps and makes the equality case reproducible.' }
+  ],
+  20: [
+    { question: 'Which fields should scope an idempotency record?',
+      choices: ['Only the key string', 'Authenticated caller, operation and key, plus a hash of the normalized request', 'The server instance that handled it', 'The client’s IP address'], answer: 1,
+      explanation: 'Scoping by caller and operation stops collisions between users, and the request hash detects key reuse with changed intent.' },
+    { question: 'A client times out and retries with a new idempotency key. What can happen?',
+      choices: ['Nothing; the server always detects it', 'A second booking may be created if the first one committed', 'The first booking is rolled back automatically', 'The request is rejected as a duplicate'], answer: 1,
+      explanation: 'The server can only replay results for the same key; a new key looks like a new request, so domain guards are the only protection left.' }
+  ],
+  21: [
+    { question: 'A query filters by event_id and orders by seat_no. Which index fits best?',
+      choices: ['(seat_no)', '(event_id, seat_no)', '(seat_no, event_id)', 'A separate index on each column only'], answer: 1,
+      explanation: 'The equality column leads, and the next column supplies the sort order within it.' },
+    { question: 'A user books a seat and immediately reloads “My bookings”, which reads from a lagging replica. What fixes the empty page?',
+      choices: ['Add another replica', 'Route that user’s reads to the primary for a short time after a write, or read with a known commit position', 'Increase the replica cache size', 'Disable the index'], answer: 1,
+      explanation: 'Read-your-writes needs a read that has the recent write, such as the primary or a replica caught up to it.' }
+  ],
+  22: [
+    { question: 'A popular seat map key expires and 500 requests miss at once. What reduces the load on the database?',
+      choices: ['Shorter TTLs', 'Request coalescing so one request refills the key while the others wait', 'Deleting the key more often', 'Disabling the cache'], answer: 1,
+      explanation: 'Coalescing, or single-flight, turns many identical misses into one origin query.' },
+    { question: 'Which eviction policy keeps a popular key during a one-off scan of many cold keys?',
+      choices: ['LRU', 'LFU, because the popular key has a high use count', 'FIFO', 'Random'], answer: 1,
+      explanation: 'A scan touches many keys once; LRU lets them push out the popular key, while LFU keeps frequently used entries.' }
+  ],
+  23: [
+    { question: 'A topic has 4 partitions and a consumer group has 6 consumers. What happens?',
+      choices: ['All 6 share every partition', '4 consumers get one partition each and 2 stay idle', 'Kafka creates 2 new partitions', 'Messages are duplicated to all consumers'], answer: 1,
+      explanation: 'Within a group, each partition is assigned to at most one consumer.' },
+    { question: 'Which design deduplicates a booking-confirmed event safely?',
+      choices: ['Keep processed IDs in memory on each consumer', 'Insert the event ID into a table with a unique constraint in the same transaction as the effect', 'Commit the offset before applying the effect', 'Rely on the producer never retrying'], answer: 1,
+      explanation: 'The unique row and the effect commit together, so a redelivered event finds the ID and is skipped.' }
+  ],
+  24: [
+    { question: 'The mean latency is 40 ms but users complain. What should you check first?',
+      choices: ['The minimum latency', 'Tail percentiles such as p95 and p99 for the affected endpoint', 'The number of log lines', 'CPU model of the load balancer'], answer: 1,
+      explanation: 'A few very slow requests can hide behind a low mean; percentiles show the tail.' },
+    { question: 'One instance has slow database access. Which balancer feature helps most?',
+      choices: ['Round robin', 'Least-outstanding-requests routing with outlier detection', 'Sticky sessions', 'A longer DNS TTL'], answer: 1,
+      explanation: 'It sends fewer requests to the slow instance and can eject it if errors or latency stay high.' }
+  ],
+  25: [
+    { question: 'Three services each retry 3 times. A request at the top fails at the bottom. Up to how many bottom-layer calls can result?',
+      choices: ['3', '9', '27', '81'], answer: 2,
+      explanation: 'Each layer multiplies attempts: 3 × 3 × 3 = 27, which is why retries belong in one layer with a budget.' },
+    { question: 'Under PACELC, what choice remains when there is no partition?',
+      choices: ['Between durability and cost', 'Between latency and consistency', 'Between SQL and NoSQL', 'There is no choice'], answer: 1,
+      explanation: 'Even without a partition, waiting for more replicas improves consistency but adds latency.' }
+  ],
   // @@assessment
 };
 
@@ -7995,6 +8581,34 @@ export const lateStretchPlans = {
         acceptance: ['Touching intervals handled by a stated rule.', 'Insert is O(n).', 'Gaps exclude zero-length ranges.', 'Complexity written for all three.'] },
       { id: 'b-transactions-03.stretch-interview', minutes: 25, title: 'Stretch interview drill · locking strategies',
         prompt: 'Answer aloud in 2 minutes each, without notes: optimistic versus pessimistic locking; what happens on a hot seat; how deadlocks form and how to prevent them; what signals an optimistic conflict; when SELECT FOR UPDATE is worth it. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  21: {
+    assign: { 'h-databases-01.packet': 45, 'b-sql-02.packet': 45, 'h-databases-01.stretch': 40, 'h-databases-01.dsa.packet': 30 },
+    extra: [
+      { id: 'h-databases-01.stretch-lab', minutes: 50, title: 'Stretch lab · index and replica experiment',
+        prompt: 'Load 1,000,000 seat rows across 2,000 events into PostgreSQL. Run the “seats for one event, ordered by seat number” query with EXPLAIN (ANALYZE, BUFFERS) before and after adding an index on (event_id, seat_no), then on a 1,000-row copy. Write down when the planner chooses a sequential scan and why, and which reads in the app could safely go to a replica.',
+        acceptance: ['Plans and timings recorded for both table sizes, before and after the index.', 'Row estimates compared with actual rows.', 'A list of replica-safe and primary-only reads.', 'A one-paragraph recommendation.'] },
+      { id: 'h-databases-01.stretch-set', minutes: 35, title: 'Stretch DSA · hashing and partitioning',
+        prompt: 'In one Java file solve: (1) count keys moved when modulo sharding goes from N to N + 1 for N = 3, 4 and 8; (2) a weighted consistent-hash ring where a node gets virtual nodes in proportion to its weight; (3) find the hottest key in a stream of 100,000 requests with a HashMap and report its share.',
+        acceptance: ['Moved-key counts match roughly N/(N + 1).', 'Weighted load is within 10% of the target shares.', 'Hot-key share printed.', 'Complexity written for all three.'] },
+      { id: 'h-databases-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · database scaling',
+        prompt: 'Answer aloud in 2 minutes each, without notes: shard versus replica; when replica reads are unsafe; how to choose a shard key and what a hotspot is; how to choose composite index order; why the planner might ignore an index. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  22: {
+    assign: { 'b-caching-01.packet': 45, 'h-caching-01.packet': 45, 'b-caching-01.stretch': 40, 'd-lru-01.packet': 30 },
+    extra: [
+      { id: 'b-caching-01.stretch-lab', minutes: 50, title: 'Stretch lab · cache stampede and stale refill',
+        prompt: 'With the cached availability endpoint, expire a hot key while 200 concurrent requests read it and count database queries. Add single-flight request coalescing and repeat. Then reproduce the stale refill race with a test hook that pauses a reader between its database read and its cache write, and fix it with a versioned value or a short TTL. Confirm a booking attempt still hits the database guard throughout.',
+        acceptance: ['Database query counts with and without coalescing.', 'The stale refill is reproduced deterministically.', 'The fix is shown by the same test.', 'No double booking in any run.'] },
+      { id: 'b-caching-01.stretch-set', minutes: 35, title: 'Stretch DSA · cache structures',
+        prompt: 'In one Java file implement: (1) an O(1) LRU cache with a HashMap and a doubly linked list, without LinkedHashMap; (2) an O(1) LFU cache using frequency buckets; (3) a TTL cache whose get ignores expired entries, using a controllable clock.',
+        acceptance: ['All operations O(1), with the reasoning written.', 'LFU ties broken by recency.', 'Expired entries never returned.', 'Tests compare against the CachePolicies.java hit counts.'] },
+      { id: 'b-caching-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · caching',
+        prompt: 'Answer aloud in 2 minutes each, without notes: cache-aside versus write-through; expiration versus eviction; why invalidation after commit can still leave stale data; how to protect the database when Redis is down; LRU versus LFU. Then compare with the model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
@@ -8244,6 +8858,41 @@ export const lateInterviewGuides = {
     'Refreshing more often increases reads, not bookings, so I re-estimate the read path: requests per second at the load balancer and gateway, the availability service instances, the cache, and the origin load on the database. With a cache hit ratio h, the origin sees roughly (1 − h) times the read rate, so doubling refreshes doubles origin reads unless the hit ratio improves. Write capacity, the booking service’s transactional path and the primary database’s write load stay the same. I would also check whether refresh traffic concentrates on one popular event, which creates a hot key, and whether rate limits or longer cache lifetimes are acceptable.',
     'I trust measurements over assumptions. The first thing that would change my estimate is the observed peak on the path in question, at a fine resolution such as per second, compared with my assumed peak. Close behind are latency percentiles on that path and per-key concentration: if most requests target one event, the database row or cache key for that event is the real limit, even when total traffic is fine. Cache hit ratio in production, especially just after deploys, also changes origin load a lot. I would add metrics for these before the launch, then revise the plan with real numbers and keep the assumptions written down.'
   ],
+  19: [
+    'I define the rule first: a hold is valid only while now < expiresAt, so a confirmation arriving at or after expiresAt is expired. The confirmation runs as one guarded write against the same storage that holds the hold: UPDATE seats SET state = \'BOOKED\' WHERE id = ? AND hold_id = ? AND owner = ? AND state = \'HELD\' AND now() < expires_at. One affected row means confirmed; zero rows means the hold expired, was released or belongs to someone else, and the user gets a clear “hold expired, please try again” response. Whether cleanup has already run does not change the answer.',
+    'If correctness depended on cleanup, a hold that expired at 10:00 would still block the seat, or still be confirmable, until the job ran at 10:05. Instead, the claim and confirmation predicates evaluate expiry directly: a new claim can take a seat that is free or whose hold has expired, with WHERE state = \'FREE\' OR (state = \'HELD\' AND expires_at <= now()). Cleanup then only tidies rows and releases resources. I would test this by stopping the cleanup job entirely and checking that an expired hold can be reclaimed and cannot be confirmed.',
+    'I pick one authoritative clock, normally the database clock used inside the write, so every server compares against the same time and application clock drift does not matter. I state when it is sampled: in PostgreSQL, now() is fixed at transaction start, while clock_timestamp() is the actual time, so a long transaction can see an earlier now(). The comparison is strict, now < expires_at, so equality is expired. In unit tests I inject a controllable clock and check 999, 1000 and 1001 for a hold expiring at 1000.'
+  ],
+  20: [
+    'If the client times out, it does not know whether the booking committed: the server may have committed and then lost the response. Retrying with a new request could create a second booking. So the client retries with the same idempotency key and the same request body. The server looks up the key for that caller and operation; if a completed record exists with the same request hash, it returns the stored response, such as 201 with booking ID B-17, without booking again. If no record exists, the original never committed and it processes the request normally.',
+    'Once the record expires, the server can no longer promise to replay the original response for that key. A late retry is treated as a new request, so protection now comes from the domain rules: the guarded seat update rejects it because the caller already owns the seat, or a unique constraint on (event, seat) refuses a second owner. The server should return a meaningful result such as 409 with a link to the existing booking, and the client can look up its bookings by reference instead of relying on the key.',
+    'The idempotency record is scoped by the authenticated caller, the operation such as POST /bookings, and the key, and it stores a hash of the normalized request body: event, seat and any options. When a live key arrives with a different hash, for example a different seat, the service rejects it, typically with 422 or 409 and an error explaining that the key was reused with a different payload. It must not replay the old result, which would claim the wrong seat was booked, or apply the new request, which would break the key’s meaning.'
+  ],
+  21: [
+    'With asynchronous replication, a replica applies the primary’s changes some time later, so it can show data that is seconds old. That is fine for answers that tolerate staleness: the seat map shown while browsing, event descriptions, or reports. It is not fine for decisions or for a user who just wrote something. A seat booking must use the primary’s guarded write, and the page shown immediately after booking should read from the primary, or from a replica known to have applied that write, so the user sees their own booking.',
+    'Sharding by event ID spreads different events across shards, but a single very popular event sends all its traffic to one shard, which can saturate while the others are idle. I would measure per-shard CPU, query latency, lock waits and connection usage, and per-event request rates, to confirm the hotspot and whether it is read or write heavy. Reads can move to a cache or replicas; if writes are the bottleneck, I would split the event into finer keys such as event plus section, or isolate the hot event on its own node.',
+    'On a tiny table, PostgreSQL may scan the whole table even with an index, because reading a few pages sequentially is cheaper than walking the index and then fetching rows. On a large table where the query matches a small fraction of rows, the index lets the database read only those rows, so the plan changes from Seq Scan to Index Scan and the time drops dramatically. That is why I compare plans with EXPLAIN ANALYZE on realistic data volumes and fresh statistics rather than on a small test fixture.'
+  ],
+  22: [
+    'Cached availability is a copy of a database read that may be a few seconds old, which is acceptable for showing the seat map because the user will confirm later anyway. It is never used to decide a booking. When the user books, the request goes to the authoritative guarded write in the database, which checks the current owner. If the cache showed a seat as free but someone else just booked it, the guarded update returns zero rows and the user gets a conflict message, so a stale cache can only cause a disappointing message, never a double booking.',
+    'If Redis is down, availability reads can fall back to the database, but only within its capacity, because every cache hit suddenly becomes a database query. I would cap fallback concurrency with a semaphore or rate limit, coalesce identical misses so one query serves many waiting requests, and serve a slightly older copy where one exists. Optional reads, such as recommendations, can be switched off. Booking writes always go to the database anyway, so they keep working, and I would alert on the cache outage and watch database latency.',
+    'Expiry removes an entry after its TTL, which bounds how stale it can get but causes periodic misses and possible stampedes on hot keys. Eviction removes entries when memory is full, according to a policy such as LRU, so popular keys can disappear unexpectedly under memory pressure and cause extra database load. Invalidation deletes an entry when the underlying data changes, which keeps data fresh but can race with concurrent readers who refill the old value. Using all three together, with a TTL as a safety net, limits each failure mode.'
+  ],
+  23: [
+    'Most brokers, including Kafka by default, provide at-least-once delivery: a message is redelivered until the consumer confirms it. If the consumer applies the effect, for example marks a booking confirmed, and then crashes before committing its offset, the broker delivers the same event again after restart or rebalance. Rebalances, network timeouts and producer retries can cause the same. So consumers must be idempotent: store the event ID with the effect in one transaction and skip events whose ID is already recorded.',
+    'The email provider is outside my database, so I cannot commit the email and the dedup record together. I would first record the intent, a row saying “confirmation email for booking B-17 pending”, in the same transaction as the booking state. A sender then sends using the provider’s idempotency key, if available, derived from the booking ID, and marks the row sent. If it crashes in between, the retry reuses the same key, so the provider drops the duplicate. Without such a key, I accept a rare duplicate and reconcile using the provider’s send log.',
+    'If the consumer acknowledges first and then crashes before its database transaction commits, the broker thinks the event is done but the effect never happened, so it is lost silently. The recoverable order is: apply the effect and record the event ID in one database transaction, commit, then acknowledge. A crash before the acknowledgement causes a redelivery, and the stored event ID makes that redelivery harmless. Losing an effect is much harder to detect and fix than receiving a duplicate.'
+  ],
+  24: [
+    'Latency depends on what traffic I send. A mix of mostly seat-map reads gives low, stable numbers, while many users fighting for one hot seat produce lock waits and conflicts that raise the tail. So I define the mix, for example 90% reads and 10% bookings with 1% on a hot seat, and report results per request type. A load balancer only distributes requests across instances; it spreads connections or requests but cannot remove database contention, which every instance shares, so adding instances does not help a hot seat.',
+    'If one instance has slow database access, its latency and maybe error rate rise while the other stays healthy. A readiness health check that includes a quick database query can mark it unhealthy and stop routing to it. Least-outstanding-requests routing naturally sends it fewer requests because its requests take longer to finish. Outlier detection can eject an instance whose error rate or latency is consistently worse than its peers for a period. I would confirm it is instance-specific by comparing per-instance metrics before acting.',
+    'As offered load rises, the system completes more requests per second until some resource, such as the connection pool, saturates. Requests then wait in queues, so p95 grows even while throughput still rises slightly or plateaus. To diagnose it I look at queue wait time: connection pool acquire time, executor queue length and active versus maximum connections. If acquire wait grows while database execution time stays flat, the pool or database admission is the bottleneck, not the application code, and resizing or queueing at the pool is the next experiment.'
+  ],
+  25: [
+    'The booking transition must fail safely: if the authoritative database cannot be reached or cannot guarantee the one-owner rule, the request returns a clear “unavailable, try again” or a pending state, never a fake confirmation. Data that only informs the user can be temporarily stale: the seat map from a cache or replica, event details or a user’s booking list with a short delay. Showing a seat as free that was just taken is acceptable because the booking attempt will be checked; confirming a booking that was not committed is not.',
+    'During a partition, the remote region can safely serve cached seat maps and static content, labelled as possibly out of date, and accept actions that do not need the authority, such as browsing. It must not confirm bookings, because it cannot reach the authoritative store to check ownership; those requests should fail clearly or be queued as pending without promising success. Once the partition heals, pending requests are processed through the normal guarded write and users are told the real outcome.',
+    'A timeout means the outcome is unknown: the write may or may not have committed. The caller should retry with the original idempotency key or query the operation status, not report failure or start a new booking. A known conflict, such as 409 “seat already booked by someone else”, is a definite answer: the seat is not yours, and retrying will not help, so the user should pick another seat. The client must handle these differently, and the API must make the difference clear in its status codes.'
+  ],
   // @@guides
 };
 
@@ -8252,6 +8901,58 @@ export const lateInterviewGuides = {
 // question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
 // Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
 export const lateTopicAnswers = {
+  'l-invariants-02': {
+    'Why do you need a hold ID as well as an owner?': 'Because one owner can create several holds over time, and the owner alone cannot tell them apart. Suppose user U1 holds seat A1, the hold expires, and U1 holds A1 again. A late confirmation from the first attempt, perhaps a slow browser tab, would match on owner and seat and wrongly confirm the second hold with the first attempt’s data. With a unique hold ID created for each hold and required in the confirmation predicate, WHERE id = ? AND hold_id = ? AND owner = ?, only the attempt that created this hold can confirm it, and stale attempts get zero rows.',
+    'What happens at exactly expiresAt?': 'It depends on the rule, so the rule must be written down and used everywhere. With the common strict rule, a hold is valid only while now < expiresAt, so at exactly expiresAt the hold is expired and confirmation fails, even if cleanup has not removed the row yet. The SQL predicate must say now() < expires_at, not <=, and the Java code and tests must agree with it. I test the boundary with a controllable clock: confirm at expiresAt − 1 succeeds, and confirm at exactly expiresAt and expiresAt + 1 both fail.'
+  },
+  'b-transactions-04': {
+    'Why can CURRENT_TIMESTAMP surprise an exact expiry test?': 'In PostgreSQL, CURRENT_TIMESTAMP and now() return the time the transaction started, and they stay the same for the whole transaction. If a test opens a transaction, waits, and then checks expiry, the database still uses the start time, so a hold that has really expired can still look valid. clock_timestamp() returns the actual current time instead. For predictable tests I either keep transactions short and compare against a time passed in as a parameter from a controllable clock, or I use clock_timestamp() deliberately and document which one the rule uses.'
+  },
+  'b-http-02': {
+    'What must be covered by an idempotency lookup?': 'The lookup must cover who is asking, what operation they are doing, and which key they sent: the authenticated caller, the operation such as POST /bookings, and the idempotency key. Scoping by caller stops two users who happen to choose the same key from seeing each other’s results. It should also store a hash of the normalized request body, so the server can detect the same key being reused with a different payload and reject it instead of replaying the wrong result. Finally, the record needs a status, such as in progress or completed, and the stored response.'
+  },
+  'h-reliability-01': {
+    'How can a booking succeed even when the client times out?': 'The client’s timeout and the server’s commit are independent. The server can receive the request, commit the booking, and then the response is lost or delayed: the connection drops, a proxy times out, or the client gives up a moment too early. From the client’s point of view the request failed, but the seat is booked in the database. That is why a timeout must be treated as an unknown outcome, and why the client should retry with the same idempotency key or check the booking status rather than tell the user it failed.',
+    'How can retries hurt reliability?': 'When a service is overloaded, every failed request that is retried adds more load, so retries can turn a short slowdown into a long outage, a retry storm. Retries in several layers multiply, and retrying writes without idempotency can duplicate effects such as two bookings or two emails. To keep retries helpful, I retry only operations that are safe or idempotent, use exponential backoff with jitter so clients do not retry in sync, cap the number of attempts, use a retry budget, and put retries in one layer only.'
+  },
+  'h-databases-01': {
+    'How is a shard different from a replica?': 'A shard holds a different part of the data: with sharding by event ID, shard 1 might own events 1 to 1000 and shard 2 events 1001 to 2000, so each write goes to exactly one shard and the system can handle more writes and more data in total. A replica holds a copy of the same data as another node, usually a primary, so it adds read capacity and survives node failures, but it does not add write capacity. Real systems often combine both: each shard has a primary and replicas.'
+  },
+  'b-sql-02': {
+    'How do you choose a composite index order?': 'I start from the queries that matter most. Columns compared with equality go first, because the index can jump straight to that group; then the column used for a range or for ORDER BY, because inside each equality group the index entries are already sorted by it. For WHERE event_id = ? ORDER BY seat_no, the index (event_id, seat_no) finds the event and returns seats in order with no sort step. The reverse order (seat_no, event_id) could not use event_id efficiently. I confirm the choice with EXPLAIN ANALYZE on realistic data.',
+    'Why might PostgreSQL choose a sequential scan with an index available?': 'The planner estimates the cost of each plan and picks the cheapest. If the table is tiny, it fits in a few pages and reading them sequentially is cheaper than walking an index and then fetching rows. If the query matches a large fraction of the rows, an index scan would fetch most pages anyway, in random order, so a sequential scan is faster. Outdated statistics can also mislead the estimate, so I run ANALYZE and test with realistic volumes before concluding the index is useless.'
+  },
+  'b-caching-01': {
+    'How do expiration and eviction differ?': 'Expiration is a time rule for each entry: with a TTL of 30 seconds, the entry is removed or ignored 30 seconds after it was written, whether or not memory is short. It limits how stale the data can be. Eviction happens when the cache runs out of memory: Redis removes entries according to its maxmemory-policy, such as allkeys-lru, to make room for new ones, even if they have not expired. Expiration is a freshness decision you make; eviction is a capacity decision the cache makes, and both can cause misses.'
+  },
+  'h-caching-01': {
+    'When might a shorter TTL hurt?': 'A shorter TTL makes entries expire more often, so more requests miss and go to the database. For a hot key such as the seat map of a popular event, each expiry can cause a burst of simultaneous misses, a cache stampede, where hundreds of requests query the same rows at once. The hit ratio falls and database load and tail latency rise, sometimes more than the staleness was worth. Before shortening a TTL, I check the actual freshness need, and combine a moderate TTL with invalidation after commit and request coalescing for hot keys.',
+    'Why can invalidation after commit still leave stale data?': 'Because a reader can be in the middle of a refill. Reader R misses the cache and reads the seat as free from the database. Then writer W books the seat, commits and deletes the cache key. Finally R, which still holds the old value, writes “free” into the cache. Now the cache is stale until the TTL expires. Mitigations include a short TTL as a safety net, versioned values where the cache only accepts a newer version, or a delayed second delete. Bookings stay correct because they always go through the database guard.'
+  },
+  'd-lru-01': {
+    'How is LFU different from LRU?': 'LRU evicts the entry that was used longest ago, so it adapts quickly when interest shifts but a one-off scan of many keys can push out popular entries. LFU evicts the entry used least often, so it protects consistently popular keys from scans, but an entry that was popular yesterday can stay in the cache long after interest moves on unless counts are aged. In CachePolicies.java, LFU wins on the scan trace with 5 hits against 3, and LRU wins on the shifting trace with 7 hits against 3, which is why you measure with real traces.'
+  },
+  'b-messaging-01': {
+    'Where does Kafka guarantee order?': 'Only within a single partition. Each record in a partition gets an increasing offset, and a consumer reads them in offset order. Across partitions of the same topic there is no total order, so events for different partitions can be processed in any relative order. To keep all events for one booking in order, the producer uses the booking or seat ID as the record key, so they hash to the same partition. Changing the number of partitions changes that mapping, and enabling producer idempotence prevents retries from reordering records.',
+    'What restricts parallel consumption in a single group?': 'The number of partitions. Within one consumer group, each partition is assigned to exactly one consumer at a time, so a topic with 4 partitions can be processed by at most 4 consumers in parallel; a fifth and sixth consumer stay idle as standbys. To increase parallelism you add partitions, ideally planned up front because it changes key-to-partition mapping, or you process records concurrently inside a consumer while keeping per-key order, for example by routing records to worker threads by key.'
+  },
+  'h-queues-01': {
+    'What should a dead-letter path preserve?': 'Everything needed to understand and safely replay the failed message: the original payload and headers unchanged, the event ID, the source topic, partition and offset, the error message and stack trace or failure category, the number of attempts and timestamps. Without these, operators cannot tell whether the problem was bad data or a temporary outage. Replaying should go through the normal idempotent handler, so a message that was partly processed is not applied twice, and the dead-letter queue should have alerts and a retention period.'
+  },
+  'h-loadbalance-01': {
+    'Why might IP hash be skewed?': 'IP hash sends all requests from the same source IP to the same instance. Many users can share one IP address: a company network behind NAT, a mobile carrier gateway, or a proxy or CDN in front of your balancer. All those users then land on one instance, which can be overloaded while others are idle. Also, with only a few large sources, hashing cannot spread load evenly. If stickiness is needed, a cookie or session ID usually spreads better, and least-loaded routing is better when stickiness is not required.'
+  },
+  'h-observability-01': {
+    'What does p95 mean in a specified window?': 'It is the latency below which about 95 percent of the requests in that window fall: if p95 over the last five minutes is 300 ms, about 95 out of 100 requests took 300 ms or less and about 5 took longer. The window and the sample count matter: a p95 over 20 requests is essentially the second slowest request. Different tools compute it differently, by nearest rank, interpolation or histogram buckets, and percentiles from different instances cannot simply be averaged, so merge histograms instead.',
+    'How would you tell pool saturation from app execution latency?': 'I break each request’s time into parts. If the connection pool is saturated, the time spent waiting to acquire a connection grows, active connections sit at the maximum, and pending requests pile up, while the time each query takes inside the database stays roughly the same. If the application itself is slow, acquire wait stays near zero but execution or CPU time per request grows. Under the same traffic, I compare pool acquire wait, active and pending counts, query time and request time to see which one moves, then fix that resource first.'
+  },
+  'h-consistency-01': {
+    'What choice does CAP identify under partition?': 'When a network partition splits the nodes, a system that keeps accepting requests on both sides cannot guarantee every read sees the latest write, and a system that guarantees that must refuse some requests on at least one side. So during a partition you choose, per operation, between consistency and availability. For a booking platform the booking write chooses consistency, failing if the authority is unreachable, while the seat map chooses availability, serving a possibly stale copy. CAP says nothing about normal operation without partitions.',
+    'How does PACELC extend the discussion?': 'PACELC says: if there is a Partition, choose between Availability and Consistency; Else, in normal operation, choose between Latency and Consistency. The second part matters every day: waiting for a synchronous replica or a quorum before answering gives stronger consistency but adds latency, while answering from the nearest replica is faster but may be stale. For booking I accept the extra latency of the primary for writes, and for browsing I accept staleness from a replica or cache for speed.'
+  },
+  'h-reliability-02': {
+    'How can retries multiply across layers?': 'If every layer retries independently, attempts multiply. A gateway that retries 3 times calls a service that retries 3 times, which calls a database client that retries 3 times, so one failing request at the top can cause up to 27 calls at the bottom, exactly when the bottom layer is already struggling. The fix is to retry in one chosen layer, usually the one closest to the user that knows the deadline, pass the remaining deadline down so lower layers stop early, and use retry budgets with backoff and jitter.'
+  },
   'b-transactions-02': {
     'Why include availability in the UPDATE predicate?': 'Because the database is the only place that sees every concurrent writer. If the application reads the seat, sees it is free, and then runs an unconditional UPDATE, another request can book the seat between the read and the write, and the second update silently overwrites the first owner. With WHERE id = ? AND owner IS NULL in the UPDATE, the database evaluates the condition and changes the row atomically, holding a row lock while it does. A competing update waits, re-checks the condition after the first commits, and changes nothing. So the earlier read can be used for display, but the write itself is what decides who gets the seat.',
     'What does an affected-row count of zero tell you?': 'It tells you that the statement found no row matching all its conditions at the moment it ran, and it changed nothing. For UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL, there are two possible reasons: no seat has that ID, or the seat exists but already has an owner. It does not, on its own, tell you which. If the API must return different responses, such as 404 for an unknown seat and 409 for a taken seat, the service reads the seat by ID afterwards, in the same transaction, to classify the failure. It never retries the update blindly, and it never treats zero rows as success.',
@@ -8409,6 +9110,56 @@ export const lateTopicAnswers = {
 
 // Day 39 (Grok): runnable Java for an existing Codex packet; applied only when the packet has no code.
 export const lateTopicCode = {
+  'd-lru-01': {
+    title: 'CachePolicies.java · LRU with LinkedHashMap access order versus LFU with frequency counts, measured on a scan trace and a shifting trace · java CachePolicies.java',
+      text: String.raw`import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class CachePolicies {
+    // LRU via LinkedHashMap access order; LFU by counting uses (ties: least recently used first).
+    static int lruHits(String[] trace, int capacity) {
+        Map<String, Boolean> cache = new LinkedHashMap<>(16, 0.75f, true) {
+            @Override protected boolean removeEldestEntry(Map.Entry<String, Boolean> e) { return size() > capacity; }
+        };
+        int hits = 0;
+        for (String k : trace) { if (cache.get(k) != null) hits++; else cache.put(k, true); }
+        return hits;
+    }
+
+    static int lfuHits(String[] trace, int capacity) {
+        Map<String, Integer> freq = new HashMap<>();
+        Map<String, Integer> lastUse = new HashMap<>();
+        int hits = 0;
+        for (int t = 0; t < trace.length; t++) {
+            String k = trace[t];
+            if (freq.containsKey(k)) hits++;
+            else if (freq.size() == capacity) {
+                String victim = null;
+                for (String c : freq.keySet())
+                    if (victim == null || freq.get(c) < freq.get(victim)
+                        || (freq.get(c).equals(freq.get(victim)) && lastUse.get(c) < lastUse.get(victim))) victim = c;
+                freq.remove(victim); lastUse.remove(victim);
+            }
+            freq.merge(k, 1, Integer::sum);
+            lastUse.put(k, t);
+        }
+        return hits;
+    }
+
+    public static void main(String[] args) {
+        // A popular event map (E) is read constantly; a one-off scan of other events passes through.
+        String[] scan = {"E", "E", "E", "A", "B", "C", "E", "D", "F", "G", "E", "E"};
+        System.out.println("scan trace, capacity 3: LRU hits " + lruHits(scan, 3) + ", LFU hits " + lfuHits(scan, 3));
+        // Interest shifts: X was popular, now Y and Z are.
+        String[] shift = {"X", "X", "X", "X", "Y", "Z", "Y", "Z", "Y", "Z"};
+        System.out.println("shift trace, capacity 2: LRU hits " + lruHits(shift, 2) + ", LFU hits " + lfuHits(shift, 2));
+    }
+}
+`,
+      output: String.raw`scan trace, capacity 3: LRU hits 3, LFU hits 5
+shift trace, capacity 2: LRU hits 7, LFU hits 3`
+  },
   'd-hashing-02': {
     title: 'HashLookups.java · two strings with the same hash stored side by side, put replacing a key, a canonical record key, and one-pass two-sum · java HashLookups.java',
       text: String.raw`import java.util.Arrays;
@@ -8538,6 +9289,17 @@ no evidence: Fallback[stage=retrieval, reason=no authorized evidence]`
 
 // Extra note paragraphs appended to existing Codex topic packets (Days 1–27), so short main lessons reach the 700-word standard.
 export const lateTopicNotes = {
+  'b-caching-01': ['Measure the cache rather than assuming it helps. Track the hit ratio per key pattern, the miss rate that reaches the database, memory use and evictions per second, and the latency of hits versus misses. A falling hit ratio with rising evictions means the cache is too small or the policy does not fit the access pattern; a high hit ratio with stale complaints means the TTL or invalidation needs work.'],
+  'h-databases-01': ['A practical order of scaling steps for the booking database: first fix queries and indexes using EXPLAIN ANALYZE, because a missing index is the cheapest problem to solve; then add a connection pool sized to what the database can actually run; then cache read-heavy data such as the seat map; then add read replicas for lag-tolerant reads; and only then partition or shard, because sharding adds routing, cross-shard queries and rebalancing work that the team must operate forever. At each step, measure p95 latency, CPU and lock waits before and after, so the next step is driven by evidence.'],
+  'b-messaging-01': ['A consumer that commits offsets automatically, the Kafka default enable.auto.commit=true, may commit an offset before the handler has finished, so a crash can lose the event. For effects that matter, turn auto-commit off and commit the offset only after the database transaction that applied the effect and stored the event ID has committed. Commit per batch to reduce overhead, and keep handlers idempotent, because a crash between the database commit and the offset commit will still cause a redelivery of the batch.'],
+  'h-loadbalance-01': [
+    'A load test is only useful if someone else can repeat it. Write down the workload mix, such as 90% seat-map reads and 10% booking attempts with a share aimed at one hot seat; the arrival rate and whether it is open, with a fixed rate of new requests, or closed, with a fixed number of users who wait for each response; the duration including warm-up; the environment, instance count and pool sizes; and the starting data. Then change one variable at a time, for example the routing policy, and compare the same metrics: throughput, error rate, p50, p95 and p99, and booking-rule violations, which must be zero.',
+    'Closed-loop tools such as a fixed pool of virtual users hide overload, because when the server slows down, the users send fewer requests, so the measured latency looks better than real users would experience. This is called coordinated omission. An open-model tool keeps sending at the target rate regardless of response time, which shows how queues really grow. For the lab, keep traffic bounded: start low, raise the rate in steps, stop when errors or p95 cross a threshold, and never point a load test at a service you do not own.'
+  ],
+  'h-consistency-01': [
+    'Consistency is chosen per operation, not per system. For the booking platform, write the choices down in a small table: booking a seat needs strong consistency through the authoritative guarded write and fails if that is unreachable; confirming payment needs the same; showing the seat map can be eventually consistent with a stated maximum staleness, such as 5 seconds; a user’s own bookings page needs read-your-writes, so it reads from the primary or a caught-up replica right after a booking; and analytics can be hours behind. Each choice names the data source and what the user sees when that source is unavailable.',
+    'Failure scenarios are easier to reason about when you trace one request through them. During a cache outage, seat-map reads fall back to the database within a concurrency limit, and bookings are unaffected. With a slow database, requests hit their deadlines, the pool fills, and the service should shed optional reads and return clear errors rather than queue without limit. On a retry after timeout, the client reuses its idempotency key so the server replays the original result. Draw each path, mark where the one-owner rule is enforced, and check that no path can confirm a booking without it.'
+  ],
   'b-transactions-02': ['The same pattern works for releasing a seat: UPDATE seats SET owner = NULL WHERE id = ? AND owner = ? only clears the seat if the caller still owns it, so a stale cancel cannot remove someone else’s booking. For a short hold, add an expiry: SET owner = ?, held_until = now() + interval \'10 minutes\' WHERE id = ? AND (owner IS NULL OR held_until < now()). In every case the rule is in the WHERE clause, the affected-row count decides the outcome, and the service maps 1 to success and 0 to a defined conflict or not-found result.'],
   'b-transactions-03': [
     'Optimistic locking in JPA uses a version attribute. Add @Version private long version; to the entity, and Hibernate adds AND version = ? to every UPDATE and increments the version. If another transaction changed the row since it was read, the update matches zero rows and Hibernate throws an OptimisticLockException, which Spring translates to ObjectOptimisticLockingFailureException. The service can catch it and either retry the whole operation with fresh data, a limited number of times, or return 409 so the user decides again.',
