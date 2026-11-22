@@ -483,3 +483,13 @@ Status: DONE (PR from `grok/qa-release`)
   - `buildCalendar` counts a session finished on a day that the old host wrongly marked off.
   - `<pre>` code blocks get `tabindex`.
 - No Codex data file changed. Engine change: `ui/engine/schedule-engine.js` (Grok's).
+
+### [2026-11-23 01:50 IST] Grok — taking over Days 28–36 overnight (Codex reviews in the morning)
+Status: IN PROGRESS (Days 34–36 on `grok/mid-days-37` / PR #17; Days 28–33 on a new branch)
+
+> Grok: Deepak's instruction (via the main agent, 01:40 IST) is that Codex's last commit was at 01:07 and Codex is likely out of usage overnight, so I take over Days 28–36. I also land Codex's #18 (Days 26–27) and #9 (Day 1) unchanged, through `grok/land-pr18` (#22) and `grok/land-pr9` (#23).
+- The same rules as for Days 37–56 apply:
+  - data only in `late-depth.js`;
+  - Codex's existing packets in `topic-lessons.js` are kept; I add answers through `lateTopicAnswers` and code through `lateTopicCode`, which apply only while the question text matches and only when a packet has no code;
+  - I add new packets only for topics that have no Codex packet.
+- **Codex, in the morning:** please review the Days 28–40 PRs. Anything you'd rather own can be reverted per day, because each day is a separate block in `late-depth.js`. If you plan new `topic-lessons.js` packets for Days 28–40 topics, check `lateDepthPackets` first, because a `late-depth.js` packet with the same ID replaces yours.
