@@ -183,6 +183,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Binary search', 'https://algs4.cs.princeton.edu/11model/BinarySearch.java.html')],
     recall: 'How do you tell which half is sorted, and why compare a[mid] with a[hi] when looking for the minimum?'
   },
+  40: {
+    title: 'Sliding window maximum with a monotonic deque',
+    concept: 'Keep a deque of indices whose values decrease from front to back. Drop the front when it leaves the window, pop smaller values from the back, push the new index, and read the maximum at the front. Each index is pushed and popped once, so it is O(n).',
+    example: 'Latencies 120 340 90 410 150 150 700 80 with k = 3 give window maxima 340 410 410 410 700 700.',
+    practice: 'Implement maxPerWindow and compare it with a naive version on random arrays with a fixed seed. Then add minPerWindow.',
+    checks: ['k = 1 returns the input; k = n returns one value.', 'Invalid k is rejected.', 'Explain why the total work is O(n).'],
+    readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
+    recall: 'Why can a value be removed from the back of the deque as soon as a larger value arrives?'
+  },
   // @@lanes
 };
 
@@ -4057,6 +4066,228 @@ single {5}: search 5 -> 0, empty: -1`
       ['search agrees with the linear scan everywhere.', 'searchWithDuplicates finds 0 in 2 2 2 0 2.', 'The empty and one-element arrays work.', 'State the time complexity with and without duplicates.']],
     references: [['Princeton Algorithms · Binary search', 'https://algs4.cs.princeton.edu/11model/BinarySearch.java.html']]
   },
+  'ai-evaluation-01': {
+    notes: [
+      'One good-looking answer tells you almost nothing about how often the system is wrong. Evaluate on a small, frozen, labelled set: answerable questions with their gold passage ID, ambiguous ones, and unanswerable ones where the correct behaviour is the fallback. Store it in the repository next to the code, so every version is scored on the same cases with the same rules.',
+      'Keep each measure on its own denominator. EvalHarness.java reports hit at k over answerable questions (is the gold passage in the top k?), grounded correctness over the answers actually given, false refusals over answerable questions, and correct abstention over unanswerable questions. It also lists which cases failed at retrieval and which failed at grounding after correct retrieval, because they need different fixes.',
+      'The two versions in the example show why one combined number misleads. The stricter validator in v2 reaches 100% grounded and 100% correct abstention, which looks like a clear win, but it now refuses 3 of 4 answerable questions. A single "accepted answers are correct" figure would hide that. Report all four numbers side by side, and decide with the product owner which trade-off is acceptable. Use deterministic checks for anything a rule can verify, such as citation membership, numbers and codes, and a calibrated human or model judge only for the rest.'
+    ],
+    code: {
+      title: 'EvalHarness.java · hit at k, grounded correctness, false refusals and correct abstention, each with its own denominator · java EvalHarness.java',
+      text: String.raw`import java.util.*;
+
+// Scores a labelled set and keeps retrieval, grounding and abstention
+// as separate measures, each with its own denominator.
+public class EvalHarness {
+    enum Kind { ANSWERABLE, UNANSWERABLE }
+    enum Outcome { SUPPORTED, UNSUPPORTED, FALLBACK }
+    record Case(String id, Kind kind, String gold, List<String> retrieved, Outcome outcome) {}
+
+    static String pct(int n, int d) { return d == 0 ? "n/a" : String.format("%d/%d = %.0f%%", n, d, 100.0 * n / d); }
+
+    static void report(String name, List<Case> cases, int k) {
+        int answerable = 0, hit = 0, answeredGiven = 0, grounded = 0, falseRefusal = 0;
+        int unanswerable = 0, correctAbstain = 0;
+        List<String> retrievalMisses = new ArrayList<>(), groundingFailures = new ArrayList<>();
+        for (Case c : cases) {
+            if (c.kind() == Kind.ANSWERABLE) {
+                answerable++;
+                boolean inTopK = c.retrieved().stream().limit(k).anyMatch(c.gold()::equals);
+                if (inTopK) hit++; else retrievalMisses.add(c.id());
+                if (c.outcome() == Outcome.FALLBACK) falseRefusal++;
+                else { answeredGiven++; if (c.outcome() == Outcome.SUPPORTED) grounded++; else if (inTopK) groundingFailures.add(c.id()); }
+            } else {
+                unanswerable++;
+                if (c.outcome() == Outcome.FALLBACK) correctAbstain++;
+            }
+        }
+        System.out.println("== " + name);
+        System.out.println("  hit@" + k + "               " + pct(hit, answerable));
+        System.out.println("  grounded (answered) " + pct(grounded, answeredGiven));
+        System.out.println("  false refusals      " + pct(falseRefusal, answerable));
+        System.out.println("  correct abstention  " + pct(correctAbstain, unanswerable));
+        System.out.println("  retrieval misses " + retrievalMisses + ", grounding failures " + groundingFailures);
+    }
+
+    public static void main(String[] args) {
+        List<Case> v1 = List.of(
+            new Case("refund-48h", Kind.ANSWERABLE, "P2", List.of("P2", "P4"), Outcome.SUPPORTED),
+            new Case("hold-expiry", Kind.ANSWERABLE, "P4", List.of("P2", "P9"), Outcome.UNSUPPORTED),
+            new Case("refund-exception", Kind.ANSWERABLE, "P2", List.of("P2"), Outcome.UNSUPPORTED),
+            new Case("seat-map", Kind.ANSWERABLE, "P5", List.of("P5"), Outcome.SUPPORTED),
+            new Case("parking", Kind.UNANSWERABLE, null, List.of("P2"), Outcome.UNSUPPORTED),
+            new Case("pets", Kind.UNANSWERABLE, null, List.of(), Outcome.FALLBACK));
+        // v2: stricter validator on the same frozen cases.
+        List<Case> v2 = List.of(
+            new Case("refund-48h", Kind.ANSWERABLE, "P2", List.of("P2", "P4"), Outcome.SUPPORTED),
+            new Case("hold-expiry", Kind.ANSWERABLE, "P4", List.of("P2", "P9"), Outcome.FALLBACK),
+            new Case("refund-exception", Kind.ANSWERABLE, "P2", List.of("P2"), Outcome.FALLBACK),
+            new Case("seat-map", Kind.ANSWERABLE, "P5", List.of("P5"), Outcome.FALLBACK),
+            new Case("parking", Kind.UNANSWERABLE, null, List.of("P2"), Outcome.FALLBACK),
+            new Case("pets", Kind.UNANSWERABLE, null, List.of(), Outcome.FALLBACK));
+        report("v1", v1, 2);
+        report("v2 (stricter validator)", v2, 2);
+    }
+}
+`,
+      output: String.raw`== v1
+  hit@2               3/4 = 75%
+  grounded (answered) 2/4 = 50%
+  false refusals      0/4 = 0%
+  correct abstention  1/2 = 50%
+  retrieval misses [hold-expiry], grounding failures [refund-exception]
+== v2 (stricter validator)
+  hit@2               3/4 = 75%
+  grounded (answered) 1/1 = 100%
+  false refusals      3/4 = 75%
+  correct abstention  2/2 = 100%
+  retrieval misses [hold-expiry], grounding failures []`
+    },
+    takeaways: ['Score a frozen labelled set, not hand-picked samples.', 'Each measure keeps its own denominator.', 'Separate retrieval misses from grounding failures.', 'A stricter validator can trade correctness for refusals.'],
+    interview: [
+      ['Why is a single plausible answer weak evidence of quality, and what would you measure instead?', 'A fluent answer to one question shows the system can succeed, not how often it fails, and generation varies between runs. I build a labelled set of typical, ambiguous and unanswerable questions, each with the gold passage and the expected behaviour, and freeze it in the repository. For every version I report retrieval hit at k on answerable questions, grounded correctness on answers given, false refusals, and correct abstention on unanswerable questions, plus latency and cost. Comparing versions on the same cases and rules is what lets me say whether a change is an improvement. I also keep the failing case IDs, not just the percentages.'],
+      ['A new version raises the acceptance rate of answers but refuses more questions that have good evidence. How would your evaluation show this?', 'I would split the outcomes instead of reporting one acceptance rate. On answerable questions I report grounded correctness and false refusals separately; on unanswerable questions I report correct abstention. In EvalHarness.java the stricter v2 gets 100% grounded and 100% abstention but 75% false refusals, while v1 answered more questions but half its answers were unsupported. Neither is simply better. I would show the table to the product owner with example cases, look for a version that keeps abstention high without so many refusals, and check truncation and latency too, since a shorter output limit can also cause rejections.'],
+      ['How do you calibrate a model judge before trusting its scores?', 'First, I use deterministic checks wherever possible: schema, citation membership, numbers, dates and policy codes do not need a judge. For subjective properties, I write a clear rubric and have a human label a varied sample independently, including borderline and unsupported answers. Then I run the judge with a pinned model version, prompt and temperature, and compare its labels with the human ones per category, not only overall agreement. I read the disagreements, fix the rubric or prompt, and repeat on a fresh sample. I only rely on the judge’s aggregate score where agreement is high, and I re-check whenever the judge model changes.']
+    ],
+    check: ['In EvalHarness.java, why is v2’s 100% grounded score misleading on its own?',
+      ['It was computed on different cases', 'It covers only 1 answered question, because v2 refused 3 of 4 answerable ones', 'Grounded correctness cannot reach 100%', 'v2 has a lower hit at k'], 1,
+      'Its denominator is the answers given. False refusals have to be reported next to it.'],
+    practice: ['Copy EvalHarness.java. Add two ambiguous cases with an expected clarifying fallback, a v3 that refuses only when no passage contains the claimed number, and print a comparison table of v1, v2 and v3.',
+      ['Every version uses the same cases.', 'Each measure shows numerator and denominator.', 'Failing case IDs are listed per stage.', 'Write one sentence recommending a version and why.']],
+    references: [['Spring AI · Evaluation testing', 'https://docs.spring.io/spring-ai/reference/api/testing.html']]
+  },
+  'ai-operations-01': {
+    notes: [
+      'Offline evaluation tells you what the system does on known cases; production metrics tell you what it does for real users. For the help feature, record for every call: latency, the result (answered or the fallback reason such as timeout, provider error or invalid output), token usage and the model and prompt version. Do not log full prompts or answers by default, because they can contain personal data; log IDs and sample under a retention rule.',
+      'Report latency as percentiles, not only the mean. AiMetrics.java uses the nearest-rank method: sort the values and take the value at rank ceil(p/100 × n). In the example v1 has a mean of 980 ms but a p95 of 2,000 ms, because some calls hit the timeout. The mean hides that tail, and users feel the tail. Count fallbacks by reason, since "3 fallbacks" can mean a provider outage or a broken parser, and each needs a different response.',
+      'Compare versions on the same traffic or the same frozen fixtures before promoting a change. v2 removes invalid outputs but adds 150 ms at p50, one extra timeout and 28% more tokens per call. That is a trade-off to decide on, not an automatic win. In Spring Boot, Micrometer timers and counters tagged with version and result feed these numbers to a dashboard, and an alert on the timeout rate catches outages early.'
+    ],
+    code: {
+      title: 'AiMetrics.java · nearest-rank p50 and p95, fallbacks by reason and tokens per call for two versions · java AiMetrics.java',
+      text: String.raw`import java.util.*;
+
+// Production-style metrics for the help feature: latency percentiles,
+// fallback rate by reason and token cost, compared across two versions.
+public class AiMetrics {
+    record Call(long millis, String result, int tokens) {} // result: "ok" or a fallback reason
+
+    static long percentile(List<Long> sorted, double p) {     // nearest-rank method
+        int rank = (int) Math.ceil(p / 100.0 * sorted.size());
+        return sorted.get(Math.max(0, rank - 1));
+    }
+
+    static void summary(String name, List<Call> calls) {
+        List<Long> ms = calls.stream().map(Call::millis).sorted().toList();
+        Map<String, Integer> reasons = new TreeMap<>();
+        int tokens = 0;
+        for (Call c : calls) { if (!c.result().equals("ok")) reasons.merge(c.result(), 1, Integer::sum); tokens += c.tokens(); }
+        int fallbacks = reasons.values().stream().mapToInt(Integer::intValue).sum();
+        double mean = ms.stream().mapToLong(Long::longValue).average().orElse(0);
+        System.out.printf("%-3s n=%d  mean=%.0fms  p50=%dms  p95=%dms  max=%dms  fallbacks=%d/%d %s  tokens/call=%.0f%n",
+            name, calls.size(), mean, percentile(ms, 50), percentile(ms, 95), ms.get(ms.size() - 1),
+            fallbacks, calls.size(), reasons, (double) tokens / calls.size());
+    }
+
+    public static void main(String[] args) {
+        List<Call> v1 = new ArrayList<>(), v2 = new ArrayList<>();
+        long[] base = {420, 450, 480, 510, 530, 560, 600, 640, 700, 760, 820, 900, 980, 1100, 1250, 1400, 1600, 1900, 2000, 2000};
+        for (int i = 0; i < base.length; i++) {
+            v1.add(new Call(base[i], base[i] >= 2000 ? "timeout" : (i == 7 ? "invalid output" : "ok"), 900));
+            // v2 adds a re-ranking step: +150 ms each, fewer invalid outputs, one extra timeout.
+            long t = Math.min(2000, base[i] + 150);
+            v2.add(new Call(t, t >= 2000 ? "timeout" : "ok", 1150));
+        }
+        summary("v1", v1);
+        summary("v2", v2);
+        System.out.println("v2 removes invalid output but adds a timeout, +150 ms at p50 and 28% more tokens: a trade-off, not a clear win.");
+    }
+}
+`,
+      output: String.raw`v1  n=20  mean=980ms  p50=760ms  p95=2000ms  max=2000ms  fallbacks=3/20 {invalid output=1, timeout=2}  tokens/call=900
+v2  n=20  mean=1113ms  p50=910ms  p95=2000ms  max=2000ms  fallbacks=3/20 {timeout=3}  tokens/call=1150
+v2 removes invalid output but adds a timeout, +150 ms at p50 and 28% more tokens: a trade-off, not a clear win.`
+    },
+    takeaways: ['Report p50 and p95, not only the mean.', 'Count fallbacks by reason.', 'Tag metrics with model and prompt version.', 'Avoid logging full prompts and answers by default.'],
+    interview: [
+      ['Which metrics would you track for an AI help feature in production?', 'Per call I record latency, the result, either answered or the fallback reason such as timeout, provider error, invalid output or no evidence, token usage or cost, and the model and prompt version as tags. From those I chart p50 and p95 latency, fallback rate by reason, cost per answered question and volume. I also track user signals such as follow-up questions or "this did not help" clicks, and sample answers for human review. I avoid logging full prompts and answers by default because they can contain personal data. Alerts go on the timeout and provider-error rates, since a spike there usually means an outage.'],
+      ['Why report p95 latency rather than the average, and how do you compute it?', 'The average mixes many fast calls with a few slow ones, so it can look healthy while one user in twenty waits for the full timeout, and those slow calls are what users remember. p95 is the value that 95% of calls are at or below, so it shows the tail directly. With the nearest-rank method, I sort the latencies and take the value at rank ceil(0.95 × n), counting from 1. For twenty calls that is the 19th value. In production, Micrometer timers with percentile histograms do this per time window. I compare p50, p95 and the timeout count between versions rather than a single mean.'],
+      ['A new prompt version reduces invalid outputs. What would you check before rolling it out to everyone?', 'I would compare it with the current version on the same frozen fixtures first: grounded correctness, false refusals, correct abstention, p50 and p95 latency, timeouts and tokens per call. In AiMetrics.java v2 removes invalid outputs but adds 150 ms at p50, one more timeout and 28% more tokens, so the improvement has a cost. If the offline results look acceptable, I would roll it out gradually behind a flag, tagged by version, and compare live metrics for a few days. I would also define a rollback trigger in advance, for example a timeout rate above the current version’s, and keep the old prompt deployable.']
+    ],
+    check: ['For 20 sorted latencies, which position is p95 using the nearest-rank method?',
+      ['The 18th value', 'The 19th value', 'The 20th value', 'The average of the 19th and 20th values'], 1,
+      'ceil(0.95 × 20) = 19, so p95 is the 19th value counting from 1.'],
+    practice: ['Copy AiMetrics.java. Add p99, a cost estimate per answered call, and a promotion rule that rejects v2 if its timeout rate or p95 is worse than v1’s.',
+      ['p50, p95 and p99 use nearest rank.', 'Fallbacks are grouped by reason.', 'The rule prints which threshold failed.', 'Explain why the mean alone is not enough.']],
+    references: [['Spring AI · Observability', 'https://docs.spring.io/spring-ai/reference/observability/index.html']]
+  },
+  'ai-evaluation-01.dsa': {
+    notes: [
+      'The sliding window maximum asks for the largest value in every window of k consecutive elements, for example the worst latency in each group of three requests. Recomputing each window costs O(n·k). A monotonic deque does it in O(n): it stores indices whose values decrease from front to back, so the front is always the current window’s maximum.',
+      'For each new index i in WindowMax.java: first remove the front if it has left the window (index <= i − k). Then pop from the back every index whose value is <= a[i], because those can never be a maximum again while i is in the window. Push i at the back. Once i >= k − 1, record a[front]. Every index is pushed once and popped at most once, so the total work is O(n), and the deque never holds more than k indices.',
+      'For latencies 120 340 90 410 150 150 700 80 with k = 3 the result is 340 410 410 410 700 700. Store indices rather than values, so you can tell when the front has expired. Validate 1 <= k <= n. The program compares the deque version with the naive one on 200 random arrays, which is a cheap way to catch an off-by-one. The same pattern, with increasing order, gives the sliding window minimum.'
+    ],
+    code: {
+      title: 'WindowMax.java · sliding window maximum with a monotonic deque, checked against the naive version · java WindowMax.java',
+      text: String.raw`import java.util.*;
+
+// Maximum of every window of size k in O(n) with a monotonic deque,
+// e.g. the worst latency in each 3-request window.
+public class WindowMax {
+    static int[] maxPerWindow(int[] a, int k) {
+        if (k <= 0 || k > a.length) throw new IllegalArgumentException("need 1 <= k <= " + a.length);
+        int[] out = new int[a.length - k + 1];
+        Deque<Integer> dq = new ArrayDeque<>();          // indices, values decreasing from front to back
+        for (int i = 0; i < a.length; i++) {
+            if (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();        // left the window
+            while (!dq.isEmpty() && a[dq.peekLast()] <= a[i]) dq.pollLast();     // can never be a max again
+            dq.offerLast(i);
+            if (i >= k - 1) out[i - k + 1] = a[dq.peekFirst()];
+        }
+        return out;
+    }
+
+    static int[] naive(int[] a, int k) {
+        int[] out = new int[a.length - k + 1];
+        for (int s = 0; s + k <= a.length; s++) { int m = Integer.MIN_VALUE; for (int j = s; j < s + k; j++) m = Math.max(m, a[j]); out[s] = m; }
+        return out;
+    }
+
+    public static void main(String[] args) {
+        int[] latency = {120, 340, 90, 410, 150, 150, 700, 80};
+        System.out.println("k=3 max: " + Arrays.toString(maxPerWindow(latency, 3)));
+        System.out.println("k=1 max: " + Arrays.toString(maxPerWindow(latency, 1)));
+        System.out.println("k=n max: " + Arrays.toString(maxPerWindow(latency, latency.length)));
+        Random r = new Random(7);
+        boolean same = true;
+        for (int t = 0; t < 200; t++) {
+            int[] a = r.ints(1 + r.nextInt(30), -50, 50).toArray();
+            int k = 1 + r.nextInt(a.length);
+            same &= Arrays.equals(maxPerWindow(a, k), naive(a, k));
+        }
+        System.out.println("matches naive on 200 random arrays: " + same);
+        try { maxPerWindow(latency, 0); } catch (IllegalArgumentException e) { System.out.println("k=0 -> " + e.getMessage()); }
+    }
+}
+`,
+      output: String.raw`k=3 max: [340, 410, 410, 410, 700, 700]
+k=1 max: [120, 340, 90, 410, 150, 150, 700, 80]
+k=n max: [700]
+matches naive on 200 random arrays: true
+k=0 -> need 1 <= k <= 8`
+    },
+    takeaways: ['Keep indices in the deque, values decreasing.', 'Drop the front when it leaves the window.', 'Pop smaller values from the back before pushing.', 'Each index is pushed and popped at most once: O(n).'],
+    interview: [
+      ['How do you compute the maximum of every window of size k in O(n)?', 'I use a deque of indices whose values are in decreasing order from front to back. For each index i, I first remove the front if it is outside the window, meaning its index is at most i − k. Then I pop indices from the back while their values are less than or equal to a[i], because a newer, larger value means they can never be the maximum again. I push i, and once the first window is complete I record a[front] as that window’s maximum. Every index enters and leaves the deque at most once, so the whole pass is O(n) time with O(k) extra space.'],
+      ['Why store indices in the deque instead of values?', 'The deque has to know when its front element has left the window. With indices that check is simple: if the front index is less than or equal to i − k, remove it. With values alone you cannot tell whether the front is still inside the window, especially when the same value appears more than once, as with the two 150s in the example. Indices also let you look up the value whenever you need it, so nothing is lost. The same reasoning applies to the monotonic stack used for "next greater element", where indices let you compute distances and positions.'],
+      ['How would you test a sliding window maximum implementation?', 'I start with hand-checked cases: k = 1, which must return the input, k = n, which must return the single overall maximum, increasing and decreasing arrays, and repeated values. I check that invalid k, zero or larger than n, is rejected clearly. Then I add a property test: generate many random arrays and window sizes with a fixed seed, and compare the fast version with a simple O(n·k) version that is obviously correct. WindowMax.java does this on 200 arrays. A fixed seed makes any failure reproducible, and the naive version acts as the oracle for off-by-one mistakes at the window edges.']
+    ],
+    check: ['For 120 340 90 410 150 150 700 80 and k = 3, what is the third window’s maximum?',
+      ['340', '410', '150', '700'], 1,
+      'The third window is 90 410 150, so the maximum is 410.'],
+    practice: ['Copy WindowMax.java. Add minPerWindow using an increasing deque, and use both to print the spread (max − min) of every window.',
+      ['minPerWindow matches a naive version on random arrays.', 'k = 1 gives a spread of 0 everywhere.', 'Invalid k is rejected.', 'State the time and space complexity.']],
+    references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html']]
+  },
   // @@packets
 };
 
@@ -4141,6 +4372,10 @@ export const lateDistractors = {
     ['The full policy database, so nothing can be missed.', 'Only the user question; the model already knows the policy.'],
     ['A guess based on similar policies from other venues.', 'A retry with a longer prompt until the model answers.']
   ],
+  40: [
+    ['The average similarity score of the top k passages.', 'The share of answers that cite at least k passages.'],
+    ['A lower average latency on a different set of questions.', 'Positive comments from a demo of the new version.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4184,6 +4419,8 @@ export const lateExplanations = {
     'Identifiers such as CANCEL-04 carry no meaning an embedding captures reliably. Exact or lexical matching finds them; vectors handle paraphrases.'],
   39: ['RAG supplies a small set of authorized, current passages retrieved for this request. The model’s weights do not contain today’s policy, and sending everything would exceed the context and leak other venues’ data.',
     'Without supporting evidence the honest answer is the documented fallback. Invented citations, other venues’ policies and repeated retries all produce unsupported answers.'],
+  40: ['hit@k only asks whether a relevant passage is among the top k candidates for each answerable question. Claim support and citation counts are separate measures.',
+    'A regression claim needs the same frozen cases and the same scoring rules for both versions. Different examples, sets or demos cannot be compared.'],
   // @@explanations
 };
 
@@ -4332,6 +4569,14 @@ export const lateAssessment = {
     { question: 'Both the current policy (v3) and an outdated one (v2) match the question. Where should the outdated one be removed?',
       choices: ['In the prompt, by asking the model to prefer newer text', 'In retrieval, by filtering on the current flag or effective date before ranking', 'In the UI, by hiding old citations', 'It should be kept so the user can choose'], answer: 1,
       explanation: 'Version and effective-date rules belong in retrieval, so outdated text never reaches the model.' }
+  ],
+  40: [
+    { question: 'Twenty help calls have a mean latency of 980 ms, but the 19th and 20th sorted values are 2,000 ms. What should you report?',
+      choices: ['Only the mean, because it uses every call', 'p50 and p95 with the timeout count, because the mean hides the slow tail', 'Only the fastest call', 'Nothing until the mean exceeds 2 seconds'], answer: 1,
+      explanation: 'Percentiles and timeout counts show the tail that users actually feel.' },
+    { question: 'v2 is 100% grounded on the answers it gives but refuses 3 of 4 answerable questions. What is the right conclusion?',
+      choices: ['v2 is strictly better', 'It is a trade-off: report false refusals next to grounded correctness and decide with the product owner', 'Grounded correctness should be computed over all questions instead', 'Remove the answerable questions from the set'], answer: 1,
+      explanation: 'Each measure has its own denominator; a stricter validator can buy correctness with refusals.' }
   ],
   // @@assessment
 };
@@ -4505,6 +4750,11 @@ export const lateInterviewGuides = {
     'Take "Until when can I cancel for a refund?" for a hall-a user. Retrieve: the Java service searches only passages for hall-a whose version is current and returns P2, "Cancel up to 48 hours before the show for a full refund", with its ID. If nothing authorized matches, it returns a fallback without calling the model. Generate: the model gets a fixed system instruction, the question and P2, and must answer only from it and cite IDs. Validate: every cited ID must be in the supplied context, and every claim such as "48 hours" must appear in the cited text. A supported answer is shown with its citation; otherwise the user gets the fallback.',
     'Version metadata should act in retrieval, before the model sees anything. Each passage carries its venue, version, effective date and a current flag, and the retrieval query keeps only the passage in force for the booking’s date. If two current passages overlap, a documented precedence rule picks one, for example venue policy over the general policy. The answer shows the cited passage’s version or effective date, so the user and support can see which rule applied. If the sources still conflict, or the answer depends on a date rule we do not have, the system abstains with a fallback and logs the case for the policy owner.',
     'The first measurement is retrieval hit at k: for each labelled question, is the gold passage among the top k authorized candidates? Here it was, so retrieval succeeded for this case. The second is grounded correctness: of the answers given, how many have every material claim supported by the passages supplied? This case fails that measure, which points to generation or validation. To confirm, I feed the gold passage directly to the model and check whether it still adds the unsupported claim. I report both numbers over the same labelled set, so a better retriever cannot hide a weaker answer step, or the other way round.'
+  ],
+  40: [
+    'One plausible answer shows the system can succeed once, not how often it fails. Generation varies between runs, the example was probably an easy case, and a fluent answer can still contain an unsupported claim. Quality is a rate, so it needs a labelled set: typical, ambiguous and unanswerable questions, each with the gold passage and the expected behaviour, frozen in the repository. Every version is scored on the same cases with the same rules, reporting retrieval hit at k, grounded correctness, false refusals, correct abstention, latency and cost. That turns "it looked good" into numbers that can show a regression.',
+    'I would stop relying on one acceptance rate and split the results. On answerable questions: grounded correctness of the answers given, and false refusals, meaning good evidence but a fallback. On unanswerable questions: correct abstention. I would also count truncated answers, since a shorter limit can cut off the claim or the citation and cause the validator to reject it, and compare p50 and p95 latency and tokens per call. Shown side by side on the same frozen cases, these reveal whether the change truly avoided bad answers or simply refused or truncated good ones.',
+    'First I keep the judge away from anything a rule can check: schema, citation membership, numbers, dates and policy codes are verified in code. For the rest I write a rubric and ask a human reviewer to label a varied sample independently, including borderline and unsupported answers. I run the judge on the same sample with a pinned model, prompt and temperature, and compare agreement per category rather than one overall figure. I study every disagreement, adjust the rubric, and validate on a fresh sample. Only categories with high agreement are reported from the judge, and I recalibrate whenever the judge model or rubric changes.'
   ],
   // @@guides
 };
