@@ -1,29 +1,72 @@
 export const lessonDetails = {
   1: {
-    code: ['Run ClaimTrace.java to trace a shared resource', 'java', `class ClaimTrace {
-    static final class Locker {
-        private String holder;
+    code: ['Run ClaimTrace.java to verify the booking contract', 'java', `class ClaimTrace {
+    static final class Seat {
+        private final String id;
+        private String owner;
 
-        boolean claim(String user) {
-            if (user == null || user.isBlank()) throw new IllegalArgumentException("User required");
-            if (holder != null) return false;
-            holder = user;
-            return true;
+        Seat(String id) {
+            if (id == null || id.isBlank()) {
+                throw new IllegalArgumentException("Seat ID required");
+            }
+            this.id = id;
         }
 
-        String holder() {
-            return holder;
+        boolean claim(String user) {
+            if (user == null || user.isBlank()) {
+                throw new IllegalArgumentException("User ID required");
+            }
+            if (owner != null) return false;
+            owner = user;
+            return true;
+        }
+    }
+
+    static final class BookingService {
+        private final Seat seat;
+
+        BookingService(Seat seat) {
+            this.seat = java.util.Objects.requireNonNull(seat);
+        }
+
+        boolean book(String seatId, String userId) {
+            if (!seat.id.equals(seatId)) {
+                throw new IllegalArgumentException("Unknown seat");
+            }
+            return seat.claim(userId);
+        }
+
+        String owner() {
+            return seat.owner;
+        }
+    }
+
+    private static void expectRejected(Runnable attempt, BookingService booking, String message) {
+        try {
+            attempt.run();
+            throw new AssertionError("Expected: " + message);
+        } catch (IllegalArgumentException error) {
+            if (!message.equals(error.getMessage()) || !"U1".equals(booking.owner())) {
+                throw new AssertionError("Wrong rejection or owner changed", error);
+            }
+            System.out.println(error.getMessage());
         }
     }
 
     public static void main(String[] args) {
-        var locker = new Locker();
-        boolean first = locker.claim("U1");
-        boolean second = locker.claim("U2");
-        if (!first || second || !"U1".equals(locker.holder())) {
+        var booking = new BookingService(new Seat("A1"));
+        if (booking.owner() != null) throw new AssertionError("A1 should start available");
+
+        boolean first = booking.book("A1", "U1");
+        boolean conflict = booking.book("A1", "U2");
+        boolean repeat = booking.book("A1", "U1");
+        if (!first || conflict || repeat || !"U1".equals(booking.owner())) {
             throw new AssertionError("The first valid claim must remain authoritative");
         }
-        System.out.println("first=" + first + ", second=" + second + ", owner=" + locker.holder());
+        System.out.println("first=" + first + ", second=" + conflict + ", owner=" + booking.owner());
+        expectRejected(() -> booking.book("Z9", "U3"), booking, "Unknown seat");
+        expectRejected(() -> booking.book("A1", "  "), booking, "User ID required");
+        expectRejected(() -> booking.book("A1", null), booking, "User ID required");
     }
 }`],
     table: {

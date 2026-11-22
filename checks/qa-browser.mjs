@@ -158,6 +158,9 @@ try {
   assert.equal(await a.$$eval('main details > summary', items => items.length), 5);
   assert.equal(await a.$$eval('main a', items => items.some(item => item.textContent === 'Java lab · HashIndex.java')), true);
   await a.goto(base + '#topic/j-oop-01');
+  await waitForText(a, 'main', 'implicit no-argument constructor');
+  assert.equal(await a.$$eval('main details > summary', items => items.length), 4);
+  await a.goto(base + '#topic/d-hashing-01');
   await waitForText(a, 'main', 'dedicated notes and questions are still being written');
   assert.equal(await a.$eval('#topic-takeaway', input => input.value), '');
   await a.goto(base + '#day-4/revision');

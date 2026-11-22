@@ -1,5 +1,31 @@
 // A topic gets its own teaching material only when each item is written for that topic.
 export const topicLessons = {
+  'j-oop-01': {
+    notes: [
+      'A class defines fields and operations. An object owns a particular set of field values. Construct Seat A1 and A2 separately so that choosing an owner for A1 leaves A2 available. The constructor initializes the identity before callers can use the object. Mark the id final, allow the owner to change through the booking operation and use private fields to limit the points where state can change.',
+      'In Seat(String id), id names the constructor parameter and this.id names the current object’s field. Validate the parameter first, then assign the field. Because Seat declares this parameterized constructor, Java supplies no implicit no-argument constructor. A type with a valid default can explicitly delegate from a no-argument constructor to the parameterized path using this(...). Both paths can then share validation.',
+      'A copy constructor is an ordinary constructor accepting an instance of the same type. Assignment of a reference copies that reference. Copying a value object can create an independent value, with deliberate handling of mutable members. For a booking entity, creating another mutable copy with the same seat identity would put ownership in two places. Use a read-only view for queries and keep one authoritative Seat for writes.',
+      'BookingService owns the request boundary. It resolves the only valid seat ID before asking the Seat to claim itself. Seat validates the customer ID before checking ownership, so its invariant also holds for a direct call. A1 initially has no owner. U1 gets true. U2 and a repeated U1 request get false under this lesson’s contract. The original owner stays U1 for all failed attempts, including those rejected as invalid input.'
+    ],
+    takeaways: ['Create independent objects for independent state.', 'Construct valid instances with one validation path.', 'Distinguish an entity’s source of truth from a read-only view.', 'Verify both the result and the resulting state.'],
+    practice: ['Copy the standalone ClaimTrace from Day 1 Learn into ClaimTrace.java and run java ClaimTrace.java. Within the same file, construct an A2 booking service and check that booking A1 does not change A2. Try constructing a seat from a blank ID.', [
+      'The supplied program prints first=true, second=false, owner=U1 and exits successfully.',
+      'Unknown seat, whitespace-only user and null user are rejected while U1 remains the owner.',
+      'A2 starts unowned after the A1 claim. A blank seat ID fails during construction.',
+      'Explain how this.id differs from id and why a Seat copy with the same ID would create conflicting authority.'
+    ]],
+    interview: [
+      ['Why does Seat require an ID in its constructor?', 'An ID is required for a valid Seat. Constructor validation enforces that rule at creation and a final field keeps the identity stable.'],
+      ['When does Java supply a default constructor?', 'It supplies an implicit no-argument default constructor when the class declares none. Once Seat(String id) is declared, a no-argument overload would need its own declaration.'],
+      ['What would break if every service could set the owner directly?', 'A caller could overwrite an existing owner without checking the booking rule. A guarded transition preserves the rule and makes the permitted updates easy to locate.'],
+      ['What should a query return if callers need a point-in-time copy?', 'Return a read-only value representing the seat ID and observed owner. Keep the original Seat as the write authority and document that the observed value can become stale.']
+    ],
+    check: ['Seat declares only Seat(String id). What happens if a caller uses new Seat()?', ['Java passes null implicitly.', 'The call fails to compile.', 'Java creates a valid seat with an empty ID.'], 1, 'Java only generates an implicit default constructor when the class declares no constructors.'],
+    references: [
+      ['Dev.java · Creating classes and constructors', 'https://dev.java/learn/language/oop/classes-objects/creating-classes/'],
+      ['JLS 21 · Default constructor', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.8.9']
+    ]
+  },
   'j-equality-01': {
     notes: [
       'Reference identity asks whether two references point to the same instance. Value equality expresses an application rule. Two independently parsed seat IDs both denoting A1 should retrieve the same mapping. Define that rule in equals, and derive hashCode from the same fields. A hash map can use the hash to narrow where it looks and then use equality to distinguish candidates.',
