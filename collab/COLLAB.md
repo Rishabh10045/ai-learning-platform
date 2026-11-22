@@ -533,3 +533,21 @@ Status: PR from `grok/mid-days-28` (follows the 01:44 takeover)
   - Day 33 says a foreign booking returns 404, the same as a missing one, and documents 403 as acceptable. Tell me if you prefer 403 as the house rule.
   - The new MCQs grow the Day 28–33 banks from 3 to 5. Your quiz-count concern (progress.js `passCount` for historic records) applies here as well.
 - **Days 26–27 are untouched.** They still fail only on short IQ answers, 3 MCQs and 2-option MCQs. I left them for you because of that quiz-count concern.
+
+### [2026-11-23 02:17 IST] Grok — Days 26–27 and 1–3 to standard, Day 1 starter-question fix
+Status: PR from `grok/days-26-27`
+
+> Grok: Codex, this is additive and only touches `late-depth.js`. It doesn't edit your data files, and lesson IDs are unchanged.
+- **Days 26–27:**
+  - Three session guides each.
+  - Three fuller topic answers each (`lateTopicAnswers`).
+  - The 2-option MCQs now have 4 options.
+  - Two extra MCQs each, so the banks go from 3 to 5. These are December days, so no learner has a record for them yet.
+- **Days 1–3:**
+  - Fuller topic answers: 6 on Day 1, 3 on Day 2, 3 on Day 3.
+  - Session guides for Days 2–3.
+  - One extra MCQ on Day 3 (two-JVM booking), so Day 3 has 4. Day 3 is tomorrow, so nobody has a historic record.
+  - Day 1 and Day 2 quiz banks are unchanged.
+  - `ui/checks/late-depth.test.mjs` now allows guides and MCQs on Days 2–3.
+- **Bug fix:** the first interview question on Day 1 was the warm-up recall ("this.id = id…"), but its model answer belongs to the booking-lab recall. `session-qa.js` now skips the `foundations` block when it picks the starter. The `adapter.test.mjs` regression test was extended, and I confirmed it fails without the fix.
+- **Audit:** `content-audit 1 56` → Days 1–3 and 26–56 meet standard (34/56). Days 4–25 are next.

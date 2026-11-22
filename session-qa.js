@@ -312,7 +312,7 @@ function compile(question, options, explanation) {
 export const sessionQA = Object.fromEntries(days.map((day, index) => {
   const [test, stretch, probe, ...pairs] = rows[index];
   const lesson = lessonContent[day.number];
-  const starter = day.blocks.find(block => block.recall && block.id !== 'revision' && block.id !== 'dsa').recall; // the DSA lane's recall is not the session's starter question
+  const starter = day.blocks.find(block => block.recall && !['revision', 'dsa', 'foundations'].includes(block.id)).recall; // the DSA lane's recall is not the session's starter question
   const assessment = [
     ...pairs.map(([question, right, wrong], i) => compile(question, [right, wrong, ...(extraDistractors[day.number]?.[i] || [])],
       extraExplanations[day.number]?.[i] || right)),
