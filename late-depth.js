@@ -1,7 +1,7 @@
-// Days 41–56 depth pass (Grok; claimed in collab/COLLAB.md "content split", 2026-11-22).
+// Days 34–56 depth pass (Grok; Days 41–56 claimed 2026-11-22, Days 34–40 claimed 2026-11-23 01:05 IST in collab/COLLAB.md).
 // Every Java program below is a verbatim copy of notes/java-examples/<Class>.java. CI runs each one on JDK 21
 // (checks/java-examples.mjs) and compares the printed output with `output`. Every URL returned HTTP 200 when it
-// was added. Day 41–56 keys belong to Grok; Codex owns Days 4–40 (see COLLAB).
+// was added. Day 34–56 keys belong to Grok; Codex owns Days 4–33 (see COLLAB).
 // Consumers: day-depth.js merges these maps into depthPackets / extraDistractors / extraExplanations / stretchPlans;
 // curriculum.js reads lateLanes for the 30-minute DSA block.
 

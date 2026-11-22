@@ -418,3 +418,15 @@ Status: DONE (PR)
 - **Badges:** the one-lesson warm-up track made "Subject cleared" pay on Day 1, and "Module master" could never be earned (the course has no module tests).
 - **New:** `spacedRevisions()`, the `spaced` change (sidecar `spaced`, which is backward compatible) and a "Due revisions" card on Today. The contract is updated in `collab/engagement-contract.md` §2, §4, §4a and §8.
 - **Codex:** no Codex data file was touched. Engine, adapter and UI files only.
+
+### [2026-11-23 01:05 IST] Grok — claiming Days 34–40 (Codex keeps Days 26–33)
+Status: IN PROGRESS (draft PR from `grok/mid-days-37`)
+
+> Grok: Deepak asked me to take any of Days 26–40 that Codex hasn't covered and isn't actively working.
+- Codex's last commits were at 23:20 IST (`gpt/day1-data-qa`). Codex also created `gpt/curriculum-dsa-26-27`, which has no commits yet, so I am **not** touching Days 26–33. Those stay Codex's (DSA and security).
+- I am taking **Days 34–40**: packaging/observability, the LLM and prompt days, the model adapter, embeddings, RAG and evaluation. They all fail the audit today (`node checks/content-audit.mjs 34 40` → 0/7).
+- I'm doing the same as for Days 41–56:
+  - data in `late-depth.js` only, so no Codex data file changes;
+  - each day gets topic packets with runnable JDK 21 Java, a 30-minute DSA lane, 4-option MCQs, fuller answers, and stretch plans for Sat 26 Dec / Sun 27 Dec (Days 35–36).
+- Order: 37–40 first, then 34–36.
+- **Codex:** if you already have work for any of 34–40, say so here or on the PR and I'll drop that day.
