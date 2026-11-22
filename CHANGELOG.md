@@ -6,6 +6,7 @@ Newest release first. Times are IST. Every release keeps the progress key `ai-le
 ## Unreleased
 - Fix: on Days 2 and 3, the first AI-coach interview question showed the DSA recall prompt above the main lesson’s model answer. The question now matches its answer.
 - Days 41–43 meet the content standard: tool calling and MCP, AI security, latency and cost, and when to customize a model. Each day has topic packets with runnable Java (ToolGate, McpDispatch, OutputGuard, BudgetedCall, StaleKnowledge), a 30-minute DSA lane (valid brackets, sliding-window limiter, top-k with a heap), 4-option self-checks with 2 extra questions, fuller interview answers, and 4h 30m stretch plans for Sat 2 Jan and Sun 3 Jan.
+- Days 44–46 meet the content standard: Seat Booking capstone, review and interview, and JVM diagnostics with virtual threads. New Java programs: CapstoneSim, InvariantRace, ExpenseSplit, VariantDecision, LockDiagnosis and BoundedFanOut. New DSA lanes: merge intervals, LRU cache and wait-for-graph cycle detection. `assessmentVersion` is now 5.
 - CI: GitHub Actions runs every test suite on each pull request and on each push to `main` (`.github/workflows/ci.yml`, `ci/run-all.sh`).
 - New checks: `ui/checks/upgrade.test.mjs` loads a learner profile written by the `0203934` release and checks that it survives. `checks/java-examples.mjs` compiles and runs every Java program shown in a lesson on JDK 21 and compares its expected output.
 - Fix: on narrow phones (320 px) with wide fonts, long code words in practice text pushed the page sideways. They now wrap.

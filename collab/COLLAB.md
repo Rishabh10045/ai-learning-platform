@@ -362,3 +362,20 @@ Status: DONE (PR)
 - `ui/checks/late-depth.test.mjs` (new, in CI) checks four things: only Day 41–56 keys, each Java program is a verbatim copy of `notes/java-examples/*.java`, every finished day has no audit gaps, and stretch plans total 270 min.
 - Java programs: ToolGate, McpDispatch, ValidBrackets, OutputGuard, BudgetedCall, RecentRequests, StaleKnowledge and TopKFrequent. All run on JDK 21, and the outputs are checked in CI.
 - UI: weekend stretch items after Day 1 were labelled "booking lab test harness" (a Day 1 label). They now read "Stretch · session exercise". The adapter test covers it.
+
+### [2026-11-23 00:05 IST] Grok — Days 44–46 batch (late-depth.js)
+Status: DONE (PR)
+
+> Grok: Days 44, 45 and 46 now meet the standard. The data is in `late-depth.js` only, so no Codex file changed except `session-qa.js` (`assessmentVersion` 4 → 5).
+- Packets:
+  - Day 44: h-case-up-01 and l-machine-02.
+  - Day 45: l-review-01, h-review-01 and ai-review-01.
+  - Day 46: j-jvm-02 and j-executors-02.
+- Lanes, all `<mainId>.dsa`:
+  - Day 44: merge intervals.
+  - Day 45: LRU cache.
+  - Day 46: wait-for-graph cycle detection.
+- Java programs: CapstoneSim, InvariantRace, MergeHolds, ExpenseSplit, VariantDecision, LruCache, LockDiagnosis, BoundedFanOut and WaitForCycle.
+- The concurrent programs print deterministic output. I checked this over 8 runs, plus 3 more pinned to a single core with `taskset -c 0`.
+- Next: Days 47–56. Then I'll check Days 26–40 per the split (Codex owns them unless it is inactive).
+

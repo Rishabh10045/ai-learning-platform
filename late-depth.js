@@ -57,6 +57,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · LinkedHashMap', jdk + 'java/util/LinkedHashMap.html')],
     recall: 'Which two data structures make an LRU cache O(1) for both get and put, and what does each one contribute?'
   },
+  46: {
+    title: 'Deadlock detection: cycle in a wait-for graph',
+    concept: 'A deadlock is a cycle in the wait-for graph (T1 → T2 means T1 waits for a lock T2 holds). Find it with three-colour DFS: grey nodes are on the current path, and reaching a grey node closes a cycle. Black nodes are finished and safe.',
+    example: 'booking → refund → audit → booking is a cycle, so those three threads are deadlocked. If booking and refund both wait for pool and pool waits for nothing, there is no cycle.',
+    practice: 'Implement List<String> findCycle(Map<String, List<String>> waitsFor) with DFS, colours and a path stack. Then write a Kahn’s-algorithm version that only answers whether a cycle exists.',
+    checks: ['The stuck graph prints audit -> booking -> refund -> audit, and the healthy graph prints [].', 'A cross edge to a finished node is not reported as a cycle.', 'State O(V + E) time and O(V) space.'],
+    readings: [reading('Java 21 API · ThreadMXBean.findDeadlockedThreads', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/ThreadMXBean.html')],
+    recall: 'Why does cycle detection in a directed graph need a third "on the current path" colour, and what does an edge to such a node mean?'
+  },
   // @@lanes
 };
 
@@ -1177,6 +1186,218 @@ after update A1 and put A4: [A1=sold, A4=free]`
       ['Both versions print the same order after each step.', 'Capacity ≤ 0 is rejected.', 'Hit and miss counts are correct for the main() sequence.', 'One sentence on why get must be synchronized if the cache is shared.']],
     references: [['Java 21 API · LinkedHashMap (accessOrder, removeEldestEntry)', jdk + 'java/util/LinkedHashMap.html']]
   },
+  'j-jvm-02': {
+    notes: [
+      'When a Java service is slow or stuck, collect evidence before you change code. The JVM can show you where every thread is and what it is waiting for. A thread dump is a snapshot of every thread’s stack and state at one moment. The states to know are RUNNABLE (running, or ready to run, or inside native I/O), BLOCKED (waiting to enter a synchronized monitor that another thread holds), and WAITING or TIMED_WAITING (parked in wait(), join(), sleep(), a lock or a latch). One dump can mislead. Take two or three, a few seconds apart, and look for threads that stay in the same place.',
+      'On JDK 21, "jcmd <pid> Thread.print" prints platform-thread stacks, including which monitor each BLOCKED thread wants and which thread owns it, and it reports Java-level deadlocks at the end. Virtual threads are not listed there. Use "jcmd <pid> Thread.dump_to_file -format=json <file>" to include them. LockDiagnosis.java reads the same information inside the program through ThreadMXBean: worker-2 is BLOCKED on a lock held by worker-1, and findDeadlockedThreads() reports booking-thread and refund-thread, which took the same two locks in opposite order and are waiting for each other.',
+      'Know the JVM memory areas so you can read an OutOfMemoryError. Objects live on the heap, which the garbage collector divides into young and old regions. Class metadata lives in Metaspace, outside the heap. Each platform thread has its own native stack of frames holding local variables and references. The JIT’s compiled code lives in the code cache, and direct ByteBuffers use native memory. "OutOfMemoryError: Java heap space" means live objects exceed -Xmx. "Metaspace" usually points to a class-loader leak. "unable to create native thread" means too many platform threads or too little native memory, not a small heap.',
+      'Useful first commands: "jcmd <pid> GC.heap_info" for heap use, "jcmd <pid> GC.class_histogram" for which classes take the most memory, and "jcmd <pid> JFR.start duration=60s filename=rec.jfr" to record a Java Flight Recording of CPU, allocation, locks and I/O with low overhead. Read the evidence against a question: for example, "workers pile up BLOCKED on one monitor whose owner is in a network call" says the critical section is too wide. The fix is to move the network call outside the lock, not to add threads.'
+    ],
+    code: {
+      title: 'LockDiagnosis.java · read thread states, lock owners and a deadlock with ThreadMXBean · java LockDiagnosis.java',
+      text: String.raw`import java.lang.management.*;
+import java.util.*;
+import java.util.concurrent.*;
+
+public class LockDiagnosis {
+    static final Object seatMapLock = new Object();
+    static final Object lockA = new Object(), lockB = new Object();
+
+    // Wait until a thread reaches the expected state, so the "dump" below is not a matter of timing luck.
+    static void awaitState(Thread t, Thread.State s) throws InterruptedException {
+        while (t.getState() != s) Thread.sleep(5);
+    }
+
+    public static void main(String[] args) throws Exception {
+        ThreadMXBean mx = ManagementFactory.getThreadMXBean();
+
+        // 1. Contention: worker-1 holds the monitor while it "calls the network"; worker-2 is BLOCKED behind it.
+        CountDownLatch release = new CountDownLatch(1);
+        Thread w1 = new Thread(() -> { synchronized (seatMapLock) { awaitQuietly(release); } }, "worker-1");
+        Thread w2 = new Thread(() -> { synchronized (seatMapLock) { } }, "worker-2");
+        w1.start(); awaitState(w1, Thread.State.WAITING);    // inside the lock, waiting on the latch
+        w2.start(); awaitState(w2, Thread.State.BLOCKED);    // trying to enter the same monitor
+        ThreadInfo info = mx.getThreadInfo(w2.threadId());
+        System.out.println(info.getThreadName() + " " + info.getThreadState() + " on a lock held by " + info.getLockOwnerName());
+        release.countDown(); w1.join(); w2.join();
+        System.out.println("after release: worker-1 " + w1.getState() + ", worker-2 " + w2.getState());
+
+        // 2. Deadlock: two threads take the same two locks in opposite order.
+        CyclicBarrier bothHoldOne = new CyclicBarrier(2);
+        Thread t1 = new Thread(() -> lockInOrder(lockA, lockB, bothHoldOne), "booking-thread");
+        Thread t2 = new Thread(() -> lockInOrder(lockB, lockA, bothHoldOne), "refund-thread");
+        t1.setDaemon(true); t2.setDaemon(true);              // so the JVM can still exit after the demo
+        t1.start(); t2.start();
+        long[] ids;
+        while ((ids = mx.findDeadlockedThreads()) == null) Thread.sleep(5);
+        List<String> names = new ArrayList<>();
+        for (ThreadInfo ti : mx.getThreadInfo(ids)) names.add(ti.getThreadName() + " waits for " + ti.getLockOwnerName());
+        Collections.sort(names);
+        System.out.println("deadlocked: " + names);
+    }
+
+    static void lockInOrder(Object first, Object second, CyclicBarrier barrier) {
+        synchronized (first) {
+            try { barrier.await(); } catch (Exception e) { return; }   // both threads now hold their first lock
+            synchronized (second) { System.out.println("never printed"); }
+        }
+    }
+
+    static void awaitQuietly(CountDownLatch latch) {
+        try { latch.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+}
+`,
+      output: String.raw`worker-2 BLOCKED on a lock held by worker-1
+after release: worker-1 TERMINATED, worker-2 TERMINATED
+deadlocked: [booking-thread waits for refund-thread, refund-thread waits for booking-thread]`
+    },
+    takeaways: ['BLOCKED = waiting for a monitor; WAITING/TIMED_WAITING = parked; RUNNABLE may be in I/O.', 'Take two or three dumps a few seconds apart.', 'jcmd Thread.print for platform threads; Thread.dump_to_file -format=json includes virtual threads.', 'Map the OutOfMemoryError message to the memory area: heap, Metaspace, native threads.'],
+    interview: [
+      ['How do you diagnose a Java service whose requests hang?', 'I first check whether the CPU is busy or idle, because that splits the problem into "spinning or computing" versus "waiting". Then I take two or three thread dumps a few seconds apart with jcmd <pid> Thread.print, or with Thread.dump_to_file if virtual threads are in use. I look for many threads stuck at the same frame. Many BLOCKED threads on one monitor point to lock contention, and the dump names the owner. Threads WAITING inside a connection pool point to pool exhaustion. Threads in socket reads point to a slow dependency. The dump also reports deadlocks. I match the evidence with metrics such as pool waits and dependency latency before changing anything.'],
+      ['What is the difference between BLOCKED and WAITING in a thread dump?', 'BLOCKED means the thread is trying to enter a synchronized block or method, and another thread currently owns that monitor. The dump shows "waiting to lock <0x...>" and you can find the owner holding the same address. WAITING means the thread parked itself on purpose and will continue only when something signals it: Object.wait(), Thread.join(), LockSupport.park() as used by ReentrantLock and latches, or taking from an empty queue. TIMED_WAITING is the same with a timeout, such as sleep(10). So BLOCKED points to monitor contention, while WAITING needs context: it may be a healthy idle worker or a thread waiting for a connection that never comes.'],
+      ['A service throws "OutOfMemoryError: unable to create native thread". Do you raise -Xmx?', 'No. That error is not about the Java heap. It means the JVM asked the operating system for a new platform thread and the request failed, because of the process’s thread limit or because native memory for thread stacks ran out. Raising -Xmx can even make it worse by leaving less native memory. I would count threads with jcmd Thread.print or a metrics endpoint, find the code creating them, often an unbounded thread-per-request executor or a pool created per call, and bound it. Virtual threads can be an option for blocking I/O, but downstream resources still need limits. I would also check the ulimit for processes and threads.']
+    ],
+    check: ['A thread dump shows 40 threads BLOCKED on the same monitor, owned by one thread that is inside a socket read. What does this suggest?',
+      ['The JVM needs a bigger heap', 'A network call is made while holding the lock, so the critical section is too wide', 'The 40 threads are deadlocked with each other', 'The garbage collector is paused'], 1,
+      'Everyone waits for one owner who is waiting on the network. Move the I/O out of the synchronized block.'],
+    practice: ['Run a small program that holds a synchronized lock around a Thread.sleep(2000) "network call" with 10 worker threads. Capture two dumps with jcmd <pid> Thread.print five seconds apart and find the owner. Then move the sleep outside the lock and capture again.',
+      ['The first dumps show one owner and several BLOCKED threads on the same monitor address.', 'After the fix, no thread is BLOCKED on that monitor.', 'GC.heap_info output is saved and its heap use noted.', 'One paragraph explains the evidence and the fix.']],
+    references: [['Oracle JDK 21 · jcmd', 'https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html'], ['Java 21 API · ThreadMXBean', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/ThreadMXBean.html'], ['Oracle JDK 21 Troubleshooting · Diagnostic tools', 'https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html']]
+  },
+  'j-executors-02': {
+    notes: [
+      'Virtual threads (JEP 444, final in Java 21) are lightweight threads managed by the JVM. When a virtual thread blocks on I/O, sleep or a java.util.concurrent lock, the JVM unmounts it from its carrier platform thread, so that carrier can run another virtual thread. A service can therefore have a hundred thousand blocked tasks without a hundred thousand operating-system threads. Executors.newVirtualThreadPerTaskExecutor() creates one new virtual thread per task. Do not pool virtual threads, because they are cheap to create.',
+      'Virtual threads make waiting cheap. They do not make the thing you wait for bigger. A database pool with 8 connections can still serve only 8 queries at a time, and a model provider still has a rate limit. With unlimited virtual threads, 1,000 tasks hit the scarce resource together, and you get pool timeouts, queueing inside the driver or 429s. BoundedFanOut.java shows this: without a limit the peak number of concurrent "DB calls" is far above 8, and with a Semaphore(8) acquired before the call and released in finally, the peak is exactly 8 while all 1,000 tasks still complete.',
+      'Put limits at the resource, not on thread count. Use a Semaphore or a bounded pool around each scarce resource (database, provider, file handles), with a timeout on acquire so overload turns into a fast rejection instead of an endless queue. Keep CPU-heavy work on a bounded platform-thread pool sized near the number of cores, because virtual threads do not add CPU. Use timeouts on every remote call.',
+      'Know the JDK 21 pinning caveat. A virtual thread that blocks while inside a synchronized block, or a native method, stays pinned to its carrier, so the carrier cannot run others. Under load that can starve the small carrier pool. In JDK 21, prefer ReentrantLock for locks held across blocking I/O. Running with -Djdk.tracePinnedThreads=full prints a stack trace whenever a virtual thread blocks while pinned. JDK 24 (JEP 491) removed most synchronized pinning, but code that targets 21 should still follow this rule. ThreadLocal values are per virtual thread, so heavy ThreadLocal caches become costly with millions of threads.'
+    ],
+    code: {
+      title: 'BoundedFanOut.java · 1,000 virtual threads with and without a Semaphore in front of 8 "connections" · java BoundedFanOut.java',
+      text: String.raw`import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+
+public class BoundedFanOut {
+    // A pretend database call: it holds one of a limited number of connections for 10 ms.
+    static void dbCall(AtomicInteger inFlight, AtomicInteger peak) throws InterruptedException {
+        int now = inFlight.incrementAndGet();
+        peak.accumulateAndGet(now, Math::max);
+        try { Thread.sleep(10); } finally { inFlight.decrementAndGet(); }
+    }
+
+    static int run(int tasks, Semaphore permits) throws Exception {
+        AtomicInteger inFlight = new AtomicInteger(), peak = new AtomicInteger();
+        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {   // one cheap thread per task
+            for (int i = 0; i < tasks; i++) {
+                exec.submit(() -> {
+                    if (permits == null) { dbCall(inFlight, peak); return null; }
+                    permits.acquire();                       // admission control in front of the scarce resource
+                    try { dbCall(inFlight, peak); } finally { permits.release(); }
+                    return null;
+                });
+            }
+        }                                                    // close() waits for every task to finish
+        return peak.get();
+    }
+
+    public static void main(String[] args) throws Exception {
+        int tasks = 1000, poolSize = 8;
+        int unbounded = run(tasks, null);
+        int bounded = run(tasks, new Semaphore(poolSize));
+        System.out.println("1000 virtual threads, no limit: peak concurrent DB calls > 8: " + (unbounded > poolSize));
+        System.out.println("1000 virtual threads, Semaphore(8): peak concurrent DB calls = " + bounded);
+    }
+}
+`,
+      output: String.raw`1000 virtual threads, no limit: peak concurrent DB calls > 8: true
+1000 virtual threads, Semaphore(8): peak concurrent DB calls = 8`
+    },
+    takeaways: ['Virtual threads make blocking cheap; they do not add connections, CPU or provider quota.', 'Guard each scarce resource with a Semaphore or bounded pool, acquire with a timeout, release in finally.', 'Do not pool virtual threads; use newVirtualThreadPerTaskExecutor.', 'JDK 21: blocking inside synchronized pins the carrier; prefer ReentrantLock there.'],
+    interview: [
+      ['What do virtual threads change, and how do you still protect a database pool of 8 connections?', 'Virtual threads let me write simple blocking code, with one thread per request, without paying for an operating-system thread per request. When a virtual thread blocks on I/O, the JVM parks it and reuses its carrier. They do not change the capacity of anything downstream. The pool still has 8 connections, so if 1,000 virtual threads all ask for one, 992 wait inside the pool and many may time out. I put a Semaphore with 8 permits, or the pool’s own bounded wait with a short timeout, in front of the database call and release in finally. I measure acquire wait time and reject quickly when it exceeds the request deadline, instead of letting a backlog build.'],
+      ['How would you choose the semaphore limit for a slow downstream service?', 'I start from the downstream capacity: its documented concurrency or rate limit, or the connection pool size. Then I measure. I run the same load with several limits, for example 4, 8 and 16, and record throughput, p95 and p99 latency, the downstream error rate and the time spent waiting for a permit. Throughput usually rises with the limit until the downstream saturates, then latency and errors climb while throughput stays flat. I choose the smallest limit near the top of the throughput curve that keeps p99 within the budget. Thread dumps or JFR help confirm where tasks wait: at the semaphore, in the pool or on the socket.'],
+      ['What is pinning in JDK 21 and how do you avoid it?', 'A virtual thread normally unmounts from its carrier when it blocks. In JDK 21 it cannot unmount if it blocks while holding a monitor, meaning inside a synchronized block or method, or while inside a native frame. It stays pinned and occupies the carrier for the whole wait. The carrier pool is small, about one per core by default, so many pinned threads can stall every virtual thread in the application. To avoid it on JDK 21, I do not perform blocking I/O inside synchronized and use ReentrantLock where a lock must be held across a blocking call. I detect it with -Djdk.tracePinnedThreads or JFR’s VirtualThreadPinned event. JDK 24 removed most of this limitation for synchronized.']
+    ],
+    check: ['1,000 virtual threads each need one of 8 database connections. What does a Semaphore(8) acquired before the call achieve?',
+      ['It makes each query run 125 times faster', 'At most 8 calls hit the database at once while all 1,000 tasks still complete', 'It turns the virtual threads into platform threads', 'It removes the need for timeouts'], 1,
+      'The semaphore bounds concurrency at the scarce resource. Waiting tasks are cheap virtual threads, so they queue at the semaphore instead of overwhelming the pool.'],
+    practice: ['Copy BoundedFanOut.java. Add a tryAcquire(50, MILLISECONDS) version that rejects instead of waiting, and count rejections at limits 4, 8 and 16. Then put a synchronized block around the sleep, run with -Djdk.tracePinnedThreads=full, and observe the pinning report.',
+      ['Peak concurrency equals the limit in each bounded run.', 'Rejection counts fall as the limit rises, and a short table is recorded.', 'The pinning trace appears with synchronized and disappears with ReentrantLock.', 'One sentence on why the limit belongs at the resource, not on the thread count.']],
+    references: [['JEP 444 · Virtual Threads', 'https://openjdk.org/jeps/444'], ['Oracle JDK 21 · Virtual threads guide', 'https://docs.oracle.com/en/java/javase/21/core/virtual-threads.html'], ['Java 21 API · Semaphore', jdk + 'java/util/concurrent/Semaphore.html']]
+  },
+  'j-jvm-02.dsa': {
+    notes: [
+      'A deadlock is a cycle in the wait-for graph. Each node is a thread, and an edge T1 → T2 means "T1 waits for a lock that T2 holds". If following edges from a thread brings you back to it, those threads wait for each other forever. This is exactly what the JVM’s deadlock detector computes when jcmd Thread.print reports "Found one Java-level deadlock".',
+      'Detect a cycle in a directed graph with depth-first search and three colours. White means unvisited, grey means on the current DFS path, and black means finished. Reaching a grey node is a back edge, which means a cycle. Reaching a black node is safe, because its subtree was fully explored with no cycle. WaitForCycle.java keeps the current path on a stack so it can print the cycle itself: audit → booking → refund → audit. The healthy graph, where every thread waits for the pool, has no cycle.',
+      'The time is O(V + E), because each node and edge is processed once, and the space is O(V) for the colours and the recursion stack. The same algorithm detects circular dependencies in build systems and course prerequisites, and Kahn’s algorithm (topological sort by in-degree) is the alternative: if it cannot remove every node, a cycle exists. For deadlock prevention, the practical rule follows from the graph: always take locks in one global order, so no cycle can form.'
+    ],
+    code: {
+      title: 'WaitForCycle.java · find a deadlock cycle in a wait-for graph with three-colour DFS · java WaitForCycle.java',
+      text: String.raw`import java.util.*;
+
+public class WaitForCycle {
+    // Wait-for graph: an edge T1 -> T2 means "T1 waits for a lock that T2 holds". A cycle means deadlock.
+    static List<String> findCycle(Map<String, List<String>> waitsFor) {
+        Map<String, Integer> color = new HashMap<>();   // absent = unvisited, 1 = on the current path, 2 = done
+        Deque<String> path = new ArrayDeque<>();
+        for (String start : new TreeSet<>(waitsFor.keySet())) {
+            List<String> cycle = dfs(start, waitsFor, color, path);
+            if (cycle != null) return cycle;
+        }
+        return List.of();
+    }
+
+    static List<String> dfs(String node, Map<String, List<String>> g, Map<String, Integer> color, Deque<String> path) {
+        Integer c = color.get(node);
+        if (c != null && c == 2) return null;
+        if (c != null && c == 1) {                      // back edge: the cycle is the path from node to the top
+            List<String> cycle = new ArrayList<>();
+            boolean in = false;
+            for (Iterator<String> it = path.descendingIterator(); it.hasNext(); ) {
+                String p = it.next();
+                if (p.equals(node)) in = true;
+                if (in) cycle.add(p);
+            }
+            cycle.add(node);
+            return cycle;
+        }
+        color.put(node, 1);
+        path.push(node);
+        for (String next : g.getOrDefault(node, List.of())) {
+            List<String> cycle = dfs(next, g, color, path);
+            if (cycle != null) return cycle;
+        }
+        path.pop();
+        color.put(node, 2);
+        return null;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<String>> healthy = Map.of(
+                "booking", List.of("pool"), "refund", List.of("pool"), "pool", List.of());
+        Map<String, List<String>> stuck = Map.of(
+                "booking", List.of("refund"), "refund", List.of("audit"), "audit", List.of("booking"), "report", List.of("audit"));
+        System.out.println("healthy cycle: " + findCycle(healthy));
+        System.out.println("stuck cycle: " + String.join(" -> ", findCycle(stuck)));
+    }
+}
+`,
+      output: String.raw`healthy cycle: []
+stuck cycle: audit -> booking -> refund -> audit`
+    },
+    takeaways: ['Deadlock = cycle in the wait-for graph.', 'Three colours: grey on path (back edge = cycle), black finished.', 'O(V + E) time, O(V) space.', 'Prevent deadlock with one global lock order.'],
+    interview: [
+      ['How do you detect a cycle in a directed graph?', 'I run depth-first search from every unvisited node, with three states. A node becomes grey when I enter it and black when all its neighbours are finished. If, while exploring, I reach a grey node, I have found an edge back to a node on the current path, so there is a cycle. Reaching a black node is fine, because it was already fully explored without finding a cycle. To report the cycle, I keep the current path on a stack and slice it from the grey node to the top. Each node and edge is handled once, so the time is O(V + E), and the colours plus the recursion use O(V) space. For very deep graphs I would use an explicit stack to avoid stack overflow.'],
+      ['Why is a two-colour visited set not enough for directed graphs?', 'With only visited and unvisited, I cannot tell a back edge from a cross edge. Suppose A points to B and C, and C also points to B. After finishing B from A, I later reach B again from C. B is visited, but there is no cycle, because B is not on the current path. A visited-means-cycle rule would report a false deadlock. The grey state marks exactly the nodes on the current path, so only an edge to a grey node is a cycle. In an undirected graph the problem is different: two colours plus ignoring the parent edge are enough.'],
+      ['How do you prevent the deadlock in LockDiagnosis.java in production code?', 'The deadlock happens because one thread takes lock A and then B while the other takes B and then A, which creates a cycle in the wait-for graph. The simplest prevention is a global lock order: every code path takes locks in the same order, for example by seat ID or by a fixed ranking, so an edge can only point from lower to higher and no cycle is possible. Other options are tryLock with a timeout on ReentrantLock, backing off and retrying when the second lock is unavailable, or redesigning so one operation needs only one lock, such as a single database transaction with consistent row-lock order.']
+    ],
+    check: ['During DFS on a directed graph you reach a node that is black (finished). What does that mean?',
+      ['A cycle exists', 'Nothing: its subtree was fully explored without a cycle, so skip it', 'The graph is undirected', 'The DFS must restart from the beginning'], 1,
+      'Only an edge to a grey node, one on the current path, closes a cycle. Black nodes are done.'],
+    practice: ['Copy WaitForCycle.java. Add a Kahn’s-algorithm version that returns true if a cycle exists, and a test graph where a cross edge points to a black node, to show that the three-colour DFS does not report a false cycle.',
+      ['Both versions agree on the healthy, stuck and cross-edge graphs.', 'The cross-edge graph reports no cycle.', 'State the time and space of both versions.']],
+    references: [['Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html']]
+  },
   // @@packets
 };
 
@@ -1203,6 +1424,10 @@ export const lateDistractors = {
     ['That the code is correct for every possible schedule and input.', 'Only that the program compiled without errors.'],
     ['The number of lines of code written.', 'A list of buzzwords that match the job description.']
   ],
+  46: [
+    ['A full record of every object on the heap.', 'A continuous recording of CPU use over the last hour.'],
+    ['The number of tasks that can wait cheaply at once.', 'The memory cost of a blocked thread.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -1216,6 +1441,8 @@ export const lateExplanations = {
     'Only the database’s conditional write serializes competing claims across instances. Instance order, caches and the model are advisory and can be stale or wrong.'],
   45: ['One controlled run is evidence about its stated scenario only. Throughput, resilience and other schedules need their own experiments.',
     'A strong trade-off answer says what constraint changed, what you decided, what evidence supported it and what the decision costs or leaves unproven.'],
+  46: ['A thread dump is a point-in-time snapshot of stacks and states. Take several and compare them, because one sample cannot prove a thread is stuck.',
+    'Virtual threads make waiting cheap, which changes how many tasks can wait. The connection pool still has the same number of connections.'],
   // @@explanations
 };
 
@@ -1260,6 +1487,14 @@ export const lateAssessment = {
     { question: 'Two AI variants both pass a written acceptance bar on a 40-question set. One scores 2.5 points higher and costs eight times as much. What is the best default?',
       choices: ['Ship the more accurate one, because higher is always better', 'Ship the cheaper one and grow the eval set before revisiting', 'Ship both and let users choose', 'Discard the bar and pick by intuition'], answer: 1,
       explanation: 'Both meet the bar, and 2.5 points is one question on a 40-question set, which is within noise. Choose the cheaper variant and collect more evidence.' }
+  ],
+  46: [
+    { question: 'Which command includes virtual threads in a JDK 21 thread dump?',
+      choices: ['jcmd <pid> Thread.print', 'jcmd <pid> Thread.dump_to_file -format=json <file>', 'jcmd <pid> GC.heap_info', 'java -Xss1m'], answer: 1,
+      explanation: 'On JDK 21, Thread.print lists platform threads. Thread.dump_to_file writes a dump that includes virtual threads, in plain text or JSON.' },
+    { question: 'On JDK 21, a virtual thread performs a slow socket read inside a synchronized block. What is the risk?',
+      choices: ['None, because virtual threads always unmount when blocking', 'The virtual thread is pinned to its carrier, so under load the small carrier pool can be starved', 'The JVM converts it to a platform thread permanently', 'The socket read is cancelled'], answer: 1,
+      explanation: 'Blocking while holding a monitor pins the virtual thread in JDK 21. Prefer ReentrantLock or move the I/O outside the lock.' }
   ],
   // @@assessment
 };
@@ -1324,6 +1559,11 @@ export const lateInterviewGuides = {
     'My feature is seat booking with one confirmed owner per seat. I enforced it with a conditional UPDATE in PostgreSQL that succeeds only while the seat is unowned, and I store each reply under an idempotency key so retries replay. Under a two-instance race with eight clients, exactly one claim returned 201 in every round, and the others returned 409. One limitation is that I have not measured hot-event throughput. All claims for a popular seat serialize on one row, so latency will rise. For ten times the traffic, I would put a waiting room or a bounded queue in front of the claim, then run a hot-event load test and watch p95 claim latency, pool waits and an invariant check.',
     'I would answer precisely and not overclaim. The test shows that under the stated fixture, eight concurrent clients across two instances with one database, exactly one claim committed and the other clients received 409, repeated over 200 rounds. That is evidence for the ownership invariant on those code paths. It is not evidence of resilience under production load. That claim would need a representative load mix of reads and claims, many concurrent writers on a hot event, injected failures such as database timeouts and instance restarts, and measurements of p95/p99 latency, error rates and an invariant check after the run. I would describe the experiment I would run next and the result that would change my design.',
     'Evidence that adds an independent, production-like constraint changes the strength of the claim. Examples are a hot-key load run with p95 and p99 latency, a test with a lagging read replica showing the claim still goes to the primary, a forced database timeout showing retries replay rather than double-book, or an outbox retry that delivers each event exactly once to consumers that deduplicate. For each one I record the baseline, the configuration, the expected invariant and the observed metrics. Evidence that only repeats the same happy path many times does not strengthen the claim much. In the interview, I tie each sentence to a result I actually reproduced and label the rest as next steps.'
+  ],
+  46: [
+    'Virtual threads make each waiting task cheap. When a virtual thread blocks on I/O, the JVM parks it and frees the carrier thread, so one service can hold many thousands of in-flight requests with simple blocking code. They do not add database connections, CPU cores or provider quota. If 1,000 tasks reach a pool of 10 connections at once, 990 still wait, and many may time out. I protect the pool by bounding admission in front of it with a Semaphore of 10 permits, or the pool’s own bounded wait, acquired with a timeout and released in finally. I measure permit wait time, pool wait and completion rate, and I reject early when the wait would exceed the request deadline.',
+    'I need to see where the tasks are waiting and how the downstream behaves at different concurrency levels. A thread dump that includes virtual threads, from jcmd Thread.dump_to_file, or a JFR recording, shows whether tasks wait at my semaphore, inside the connection pool, or on the socket to the downstream service. From downstream metrics I need latency, error rate and any documented concurrency limit. Then I run the same load at several limits, for example 4, 8 and 16, and plot throughput, p95/p99 latency and timeout rate. I choose the smallest limit where throughput is near its peak and tail latency stays within the budget. A huge backlog with rising timeouts means the current limit is above what the downstream can serve.',
+    'Every resource that does not get cheaper still needs an explicit limit: database connections, concurrent calls to each downstream service or model provider, sockets and file descriptors, request queues, heap for in-flight request data, and CPU-heavy work. CPU-bound tasks belong on a bounded platform pool sized near the number of cores. Deadlines also need to be explicit: a timeout on acquiring a permit, on getting a connection and on each remote call, plus a defined rejection response such as 503 with Retry-After. Cheap threads make it easy to accept far more work than the system can finish, so admission control becomes more important, not less. On JDK 21, avoid blocking inside synchronized to prevent pinning carriers.'
   ],
   // @@guides
 };
