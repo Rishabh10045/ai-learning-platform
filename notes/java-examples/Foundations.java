@@ -12,6 +12,7 @@ public class Foundations {
         Seat() { this("A1"); }                   // delegate to the validating constructor
 
         boolean claim(String userId) {
+            if (userId == null || userId.isBlank()) throw new IllegalArgumentException("user id required");
             if (owner != null) return false;
             owner = userId;
             return true;

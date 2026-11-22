@@ -115,7 +115,7 @@ const foundations = {
     },
     {
       id: 'http', title: 'Follow an HTTP request', kind: 'HLD', minutes: 16,
-      concept: 'DNS turns the hostname into a server address. After the TCP and TLS (HTTPS) connection is set up, the browser sends the HTTP request. The backend picks a handler from the method and path, runs the application logic, reads or writes the data store and sends a response with a status code. The browser renders that response. The authoritative booking state lives in the backend store, not on the screen.',
+      concept: 'DNS resolves the hostname to an address. For a new HTTPS connection, HTTP/1.1 and HTTP/2 usually use TCP with TLS, while HTTP/3 uses QUIC with TLS integrated. The browser can reuse an existing connection. It sends the HTTP request over the connection. The backend picks a handler from the method and path, runs the application logic, reads or writes the data store and sends a response with a status code. The browser renders that response. The authoritative booking state lives in the backend store, not on the screen.',
       example: 'Browser → DNS lookup → secure connection → POST /bookings → handler → booking store → HTTP response → UI update.',
       practice: 'Draw the path from the browser to the backend and back. Label DNS, HTTPS, HTTP routing and the authoritative booking store.',
       checks: ['Show where hostname lookup ends and the application request begins.', 'Mark the authoritative write before a success response and show where a stale read can appear.'],
