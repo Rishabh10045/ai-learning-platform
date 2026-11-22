@@ -174,6 +174,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
     recall: 'Why is a two-stack queue amortized O(1) even though one poll can take O(n)?'
   },
+  30: {
+    title: 'Binary search trees: validation and range queries',
+    concept: 'Every key in a BST’s left subtree is smaller and every key in its right subtree is larger, so validation must use bounds inherited from all ancestors, and range queries can skip whole subtrees.',
+    example: 'Keys 40, 20, 60, 10, 30, 70 form a valid BST; the range [25, 65] returns 30, 40, 60. Putting 50 under 20 breaks the BST even though 50 > 20.',
+    practice: 'Implement insert, isBst with bounds and a pruned range query, then delete with the inorder successor.',
+    checks: ['A parent-only check is shown to be wrong.', 'Range output is sorted.', 'Explain O(h) and when h = n.'],
+    readings: [reading('Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/')],
+    recall: 'Why must BST validation pass bounds down from all ancestors?'
+  },
   // @@lanes
 };
 
@@ -3892,6 +3901,246 @@ recent hits: t=1->1 t=100->2 t=3001->3 t=3002->3 t=7000->1`
       ['The circular queue wraps around correctly.', 'The two-queue stack returns items in LIFO order.', 'Equal timestamps are all counted.', 'State the amortized complexity of each.']],
     references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html'], ['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/']]
   },
+  'd-recursion-01': {
+    notes: [
+      'A recursive method solves a problem by calling itself on a smaller part of the same problem. It needs a base case that stops the recursion, here an empty subtree (null), and every call must move towards that base case. Trees are recursive by nature: a tree is a node plus a left subtree and a right subtree, so tree methods are often three lines long.',
+      'The three depth-first orders differ only in when the node itself is processed. Preorder processes the node before its children, so it is useful for copying or printing a tree top-down. Inorder processes it between the left and right subtrees, so a binary search tree comes out in sorted key order. Postorder processes it after both children, which suits work that needs the children’s results first, such as height or deleting a tree. TreeWalks.java prints all three for one small tree and computes the height as 1 + max(left height, right height).',
+      'Recursion uses the call stack: each active call holds a frame, so the extra space is O(h) for a tree of height h. A balanced tree with n nodes has h ≈ log n, but a skewed tree, such as one built by inserting sorted keys into a plain BST, has h = n. The program builds a one-million-node skewed tree: the recursive height throws StackOverflowError, while an iterative inorder with an explicit ArrayDeque stack visits every node. In interviews, state the O(h) stack cost and offer the iterative version for deep trees.'
+    ],
+    code: {
+      title: 'TreeWalks.java · preorder, inorder and postorder by recursion, height, and an iterative inorder that survives a one-million-node skewed tree · java TreeWalks.java',
+      text: String.raw`import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+
+public class TreeWalks {
+    record Node(int key, Node left, Node right) {}
+
+    static void preorder(Node n, List<Integer> out) {
+        if (n == null) return;                 // base case
+        out.add(n.key());
+        preorder(n.left(), out);
+        preorder(n.right(), out);
+    }
+
+    static void inorder(Node n, List<Integer> out) {
+        if (n == null) return;
+        inorder(n.left(), out);
+        out.add(n.key());
+        inorder(n.right(), out);
+    }
+
+    static void postorder(Node n, List<Integer> out) {
+        if (n == null) return;
+        postorder(n.left(), out);
+        postorder(n.right(), out);
+        out.add(n.key());
+    }
+
+    static int height(Node n) {
+        return n == null ? 0 : 1 + Math.max(height(n.left()), height(n.right()));
+    }
+
+    // Same inorder result with an explicit stack: no recursion depth limit.
+    static List<Integer> inorderIterative(Node root) {
+        List<Integer> out = new ArrayList<>();
+        Deque<Node> stack = new ArrayDeque<>();
+        Node cur = root;
+        while (cur != null || !stack.isEmpty()) {
+            while (cur != null) { stack.push(cur); cur = cur.left(); }
+            cur = stack.pop();
+            out.add(cur.key());
+            cur = cur.right();
+        }
+        return out;
+    }
+
+    public static void main(String[] args) {
+        //        40
+        //      20    60
+        //    10  30    70
+        Node root = new Node(40,
+            new Node(20, new Node(10, null, null), new Node(30, null, null)),
+            new Node(60, null, new Node(70, null, null)));
+        List<Integer> pre = new ArrayList<>(), in = new ArrayList<>(), post = new ArrayList<>();
+        preorder(root, pre); inorder(root, in); postorder(root, post);
+        System.out.println("preorder  : " + pre);
+        System.out.println("inorder   : " + in);
+        System.out.println("postorder : " + post);
+        System.out.println("height " + height(root) + ", iterative inorder equal: " + in.equals(inorderIterative(root)));
+
+        // A skewed tree (a sorted insert into a plain BST) has height n.
+        Node skewed = null;
+        for (int k = 1_000_000; k >= 1; k--) skewed = new Node(k, null, skewed);
+        System.out.println("skewed height " + 1_000_000 + ", iterative inorder size " + inorderIterative(skewed).size());
+        try {
+            height(skewed);
+            System.out.println("recursive height finished");
+        } catch (StackOverflowError e) {
+            System.out.println("recursive height: StackOverflowError (depth too large)");
+        }
+    }
+}
+`,
+      output: String.raw`preorder  : [40, 20, 10, 30, 60, 70]
+inorder   : [10, 20, 30, 40, 60, 70]
+postorder : [10, 30, 20, 70, 60, 40]
+height 3, iterative inorder equal: true
+skewed height 1000000, iterative inorder size 1000000
+recursive height: StackOverflowError (depth too large)`
+    },
+    takeaways: ['Every recursion needs a base case and progress towards it.', 'Pre, in and post order differ only in when the node is processed.', 'Recursion costs O(h) stack space.', 'Use an explicit stack for very deep trees.'],
+    interview: [
+      ['What are preorder, inorder and postorder traversal, and when would you use each?', 'All three visit every node once in O(n) time and differ only in when the current node is processed. Preorder handles the node before its subtrees, which is natural for copying a tree or serializing it so it can be rebuilt top-down. Inorder handles it between the left and right subtrees; for a binary search tree that produces keys in sorted order, which is useful for validation and range listing. Postorder handles it after both subtrees, which is what you need when a node’s answer depends on its children, such as computing height or size, or freeing nodes. Recursive versions use O(h) stack space.'],
+      ['When can recursion fail on a tree, and how do you avoid it?', 'Each recursive call adds a frame to the thread’s call stack, so the depth of recursion equals the height of the tree. For a balanced tree that is about log n, which is tiny, but a degenerate tree, for example a BST built from sorted input, has height n. With hundreds of thousands of levels the JVM throws StackOverflowError. To avoid it, I rewrite the traversal with an explicit stack such as ArrayDeque, which lives on the heap, or keep the tree balanced with a self-balancing structure such as TreeMap. Java has no tail-call optimization, so rewriting as tail recursion does not help.'],
+      ['How do you compute the height of a binary tree, and what does it cost?', 'I use postorder recursion: the height of an empty tree is 0, and the height of a node is 1 plus the larger of its left and right subtree heights. Each node is visited exactly once, so the time is O(n). The extra space is the recursion stack, O(h), where h is the height: O(log n) when balanced and O(n) when skewed. For a very deep tree I would compute it iteratively with a level-order traversal, counting levels with a queue, which needs space proportional to the widest level instead of the depth. I would also state whether height counts nodes or edges, since conventions differ.']
+    ],
+    check: ['In TreeWalks.java, which traversal gives 10, 30, 20, 70, 60, 40?',
+      ['Preorder', 'Inorder', 'Postorder', 'Level order'], 2,
+      'Postorder visits the left subtree, the right subtree and then the node, so the root 40 comes last.'],
+    practice: ['Copy TreeWalks.java. Add an iterative preorder and postorder with an explicit stack, a level-order traversal with a queue, and a test that all versions agree with the recursive ones on a random tree.',
+      ['Iterative versions match the recursive ones.', 'Level order prints 40, 20, 60, 10, 30, 70.', 'The skewed tree works iteratively.', 'Space of each version stated.']],
+    references: [['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/']]
+  },
+  'd-heaps-01': {
+    notes: [
+      'A binary heap is a complete binary tree stored in an array where every parent ranks before its children. That partial order gives O(1) access to the top item and O(log n) offer and poll, but it does not keep everything sorted. Java’s PriorityQueue is a min-heap by default; pass a comparator, or comparator.reversed(), to change the order.',
+      'To keep the k nearest departures from a stream, keep a heap of at most k items whose root is the worst item you are keeping, which is a max-heap by your ranking. For each new departure, add it while the heap has fewer than k items. Otherwise compare it with the root; if it ranks better, poll the root and offer the new item. TopKNearest.java keeps the three nearest of 7, 2, 6, 1 and 4 minutes and returns 1, 2, 4. The cost is O(n log k) time and O(k) space, which is far better than sorting all n when k is small.',
+      'Two details are often missed. First, a heap is not sorted, so sort the k survivors at the end before returning them. Second, ties need a rule: the comparator here breaks equal minutes by arrival order, so with k = 2 and three departures at 5 minutes, the earliest one, A, is kept. Handle k = 0 (return an empty list) and k larger than the stream (return everything sorted).'
+    ],
+    code: {
+      title: 'TopKNearest.java · a bounded max-heap that keeps the k nearest departures, a stable tie-break by arrival and a final sort · java TopKNearest.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+
+public class TopKNearest {
+    record Departure(String id, int minutesAway, int arrival) {}
+
+    // Rank: fewer minutes first; on a tie, earlier arrival first (stable).
+    static final Comparator<Departure> RANK =
+        Comparator.comparingInt(Departure::minutesAway).thenComparingInt(Departure::arrival);
+
+    // Keep the k best in a max-heap of the current k: the root is the worst kept item.
+    static List<Departure> nearest(List<Departure> stream, int k) {
+        if (k <= 0) return List.of();
+        PriorityQueue<Departure> heap = new PriorityQueue<>(RANK.reversed());
+        for (Departure d : stream) {
+            if (heap.size() < k) heap.offer(d);
+            else if (RANK.compare(d, heap.peek()) < 0) { heap.poll(); heap.offer(d); }
+        }
+        List<Departure> out = new ArrayList<>(heap);
+        out.sort(RANK);                        // a heap is not sorted: sort the k survivors
+        return out;
+    }
+
+    static List<String> ids(List<Departure> ds) {
+        return ds.stream().map(d -> d.id() + "(" + d.minutesAway() + ")").toList();
+    }
+
+    public static void main(String[] args) {
+        int[] mins = {7, 2, 6, 1, 4};
+        List<Departure> stream = new ArrayList<>();
+        for (int i = 0; i < mins.length; i++) stream.add(new Departure("D" + i, mins[i], i));
+        System.out.println("k=3 nearest: " + ids(nearest(stream, 3)));
+
+        List<Departure> ties = List.of(new Departure("A", 5, 0), new Departure("B", 3, 1),
+            new Departure("C", 5, 2), new Departure("D", 5, 3));
+        System.out.println("tie k=2: " + ids(nearest(ties, 2)) + " - A arrived before C and D");
+        System.out.println("k=0: " + nearest(stream, 0) + ", k=10: " + nearest(stream, 10).size() + " items");
+    }
+}
+`,
+      output: String.raw`k=3 nearest: [D3(1), D1(2), D4(4)]
+tie k=2: [B(3), A(5)] - A arrived before C and D
+k=0: [], k=10: 5 items`
+    },
+    takeaways: ['A heap gives the top item fast; it is not sorted.', 'For the k smallest, keep a max-heap of size k.', 'O(n log k) time, O(k) space.', 'Break ties explicitly and sort the result.'],
+    interview: [
+      ['How do you find the k smallest values in a large stream?', 'I keep a max-heap of at most k items, so the root is the largest value I am currently keeping. For each new value, if the heap has fewer than k items I add it; otherwise, if the value is smaller than the root, I remove the root and add the value. At the end the heap holds the k smallest. Each step costs O(log k), so the total is O(n log k) time and O(k) space, and it works on a stream that does not fit in memory. If the output must be ordered, I sort the k survivors at the end, because iterating a heap does not give sorted order.'],
+      ['Why does keeping the smallest k values use a max-heap and not a min-heap?', 'The decision for each new value is whether it should replace the worst value I am keeping, and for the smallest k the worst kept value is the largest one. A max-heap exposes exactly that value at its root in O(1), and replacing it costs O(log k). A min-heap would expose the smallest kept value, which is the one I least want to remove, and finding the largest would need a scan. The same logic, reversed, means the k largest values use a min-heap. In Java I create the max-heap with new PriorityQueue<>(comparator.reversed()).'],
+      ['How do you make top-k results deterministic when values tie?', 'I make the comparator total by adding a tie-breaker, such as arrival index or ID, after the main key, for example comparingInt(minutes).thenComparingInt(arrival). The same comparator is used for the heap, reversed, and for the final sort. Then at the cut-off, a new item that ties on minutes but arrived later does not replace a kept item, and the output order is the same on every run. Without a tie-breaker, which equal item survives depends on the heap’s internal layout, so tests become flaky and users may see results change between requests. I also test a case with several ties at the boundary.']
+    ],
+    check: ['You keep the 3 smallest values. The heap holds 2, 5 and 8, and the next value is 4. What happens?',
+      ['Nothing; 4 is larger than the smallest kept value', 'Remove 8, the max-heap root, and add 4', 'Remove 2 and add 4', 'Add 4 and keep 4 values'], 1,
+      '8 is the worst value kept, so 4 replaces it, giving 2, 4, 5.'],
+    practice: ['Copy TopKNearest.java. Add a k-largest version with a min-heap, a merge of three sorted lists with a heap, and a test with all values equal.',
+      ['k-largest uses a min-heap of size k.', 'The merge outputs one sorted list.', 'Equal values keep arrival order.', 'Complexity written for each.']],
+    references: [['Princeton Algorithms · Priority queues', 'https://algs4.cs.princeton.edu/24pq/'], ['Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html']]
+  },
+  'd-trees-01': {
+    notes: [
+      'A binary search tree keeps every key in the left subtree smaller than the node and every key in the right subtree larger. Search, insert and delete follow one path from the root, so they cost O(h). Inorder traversal returns the keys in sorted order.',
+      'Validation is a classic trap. Checking only that each child is on the correct side of its parent is not enough: BstChecks.java puts 50 as the right child of 20, which is fine for 20 but wrong because 50 is inside the left subtree of 40. The correct check passes down a range (low, high) from all ancestors, and every key must lie strictly inside it.',
+      'A range query visits only subtrees that can contain keys in [lo, hi]: go left only if lo is smaller than the node, go right only if hi is larger. For keys 10–70 and range [25, 65], the result is 30, 40, 60. Note the duplicate policy (here duplicates are ignored) and that a plain BST can become skewed; Java’s TreeMap is a red-black tree that stays balanced.'
+    ],
+    code: {
+      title: 'BstChecks.java · insert, validation with inherited bounds, a pruned range query, and a tree that fools a parent-only check · java BstChecks.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+
+public class BstChecks {
+    static final class Node {
+        final int key; Node left, right;
+        Node(int key) { this.key = key; }
+    }
+
+    static Node insert(Node n, int key) {
+        if (n == null) return new Node(key);
+        if (key < n.key) n.left = insert(n.left, key);
+        else if (key > n.key) n.right = insert(n.right, key);   // duplicates ignored
+        return n;
+    }
+
+    // Every node must lie inside bounds inherited from all its ancestors, not just its parent.
+    static boolean isBst(Node n, long low, long high) {
+        if (n == null) return true;
+        if (n.key <= low || n.key >= high) return false;
+        return isBst(n.left, low, n.key) && isBst(n.right, n.key, high);
+    }
+
+    // Visit only the subtrees that can contain keys in [lo, hi].
+    static void range(Node n, int lo, int hi, List<Integer> out) {
+        if (n == null) return;
+        if (lo < n.key) range(n.left, lo, hi, out);
+        if (lo <= n.key && n.key <= hi) out.add(n.key);
+        if (n.key < hi) range(n.right, lo, hi, out);
+    }
+
+    public static void main(String[] args) {
+        Node root = null;
+        for (int k : new int[] {40, 20, 60, 10, 30, 70, 30}) root = insert(root, k);
+        System.out.println("valid BST: " + isBst(root, Long.MIN_VALUE, Long.MAX_VALUE));
+        List<Integer> r = new ArrayList<>();
+        range(root, 25, 65, r);
+        System.out.println("keys in [25, 65]: " + r);
+
+        // 50 sits in 40's left subtree: fine for its parent 20, wrong for its grandparent 40.
+        root.left.right = new Node(50);
+        System.out.println("after putting 50 under 20: valid BST " + isBst(root, Long.MIN_VALUE, Long.MAX_VALUE));
+        System.out.println("parent-only check would say: " + (root.left.right.key > root.left.key));
+    }
+}
+`,
+      output: String.raw`valid BST: true
+keys in [25, 65]: [30, 40, 60]
+after putting 50 under 20: valid BST false
+parent-only check would say: true`
+    },
+    takeaways: ['BST operations cost O(h).', 'Validate with bounds from all ancestors.', 'Prune range queries by comparing with the node.', 'TreeMap stays balanced; a plain BST may not.'],
+    interview: [
+      ['How do you check whether a binary tree is a valid binary search tree?', 'I recurse with an allowed range. The root may hold any key, so its range is unbounded. When I go left, the upper bound becomes the current key; when I go right, the lower bound becomes the current key. Every node must lie strictly inside its range, assuming no duplicates. This catches the case a parent-only check misses: a node that is larger than its parent but sits in the left subtree of a higher ancestor with a smaller key. It visits each node once, so it is O(n) time and O(h) stack space. An equivalent approach is an inorder traversal that checks the keys are strictly increasing.'],
+      ['How do you list all keys between lo and hi in a BST efficiently?', 'I do an inorder traversal that skips subtrees that cannot contain matches. At each node, I go into the left subtree only if lo is smaller than the node’s key, because otherwise every key there is too small. I add the node’s key if it lies within the range. I go into the right subtree only if hi is larger than the key. The output is sorted because it is an inorder traversal. The cost is O(h + m), where m is the number of keys reported, instead of O(n) for a full scan. In Java, TreeMap.subMap(lo, true, hi, true) gives the same result on a balanced tree.']
+    ],
+    check: ['Why does BstChecks.java report the tree as invalid after 50 is placed under 20?',
+      ['50 is smaller than 20', '50 is in the left subtree of 40, so it must be less than 40', 'Duplicates are not allowed', 'The tree is too tall'], 1,
+      'The bound from the ancestor 40 applies to the whole left subtree, not just to 40’s direct child.'],
+    practice: ['Copy BstChecks.java. Add delete (with the two-children case using the inorder successor), floor and ceiling queries, and a comparison against TreeMap on 1,000 random keys.',
+      ['Delete keeps the tree valid in all three cases.', 'floor and ceiling match TreeMap.', 'The validation runs after every operation.', 'Height of a sorted insert is reported.']],
+    references: [['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/'], ['Java 21 API · TreeMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html']]
+  },
   // @@packets
 };
 
@@ -3972,6 +4221,10 @@ export const lateDistractors = {
     ['Only the hit counter, not the order.', 'The value is copied into a new node.'],
     ['From the map only; the list cleans itself up.', 'From the list only; the map entry expires later.']
   ],
+  30: [
+    ['Preorder: the root first, then subtrees.', 'Reverse key order.'],
+    ['The root of a min-heap of all values seen.', 'The most recently added value.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4013,6 +4266,8 @@ export const lateExplanations = {
     'Reversal needs the next unprocessed node, so the rest of the list is not lost, and the reversed prefix, so the current node can point back to it.'],
   29: ['A hit makes the entry the most recently used, so get moves its node to the front. That is why even reads need coordination.',
     'The map and the list must always hold the same keys. Removing from only one leaves a dangling entry that breaks later operations.'],
+  30: ['Inorder visits the left subtree, the node and then the right subtree, and the BST rule puts smaller keys left, so keys come out in sorted order.',
+    'To keep the k smallest, the item to discard is the largest one kept, so it must sit at the root of a max-heap where it can be replaced in O(log k).'],
   // @@explanations
 };
 
@@ -4153,6 +4408,14 @@ export const lateAssessment = {
     { question: 'Which Java setup gives LRU eviction in a few lines?',
       choices: ['TreeMap with a comparator', 'LinkedHashMap with accessOrder = true and removeEldestEntry returning size() > capacity', 'HashMap with a counter', 'ConcurrentHashMap alone'], answer: 1,
       explanation: 'Access order moves used entries to the end, and removeEldestEntry evicts the least recently used one.' }
+  ],
+  30: [
+    { question: 'A recursive traversal of a BST built by inserting 1, 2, 3, …, 1,000,000 in order throws StackOverflowError. Why?',
+      choices: ['The keys are too large', 'Sorted inserts make the tree a chain of height n, so the recursion is n calls deep', 'Inorder traversal is always O(n²)', 'PriorityQueue is not thread-safe'], answer: 1,
+      explanation: 'Recursion depth equals tree height. Use an explicit stack or a balanced tree such as TreeMap.' },
+    { question: 'What is the time and space cost of keeping the k nearest items from a stream of n with a bounded heap?',
+      choices: ['O(n log n) time, O(n) space', 'O(n log k) time, O(k) space', 'O(k) time, O(1) space', 'O(n²) time, O(k) space'], answer: 1,
+      explanation: 'Each of the n items costs at most O(log k) heap work, and the heap never holds more than k items.' }
   ],
   // @@assessment
 };
@@ -4349,6 +4612,11 @@ export const lateInterviewGuides = {
     'The map stores, for each key, a reference to its node in the doubly linked list, not just the value. On get(A), the map returns A’s node in O(1). Because the node knows its prev and next neighbours, I can unlink it by pointing prev.next to next and next.prev to prev, then insert it after the head sentinel as most recent, all in constant time with no scan. On eviction I take the node before the tail sentinel, unlink it, and use the key stored in it to remove the map entry. After every step I check that the map keys and the list keys are exactly the same set.',
     'Even get mutates the cache, because a hit moves the node to the most-recent end of the list. Two threads moving nodes at once, or one moving a node while another evicts it, can corrupt the prev and next pointers and make the map and the list disagree. So the lookup and the list change must be one atomic operation, for example by taking a single lock around the whole of get and put. A thread-safe map on its own is not enough, because the list is separate, unsynchronized state. With LinkedHashMap in access order the same applies: get reorders entries, so it must be locked too.',
     'Moving an entry needs its neighbours. If the map held only the value, finding the node for a key would mean walking the list, which is O(n) and defeats the purpose of the cache. Holding the node gives immediate access to its prev and next pointers, so unlinking is O(1). I trace it at capacity 2: put(A), put(B), then get(A) unlinks A’s node from behind B and moves it to the front, giving A, B. Then put(C) evicts the tail-side node, B, from both structures, leaving C, A. A check that get(B) returns null confirms the right key was evicted.'
+  ],
+  30: [
+    'There are two different extra-space costs. A recursive tree traversal keeps one stack frame per level, so it uses O(h) space for height h: about log n for a balanced tree, but n for a skewed tree such as a BST built from sorted keys, which can cause StackOverflowError. A streaming top-k heap holds at most k items, so it uses O(k) space and O(n log k) time, no matter how long the stream is. If the k results are copied into a sorted list at the end, that adds another O(k). I state both costs separately and say which one dominates for the expected input.',
+    'The heap only guarantees that its root is the worst kept item; iterating it does not give sorted order. So after the stream ends I copy the k survivors into a list and sort them with the same comparator. For stable ties the comparator must be total, for example minutes first and then arrival index. Using it in the heap means that at the cut-off a later item with equal minutes does not replace an earlier one, and using it in the final sort means equal items appear in arrival order. I add a test with several equal values at the boundary, plus k = 0 and k larger than the input.',
+    'For the k smallest values, every new value is compared with the worst value I am keeping, which is the largest one. A max-heap keeps that largest value at its root, so the comparison is O(1) and replacing it is O(log k). If the new value is smaller than the root, I poll the root and offer the new value; otherwise I ignore it. A min-heap would put the smallest kept value at the root, which is the one I want to keep, and finding the largest would need a scan of all k. For k = 0 I return an empty result without creating a heap, and I state the tie rule.'
   ],
   // @@guides
 };
