@@ -200,8 +200,8 @@ const outline = [
   ['Messaging and delivery guarantees', ['B-MESSAGING-01','H-QUEUES-01'], ['java','design'], 'Apache Kafka · Design', 'https://kafka.apache.org/documentation/#design', 'Model a booking confirmation event and test duplicate consumption with an event ID.', 'Explain why a consumer may receive the same event more than once.'],
   ['Traffic experiments and load balancing', ['H-LOADBALANCE-01','H-OBSERVABILITY-01','LAB-8.2'], ['design'], 'GFG System Design syllabus · Scaling foundations', courses.design.links[1][1] + '#page=4', 'Send bounded traffic to the lab. Record request count, error rate, latency and booking-rule violations, if any.', 'Explain how your traffic mix changes observed latency and what a load balancer distributes.'],
   ['Consistency and failure scenarios', ['H-CONSISTENCY-01','H-RELIABILITY-02'], ['design'], 'GFG System Design syllabus · Databases at Scale', courses.design.links[1][1] + '#page=4', 'Draw the request path during a cache outage, a slow database and a retry after timeout.', 'Explain which operation should fail safely and what data may be temporarily stale.'],
-  ['Arrays, strings and complexity', ['D-COMPLEXITY-01','D-ARRAYS-01','D-RECURSION-02'], ['dsa'], 'Princeton Algorithms · Analysis of Algorithms', algorithms + '14analysis/', 'Spend 35 minutes implementing and analyzing linear aggregation over booking events. Use the remaining 30 minutes to trace the call stack and code the factorial and Fibonacci fixtures from the notes.', 'Name an input where your worst-case bound is reached.'],
-  ['Two pointers, windows and search', ['D-POINTERS-01','D-SEARCH-01'], ['dsa'], 'GFG DSA syllabus · Classes 1–10', courses.dsa.links[1][1], 'Find the longest segment of distinct seat IDs. Then implement iterative and recursive lower bound and use them for exact search. Lower bound returns the first index whose sorted value is at least the target, or the array length when none matches.', 'Explain the invariant that justifies moving a window boundary or discarding a search interval.'],
+  ['Arrays, strings and complexity', ['D-COMPLEXITY-01','D-ARRAYS-01','D-RECURSION-02'], ['dsa'], 'Princeton Algorithms · Analysis of Algorithms', algorithms + '14analysis/', 'Use 12 minutes to count and compare linear search operations and 24 minutes to trace and test factorial and Fibonacci. The separate DSA block covers array scans, updates and prefix sums.', 'Name an input where your worst-case bound is reached.'],
+  ['Two pointers, windows and search', ['D-POINTERS-01','D-SEARCH-01'], ['dsa'], 'GFG DSA syllabus · Classes 1–10', courses.dsa.links[1][1], 'Trace a distinct-ID window and a fixed-length sum. Implement a sorted pair search with wide arithmetic, then extend it to unique value triplets. Use the separate DSA block for lower bound and exact search.', 'Explain the invariant that justifies moving a window boundary or discarding a search interval.'],
   ['Sorting, linked lists and stacks', ['D-SORT-01','D-LINKEDLIST-01','D-STACKS-01'], ['dsa'], 'Princeton Algorithms · Merge Sort', algorithms + '22mergesort/', 'Trace merge sort and reverse a linked list. Use a stack to validate a small delimiter sequence.', 'Explain the extra space used by each implementation.'],
   ['LRU implementation and queue operations', ['D-LRU-02','D-QUEUES-01','L-MACHINE-01'], ['dsa','lld'], 'GFG DSA syllabus · Classes 11–16', courses.dsa.links[1][1], 'Implement a fixed-capacity LRU using a map of node references and a doubly linked list. Test a hit, update and eviction.', 'Trace how a map lookup lets you move an existing list node in constant time.'],
   ['Recursion, trees and heaps', ['D-RECURSION-01','D-TREES-01','D-HEAPS-01'], ['dsa'], 'Princeton Algorithms · Priority Queues', algorithms + '24pq/', 'Traverse a tree, then use a Java PriorityQueue to retain the k nearest departures in a stream.', 'Describe how recursion depth and heap size affect auxiliary space.'],
@@ -233,8 +233,26 @@ const outline = [
   ['Bits, number bases and prime algorithms', ['D-BITS-01','D-BASES-01','D-PRIMES-01','D-SIEVE-01','D-LCM-01'], ['dsa'], 'GFG DSA syllabus · Classes 1–2', courses.dsa.links[1][1] + '#page=7', 'Run the Java number algorithms, then test parity and XOR, round-trip a value through three bases, compare trial division with a sieve, and fold an array LCM. Record the expected and actual results.', 'How do you choose between trial division for one number and a sieve for many queries?']
 ];
 
-// Daily 30-minute DSA lane for weekday sessions (added by Grok on 2026-11-22; Day 3+ still to be filled).
+// Authored 30-minute DSA lanes. Later lanes are defined in late-depth.js.
 const dsaLanes = {
+  26: {
+    title: 'Array scans, updates and prefix sums',
+    concept: 'A linear scan finds the first matching index. A partially filled array tracks logical size separately from physical capacity. Prefix sums exchange a one-time scan and extra space for fast repeated range sums.',
+    example: '[4, -2, 7, 4] has prefix sums [0, 4, 2, 9, 13]. The half-open range [1, 3) sums to 9 − 4 = 5.',
+    practice: 'Run ArrayScanTrace.java. Implement firstIndex and rangeSum without the sample, trace insert and delete, and add tests for invalid range and a full buffer.',
+    checks: ['First 4 is at 0 and a missing target returns -1.', 'Range [1, 3) returns 5 and a valid empty interval returns 0.', 'A full buffer refuses insert. Inserting and deleting at the same index preserves the original logical data.', 'Explain the strict-leader and second-distinct-maximum policies for duplicates.'],
+    readings: [reading('Java 21 API · System.arraycopy', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html#arraycopy(java.lang.Object,int,java.lang.Object,int,int)')],
+    recall: 'Why does a prefix query take constant time, and which prefix entries change after an update?'
+  },
+  27: {
+    title: 'Linear search, binary search and lower bound',
+    concept: 'Use linear search on unsorted input. On sorted input, keep the first value at least as large as the target within the shrinking lower-bound interval. The end sentinel means there is no qualifying value.',
+    example: 'In [2, 15, 15, 27], lowerBound(15) returns 1, upperBound(15) returns 3 and lowerBound(30) returns 4.',
+    practice: 'Run Day27Bounds.java, reimplement iterative lower bound, and use its result for exact search. Trace the recursive form and compare floor and ceiling when the query lies between two values.',
+    checks: ['The first 15 is at index 1. A missing exact result returns -1.', 'For target 16, floor is 15 and ceiling is 27.', 'Empty input returns end sentinel 0, with no floor or ceiling.', 'Explain which steps justify discarding part of the interval and why the same proof fails on an unsorted array.'],
+    readings: [reading('Princeton Algorithms · Binary Search', 'https://algs4.cs.princeton.edu/11model/BinarySearch.java.html')],
+    recall: 'What does the lower-bound sentinel mean, and why must exact search check the returned index?'
+  },
   3: {
     title: 'Duplicate within k positions',
     concept: 'Extend the seen-set again: remember the last index of each value. A repeat at j is close enough when j − lastIndex ≤ k.',
