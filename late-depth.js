@@ -66,6 +66,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · ThreadMXBean.findDeadlockedThreads', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/ThreadMXBean.html')],
     recall: 'Why does cycle detection in a directed graph need a third "on the current path" colour, and what does an edge to such a node mean?'
   },
+  47: {
+    title: 'Topological sort: bean creation order (Kahn’s algorithm)',
+    concept: 'Order nodes so each comes after its dependencies. Count unmet dependencies per node, start with the zero-count nodes, and each time you output a node, decrement the counts of nodes that depend on it. If some nodes never reach zero, there is a cycle.',
+    example: 'controller → service → (repository, clock, audit), and repository and audit → dataSource, gives clock, dataSource, auditService, seatRepository, bookingService, bookingController. a → b → c → a reports a circular dependency.',
+    practice: 'Implement List<String> creationOrder(Map<String, List<String>> dependsOn) with in-degree counts and a PriorityQueue for a stable order. Then solve course schedule for prerequisites [[1,0],[2,0],[3,1],[3,2]].',
+    checks: ['The example prints the order above, and the cycle case throws listing [a, b, c].', 'Course schedule returns a valid order such as 0, 1, 2, 3.', 'State O(V + E) time and space.'],
+    readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
+    recall: 'In Kahn’s algorithm, what does it mean when the queue empties before every node has been output?'
+  },
   // @@lanes
 };
 
@@ -1398,6 +1407,349 @@ stuck cycle: audit -> booking -> refund -> audit`
       ['Both versions agree on the healthy, stuck and cross-edge graphs.', 'The cross-edge graph reports no cycle.', 'State the time and space of both versions.']],
     references: [['Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html']]
   },
+  'b-di-02': {
+    notes: [
+      'Spring adds cross-cutting behavior such as transactions, security checks, caching and metrics without changing your class, by wrapping your bean in a proxy. When another bean has your BookingService injected, it actually receives the proxy. Each call on the proxy runs the advice (for @Transactional: begin, then commit or roll back) around the call to your real object. Spring Boot creates class-based CGLIB proxies by default. Plain Spring uses JDK interface proxies when the bean implements an interface. The proxy is the boundary in both cases.',
+      'Advice runs only for calls that cross the proxy. If bookPair() calls this.bookOne() inside the same object, the call goes straight to the target, so bookOne’s own @Transactional settings, such as REQUIRES_NEW or a different rollback rule, are ignored. It simply runs inside whatever transaction bookPair already has, or with none if bookPair is not transactional. ProxyBoundary.java builds this with java.lang.reflect.Proxy: the external call to bookOne gets a transaction, the external call to bookPair gets one, and the inner bookOne gets no advice of its own, so only two transactions start.',
+      'Other proxy rules follow from the same idea. With class-based proxies, Spring can only override methods that are not final or private. In Spring 6, @Transactional also applies to protected and package-visible methods on class-based proxies, but the safe habit is to put it on public methods of the service. Constructor calls and calls made before the proxy exists, as in a @PostConstruct method, also get no transactional advice.',
+      'There are three common fixes for self-invocation. The best is to move the inner method to a separate bean, for example AuditService, and inject it, so the call crosses a proxy. You can use TransactionTemplate for programmatic control inside one method. Or you can inject the bean into itself (@Lazy self-reference), which works but hides the design problem. Test it with an external caller and a separate connection that checks the committed rows. A debugger breakpoint inside the method does not tell you whether a transaction was active. TransactionSynchronizationManager.isActualTransactionActive() does.'
+    ],
+    code: {
+      title: 'ProxyBoundary.java · a JDK dynamic proxy shows why self-invocation skips advice · java ProxyBoundary.java',
+      text: String.raw`import java.lang.reflect.*;
+import java.util.*;
+
+public class ProxyBoundary {
+    interface BookingService {
+        void bookPair(String a, String b);   // public entry point
+        void bookOne(String seat);           // also "transactional"
+    }
+
+    static final List<String> log = new ArrayList<>();
+
+    static final class BookingServiceImpl implements BookingService {
+        public void bookPair(String a, String b) {
+            log.add("  write " + a);
+            bookOne(b);                       // self-invocation: this.bookOne(), not the proxy
+        }
+        public void bookOne(String seat) { log.add("  write " + seat); }
+    }
+
+    // A JDK dynamic proxy playing the role of Spring's transactional proxy: advice runs around each call it receives.
+    static BookingService transactional(BookingService target) {
+        InvocationHandler advice = (proxy, method, args) -> {
+            log.add("BEGIN tx for " + method.getName());
+            try {
+                Object result = method.invoke(target, args);
+                log.add("COMMIT " + method.getName());
+                return result;
+            } catch (InvocationTargetException e) {
+                log.add("ROLLBACK " + method.getName());
+                throw e.getCause();
+            }
+        };
+        return (BookingService) Proxy.newProxyInstance(
+                BookingService.class.getClassLoader(), new Class<?>[] { BookingService.class }, advice);
+    }
+
+    public static void main(String[] args) {
+        BookingService bean = transactional(new BookingServiceImpl());   // what other beans get injected
+        System.out.println("bean is a proxy: " + Proxy.isProxyClass(bean.getClass()));
+
+        bean.bookOne("A1");                   // external call: crosses the proxy
+        bean.bookPair("B1", "B2");            // external call to bookPair; the inner bookOne does NOT cross it
+        log.forEach(System.out::println);
+        long begins = log.stream().filter(l -> l.startsWith("BEGIN")).count();
+        System.out.println("transactions started: " + begins + " (bookOne inside bookPair got no advice of its own)");
+    }
+}
+`,
+      output: String.raw`bean is a proxy: true
+BEGIN tx for bookOne
+  write A1
+COMMIT bookOne
+BEGIN tx for bookPair
+  write B1
+  write B2
+COMMIT bookPair
+transactions started: 2 (bookOne inside bookPair got no advice of its own)`
+    },
+    takeaways: ['Injected beans are proxies; advice runs only on calls that cross the proxy.', 'this.method() inside the same bean bypasses its @Transactional settings.', 'Fix by moving the method to another bean, or by using TransactionTemplate.', 'Verify with an external caller and committed rows, not a breakpoint.'],
+    interview: [
+      ['Why does @Transactional on a method sometimes have no effect?', 'Spring implements @Transactional with a proxy around the bean. Only calls that go through the proxy run the transaction advice. The common failure is self-invocation: a method in the same class calls this.otherMethod(), which goes directly to the target object and skips the proxy, so otherMethod’s propagation and rollback settings are ignored. Other causes are the annotation on a private or final method, which a class-based proxy cannot override, calling the method from a constructor or @PostConstruct, or the class not being a Spring bean at all because someone created it with new. I confirm by calling through the injected bean in a test and checking TransactionSynchronizationManager.isActualTransactionActive() or the committed rows.'],
+      ['How would you fix a self-invocation problem with REQUIRES_NEW on an audit method?', 'The audit write should commit even when the booking fails, so it needs its own transaction, and that only happens if the call crosses a proxy. I would move audit() into a separate AuditService bean annotated with @Transactional(propagation = REQUIRES_NEW), and inject AuditService into BookingService. Now booking calls auditService.audit(), which goes through AuditService’s proxy: Spring suspends the booking transaction, runs the audit in a new one, commits it and resumes the booking. If a new class feels heavy, TransactionTemplate with PROPAGATION_REQUIRES_NEW does the same programmatically. I would avoid self-injection because it hides the design issue.'],
+      ['What is the difference between JDK dynamic proxies and CGLIB proxies in Spring?', 'A JDK dynamic proxy implements the bean’s interfaces and forwards each call through an InvocationHandler, so callers must depend on the interface type, and only interface methods are advised. A CGLIB proxy is a generated subclass of the bean class that overrides its methods, so it works without an interface. It cannot advise final or private methods, and the class cannot be final. Spring Boot uses class-based proxies by default, so injecting the concrete class works. Both share the same limit: calls inside the object do not pass through the proxy, so self-invocation skips the advice either way.']
+    ],
+    check: ['In ProxyBoundary.java, bean.bookPair("B1", "B2") calls bookOne("B2") internally. How many transactions does that start?',
+      ['Two: one for bookPair and one for bookOne', 'One: bookOne runs inside bookPair’s transaction because the inner call never reaches the proxy', 'None, because bookPair has no annotation', 'It throws, because nested calls are not allowed'], 1,
+      'The internal call is this.bookOne(), which goes straight to the target. Only the external call crossed the proxy.'],
+    practice: ['Copy ProxyBoundary.java. Move bookOne into a second interface and implementation, wrap it in its own proxy, and inject it into BookingServiceImpl. Show that bookPair now starts two transactions. Then add a failure in bookOne and show which writes roll back.',
+      ['Before the change: 2 transactions for the two external calls. After: 3, with bookOne’s own BEGIN.', 'A failure inside the inner bean logs ROLLBACK for it.', 'One sentence explains how Spring’s REQUIRES_NEW would differ from this toy (suspend and resume).']],
+    references: [['Spring Framework · Understanding AOP proxies', 'https://docs.spring.io/spring-framework/reference/core/aop/proxying.html'], ['Spring Framework · Using @Transactional', 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html'], ['Java 21 API · java.lang.reflect.Proxy', jdk + 'java/lang/reflect/Proxy.html']]
+  },
+  'b-jdbc-02': {
+    notes: [
+      'JdbcTemplate removes JDBC boilerplate: getting a connection, preparing the statement, binding parameters, iterating the ResultSet, translating SQLException into Spring’s DataAccessException hierarchy and closing everything. You write the SQL and say how to turn a row into an object. A typical query is jdbc.query("SELECT id, seat, user_id FROM bookings WHERE user_id = ?", BOOKING_MAPPER, userId). For single values you use queryForObject("SELECT count(*) FROM bookings", Long.class), and for writes you use update("UPDATE seat SET owner = ? WHERE id = ? AND owner IS NULL", user, seat), which returns the number of rows changed.',
+      'A RowMapper<T> converts one row of the ResultSet into one T. JdbcTemplate calls mapRow(rs, rowNum) once per row, after it has moved the cursor, so the mapper must not call rs.next(). Keep mappers small and stateless and define them once as constants or lambdas, for example (rs, n) -> new Booking(rs.getLong("id"), rs.getString("seat"), rs.getString("user_id")). Always bind values with ? placeholders (or NamedParameterJdbcTemplate with :names) and never concatenate user input into the SQL string, because concatenation is how SQL injection happens.',
+      'Count queries, because the most common data-access performance bug is invisible in the code: the N+1 query. You load N bookings with one query, then call a method per booking that runs another query for its user. QueryCount.java simulates it with a fake database that counts calls. Listing 4 bookings with their user names takes 5 queries in the N+1 version and 1 query with a JOIN, with the same result. With 1,000 rows and 2 ms per round trip, that is about 2 seconds versus a few milliseconds.',
+      'In tests, assert on the number of queries, not only on the result. Options include a datasource proxy that counts statements, Hibernate statistics when you use JPA, or a logging assertion. Use a real database in integration tests, for example PostgreSQL via Testcontainers, because H2 can differ in SQL dialect, locking and isolation. Prefer an explicit column list over SELECT *, so a schema change does not silently break a mapper.'
+    ],
+    code: {
+      title: 'QueryCount.java · a RowMapper and an N+1 versus JOIN query count · java QueryCount.java',
+      text: String.raw`import java.util.*;
+import java.util.function.*;
+
+public class QueryCount {
+    // A stand-in for one result row. Spring's RowMapper<T> has the same job: (ResultSet rs, int rowNum) -> T.
+    record Row(Map<String, Object> columns) {
+        String getString(String c) { return (String) columns.get(c); }
+        long getLong(String c) { return ((Number) columns.get(c)).longValue(); }
+    }
+    interface RowMapper<T> { T mapRow(Row rs, int rowNum); }
+
+    record Booking(long id, String seat, String userId) {}
+    record User(String id, String name) {}
+    record BookingView(String seat, String userName) {}
+
+    // A tiny fake database that counts every query, like a datasource proxy or Hibernate statistics in a test.
+    static final class Db {
+        int queries = 0;
+        final List<Row> bookings = List.of(
+                row("id", 1L, "seat", "A1", "user_id", "u1"), row("id", 2L, "seat", "A2", "user_id", "u2"),
+                row("id", 3L, "seat", "A3", "user_id", "u1"), row("id", 4L, "seat", "A4", "user_id", "u3"));
+        final Map<String, String> users = Map.of("u1", "Asha", "u2", "Ben", "u3", "Chen");
+
+        <T> List<T> query(String sql, RowMapper<T> mapper, Predicate<Row> where) {
+            queries++;
+            List<T> out = new ArrayList<>();
+            int n = 0;
+            for (Row r : bookings) if (where.test(r)) out.add(mapper.mapRow(r, n++));
+            return out;
+        }
+        String userName(String id) { queries++; return users.get(id); }   // SELECT name FROM users WHERE id = ?
+        List<BookingView> joined() {                                       // SELECT b.seat, u.name FROM bookings b JOIN users u ...
+            queries++;
+            List<BookingView> out = new ArrayList<>();
+            for (Row r : bookings) out.add(new BookingView(r.getString("seat"), users.get(r.getString("user_id"))));
+            return out;
+        }
+        static Row row(Object... kv) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            for (int i = 0; i < kv.length; i += 2) m.put((String) kv[i], kv[i + 1]);
+            return new Row(m);
+        }
+    }
+
+    static final RowMapper<Booking> BOOKING = (rs, rowNum) ->
+            new Booking(rs.getLong("id"), rs.getString("seat"), rs.getString("user_id"));
+
+    public static void main(String[] args) {
+        Db db = new Db();
+        List<Booking> forU1 = db.query("SELECT id, seat, user_id FROM bookings WHERE user_id = ?", BOOKING,
+                r -> r.getString("user_id").equals("u1"));
+        System.out.println("bookings for u1: " + forU1);
+
+        db.queries = 0;
+        List<BookingView> nPlusOne = new ArrayList<>();
+        for (Booking b : db.query("SELECT id, seat, user_id FROM bookings", BOOKING, r -> true))
+            nPlusOne.add(new BookingView(b.seat(), db.userName(b.userId())));   // one extra query per row
+        System.out.println("N+1 version: " + db.queries + " queries");
+
+        db.queries = 0;
+        List<BookingView> joined = db.joined();
+        System.out.println("JOIN version: " + db.queries + " query, same result: " + joined.equals(nPlusOne));
+    }
+}
+`,
+      output: String.raw`bookings for u1: [Booking[id=1, seat=A1, userId=u1], Booking[id=3, seat=A3, userId=u1]]
+N+1 version: 5 queries
+JOIN version: 1 query, same result: true`
+    },
+    takeaways: ['JdbcTemplate handles connections, binding, iteration, exception translation and cleanup.', 'RowMapper maps one row; it never calls rs.next().', 'Always bind with ? or :name, never concatenate input.', 'Count queries in tests to catch N+1; fix with a JOIN or a batched IN query.'],
+    interview: [
+      ['What does JdbcTemplate do for you compared with plain JDBC?', 'With plain JDBC, every query needs a connection from the DataSource, a PreparedStatement, parameter binding, a loop over the ResultSet, try-with-resources or finally blocks to close three resources, and handling of checked SQLException with vendor error codes. JdbcTemplate does all of that, and it translates SQLException into Spring’s unchecked DataAccessException hierarchy, such as DuplicateKeyException. It also joins the current Spring-managed transaction automatically, because it gets the connection through DataSourceUtils. I supply the SQL, the parameters and a RowMapper or a result type. The SQL stays explicit, which I like for performance-sensitive paths such as the booking claim.'],
+      ['What is the N+1 query problem and how do you detect and fix it?', 'It happens when code loads a list with one query and then runs one more query per item, often hidden inside a getter or a lazy-loaded relationship. Listing 100 bookings with user names becomes 101 round trips. Each is fast alone, but together they dominate latency and load the database. I detect it by counting statements in an integration test, from a datasource proxy, Hibernate statistics or SQL logs, and by asserting the expected count, for example exactly 1. I fix it with a JOIN that fetches both in one query, a batched second query using WHERE id IN (...), or in JPA a fetch join or an entity graph.'],
+      ['Why should a RowMapper be stateless, and what must it not do?', 'JdbcTemplate may reuse the same mapper instance across many queries and threads, so any mutable field would be shared and racy. A stateless lambda or a constant is safe and cheap. The mapper is called once per row after JdbcTemplate has already advanced the cursor, so calling rs.next() inside it would skip rows. It also should not run other queries, because that is how N+1 problems hide, and it should not swallow exceptions. It should read columns by name, handle nullable columns explicitly (getLong returns 0 for NULL, so use getObject with Long.class or check wasNull), and build an immutable value such as a record.']
+    ],
+    check: ['Listing 4 bookings and looking up each user’s name separately takes how many queries in QueryCount.java?',
+      ['1', '4', '5: one for the bookings plus one per booking', '8'], 2,
+      'One query loads the bookings, then each of the 4 rows triggers its own user query. The JOIN version needs 1.'],
+    practice: ['Copy QueryCount.java and add a batched version: load bookings, collect the distinct user IDs, and fetch all names in one "WHERE id IN (...)" call. Assert the query count of each version with a check that fails if it changes.',
+      ['The batched version uses 2 queries and gives the same result.', 'An assertion fails if the N+1 version is used.', 'The mapper is a constant lambda with no state.', 'One sentence on when a JOIN is better than the batched IN.']],
+    references: [['Spring Framework · JDBC core classes (JdbcTemplate)', 'https://docs.spring.io/spring-framework/reference/data-access/jdbc/core.html'], ['Spring Framework API · RowMapper', 'https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/jdbc/core/RowMapper.html']]
+  },
+  'b-transactions-05': {
+    notes: [
+      'Propagation decides what happens when a transactional method is called while a transaction may already exist. REQUIRED, the default, joins the existing transaction or starts one if none exists. REQUIRES_NEW always starts a new, independent transaction and suspends the outer one until the inner one finishes. There are others (SUPPORTS, MANDATORY, NOT_SUPPORTED, NEVER, NESTED), but REQUIRED and REQUIRES_NEW cover most real decisions.',
+      'Spring’s default rollback rule: a RuntimeException or an Error thrown out of the method rolls the transaction back. A checked exception commits, unless you add rollbackFor = Exception.class or a specific type. The exception must reach the proxy. If you catch it inside the method and return normally, Spring sees success and commits.',
+      'The surprising case is a REQUIRED participant that fails. The inner method shares the outer transaction, so it cannot roll back alone. Instead Spring marks the whole transaction rollback-only. If the outer method catches the exception and carries on, its commit attempt fails: Spring rolls back everything and throws UnexpectedRollbackException. TxPropagation.java reproduces the three cases. When the audit succeeds, both rows commit. When the audit uses REQUIRED and fails, the booking catches it, but nothing commits and the caller sees UnexpectedRollback. When the audit uses REQUIRES_NEW and fails, only the audit rolls back and the booking row commits.',
+      'Choose deliberately. Use REQUIRED when writes must succeed or fail together, as with a booking and its payment record. Use REQUIRES_NEW for work that must survive the outer outcome, such as an audit log or an outbox entry of a failed attempt. Remember that it holds a second connection while the first is suspended, so heavy use can exhaust the pool. Never catch and ignore an exception from a REQUIRED participant and expect a commit. Verify outcomes from a separate connection after the outer call returns.'
+    ],
+    code: {
+      title: 'TxPropagation.java · REQUIRED vs REQUIRES_NEW and the rollback-only trap, modelled in plain Java · java TxPropagation.java',
+      text: String.raw`import java.util.*;
+
+public class TxPropagation {
+    enum Propagation { REQUIRED, REQUIRES_NEW }
+
+    // A toy transaction manager with the same rules Spring applies for REQUIRED and REQUIRES_NEW.
+    static final class Tx {
+        final int id; final List<String> pending = new ArrayList<>(); boolean rollbackOnly;
+        Tx(int id) { this.id = id; }
+    }
+    static final Deque<Tx> stack = new ArrayDeque<>();
+    static final List<String> committed = new ArrayList<>();
+    static int nextId = 1;
+
+    interface Work { void run() throws Exception; }
+
+    static void inTx(Propagation p, String name, Work work) throws Exception {
+        boolean joins = p == Propagation.REQUIRED && !stack.isEmpty();
+        Tx tx = joins ? stack.peek() : new Tx(nextId++);
+        if (!joins) stack.push(tx);              // REQUIRES_NEW suspends the outer tx by pushing a new one
+        try {
+            work.run();
+        } catch (RuntimeException e) {           // default rule: unchecked exceptions roll back
+            if (joins) tx.rollbackOnly = true;   // a participant cannot roll back alone: it marks the shared tx
+            else { stack.pop(); System.out.println("  " + name + ": tx" + tx.id + " rolled back"); }
+            throw e;
+        }
+        if (joins) return;                       // only the tx owner commits
+        stack.pop();
+        if (tx.rollbackOnly) {
+            System.out.println("  " + name + ": tx" + tx.id + " was marked rollback-only, nothing committed");
+            throw new IllegalStateException("UnexpectedRollback: transaction silently rolled back because it has been marked as rollback-only");
+        }
+        committed.addAll(tx.pending);
+        System.out.println("  " + name + ": tx" + tx.id + " committed " + tx.pending);
+    }
+
+    static void write(String row) { stack.peek().pending.add(row); }
+
+    static void audit(Propagation p, boolean fail) throws Exception {
+        inTx(p, "audit", () -> { write("audit-row"); if (fail) throw new RuntimeException("audit failed"); });
+    }
+
+    static void scenario(String title, Propagation auditPropagation, boolean auditFails) {
+        committed.clear(); stack.clear();
+        System.out.println(title);
+        try {
+            inTx(Propagation.REQUIRED, "booking", () -> {
+                write("booking-row");
+                try { audit(auditPropagation, auditFails); }
+                catch (RuntimeException e) { System.out.println("  booking caught: " + e.getMessage()); }
+            });
+        } catch (Exception e) {
+            System.out.println("  caller sees: " + e.getMessage().split(":")[0]);
+        }
+        System.out.println("  rows in database: " + committed);
+    }
+
+    public static void main(String[] args) {
+        scenario("1. audit REQUIRED, succeeds", Propagation.REQUIRED, false);
+        scenario("2. audit REQUIRED, fails, booking catches it", Propagation.REQUIRED, true);
+        scenario("3. audit REQUIRES_NEW, fails, booking catches it", Propagation.REQUIRES_NEW, true);
+    }
+}
+`,
+      output: String.raw`1. audit REQUIRED, succeeds
+  booking: tx1 committed [booking-row, audit-row]
+  rows in database: [booking-row, audit-row]
+2. audit REQUIRED, fails, booking catches it
+  booking caught: audit failed
+  booking: tx2 was marked rollback-only, nothing committed
+  caller sees: UnexpectedRollback
+  rows in database: []
+3. audit REQUIRES_NEW, fails, booking catches it
+  audit: tx4 rolled back
+  booking caught: audit failed
+  booking: tx3 committed [booking-row]
+  rows in database: [booking-row]`
+    },
+    takeaways: ['REQUIRED joins or starts; REQUIRES_NEW suspends the outer tx and runs independently.', 'Default rollback: RuntimeException and Error; checked exceptions need rollbackFor.', 'A failed REQUIRED participant marks the shared tx rollback-only, and the outer commit throws UnexpectedRollbackException.', 'REQUIRES_NEW holds a second connection, so watch the pool.'],
+    interview: [
+      ['Explain REQUIRED versus REQUIRES_NEW with an example.', 'Suppose BookingService.book() is @Transactional and calls AuditService.record() through its proxy. With REQUIRED, record() joins the booking transaction, so its audit row commits or rolls back together with the booking. That suits writes that must be atomic together. With REQUIRES_NEW, Spring suspends the booking transaction, opens a new one on a second connection for record(), commits or rolls it back, then resumes the booking. The audit row then survives even if the booking later fails, which suits audit logs of failed attempts. The cost is a second connection held during the inner call, so it must be used sparingly under load.'],
+      ['The inner method fails and the outer method catches the exception, yet nothing is saved and you get UnexpectedRollbackException. Why?', 'The inner method used REQUIRED, so it participated in the outer transaction. When its RuntimeException passed through its proxy, Spring could not roll back just the inner part, so it marked the shared transaction rollback-only. The outer method caught the exception and returned normally, so its proxy tried to commit, found the rollback-only flag, rolled back everything and threw UnexpectedRollbackException to tell the caller that the commit did not happen. The fixes are to let the exception propagate if the whole operation should fail, or to use REQUIRES_NEW, which may need to live in a separate bean, if the inner work is truly independent.'],
+      ['A service method throws a checked exception after its first write, and the row is still committed. What do you check?', 'Spring’s default rule rolls back only for RuntimeException and Error. A checked exception, such as an IOException from a payment client, leads to a commit of whatever was written. I check whether the annotation has rollbackFor = Exception.class or the specific checked type, and add it if the business rule says the write must not survive. Then I check that the exception actually leaves the method through the proxy and is not caught and logged inside, and that the call came from another bean rather than self-invocation. Finally I verify with an integration test that reads the table through a separate connection after the call.']
+    ],
+    check: ['In TxPropagation.java scenario 3, the audit uses REQUIRES_NEW and fails, and booking catches the error. What is in the database?',
+      ['Nothing, because the outer transaction is rollback-only', 'Only booking-row: the audit rolled back in its own transaction and the booking committed', 'Both rows', 'Only audit-row'], 1,
+      'REQUIRES_NEW isolates the audit. Its failure does not mark the booking transaction, so the booking commits.'],
+    practice: ['Extend TxPropagation.java with rollbackFor: add a checked exception type that commits by default, and an option that makes it roll back. Add a fourth scenario where the audit (REQUIRED) fails and booking does not catch it, and predict the output before running.',
+      ['A checked exception commits by default and rolls back when rollbackFor is set.', 'Scenario 4 rolls back both rows and the caller sees the original exception, not UnexpectedRollback.', 'Predictions are written before running.']],
+    references: [['Spring Framework · Transaction propagation', 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/tx-propagation.html'], ['Spring Framework · Rolling back a declarative transaction', 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/rolling-back.html'], ['Spring Framework API · UnexpectedRollbackException', 'https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/UnexpectedRollbackException.html']]
+  },
+  'b-di-02.dsa': {
+    notes: [
+      'Topological sort orders the nodes of a directed graph so that every node comes after all the nodes it depends on. A dependency-injection container faces this problem: it must create dataSource before seatRepository, and seatRepository before bookingService. Spring resolves this recursively, creating each dependency on demand when a bean needs it, which has the same effect. Kahn’s algorithm makes the order explicit.',
+      'Kahn’s algorithm counts, for each node, how many of its dependencies are not yet done (its in-degree). Every node with zero is ready. Repeatedly take a ready node, append it to the order, and decrement the count of every node waiting for it, adding any that reach zero to the ready set. BeanOrder.java uses a PriorityQueue for the ready set so ties come out alphabetically, which makes the order deterministic: clock, dataSource, auditService, seatRepository, bookingService, bookingController.',
+      'If the loop ends before every node is ordered, the remaining nodes form or wait on a cycle, which is a circular dependency. BeanOrder reports [a, b, c]. Spring reports a circular reference error for constructor injection for the same reason, and Spring Boot forbids circular references by default since 2.6. The algorithm runs in O(V + E) time with O(V + E) space. The same pattern schedules course prerequisites, build steps and database migrations.'
+    ],
+    code: {
+      title: 'BeanOrder.java · Kahn’s algorithm for bean creation order and circular-dependency detection · java BeanOrder.java',
+      text: String.raw`import java.util.*;
+
+public class BeanOrder {
+    // Kahn's algorithm: create a bean only after everything it depends on exists.
+    static List<String> creationOrder(Map<String, List<String>> dependsOn) {
+        Map<String, Integer> missing = new TreeMap<>();           // bean -> number of dependencies not yet created
+        Map<String, List<String>> neededBy = new HashMap<>();     // dependency -> beans waiting for it
+        for (var e : dependsOn.entrySet()) {
+            missing.putIfAbsent(e.getKey(), 0);
+            for (String dep : e.getValue()) {
+                missing.putIfAbsent(dep, 0);
+                missing.merge(e.getKey(), 1, Integer::sum);
+                neededBy.computeIfAbsent(dep, k -> new ArrayList<>()).add(e.getKey());
+            }
+        }
+        PriorityQueue<String> ready = new PriorityQueue<>();      // alphabetical among ready beans, for a stable order
+        missing.forEach((bean, n) -> { if (n == 0) ready.add(bean); });
+        List<String> order = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            String bean = ready.poll();
+            order.add(bean);
+            for (String waiting : neededBy.getOrDefault(bean, List.of()))
+                if (missing.merge(waiting, -1, Integer::sum) == 0) ready.add(waiting);
+        }
+        if (order.size() < missing.size()) {
+            List<String> stuck = new ArrayList<>();
+            missing.forEach((bean, n) -> { if (n > 0) stuck.add(bean); });
+            throw new IllegalStateException("circular dependency among " + stuck);
+        }
+        return order;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<String>> app = Map.of(
+                "bookingController", List.of("bookingService"),
+                "bookingService", List.of("seatRepository", "clock", "auditService"),
+                "auditService", List.of("dataSource"),
+                "seatRepository", List.of("dataSource"));
+        System.out.println("creation order: " + creationOrder(app));
+        try {
+            creationOrder(Map.of("a", List.of("b"), "b", List.of("c"), "c", List.of("a"), "d", List.of()));
+        } catch (IllegalStateException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`creation order: [clock, dataSource, auditService, seatRepository, bookingService, bookingController]
+circular dependency among [a, b, c]`
+    },
+    takeaways: ['Topological order: every node after its dependencies.', 'Kahn: in-degree counts, a ready queue, decrement on completion.', 'Unordered leftovers mean a cycle.', 'O(V + E) time and space.'],
+    interview: [
+      ['Give an order to take courses given prerequisites, or say it is impossible.', 'I model courses as nodes and add an edge from each prerequisite to the course that needs it. I compute every node’s in-degree, the number of unmet prerequisites, and put all zero-in-degree courses in a queue. While the queue is not empty I remove a course, add it to the order, and decrement the in-degree of each course that depends on it, enqueueing those that reach zero. If the order contains every course, it is a valid schedule. If some courses never reach zero, they are on or behind a cycle and no schedule exists. The time is O(V + E) and the space is O(V + E) for the adjacency lists and counts.'],
+      ['Why does a cycle leave nodes with a non-zero count in Kahn’s algorithm?', 'A node’s count reaches zero only after all its dependencies have been output. In a cycle a → b → c → a, each node waits for another node of the same cycle, so none of them can be the first to reach zero, and none is ever enqueued. Nodes that depend on the cycle are stuck too, because one of their dependencies is never output. When the queue empties, the nodes with a count above zero are exactly the cycle plus everything downstream of it. That makes the check simple: compare the output size with the node count. For an exact cycle path, DFS with colours is the better tool.'],
+      ['How does this relate to circular dependencies in Spring?', 'With constructor injection, Spring must have every constructor argument ready before it can create a bean. If A needs B, B needs C and C needs A, no bean can be constructed first, which is the same as Kahn’s algorithm finding no zero-in-degree node in the cycle. Spring fails at startup with a BeanCurrentlyInCreationException, and Spring Boot 2.6 and later rejects circular references by default even for setter or field injection. The right fix is to break the cycle in the design, for example by extracting the shared logic into a fourth bean or by publishing an event instead of calling back.']
+    ],
+    check: ['Kahn’s algorithm finishes with 3 of 7 nodes still having a non-zero count. What does that mean?',
+      ['The graph has 3 separate components', 'Those 3 nodes are on a cycle or depend on one, so no full order exists', 'The algorithm must be rerun with a stack', 'The graph is a valid tree'], 1,
+      'Nodes on or behind a cycle never reach zero remaining dependencies.'],
+    practice: ['Copy BeanOrder.java. Change it to also return the "layers": beans that can be created in parallel at each step. Then solve course schedule for 4 courses with prerequisites [[1,0],[2,0],[3,1],[3,2]].',
+      ['Layers for the app are [clock, dataSource], [auditService, seatRepository], [bookingService], [bookingController].', 'The course order is valid, such as 0, 1, 2, 3.', 'The cycle case still throws with the stuck beans listed.']],
+    references: [['Spring Framework · Dependencies and circular dependencies', 'https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html']]
+  },
   // @@packets
 };
 
@@ -1428,6 +1780,10 @@ export const lateDistractors = {
     ['A full record of every object on the heap.', 'A continuous recording of CPU use over the last hour.'],
     ['The number of tasks that can wait cheaply at once.', 'The memory cost of a blocked thread.']
   ],
+  47: [
+    ['Any method with @Transactional, however it is called.', 'A database trigger that Spring installs at startup.'],
+    ['Open and close a database connection for each column.', 'Generate the SQL for a query from the entity class.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -1443,6 +1799,8 @@ export const lateExplanations = {
     'A strong trade-off answer says what constraint changed, what you decided, what evidence supported it and what the decision costs or leaves unproven.'],
   46: ['A thread dump is a point-in-time snapshot of stacks and states. Take several and compare them, because one sample cannot prove a thread is stuck.',
     'Virtual threads make waiting cheap, which changes how many tasks can wait. The connection pool still has the same number of connections.'],
+  47: ['Advice lives in the proxy, so only calls that pass through it are intercepted. Self-invocation, private methods and constructor calls never reach the proxy.',
+    'JdbcTemplate moves the cursor and calls mapRow once per row. The mapper only turns that row into a value. It does not manage transactions, connections or SQL.'],
   // @@explanations
 };
 
@@ -1495,6 +1853,14 @@ export const lateAssessment = {
     { question: 'On JDK 21, a virtual thread performs a slow socket read inside a synchronized block. What is the risk?',
       choices: ['None, because virtual threads always unmount when blocking', 'The virtual thread is pinned to its carrier, so under load the small carrier pool can be starved', 'The JVM converts it to a platform thread permanently', 'The socket read is cancelled'], answer: 1,
       explanation: 'Blocking while holding a monitor pins the virtual thread in JDK 21. Prefer ReentrantLock or move the I/O outside the lock.' }
+  ],
+  47: [
+    { question: 'A REQUIRED inner method throws a RuntimeException. The outer @Transactional method catches it and returns normally. What happens at commit?',
+      choices: ['The outer writes commit and the inner writes roll back', 'Everything rolls back and the caller gets UnexpectedRollbackException', 'Everything commits, because the exception was caught', 'Spring retries the inner method'], answer: 1,
+      explanation: 'The inner failure marked the shared transaction rollback-only. The outer commit attempt therefore rolls back everything and reports UnexpectedRollbackException.' },
+    { question: 'A page lists 50 bookings and runs one extra query per booking to load the user name. How many queries is that, and what is a fix?',
+      choices: ['1, which is already optimal', '51, so use a JOIN or one batched IN query', '50, so add an index', '2, so cache the page'], answer: 1,
+      explanation: 'One query for the list plus one per row is the N+1 pattern. A JOIN, or a second query with WHERE id IN (...), loads the names in one round trip.' }
   ],
   // @@assessment
 };
@@ -1564,6 +1930,11 @@ export const lateInterviewGuides = {
     'Virtual threads make each waiting task cheap. When a virtual thread blocks on I/O, the JVM parks it and frees the carrier thread, so one service can hold many thousands of in-flight requests with simple blocking code. They do not add database connections, CPU cores or provider quota. If 1,000 tasks reach a pool of 10 connections at once, 990 still wait, and many may time out. I protect the pool by bounding admission in front of it with a Semaphore of 10 permits, or the pool’s own bounded wait, acquired with a timeout and released in finally. I measure permit wait time, pool wait and completion rate, and I reject early when the wait would exceed the request deadline.',
     'I need to see where the tasks are waiting and how the downstream behaves at different concurrency levels. A thread dump that includes virtual threads, from jcmd Thread.dump_to_file, or a JFR recording, shows whether tasks wait at my semaphore, inside the connection pool, or on the socket to the downstream service. From downstream metrics I need latency, error rate and any documented concurrency limit. Then I run the same load at several limits, for example 4, 8 and 16, and plot throughput, p95/p99 latency and timeout rate. I choose the smallest limit where throughput is near its peak and tail latency stays within the budget. A huge backlog with rising timeouts means the current limit is above what the downstream can serve.',
     'Every resource that does not get cheaper still needs an explicit limit: database connections, concurrent calls to each downstream service or model provider, sockets and file descriptors, request queues, heap for in-flight request data, and CPU-heavy work. CPU-bound tasks belong on a bounded platform pool sized near the number of cores. Deadlines also need to be explicit: a timeout on acquiring a permit, on getting a connection and on each remote call, plus a defined rejection response such as 503 with Retry-After. Cheap threads make it easy to accept far more work than the system can finish, so admission control becomes more important, not less. On JDK 21, avoid blocking inside synchronized to prevent pinning carriers.'
+  ],
+  47: [
+    'An external call through the Spring bean crosses the proxy, for example a controller calling bookingService.book() on the injected bean. That proxy begins the transaction, calls the real method, and commits or rolls back. A call from one method to another inside the same object, this.save(), goes straight to the target and gets no advice. For a rollback, the exception must leave the method through the proxy. By default only RuntimeException and Error roll back, and checked exceptions commit unless rollbackFor names them. The writes must also go through the transaction’s connection, which JdbcTemplate and JPA do automatically. I verify by reading the table from a separate connection after the call, not from the same session.',
+    'First, the proxy boundary: is the method called from another bean through the injected proxy, or through self-invocation, a constructor or a non-Spring object, which would bypass the advice entirely? I check this with TransactionSynchronizationManager.isActualTransactionActive() inside the method, or with transaction debug logging. Second, the rollback rule and exception path. A checked exception commits by default, so the annotation needs rollbackFor = Exception.class or the specific type, and the exception must not be caught and logged inside the method. I would also confirm that both writes use the same transactional DataSource, because a second DataSource or a manually opened connection would commit on its own. Then I compare rows through a separate connection.',
+    'With REQUIRED, the outer transaction’s owner controls the final commit or rollback. The inner method joins the existing transaction and does not commit by itself. If the inner method throws a RuntimeException through its proxy, Spring marks the shared transaction rollback-only. Even if the outer method catches the exception, its commit becomes a rollback, and Spring throws UnexpectedRollbackException so the caller knows. With REQUIRES_NEW, the inner method owns its own independent transaction: the outer one is suspended, the inner commits or rolls back by itself on a second connection, and then the outer resumes. I state which propagation each method uses and test the failure path from an external caller.'
   ],
   // @@guides
 };
