@@ -44,6 +44,7 @@ progress.tests[id].best   // new: best module-test score (the reducer now writes
 | --- | --- | --- |
 | `{ type:"interview", id:questionId, lessonId, answered?:false }` | marks an interview question answered (or un-marks it) | the question is not in `lesson.interview` (or `lesson.coach` fallback) |
 | `{ type:"challenge", id:"daily-YYYY-MM-DD" \| "weekly-<monday>" }` | claims a challenge's XP | not today's / this week's challenge, goal not met, already claimed |
+| `{ type:"spaced", id:"S03+7", done?:false }` | marks a +1/+3/+7-day spaced revision of a finished session done (+10 XP); stored in the sidecar as `spaced` | not due yet (or already done) per `spacedRevisions()` |
 | `{ type:"prefs", notifications:{…} }` | saves reminder preferences (merged) | `validateNotificationPrefs` fails: interval outside 2–3 h, bad HH:MM, email on without an address, maxPerDay outside 1–12 |
 
 All existing change types are unchanged. Each change also has `date` (IST study date) and `at` (ISO timestamp).
@@ -80,6 +81,14 @@ Built from the session the calendar puts on `today` (carry-forward applies):
 - My notes: write your own key takeaways (0 XP, needed for the "teach it back" challenge and revision).
 - Module test, when the session has one.
 - An unavailable or 0-minute date has **no tasks** (`off: true`), and the streak is safe.
+- Items with `required:false` (topic packets, stretch work) are returned separately in `optional` with `optionalDone`. `done`, `total`, `pct`, `xpAvailable` and `allDone` cover the core list only, so finishing tonight's session completes the ring and stops reminders (Grok, 2026-11-23).
+
+### 4a. Spaced revision (+1 / +3 / +7 days)
+
+`spacedRevisions(course, progress, today)` → `{ due:[…], upcoming:[…next 7 days], done, steps:[1,3,7] }`, items `{ id:"S03+3", sessionId, n, step, dueOn, overdueDays, title, prompt, href, done }`.
+- A session is due 1, 3 and 7 days after its completion date (`sessionStatus().completedOn`).
+- The +1 step is also done when the next session's quick-revision block was ticked on or after the due date.
+- `derive()` exposes it as `revisions`; Today shows a "Due revisions" card with a different recall question per step. These items never count toward `tasks.allDone`.
 
 ## 5. Challenges
 
@@ -112,7 +121,7 @@ XP is paid only when the learner **claims** it. The claim is refused unless `met
 
 ## 8. Badges
 
-`badges()` → `[{ id, title, text, value, target, earned }]`, all derived: first-step, streak-3/7/14/30, dsa-10, perfect-10, module-1, interview-25, challenge-5, subject-1, xp-1000.
+`badges()` → `[{ id, title, text, value, target, earned }]`, all derived: first-step, streak-3/7/14/30, dsa-10, perfect-10, module-1 (only when the course has module tests), sessions-7, sessions-half, sessions-all, spaced-10, interview-25, challenge-5, subject-1 (a one-lesson warm-up track does not count), xp-1000.
 
 ## 9. Notification preferences and the reminder rule (email sending NOT wired yet)
 

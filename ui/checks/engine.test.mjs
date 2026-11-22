@@ -556,7 +556,7 @@ test("engagement: activity log is timestamped, capped, and drives lastActiveAt",
 test("engagement: derive() view-model and host override (options.engagement)", () => {
   const d = E.derive(course, {}, "2026-11-22");
   assert.equal(d.contractVersion, 1); assert.equal(d.source, "derived"); assert.equal(d.xp, 0); assert.equal(d.level.n, 1);
-  assert.equal(d.challenges.length, 2); assert.equal(d.badges.length, 12); assert.equal(d.nextNudge.at, null);
+  assert.equal(d.challenges.length, 2); assert.equal(d.badges.length, 16); // 12 + sessions-7, sessions-half, sessions-all, spaced-10 (Grok, Phase 6) assert.equal(d.nextNudge.at, null);
   const m = E.merge(d, { xp: 2000, streak: { current: 9 } });
   assert.equal(m.source, "host"); assert.equal(m.level.n, 5); assert.equal(m.streak.current, 9); assert.equal(m.streak.best, 0);
   assert.equal(E.merge(d, { example: true }).source, "example");
