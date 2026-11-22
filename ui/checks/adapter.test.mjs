@@ -176,3 +176,13 @@ test('every packet on a multi-topic day renders its own heading and note body (f
   const d56 = A.lessonsByDay[56].main.notes.filter(n => n.type === 'h' && n.text.startsWith('Topic packet · ')).map(n => n.text);
   assert.ok(d56.length >= 2, 'Day 56 renders every packet: ' + d56.join(' | '));
 });
+
+test('no lesson renders the same concept check or heading twice (Day 1 warm-up duplicate regression)', () => {
+  for (const d of codex.days) for (const l of ['main', 'lane', 'warmup'].map(k => A.lessonsByDay[d.number][k]).filter(Boolean)) {
+    const checks = l.notes.filter(n => n.type === 'details').map(n => n.summary);
+    assert.equal(new Set(checks).size, checks.length, 'Day ' + d.number + ' ' + l.id + ': duplicate ' + checks.join(' | '));
+    const heads = l.notes.filter(n => n.type === 'h').map(n => n.text);
+    assert.equal(new Set(heads).size, heads.length, 'Day ' + d.number + ' ' + l.id + ': duplicate heading');
+  }
+  assert.equal(A.lessonsByDay[1].warmup.notes.filter(n => n.type === 'details').length, 1);
+});
