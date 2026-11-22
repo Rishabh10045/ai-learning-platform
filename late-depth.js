@@ -201,6 +201,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/')],
     recall: 'Why is every index pushed and popped at most once, and what does that give you?'
   },
+  35: {
+    title: 'Heaps: top-k and merging k sorted lists',
+    concept: 'A min-heap of size k keeps the k largest values of a stream; its root is the k-th largest. A heap of list heads merges k sorted lists in O(N log k).',
+    example: 'For latencies 120 340 90 410 150 700 80 410 and k = 3 the heap keeps 700, 410, 410. Merging [1,4,9], [2,3,10], [] and [5] gives 1 2 3 4 5 9 10.',
+    practice: 'Implement topK and mergeSorted with PriorityQueue, then add a two-heap running median.',
+    checks: ['k larger than n returns every value.', 'Empty lists are skipped.', 'State O(n log k) and O(N log k).'],
+    readings: [reading('Princeton Algorithms · Priority queues', 'https://algs4.cs.princeton.edu/24pq/')],
+    recall: 'Why does a min-heap, not a max-heap, keep the k largest values?'
+  },
   // @@lanes
 };
 
@@ -4512,6 +4521,221 @@ empty            : []`
       ['The circular version gives 76 as the answer for the final 73.', 'All versions match the brute force with a fixed seed.', 'The empty array works.', 'State the complexity of each.']],
     references: [['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/']]
   },
+  'ai-foundations-02': {
+    notes: [
+      'A large language model is a neural network trained to predict the next token. A token is a piece of text, often part of a word, so "cancellation" may be two or three tokens. During training, the model reads huge amounts of text, compares its predicted next token with the real one, and adjusts its weights, billions of numbers, to reduce that error. Training is the only step that changes the weights. It happens once, offline, before you call the API.',
+      'Inference is what happens on every request. The text is split into tokens, and the network computes a score for every possible next token. Inside, attention layers let each position weigh the earlier tokens that matter most, such as "48 hours" when the question is about cancelling. Softmax turns the scores into probabilities. The model picks one token, appends it and repeats until a stop token or the length limit. NextTokenDemo.java shows the loop with a tiny bigram table: inference reads the weights and never changes them.',
+      'Temperature reshapes the probabilities before a token is picked. A low temperature makes the most likely token even more likely (0.67 becomes 0.80 at T = 0.5), and a high temperature flattens the distribution. Low temperature suits policy answers; it does not make the answer true. The model only knows what was in its training data and what you put in the context window. If the policy changed yesterday, the model cannot know it unless the new text is supplied in the prompt, which is why the booking help feature retrieves current passages and falls back when there is no evidence.'
+    ],
+    code: {
+      title: 'NextTokenDemo.java · training changes weights, inference reads them, temperature reshapes next-token probabilities · java NextTokenDemo.java',
+      text: String.raw`import java.util.*;
+
+// A tiny bigram "language model": training changes the weights (counts); inference only reads them.
+// Softmax with temperature turns scores into next-token probabilities.
+public class NextTokenDemo {
+    static final Map<String, Map<String, Integer>> weights = new TreeMap<>();
+
+    static void train(String text) {                       // training: weights change
+        String[] t = text.toLowerCase(Locale.ROOT).split("\\s+");
+        for (int i = 0; i + 1 < t.length; i++)
+            weights.computeIfAbsent(t[i], k -> new TreeMap<>()).merge(t[i + 1], 1, Integer::sum);
+    }
+
+    static Map<String, Double> nextTokenProbs(String prev, double temperature) {   // inference: read-only
+        Map<String, Integer> counts = weights.getOrDefault(prev, Map.of());
+        Map<String, Double> p = new TreeMap<>();
+        double sum = 0;
+        for (var e : counts.entrySet()) { double s = Math.exp(Math.log(e.getValue()) / temperature); p.put(e.getKey(), s); sum += s; }
+        for (var e : p.entrySet()) e.setValue(e.getValue() / sum);
+        return p;
+    }
+
+    static String greedy(String start, int n) {
+        StringBuilder sb = new StringBuilder(start);
+        String cur = start;
+        for (int i = 0; i < n; i++) {
+            var p = nextTokenProbs(cur, 1.0);
+            if (p.isEmpty()) break;
+            cur = Collections.max(p.entrySet(), Map.Entry.comparingByValue()).getKey();
+            sb.append(' ').append(cur);
+        }
+        return sb.toString();
+    }
+
+    static String fmt(Map<String, Double> p) {
+        StringBuilder sb = new StringBuilder("{");
+        p.forEach((k, v) -> sb.append(sb.length() > 1 ? ", " : "").append(k).append('=').append(String.format("%.2f", v)));
+        return sb.append('}').toString();
+    }
+
+    public static void main(String[] args) {
+        train("cancel up to 48 hours before the show . cancel up to 48 hours before the event . cancel your booking online .");
+        String snapshot = weights.toString();
+        System.out.println("after 'cancel' (T=1.0): " + fmt(nextTokenProbs("cancel", 1.0)));
+        System.out.println("after 'cancel' (T=0.5): " + fmt(nextTokenProbs("cancel", 0.5)) + "  <- sharper");
+        System.out.println("after 'cancel' (T=2.0): " + fmt(nextTokenProbs("cancel", 2.0)) + "  <- flatter");
+        System.out.println("greedy: " + greedy("cancel", 6));
+        System.out.println("weights unchanged by inference: " + snapshot.equals(weights.toString()));
+        System.out.println("unknown context 'parking': " + nextTokenProbs("parking", 1.0) + " (no evidence -> must fall back)");
+        System.out.println("the model has no idea the policy changed to 24 hours until it is retrained or given the new text in its context");
+    }
+}
+`,
+      output: String.raw`after 'cancel' (T=1.0): {up=0.67, your=0.33}
+after 'cancel' (T=0.5): {up=0.80, your=0.20}  <- sharper
+after 'cancel' (T=2.0): {up=0.59, your=0.41}  <- flatter
+greedy: cancel up to 48 hours before the
+weights unchanged by inference: true
+unknown context 'parking': {} (no evidence -> must fall back)
+the model has no idea the policy changed to 24 hours until it is retrained or given the new text in its context`
+    },
+    takeaways: ['Training changes weights; inference only reads them.', 'The model predicts one token at a time.', 'Temperature changes randomness, not truth.', 'New facts reach the model only through the context.'],
+    interview: [
+      ['What is the difference between training and inference for an LLM?', 'Training is the offline process that sets the model’s weights. The model reads large amounts of text, predicts each next token, measures the error with a loss function and adjusts its weights by gradient descent to reduce it. It takes a lot of data, hardware and time, and it is done by the model provider, or by you when fine-tuning. Inference is what happens on each API call: the prompt is tokenized, the fixed weights compute next-token probabilities, and tokens are generated one at a time. Inference never updates the weights, so the model does not learn from your requests. New facts must be supplied in the prompt.'],
+      ['Explain at a high level how a transformer produces the next token.', 'The input text is split into tokens, and each token becomes a vector, with information about its position added. The vectors pass through a stack of layers. In each layer, self-attention lets every position compute how much to weigh each earlier position, for example linking "it" to "booking", and a feed-forward network transforms the result. After the last layer, the vector at the final position is turned into a score for every token in the vocabulary. Softmax converts these scores into probabilities, and a decoding rule, such as greedy choice or sampling with a temperature, picks the next token. That token is appended and the process repeats.'],
+      ['What does temperature change, and what value would you use for a policy assistant?', 'Temperature divides the scores before softmax. Below 1 it sharpens the distribution, so the most likely token wins more often, and above 1 it flattens it, so less likely tokens appear more often. At 0 or near it, output is almost deterministic. For a policy assistant I would use a low temperature, because I want consistent, conservative wording and repeatable tests. But temperature does not make an answer correct: a model can be confidently wrong at temperature 0. Correctness comes from supplying current policy passages, requiring citations and validating claims, with a fallback when there is no evidence.']
+    ],
+    check: ['In NextTokenDemo.java, what happens to the weights when nextTokenProbs is called?',
+      ['They are updated with the new prompt', 'Nothing: inference only reads them', 'They are reset', 'Temperature is stored in them'], 1,
+      'Only train() changes the weights. The program checks that the snapshot is unchanged after inference.'],
+    practice: ['Copy NextTokenDemo.java. Add top-k sampling with a seeded Random, a maximum length and a stop token ".", and show that the same seed gives the same output.',
+      ['T = 0.5 gives a sharper distribution than T = 2.0.', 'The same seed reproduces the same text.', 'Generation stops at "." or the length limit.', 'Unknown context returns no tokens and triggers a fallback.']],
+    references: [['The Illustrated Transformer (Jay Alammar)', 'https://jalammar.github.io/illustrated-transformer/'], ['Microsoft · Exploring and comparing LLMs', 'https://github.com/microsoft/generative-ai-for-beginners/blob/main/02-exploring-and-comparing-different-llms/README.md']]
+  },
+  'ai-models-01': {
+    notes: [
+      'Choose a model for a task, not by reputation. For the booking help feature the questions are: does it answer grounded policy questions correctly, does it fall back when there is no evidence, is it fast enough (p95 under the help budget), what does it cost per call, does the prompt fit its context window, and may your data be sent to it? Compare candidates on the same fixtures, with the same retrieved passages, the same prompt and the same checks.',
+      'ModelBudget.java compares a small and a large model option on four cases. Both answer the two supported questions and both fall back on the unanswerable one. Both fail "seat-map", because its passage was never retrieved; that is a retrieval problem, and the larger model cannot fix it. The large option is about three times slower at p95 and about ten times the cost per call in this fixture. For this feature the small model wins, unless a harder case set shows a quality gap that matters.',
+      'Cost is usually priced per token, with output tokens often costing more than input tokens, so long prompts and long answers both add up. Latency grows with output length. A bigger context window does not mean you should fill it: more text costs more and can bury the relevant passage. Record the model name and version with every evaluation result, because providers update models, and re-run the fixtures before switching.'
+    ],
+    code: {
+      title: 'ModelBudget.java · two model options on the same fixtures: grounded answers, fallbacks, p95 latency, cost and context fit · java ModelBudget.java',
+      text: String.raw`import java.util.*;
+
+// Compares two model options on the SAME fixtures: grounded answers, correct fallbacks, latency and cost.
+// Numbers are fixtures for the exercise, not real vendor prices.
+public class ModelBudget {
+    record Option(String name, double inputPer1k, double outputPer1k, int contextTokens) {}
+    record Run(String caseId, boolean answerable, boolean evidenceSupplied, String outcome, long millis, int inTok, int outTok) {}
+
+    static void report(Option o, List<Run> runs, int promptTokensNeeded) {
+        int answerable = 0, grounded = 0, unanswerable = 0, abstained = 0;
+        List<Long> ms = new ArrayList<>();
+        double cost = 0;
+        for (Run r : runs) {
+            if (r.answerable()) { answerable++; if (r.outcome().equals("supported")) grounded++; }
+            else { unanswerable++; if (r.outcome().equals("fallback")) abstained++; }
+            ms.add(r.millis());
+            cost += r.inTok() / 1000.0 * o.inputPer1k() + r.outTok() / 1000.0 * o.outputPer1k();
+        }
+        Collections.sort(ms);
+        long p95 = ms.get((int) Math.ceil(0.95 * ms.size()) - 1);
+        System.out.printf("%-6s grounded %d/%d  abstained %d/%d  p95 %d ms  cost/100 calls %.2f  fits prompt (%d tok): %s%n",
+            o.name(), grounded, answerable, abstained, unanswerable, p95, cost / runs.size() * 100, promptTokensNeeded,
+            promptTokensNeeded <= o.contextTokens() ? "yes" : "NO");
+    }
+
+    public static void main(String[] args) {
+        Option small = new Option("small", 0.10, 0.40, 8_000);
+        Option large = new Option("large", 1.00, 4.00, 128_000);
+        List<Run> smallRuns = List.of(
+            new Run("refund", true, true, "supported", 380, 900, 60),
+            new Run("hold", true, true, "supported", 410, 850, 55),
+            new Run("seat-map", true, false, "unsupported", 400, 600, 70),
+            new Run("parking", false, false, "fallback", 300, 500, 20));
+        List<Run> largeRuns = List.of(
+            new Run("refund", true, true, "supported", 1200, 900, 80),
+            new Run("hold", true, true, "supported", 1350, 850, 75),
+            new Run("seat-map", true, false, "unsupported", 1300, 600, 90),
+            new Run("parking", false, false, "fallback", 900, 500, 25));
+        report(small, smallRuns, 2_400);
+        report(large, largeRuns, 2_400);
+        System.out.println("Both fail 'seat-map' because its passage was never retrieved: fix retrieval before paying for the larger model.");
+    }
+}
+`,
+      output: String.raw`small  grounded 2/3  abstained 1/1  p95 410 ms  cost/100 calls 9.18  fits prompt (2400 tok): yes
+large  grounded 2/3  abstained 1/1  p95 1350 ms  cost/100 calls 98.25  fits prompt (2400 tok): yes
+Both fail 'seat-map' because its passage was never retrieved: fix retrieval before paying for the larger model.`
+    },
+    takeaways: ['Compare models on the same fixtures and evidence.', 'Measure grounding, fallbacks, p95 latency and cost.', 'Fix retrieval before buying a bigger model.', 'Record model versions with results.'],
+    interview: [
+      ['Which factors decide model choice for a policy help assistant?', 'First, quality on the actual task: grounded correctness on answerable questions and correct fallbacks on unanswerable ones, measured on a labelled set with the same retrieved passages. Then latency, especially p95 against the help feature’s budget, and cost per call, which depends on input and output tokens. The prompt and passages must fit the context window with room for the answer. Data constraints matter too: whether customer text may leave our infrastructure, the provider’s retention terms, and the region. Finally operations: rate limits, availability and how often the model version changes. I pick the cheapest, fastest option that meets the quality bar.'],
+      ['A larger model is more fluent but slower, and both fail when no relevant policy is supplied. What do you change first?', 'I fix the evidence path first. If both models fail on the same questions because the needed passage was not in the prompt, the problem is retrieval: indexing, filters, chunking or ranking. A larger model cannot know our current policy, and more fluent wording just makes an unsupported answer more convincing. I would measure retrieval hit at k on a labelled set, fix the misses, make sure unanswerable questions get a clear fallback, and then compare the models again only on cases where both received the right passage. If the small model is then good enough, its lower latency and cost make it the better choice.'],
+      ['How would you control the cost of an LLM feature?', 'I start by measuring tokens per call for input and output, and cost per answered question, tagged by model and prompt version. Then I reduce what I send: fewer, better passages instead of filling the context window, a short system prompt, and a limit on output length. I route easy, common questions to a smaller model or to a cached or templated answer, and use a larger model only where the evaluation shows it is needed. Retrieval-only fallbacks avoid calling the model at all when there is no evidence. I set per-user rate limits and a monthly budget alert, and re-check quality whenever a cost change is made.']
+    ],
+    check: ['In ModelBudget.java, why does neither model answer "seat-map" correctly?',
+      ['The small model is too small', 'The passage was never retrieved, so neither model had evidence', 'The temperature was too high', 'The prompt did not fit the context window'], 1,
+      'Both fail on the same case without evidence: fix retrieval before changing models.'],
+    practice: ['Copy ModelBudget.java. Add a third option with a 4,000-token context window and a case set where the prompt needs 6,000 tokens, and print a recommendation that respects a 1,000 ms p95 budget.',
+      ['The 4,000-token option is marked as not fitting.', 'Every option uses the same cases.', 'The recommendation names the cheapest option that meets quality and latency.', 'Model names and versions are printed with the results.']],
+    references: [['Spring AI · Chat Model API', 'https://docs.spring.io/spring-ai/reference/api/chatmodel.html'], ['Microsoft · Exploring and comparing LLMs', 'https://github.com/microsoft/generative-ai-for-beginners/blob/main/02-exploring-and-comparing-different-llms/README.md']]
+  },
+  'ai-foundations-02.dsa': {
+    notes: [
+      'A heap is a complete binary tree stored in an array where every parent is no larger than its children (a min-heap). The smallest element is always at the root. Adding and removing take O(log n), and peeking at the root takes O(1). Java’s PriorityQueue is a binary min-heap by default; pass Comparator.reverseOrder() for a max-heap.',
+      'To keep the k largest values of a stream, use a min-heap of size k. Its root is the smallest of the k kept so far, which is the k-th largest. For each new value: if the heap has fewer than k items, add it; otherwise, if the value is larger than the root, remove the root and add the value. That is O(n log k) time and O(k) space, much better than sorting everything when k is small. For latencies 120 340 90 410 150 700 80 410 and k = 3, KthLargest.java keeps 700, 410, 410, so the 3rd largest is 410.',
+      'To merge k sorted lists, put the first element of each list in a min-heap, together with its list index and position. Repeatedly remove the smallest, append it to the output and push the next element from the same list. With N elements in total, that is O(N log k). Empty lists are skipped. Ties are broken by list index here, which keeps the output stable and predictable.'
+    ],
+    code: {
+      title: 'KthLargest.java · top-k with a size-k min-heap and merging k sorted lists · java KthLargest.java',
+      text: String.raw`import java.util.*;
+
+// Heaps: the k largest values of a stream with a size-k min-heap, and merging k sorted lists.
+public class KthLargest {
+    static List<Integer> topK(int[] stream, int k) {
+        PriorityQueue<Integer> heap = new PriorityQueue<>();   // min-heap holding the k largest so far
+        for (int x : stream) {
+            if (heap.size() < k) heap.offer(x);
+            else if (x > heap.peek()) { heap.poll(); heap.offer(x); }
+        }
+        List<Integer> out = new ArrayList<>(heap);
+        out.sort(Comparator.reverseOrder());
+        return out;
+    }
+
+    static List<Integer> mergeSorted(List<List<Integer>> lists) {
+        // heap entries: {value, listIndex, position}
+        PriorityQueue<int[]> heap = new PriorityQueue<>(Comparator.comparingInt((int[] e) -> e[0]).thenComparingInt(e -> e[1]));
+        for (int i = 0; i < lists.size(); i++) if (!lists.get(i).isEmpty()) heap.offer(new int[]{lists.get(i).get(0), i, 0});
+        List<Integer> out = new ArrayList<>();
+        while (!heap.isEmpty()) {
+            int[] e = heap.poll();
+            out.add(e[0]);
+            int next = e[2] + 1;
+            if (next < lists.get(e[1]).size()) heap.offer(new int[]{lists.get(e[1]).get(next), e[1], next});
+        }
+        return out;
+    }
+
+    public static void main(String[] args) {
+        int[] latencies = {120, 340, 90, 410, 150, 700, 80, 410};
+        System.out.println("top 3 latencies: " + topK(latencies, 3));
+        System.out.println("3rd largest    : " + topK(latencies, 3).get(2));
+        System.out.println("k > n          : " + topK(new int[]{5, 1}, 3));
+        System.out.println("merge 3 lists  : " + mergeSorted(List.of(List.of(1, 4, 9), List.of(2, 3, 10), List.of(), List.of(5))));
+    }
+}
+`,
+      output: String.raw`top 3 latencies: [700, 410, 410]
+3rd largest    : 410
+k > n          : [5, 1]
+merge 3 lists  : [1, 2, 3, 4, 5, 9, 10]`
+    },
+    takeaways: ['PriorityQueue is a min-heap by default.', 'k largest: a min-heap of size k, O(n log k).', 'Merge k lists: heap of list heads, O(N log k).', 'Peek is O(1); offer and poll are O(log n).'],
+    interview: [
+      ['How do you find the k largest elements of a large stream?', 'I keep a min-heap of size k. Its root is the smallest of the k largest values seen so far. For each new value, if the heap has fewer than k items I add it; otherwise, if the value is larger than the root, I remove the root and add the new value, and if not I skip it. At the end the heap holds the k largest values and the root is the k-th largest. Each operation is O(log k), so the total is O(n log k) time and O(k) memory, which works for a stream that does not fit in memory. Sorting would be O(n log n) and needs all the data.'],
+      ['How do you merge k sorted lists efficiently?', 'I use a min-heap that holds one entry per non-empty list: the current value, the list index and the position within that list. I repeatedly poll the smallest entry, append its value to the output, and if that list has another element, offer it. The heap never holds more than k entries, so each step is O(log k), and with N elements in total the merge is O(N log k). Merging the lists pairwise would also work, but merging one by one into a growing result is O(N k). I break ties by list index so the result is deterministic.'],
+      ['Why is a binary heap stored in an array, and what are the costs of its operations?', 'A binary heap is a complete tree, filled level by level from the left, so it fits in an array with no gaps or pointers. For the node at index i, the children are at 2i + 1 and 2i + 2 and the parent is at (i − 1) / 2. Peek reads index 0 in O(1). Offer adds at the end and sifts up, and poll moves the last element to the root and sifts down; both are O(log n) because the height is log n. Building a heap from n items with heapify is O(n). Searching for an arbitrary value or removing it is O(n), which is why PriorityQueue.remove(Object) is slow.']
+    ],
+    check: ['For latencies 120 340 90 410 150 700 80 410 and k = 3, what is the root of the min-heap at the end?',
+      ['700', '410', '340', '150'], 1,
+      'The heap keeps 700, 410 and 410. The root is the smallest of them, 410, which is the 3rd largest.'],
+    practice: ['Copy KthLargest.java. Add a running median with two heaps, and a kClosest(points, k) that keeps a max-heap of size k by distance.',
+      ['The running median of 5, 15, 1, 3 is 5, 10, 5, 4.', 'kClosest returns k points for any input order.', 'State the complexity of each method.', 'Empty input and k larger than n are handled.']],
+    references: [['Princeton Algorithms · Priority queues', 'https://algs4.cs.princeton.edu/24pq/'], ['Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html']]
+  },
   // @@packets
 };
 
@@ -4604,6 +4828,10 @@ export const lateDistractors = {
     ['Liveness, which restarts the instance when it fails.', 'The number of log lines written per second.'],
     ['The JRE the application needs to start.', 'The compiled application classes.']
   ],
+  35: [
+    ['Raising the temperature during a request.', 'Adding the user’s question to the context window.'],
+    ['Each model’s own favourite demo prompt.', 'Whichever model has the largest context window.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4651,6 +4879,8 @@ export const lateExplanations = {
     'A regression claim needs the same frozen cases and the same scoring rules for both versions. Different examples, sets or demos cannot be compared.'],
   34: ['Readiness decides whether the load balancer sends traffic to an instance. Liveness only decides restarts, and a build artefact says nothing about the running instance.',
     'Credentials and environment settings are injected when the container starts. The runtime and the application classes are exactly what the image must contain.'],
+  35: ['Only training changes weights. Temperature and the context window affect a single inference request and leave the model unchanged.',
+    'A fair comparison uses the same inputs, the same evidence and the same checks. Favourite demos and context size alone say nothing about the task.'],
   // @@explanations
 };
 
@@ -4816,6 +5046,14 @@ export const lateAssessment = {
       choices: ['Nothing, because liveness ignores dependencies', 'All replicas fail liveness and are restarted together, making the outage longer', 'Only one replica restarts', 'Readiness turns off liveness'], answer: 1,
       explanation: 'A shared dependency in liveness causes restarts everywhere at once. Keep it out of liveness.' }
   ],
+  35: [
+    { question: 'The refund policy changed yesterday. How can the assistant answer with the new rule?',
+      choices: ['Lower the temperature', 'Supply the current policy passage in the context at request time', 'Ask the model to remember it for next time', 'Use a model with more parameters'], answer: 1,
+      explanation: 'Inference does not update weights. New facts reach the model only through the context.' },
+    { question: 'Two model options give the same grounded results on the fixtures. One has p95 400 ms and a tenth of the cost. What should you choose?',
+      choices: ['The larger one, because it is more fluent', 'The faster, cheaper one, while it meets the quality bar on the same fixtures', 'Neither, until the context windows are equal', 'Alternate between them randomly'], answer: 1,
+      explanation: 'Pick the cheapest option that meets quality and latency on the same evaluation.' }
+  ],
   // @@assessment
 };
 
@@ -4886,6 +5124,20 @@ export const lateStretchPlans = {
       { id: 'd-bits-01.stretch-review', minutes: 40, title: 'Stretch review · course recap without notes',
         prompt: 'This is the last day of the course. Without opening notes, list the 10 topics from Days 1–56 you would least like to be asked about in an interview. For each, write one sentence explaining it and the Java class you would sketch. Then open the notes, correct each answer and schedule the three weakest for revision.',
         acceptance: ['Ten topics are listed before opening notes.', 'Each has one corrected sentence and a Java class name.', 'Three weakest topics are scheduled for revision.'] }
+    ]
+  },
+  35: {
+    assign: { 'ai-foundations-02.packet': 45, 'ai-models-01.packet': 45, 'ai-foundations-02.stretch': 40, 'ai-foundations-02.dsa.packet': 30 },
+    extra: [
+      { id: 'ai-models-01.stretch-lab', minutes: 50, title: 'Stretch lab · a model comparison harness',
+        prompt: 'Combine NextTokenDemo.java and ModelBudget.java into one harness. Use two fixture "models" (for example two different temperatures, or the small and large options) on eight labelled policy questions: five answerable with the passage supplied, one answerable with the passage missing, and two unanswerable. Print grounded correctness, correct fallbacks, p95 latency, cost per 100 calls and the model version for each.',
+        acceptance: ['Both options run on exactly the same cases and passages.', 'The missing-passage case is reported as a retrieval miss, not a model failure.', 'The report recommends one option and states why.', 'Re-running with the same seed gives the same numbers.'] },
+      { id: 'ai-foundations-02.stretch-set', minutes: 35, title: 'Stretch DSA · three more heap problems',
+        prompt: 'In one Java file solve: (1) the k most frequent words in a list, ties broken alphabetically; (2) a running median with two heaps; (3) the minimum number of meeting rooms for a list of [start, end) intervals.',
+        acceptance: ['k most frequent of "a b a c b a" with k = 2 is [a, b].', 'Running median of 5, 15, 1, 3 is 5, 10, 5, 4.', 'Intervals [0,30), [5,10), [15,20) need 2 rooms.', 'Time and space written for all three.'] },
+      { id: 'ai-foundations-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · how models work and how to choose one',
+        prompt: 'Answer aloud in 2 minutes each, without notes: training versus inference; how a transformer picks the next token; what temperature changes; how you would choose between two models for the help feature; why you fix retrieval before buying a bigger model. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
   // @@stretch
@@ -4998,6 +5250,11 @@ export const lateInterviewGuides = {
     'A health check is a yes or no answer for automation. Liveness asks whether the process should be restarted, and readiness asks whether it should receive traffic now. Logs are individual events with detail, such as booking req-102 failing for seat A8. Metrics are aggregated numbers over time, such as error rate and p95 latency by route, used for dashboards and alerts. Traces follow one request across services. When a dependency fails, readiness goes false if the instance cannot serve its main traffic, liveness stays up, errors are logged with the request ID, and a counter by dependency name shows the scale. Alerts fire on the user-facing error rate.',
     'Liveness should stay healthy, because the Java process is fine and restarting it cannot fix the database. If liveness checked the database, every replica would fail together and be restarted, adding cold starts to the outage. Readiness should report not ready if the instance cannot handle booking traffic, so the load balancer stops routing requests to it and clients get a fast error or a retry. When the database comes back, readiness recovers by itself without a restart. In Spring Boot, I keep liveness to the application’s own state and add the database to the readiness group only after considering this shared-failure effect.',
     'Request ID, user ID, seat ID, booking ID, email and raw URLs containing IDs are all too high-cardinality for metric labels, because every distinct value creates a new time series. With 4 routes, 3 status classes and 50,000 users, adding a user label turns 12 series into 600,000. Metric labels should be bounded: route template, method, status class or dependency name. The detailed identifiers belong in structured logs, using the MDC in Java, and in trace attributes, where you look up a single request. Personal identifiers there still need protection and a retention limit.'
+  ],
+  35: [
+    'Model choice starts from the task’s quality bar: grounded correctness on answerable policy questions and correct fallbacks on unanswerable ones, measured on the same labelled cases with the same retrieved passages for every candidate. Next come latency, especially p95 against the help feature’s budget, and cost per call from input and output tokens. The prompt and passages must fit the context window with room for the answer. Data rules matter: whether customer text may leave our systems, retention and region. I record the model version with each result and choose the cheapest, fastest model that meets the quality bar, with a deterministic fallback for unsupported cases.',
+    'I would fix the evidence path first. If both models fail whenever the relevant policy is not supplied, neither model is the problem; retrieval is. I would check whether the needed passage was retrieved, permitted, current and inside the prompt, using hit at k on a labelled set, and repair filters, chunking or ranking. Unanswerable questions need a clear fallback rather than fluent guesses. Only then would I compare the two models again, on answerable cases where both received the same passage. If the smaller model now meets the quality bar, its lower latency and cost make it the better choice.',
+    'A controlled diagnostic tells me. I give the model the correct passage directly and compare its answer with the normal retrieval path. If the same model answers correctly with the passage but fails without it, the model is capable and the gap is retrieval coverage, so a larger model would only add cost and latency. I then measure hit at k across the labelled set and investigate filters, chunk boundaries and ranking. I would consider a larger model only if it still fails when given the right evidence, for example on multi-step reasoning, and the evaluation shows a quality gain worth the extra cost.'
   ],
   // @@guides
 };
