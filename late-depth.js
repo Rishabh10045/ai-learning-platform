@@ -111,6 +111,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
     recall: 'Why does a prefix-sum array start with 0, and how do you compute the sum of [from, to) from it?'
   },
+  52: {
+    title: 'Weighted shortest paths: Dijkstra vs DAG relaxation',
+    concept: 'Dijkstra finalizes the closest unfinished vertex using a priority queue, which is correct only for nonnegative weights. In a DAG, relaxing edges in topological order gives shortest paths in O(V + E), even with negative weights. A cycle means there is no topological order.',
+    example: 'Gates 0 → 2 (1), 2 → 1 (2), 1 → 3 (1), 3 → 4 (3) give distances [0, 3, 1, 4, 7]. With a −4 voucher edge, Dijkstra wrongly reports 3, while DAG relaxation finds 1.',
+    practice: 'Implement dijkstra with PriorityQueue and lazy deletion, and dagShortest with Kahn’s algorithm. Add a parent array to print the route.',
+    checks: ['Both give [0, 3, 1, 4, 7] on the gate graph.', 'The voucher graph gives [0, 5, 2, 1] with DAG relaxation, and a cyclic graph throws.', 'State O((V + E) log V) for Dijkstra and O(V + E) for DAG relaxation.'],
+    readings: [reading('Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/')],
+    recall: 'Which assumption makes Dijkstra’s "closest vertex is final" step correct, and what do you use on a DAG with negative edges?'
+  },
   // @@lanes
 };
 
@@ -2651,6 +2660,180 @@ worst 3-minute window starts at minute 4 with 20 bad`
       ['subarraySum([1,1,1], 2) = 2, and subarraySum([1,-1,0], 0) = 3.', 'The rectangle query matches a brute-force sum.', 'Difference-array results match applying the increments one by one.', 'State the time of each method.']],
     references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
   },
+  'd-backtracking-01': {
+    notes: [
+      'Backtracking explores a tree of choices depth-first. At each step you choose an option, recurse, and then undo the choice before trying the next one. It enumerates every valid solution to problems such as subsets, permutations, combination sums, N-Queens and seat assignments with constraints. The template is always the same: if the current partial solution is complete, record it. Otherwise loop over the remaining choices, and for each one choose, recurse and un-choose.',
+      'Pruning makes backtracking practical. A pruning rule stops exploring a branch as soon as you can prove it cannot lead to a valid solution. The rule must be sound, meaning it never discards a feasible completion. In PrunedSearch.java the ticket prices are sorted, so when a price is larger than the remaining budget, every later price is too, and the loop can break. Both versions find the same 5 combinations for a budget of 10, but the pruned search needs 23 calls instead of 52. Without sorting, the same break would be unsound, because a smaller price could appear later.',
+      'Control duplicates through the start index. Passing i, not i + 1, into the recursion allows the same price to be reused, and never going back to earlier indices means [2, 3, 5] is produced once instead of in all its orders. For permutations you instead track a used[] array. For N-Queens, boolean arrays for columns and the two diagonal directions (row − col + n − 1 and row + col) make each safety check O(1). The program counts 2, 4 and 92 solutions for n = 4, 6 and 8.',
+      'Complexity is exponential in the worst case: subsets O(2ⁿ · n), permutations O(n! · n). Pruning improves typical behavior, not the worst-case bound, so state both. Always undo every change made before the recursive call, including list additions, boolean flags and running sums. A missing undo is the most common backtracking bug, and it shows up as missing or corrupted solutions.'
+    ],
+    code: {
+      title: 'PrunedSearch.java · combination sum with and without sound pruning, and N-Queens counts · java PrunedSearch.java',
+      text: String.raw`import java.util.*;
+
+public class PrunedSearch {
+    static int calls;
+
+    // Combination sum: every multiset of ticket prices (reuse allowed) that adds up to the budget exactly.
+    static void combine(int[] prices, int start, int remaining, Deque<Integer> chosen, List<List<Integer>> out, boolean prune) {
+        calls++;
+        if (remaining == 0) { out.add(new ArrayList<>(chosen)); return; }
+        if (remaining < 0) return;                         // dead end, discovered only after stepping into it
+        for (int i = start; i < prices.length; i++) {
+            if (prune && prices[i] > remaining) break;      // prices are sorted: every later price is too big as well
+            chosen.addLast(prices[i]);
+            combine(prices, i, remaining - prices[i], chosen, out, prune);   // i, not i + 1: a price may repeat
+            chosen.removeLast();                            // undo the choice before trying the next one
+        }
+    }
+
+    // N-Queens count: place one queen per row; prune any column or diagonal already attacked.
+    static int queens(int n, int row, boolean[] col, boolean[] diag, boolean[] anti) {
+        if (row == n) return 1;
+        int count = 0;
+        for (int c = 0; c < n; c++) {
+            if (col[c] || diag[row - c + n - 1] || anti[row + c]) continue;
+            col[c] = diag[row - c + n - 1] = anti[row + c] = true;
+            count += queens(n, row + 1, col, diag, anti);
+            col[c] = diag[row - c + n - 1] = anti[row + c] = false;
+        }
+        return count;
+    }
+
+    public static void main(String[] args) {
+        int[] prices = {2, 3, 5, 7};                         // sorted, so the pruning rule is valid
+        for (boolean prune : new boolean[] {false, true}) {
+            calls = 0;
+            List<List<Integer>> out = new ArrayList<>();
+            combine(prices, 0, 10, new ArrayDeque<>(), out, prune);
+            System.out.println((prune ? "pruned:   " : "unpruned: ") + out + " in " + calls + " calls");
+        }
+        for (int n : new int[] {4, 6, 8}) System.out.println(n + "-queens solutions: " + queens(n, 0, new boolean[n], new boolean[2 * n - 1], new boolean[2 * n - 1]));
+    }
+}
+`,
+      output: String.raw`unpruned: [[2, 2, 2, 2, 2], [2, 2, 3, 3], [2, 3, 5], [3, 7], [5, 5]] in 52 calls
+pruned:   [[2, 2, 2, 2, 2], [2, 2, 3, 3], [2, 3, 5], [3, 7], [5, 5]] in 23 calls
+4-queens solutions: 2
+6-queens solutions: 4
+8-queens solutions: 92`
+    },
+    takeaways: ['Choose, recurse, un-choose; record complete solutions.', 'A pruning rule must never discard a feasible completion (sorting makes the break sound).', 'The start index controls reuse and duplicate orderings.', 'Worst case stays exponential; state it.'],
+    interview: [
+      ['Find all combinations of candidates that sum to a target, with reuse allowed.', 'I sort the candidates and backtrack with a start index, the remaining target and a list of chosen numbers. If the remaining target is 0, I add a copy of the list to the results. Otherwise I loop from start to the end. If candidates[i] exceeds the remaining target, I break, because every later candidate is larger, which is sound only because I sorted. Otherwise I append candidates[i], recurse with the same index i so the number can repeat, and remove it afterwards. Starting from i rather than 0 prevents permutations of the same combination. For [2,3,5,7] and target 10 the results are [2,2,2,2,2], [2,2,3,3], [2,3,5], [3,7] and [5,5]. The worst case is exponential.'],
+      ['How do you know a pruning rule is safe?', 'I state the rule as a claim about every completion of the current partial solution and prove it, usually with a monotonic argument. In combination sum with sorted positive candidates, if candidates[i] is greater than the remaining target, then candidates[i] and every later candidate overshoot, and adding more positive numbers only makes it worse, so no completion through those choices can hit the target. If candidates could be negative, or were unsorted, that argument fails and the rule would be unsound. I also test it: the pruned and unpruned searches must produce identical solution sets on many inputs, and only the call counts may differ.'],
+      ['How does N-Queens check whether a square is safe in O(1)?', 'I place exactly one queen per row, so rows never conflict. For columns I keep a boolean array of size n. For diagonals I use the fact that squares on the same down-right diagonal share row − col, and squares on the same up-right diagonal share row + col. So I keep two boolean arrays of size 2n − 1, indexing the first with row − col + n − 1 to keep it non-negative. A square is safe if all three flags are false. When I place a queen I set the three flags, recurse to the next row and clear them afterwards. That turns an O(n) scan of earlier queens into an O(1) check.']
+    ],
+    check: ['Ticket prices are NOT sorted. Is "break when price > remaining" still a sound pruning rule?',
+      ['Yes, because any price larger than the remaining budget is always useless', 'No: a smaller, usable price may come later in the array, so breaking can discard feasible completions', 'Yes, but only for budgets above 10', 'No, because pruning is never sound'], 1,
+      'Skipping that one price (continue) is fine, but breaking out of the loop assumes every later price is at least as large, which needs sorting.'],
+    practice: ['Copy PrunedSearch.java. Add subsets of [1,2,3] and permutations of [1,2,3] using the same choose, recurse, un-choose template, and a combination-sum variant where each price may be used at most once and the input contains duplicates.',
+      ['Subsets returns 8 sets, and permutations returns 6 orderings.', 'Combination sum II for [10,1,2,7,6,1,5] with target 8 gives [1,1,6], [1,2,5], [1,7], [2,6], with no duplicates.', 'Pruned and unpruned versions produce identical results.', 'State the worst-case time of each.']],
+    references: [['Princeton IntroCS · Recursion', 'https://introcs.cs.princeton.edu/java/23recursion/']]
+  },
+  'd-graphs-02': {
+    notes: [
+      'Choose a shortest-path algorithm by the graph’s properties. With no weights, or all weights equal, BFS is enough. With nonnegative weights, use Dijkstra’s algorithm. In a directed acyclic graph (DAG), relax edges in topological order, which is linear time and works even with negative weights. With negative weights and possible cycles, use Bellman-Ford, which also detects negative cycles.',
+      'Dijkstra keeps a priority queue of tentative distances. It repeatedly removes the closest unfinished vertex, marks its distance final and relaxes its outgoing edges. Finality is only correct if no later path can be shorter, and that requires nonnegative weights. WeightedPaths.java shows the failure: with a voucher edge of −4, Dijkstra finalizes vertex 3 at distance 3 before it finishes vertex 1, and reports 3. DAG relaxation in topological order correctly finds 1 (0 → 1 → 3 = 5 − 4). The program uses lazy deletion: it pushes a new queue entry on every improvement and skips entries for vertices that are already done.',
+      'Topological order exists only for DAGs. Kahn’s algorithm repeatedly removes vertices with in-degree 0, and if some vertices are never removed, the graph has a cycle and no complete order exists. That is exactly the failure for a prerequisite graph A → B → C → A, and WeightedPaths reports "cycle: no topological order" for it. For prerequisites, report the cycle to the user instead of producing a partial order that looks valid.',
+      'Complexities to state: BFS O(V + E). Dijkstra with a binary heap O((V + E) log V). DAG relaxation O(V + E). Bellman-Ford O(V · E). Keep a parent array during relaxation to reconstruct the actual path, not just its length, and use long for distances so large weights cannot overflow.'
+    ],
+    code: {
+      title: 'WeightedPaths.java · Dijkstra, DAG relaxation in topological order, a negative edge and a cycle · java WeightedPaths.java',
+      text: String.raw`import java.util.*;
+
+public class WeightedPaths {
+    record Edge(int to, int w) {}
+
+    static List<List<Edge>> graph(int n, int[][] edges) {
+        List<List<Edge>> g = new ArrayList<>();
+        for (int i = 0; i < n; i++) g.add(new ArrayList<>());
+        for (int[] e : edges) g.get(e[0]).add(new Edge(e[1], e[2]));
+        return g;
+    }
+
+    // Dijkstra: correct only when every edge weight is >= 0. Lazy deletion skips stale queue entries.
+    static long[] dijkstra(List<List<Edge>> g, int src) {
+        long[] dist = new long[g.size()];
+        Arrays.fill(dist, Long.MAX_VALUE);
+        dist[src] = 0;
+        PriorityQueue<long[]> pq = new PriorityQueue<>(Comparator.comparingLong(a -> a[1]));
+        pq.add(new long[] {src, 0});
+        boolean[] done = new boolean[g.size()];
+        while (!pq.isEmpty()) {
+            int u = (int) pq.poll()[0];
+            if (done[u]) continue;
+            done[u] = true;                                   // dist[u] is final, assuming no negative edges
+            for (Edge e : g.get(u))
+                if (!done[e.to()] && dist[u] + e.w() < dist[e.to()]) {
+                    dist[e.to()] = dist[u] + e.w();
+                    pq.add(new long[] {e.to(), dist[e.to()]});
+                }
+        }
+        return dist;
+    }
+
+    // DAG shortest paths: relax edges in topological order. Works with negative weights, needs no cycles.
+    static long[] dagShortest(List<List<Edge>> g, int src) {
+        int n = g.size();
+        int[] indeg = new int[n];
+        for (List<Edge> es : g) for (Edge e : es) indeg[e.to()]++;
+        Deque<Integer> ready = new ArrayDeque<>();
+        for (int i = 0; i < n; i++) if (indeg[i] == 0) ready.add(i);
+        List<Integer> order = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            int u = ready.poll();
+            order.add(u);
+            for (Edge e : g.get(u)) if (--indeg[e.to()] == 0) ready.add(e.to());
+        }
+        if (order.size() < n) throw new IllegalArgumentException("cycle: no topological order");
+        long[] dist = new long[n];
+        Arrays.fill(dist, Long.MAX_VALUE);
+        dist[src] = 0;
+        for (int u : order) {
+            if (dist[u] == Long.MAX_VALUE) continue;
+            for (Edge e : g.get(u)) dist[e.to()] = Math.min(dist[e.to()], dist[u] + e.w());
+        }
+        return dist;
+    }
+
+    public static void main(String[] args) {
+        // Travel minutes between venue gates (directed): 0 entrance, 1 lobby, 2 hall A, 3 hall B, 4 seats.
+        List<List<Edge>> venue = graph(5, new int[][] {{0, 1, 4}, {0, 2, 1}, {2, 1, 2}, {1, 3, 1}, {2, 3, 5}, {3, 4, 3}});
+        System.out.println("Dijkstra from 0:     " + Arrays.toString(dijkstra(venue, 0)));
+        System.out.println("DAG relaxation:      " + Arrays.toString(dagShortest(venue, 0)));
+
+        // Same shape, but a voucher makes edge 1->3 cost -4 (a negative weight).
+        List<List<Edge>> withVoucher = graph(4, new int[][] {{0, 1, 5}, {0, 2, 2}, {1, 3, -4}, {2, 3, 1}});
+        System.out.println("negative edge, DAG:  " + Arrays.toString(dagShortest(withVoucher, 0)));
+        System.out.println("negative edge, Dijkstra (wrong): " + Arrays.toString(dijkstra(withVoucher, 0)));
+        try {
+            dagShortest(graph(3, new int[][] {{0, 1, 1}, {1, 2, 1}, {2, 0, 1}}), 0);
+        } catch (IllegalArgumentException e) {
+            System.out.println("cyclic graph: " + e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`Dijkstra from 0:     [0, 3, 1, 4, 7]
+DAG relaxation:      [0, 3, 1, 4, 7]
+negative edge, DAG:  [0, 5, 2, 1]
+negative edge, Dijkstra (wrong): [0, 5, 2, 3]
+cyclic graph: cycle: no topological order`
+    },
+    takeaways: ['Unweighted: BFS. Nonnegative: Dijkstra. DAG: topological relaxation. Negative with cycles: Bellman-Ford.', 'Dijkstra’s finality needs nonnegative weights.', 'Topological order exists only without cycles; report the cycle.', 'Keep parents for paths; use long distances.'],
+    interview: [
+      ['Which algorithm would you use for course prerequisites, and which for travel times between gates?', 'Prerequisites form a directed graph where an edge means "must come before", so I need a topological order. I would use Kahn’s algorithm: compute in-degrees, repeatedly take a course with in-degree 0 and decrement its successors. If some courses never reach 0, there is a cycle and I report it instead of a schedule. Travel times between gates are weighted shortest paths. If all times are nonnegative, which they are for walking minutes, I use Dijkstra with a priority queue in O((V + E) log V), keeping a parent array so I can show the route. If the gate graph were a DAG, relaxing edges in topological order would be even simpler and linear.'],
+      ['A dependency graph contains a cycle and another graph has a negative edge. Which assumption fails for each algorithm?', 'Topological sorting assumes the graph is acyclic. With a cycle, every vertex on it always has an unmet predecessor, so Kahn’s algorithm stops early and no complete order exists. The correct output is a cycle report. Dijkstra assumes nonnegative edge weights, because it treats the closest unfinished vertex’s distance as final. A negative edge discovered later could make that distance smaller, so Dijkstra may return a wrong answer without any error. With a negative edge I would use topological relaxation if the graph is a DAG, or Bellman-Ford, which handles negative weights in O(V · E) and detects negative cycles.'],
+      ['Why does Dijkstra use lazy deletion with Java’s PriorityQueue?', 'Java’s PriorityQueue has no efficient decrease-key operation: removing an arbitrary element is O(n). So when I find a shorter distance to a vertex, I simply push a new entry with the new distance and leave the old one in the queue. When I poll, I skip entries for vertices already marked done, or entries whose distance is larger than the vertex’s current best. The queue can hold up to O(E) entries, so the time is O(E log E), which is the same as O(E log V) asymptotically because E is at most V². It is simple and fast in practice, and it avoids the complexity of an indexed heap.']
+    ],
+    check: ['In WeightedPaths.java, why does Dijkstra report distance 3 to vertex 3 when the true shortest distance is 1?',
+      ['Because the priority queue is broken', 'Because vertex 3 was finalized before the path through the −4 edge was relaxed; Dijkstra assumes nonnegative weights', 'Because the graph has a cycle', 'Because long overflowed'], 1,
+      'Dijkstra treats the closest unfinished vertex as final. A negative edge found later could still shorten it.'],
+    practice: ['Copy WeightedPaths.java. Add a parent array and print the actual shortest route from 0 to 4. Then implement Bellman-Ford, run it on the voucher graph, and add a negative cycle to show that it is detected.',
+      ['The route 0 → 2 → 1 → 3 → 4 with total 7 is printed.', 'Bellman-Ford gives [0, 5, 2, 1] on the voucher graph.', 'A negative cycle is reported, not looped on forever.', 'State the time of each algorithm.']],
+    references: [['Princeton Algorithms · Shortest paths', 'https://algs4.cs.princeton.edu/44sp/'], ['Princeton Algorithms · Directed graphs and topological sort', 'https://algs4.cs.princeton.edu/42digraph/']]
+  },
   // @@packets
 };
 
@@ -2701,6 +2884,10 @@ export const lateDistractors = {
     ['A promise that every request will succeed within the window.', 'The highest latency observed during the last deployment.'],
     ['Count every 409 only on weekends, when traffic is low.', 'Count it as a failure only if the user retries.']
   ],
+  52: [
+    ['Only undirected graphs with no isolated vertices.', 'Any graph whose vertices have at most two outgoing edges.'],
+    ['A graph with at least one negative edge, to keep distances small.', 'Edge weights that are all distinct.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -2726,6 +2913,8 @@ export const lateExplanations = {
     'Relays retry, and brokers redeliver after failures. Consumers must treat a repeated event ID as already handled.'],
   51: ['An SLO is a target for a defined indicator over a window, such as 99% of eligible bookings good over 28 days. It is not an observation of one request or a guarantee.',
     'A legitimate conflict is the service working correctly. The SLI definition normally excludes it deliberately, so the budget reflects real failures.'],
+  52: ['A topological order puts every edge forward. A directed cycle makes that impossible, so only DAGs have a complete order.',
+    'Dijkstra treats the nearest unfinished vertex as final. That is safe only if no edge can make a later path shorter, which requires nonnegative weights.'],
   // @@explanations
 };
 
@@ -2818,6 +3007,14 @@ export const lateAssessment = {
     { question: 'The booking SLO is 99% over 28 days. What does a burn rate of 2 mean?',
       choices: ['2% of requests failed in total', 'The budget is being spent twice as fast as allowed and would run out in about 14 days', 'Two incidents happened', 'The SLO was met twice over'], answer: 1,
       explanation: 'Burn rate = observed bad fraction / allowed bad fraction. At 2, a 28-day budget lasts about half the window.' }
+  ],
+  52: [
+    { question: 'In PrunedSearch.java, why is "break when price > remaining" sound?',
+      choices: ['Because the budget is always 10', 'Because the prices are sorted and positive, so every later price also overshoots', 'Because break is faster than continue', 'Because duplicates are not allowed'], answer: 1,
+      explanation: 'Sorting makes the rule monotonic: once one price is too big, all later ones are too. Without sorting, breaking could discard valid combinations.' },
+    { question: 'What is the time complexity of Dijkstra with a binary heap on V vertices and E edges?',
+      choices: ['O(V + E)', 'O((V + E) log V)', 'O(V · E)', 'O(2^V)'], answer: 1,
+      explanation: 'Each vertex is extracted once and each edge may push one entry, and each heap operation costs O(log V).' }
   ],
   // @@assessment
 };
@@ -2940,6 +3137,11 @@ export const lateInterviewGuides = {
     'Failures that users experience as the service not doing its job should burn the budget: 5xx responses, timeouts, dropped connections, and successful bookings that were slower than the latency threshold in the SLI, for example 1 second. The denominator is eligible attempts, so requests the client caused are excluded: malformed input, missing or expired credentials, forbidden actions, and legitimate 409 conflicts when the seat was already taken. A 409 there is the invariant working correctly, so counting it would punish correct behavior and push the team to weaken the rule. I write the definition before collecting data, measure at the load balancer so requests that never reached the app still count, and review the rules when the API changes.',
     'An availability SLI defined as good eligible attempts divided by eligible attempts, where good means a 2xx response within the latency threshold. Fast 503s and quick timeout errors still count as bad, so the SLI drops even though average latency looks excellent. A latency SLI computed only over successful responses would miss the problem completely, and so would a "requests answered" metric. To diagnose the cause I would add supporting signals, such as database timeout counts, connection-pool wait time and pool saturation, plus traces of failed attempts. The user-facing availability SLI is what shows the impact and burns the error budget, which is what should drive the response.',
     'I compute the availability SLI separately for the new version and for the stable baseline over the same window during a canary. For example, after at least 500 eligible attempts in 10 minutes, the rule rolls back if the canary’s bad fraction exceeds the baseline’s by more than 0.5 percentage points, or if its burn rate, observed bad fraction divided by allowed bad fraction, is above about 10, which would exhaust the monthly budget within days. The evidence I need is version-labelled metrics, enough traffic in both groups to make the comparison meaningful, identical eligibility rules, and a record of the numbers next to the decision. The pipeline evaluates the rule automatically and redeploys the previous image on failure.'
+  ],
+  52: [
+    'Prerequisites form a directed graph where an edge A → B means A must come before B. I would use a topological sort, such as Kahn’s algorithm: count each course’s unmet prerequisites, repeatedly take a course with none, and decrement its successors. If some courses are never taken, there is a cycle and no valid schedule exists, so I report it. Dijkstra is a different tool for weighted shortest paths, for example travel times between venue gates, and it assumes every edge weight is nonnegative. That assumption is what makes the closest unfinished vertex’s distance final. With negative weights I would use DAG relaxation in topological order or Bellman-Ford.',
+    'In the dependency graph, the cycle breaks topological sorting’s assumption that the graph is acyclic. Every vertex on the cycle always has an unmet predecessor, so Kahn’s algorithm stops with vertices left over, and the right output is "no complete order" plus the cycle, not a partial order. In the second graph, the negative edge breaks Dijkstra’s assumption of nonnegative weights. Dijkstra may finalize a vertex and later miss a cheaper path through the negative edge, so it returns a wrong distance without any error. If that graph is a DAG, relaxing edges in topological order is correct. Otherwise Bellman-Ford handles negative weights and detects negative cycles.',
+    'A pruning rule is safe when I can prove that no completion of the current partial solution can be feasible, so cutting the branch loses nothing. The usual proof is monotonic. With sorted positive prices, if the next price already exceeds the remaining budget, every later price does too, and adding more items only increases the total, so the whole rest of the loop can be skipped. The proof depends on its assumptions: unsorted input or negative values would make the same rule unsound. I verify it by running the pruned and unpruned searches on the same inputs and checking that their solution sets are identical, while only the number of calls changes.'
   ],
   // @@guides
 };
