@@ -156,6 +156,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · Integer.parseInt and toString(int, int)', jdk + 'java/lang/Integer.html')],
     recall: 'How do you convert 2A from hexadecimal to decimal by hand, and which inputs must a base parser reject?'
   },
+  28: {
+    title: 'Linked lists: reverse in place and merge sorted lists',
+    concept: 'Reverse with prev, cur and next, saving next before changing a link. Merge two sorted lists by relinking nodes behind a dummy head.',
+    example: 'A→B→C reverses to C→B→A with A.next = null. Merging A→D→F with B→C→G gives A→B→C→D→F→G.',
+    practice: 'Implement reverse and mergeSorted, then reverseFirstK and removing the k-th node from the end.',
+    checks: ['Empty, one-node and three-node lists work.', 'The new tail’s next is null.', 'State O(n) time and O(1) extra space.'],
+    readings: [reading('Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/')],
+    recall: 'What is lost if you set cur.next = prev before saving cur.next?'
+  },
   // @@lanes
 };
 
@@ -3467,6 +3476,203 @@ empty graph: [] cost 0`
       ['Prim and Kruskal give the same cost on every graph, including disconnected ones.', 'Both match the brute-force minimum when there are at most 12 edges.', 'Swapping the tie-break changes the edges but not the cost.', 'State O(E log E) for Kruskal and O(E log V) for Prim.']],
     references: [['Princeton Algorithms · Minimum spanning trees', 'https://algs4.cs.princeton.edu/43mst/'], ['MIT OCW 6.046J · Greedy Algorithms: Minimum Spanning Tree', 'https://www.youtube.com/watch?v=tKwnms5iRBU']]
   },
+  'd-sort-01': {
+    notes: [
+      'Merge sort splits the input in half, sorts each half recursively and merges the two sorted halves. Merging walks both halves with two indices and always takes the smaller front item. Every level of recursion does O(n) work and there are about log₂ n levels, so the time is O(n log n) in the best, average and worst case. Sorting an array this way needs an O(n) buffer for merging, plus O(log n) stack for the recursion.',
+      'A sort is stable when items with equal keys keep their original order. That matters when you sort records, for example booking requests by priority where arrival order must still decide ties. In StableMergeSort.java the merge takes the LEFT item when the keys are equal, because the left half came first in the input, so 10B stays before 10E. Taking the right item instead produces 10E before 10B, which silently breaks the arrival-order rule while the keys still look sorted.',
+      'In Java, List.sort and Arrays.sort on objects use TimSort, a stable merge sort, so you can sort by priority and keep arrival order without extra work. Arrays.sort on primitive arrays such as int[] uses a dual-pivot quicksort, which is not stable, but stability does not matter for plain numbers. Choose by need: O(n log n) guaranteed and stable means merge sort; in place with good average speed means quicksort; nearly sorted small inputs suit insertion sort.'
+    ],
+    code: {
+      title: 'StableMergeSort.java · merge sort on records, left-on-tie stability versus right-on-tie, and Java’s stable List.sort · java StableMergeSort.java',
+      text: String.raw`import java.util.*;
+
+// Merge sort on records: taking the LEFT item on equal keys keeps arrival order (stable).
+public class StableMergeSort {
+    record Req(int priority, String arrival) {}
+
+    static List<Req> sort(List<Req> a, boolean leftOnTie) {
+        if (a.size() <= 1) return a;
+        int mid = a.size() / 2;
+        List<Req> l = sort(a.subList(0, mid), leftOnTie), r = sort(a.subList(mid, a.size()), leftOnTie);
+        List<Req> out = new ArrayList<>(a.size());           // O(n) buffer per merge level
+        int i = 0, j = 0;
+        while (i < l.size() && j < r.size()) {
+            int c = Integer.compare(l.get(i).priority(), r.get(j).priority());
+            if (c < 0 || (c == 0 && leftOnTie)) out.add(l.get(i++)); else out.add(r.get(j++));
+        }
+        while (i < l.size()) out.add(l.get(i++));
+        while (j < r.size()) out.add(r.get(j++));
+        return out;
+    }
+
+    static String show(List<Req> xs) {
+        StringBuilder sb = new StringBuilder();
+        for (Req x : xs) sb.append(x.priority()).append(x.arrival()).append(' ');
+        return sb.toString().trim();
+    }
+
+    public static void main(String[] args) {
+        List<Req> in = List.of(new Req(15, "A"), new Req(10, "B"), new Req(15, "C"), new Req(5, "D"), new Req(10, "E"));
+        System.out.println("input            : " + show(in));
+        System.out.println("stable (left tie): " + show(sort(in, true)));
+        System.out.println("right on tie     : " + show(sort(in, false)) + "  <- 10E before 10B, 15C before 15A");
+        List<Req> lib = new ArrayList<>(in);
+        lib.sort(Comparator.comparingInt(Req::priority));   // List.sort on objects is a stable merge sort (TimSort)
+        System.out.println("List.sort        : " + show(lib));
+        System.out.println("empty / one      : [" + show(sort(List.of(), true)) + "] [" + show(sort(List.of(new Req(1, "Z")), true)) + "]");
+    }
+}
+`,
+      output: String.raw`input            : 15A 10B 15C 5D 10E
+stable (left tie): 5D 10B 10E 15A 15C
+right on tie     : 5D 10E 10B 15C 15A  <- 10E before 10B, 15C before 15A
+List.sort        : 5D 10B 10E 15A 15C
+empty / one      : [] [1Z]`
+    },
+    takeaways: ['Merge sort is O(n log n) in every case with an O(n) buffer.', 'Stable: equal keys keep input order.', 'Take the left item on ties.', 'Java’s object sorts are stable; int[] sorting is not.'],
+    interview: [
+      ['How does merge sort work, and what are its time and space costs?', 'Merge sort splits the array into two halves, sorts each half recursively, and merges the two sorted halves by repeatedly taking the smaller front element. A single element is already sorted, which is the base case. Each level of recursion merges n elements in total, and there are about log₂ n levels, so the time is O(n log n) in the best, average and worst cases. The array version needs an O(n) temporary buffer for merging and O(log n) call-stack depth. A linked-list version can merge by relinking nodes with O(1) extra space apart from the recursion. Its main strengths are predictable time and stability.'],
+      ['What does stable sorting mean, and when does it matter?', 'A sort is stable if items that compare equal keep their original relative order. It matters when records have more fields than the sort key, for example booking requests sorted by priority where requests with the same priority must stay in arrival order. It also lets you sort by several keys in passes: sort by the secondary key first, then stably by the primary key. In merge sort, stability comes from one detail: on equal keys, take the element from the left half. Java’s List.sort and Arrays.sort for objects are stable; Arrays.sort for int[] is not, but for plain numbers stability is irrelevant.'],
+      ['When would you choose merge sort over quicksort?', 'I choose merge sort when I need guaranteed O(n log n) time, stability, or I am sorting linked lists or data too big for memory, because merging works well on sequential runs and external files. Quicksort is usually faster in practice on arrays because it sorts in place with good cache behaviour, but its worst case is O(n²) without careful pivot choice and it is not stable. In Java I rarely write either myself: List.sort uses TimSort, which is stable and very fast on partly sorted data, and Arrays.sort on primitives uses a dual-pivot quicksort. Writing merge sort is still a common interview check on recursion and merging.']
+    ],
+    check: ['In StableMergeSort.java, what goes wrong when the merge takes the right item on ties?',
+      ['The keys are no longer sorted', '10E comes before 10B, so arrival order is lost for equal priorities', 'It throws an exception', 'It becomes O(n²)'], 1,
+      'The keys are still in order, but equal keys are swapped, so the sort is no longer stable.'],
+    practice: ['Copy StableMergeSort.java. Add a bottom-up (iterative) version, count comparisons for 8 random items, and sort by arrival then stably by priority.',
+      ['Both versions give the same stable result.', 'Comparison count is at most n·log₂ n.', 'Two-pass sorting keeps arrival order within each priority.', 'Empty and one-item lists work.']],
+    references: [['Princeton Algorithms · Mergesort', 'https://algs4.cs.princeton.edu/22mergesort/'], ['Java 21 API · List.sort', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html']]
+  },
+  'd-stacks-01': {
+    notes: [
+      'A stack is last in, first out: push adds to the top and pop removes from the top, both in O(1). It is the natural structure for anything nested, because the most recently opened thing must be closed first. In Java use ArrayDeque with push, pop and peek; the old Stack class is synchronized and extends Vector, so it is slower and exposes methods that break the stack contract.',
+      'Delimiter validation pushes each opening token and, for each closing token, pops the top and checks that they match. StackTools.java stores the index along with the character, so it can say where the input fails: "([)]" fails because "[" at 1 is closed by ")" at 2; "())" has an unexpected ")" at 2; "(()" leaves "(" at 0 unclosed. A valid input must end with an empty stack. The time is O(n) and the stack can hold up to n openers.',
+      'A min-stack answers "what is the smallest value currently in the stack?" in O(1). Keep a second stack where each entry is the minimum of everything at or below that position: push min(x, current minimum) alongside x, and pop both together. After pushing 5 3 7 3 1 the minimum is 1, and after popping it the minimum is 3 again. Stacks also underlie undo, expression evaluation and depth-first search.'
+    ],
+    code: {
+      title: 'StackTools.java · delimiter validation with error positions and a min-stack with O(1) minimum · java StackTools.java',
+      text: String.raw`import java.util.*;
+
+// Stacks: delimiter validation that reports WHERE it fails, and a min-stack with O(1) minimum.
+public class StackTools {
+    static String validate(String s) {
+        Deque<int[]> stack = new ArrayDeque<>();          // {char, index}
+        String open = "([{", close = ")]}";
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (open.indexOf(c) >= 0) stack.push(new int[]{c, i});
+            else if (close.indexOf(c) >= 0) {
+                if (stack.isEmpty()) return "unexpected '" + c + "' at " + i;
+                int[] top = stack.pop();
+                if (open.indexOf(top[0]) != close.indexOf(c)) return "'" + (char) top[0] + "' at " + top[1] + " closed by '" + c + "' at " + i;
+            }
+        }
+        return stack.isEmpty() ? "valid" : "unclosed '" + (char) stack.peek()[0] + "' at " + stack.peek()[1];
+    }
+
+    static final class MinStack {
+        private final Deque<Integer> values = new ArrayDeque<>(), mins = new ArrayDeque<>();
+        void push(int x) { values.push(x); mins.push(mins.isEmpty() ? x : Math.min(x, mins.peek())); }
+        int pop() { mins.pop(); return values.pop(); }
+        int min() { return mins.peek(); }
+    }
+
+    public static void main(String[] args) {
+        for (String s : List.of("{seat:[A1,(B2)]}", "([)]", "(()", "())", ""))
+            System.out.printf("%-18s %s%n", "\"" + s + "\"", validate(s));
+        MinStack m = new MinStack();
+        for (int x : new int[]{5, 3, 7, 3, 1}) m.push(x);
+        StringBuilder sb = new StringBuilder("min after pushes 5 3 7 3 1: " + m.min());
+        for (int k = 0; k < 3; k++) { m.pop(); sb.append(", after pop: ").append(m.min()); }
+        System.out.println(sb);
+    }
+}
+`,
+      output: String.raw`"{seat:[A1,(B2)]}" valid
+"([)]"             '[' at 1 closed by ')' at 2
+"(()"              unclosed '(' at 0
+"())"              unexpected ')' at 2
+""                 valid
+min after pushes 5 3 7 3 1: 1, after pop: 3, after pop: 3, after pop: 3`
+    },
+    takeaways: ['Stacks fit nesting: last opened, first closed.', 'Use ArrayDeque, not Stack.', 'Valid input ends with an empty stack.', 'A second stack gives O(1) minimum.'],
+    interview: [
+      ['How do you validate nested brackets, and what are the failure cases?', 'I scan the string once. For an opening bracket I push it, together with its index. For a closing bracket I check that the stack is not empty and that the popped opener matches the closer. There are three ways to fail: a closer with an empty stack, a closer that does not match the top opener, and openers left on the stack at the end. Reporting the index of the failing character makes the error useful. Other characters are ignored. It runs in O(n) time with O(n) space in the worst case, all openers. In Java I use ArrayDeque, which is faster than the legacy Stack class.'],
+      ['How do you design a stack that returns its minimum in O(1)?', 'I keep two stacks. The main stack holds the values. The second stack holds, at each level, the minimum of all values at or below that level: when I push x, I push min(x, current minimum) onto it. When I pop, I pop both. The current minimum is always the top of the second stack, so push, pop and min are all O(1), at the cost of O(n) extra space. A space-saving variant only pushes onto the minimum stack when x is less than or equal to the current minimum, and pops from it only when the popped value equals that minimum. Equal values must be handled, or duplicates break it.'],
+      ['Why prefer ArrayDeque over java.util.Stack?', 'java.util.Stack extends Vector, so every method is synchronized, which adds locking overhead that a single-threaded algorithm does not need. Because it is a Vector, it also exposes index-based methods like get and insertElementAt, which let code bypass the last-in-first-out contract. ArrayDeque is unsynchronized, backed by a resizable circular array, and offers push, pop and peek at the head, so it is faster and its interface matches a stack better. It does not allow null elements, which is usually fine. If a stack really must be shared between threads, I would choose a concurrent structure such as ConcurrentLinkedDeque deliberately rather than relying on Stack.']
+    ],
+    check: ['What does StackTools.validate report for "([)]"?',
+      ['valid', '\'[\' at 1 closed by \')\' at 2', 'unclosed \'(\' at 0', 'unexpected \']\' at 3'], 1,
+      'At index 2 the top of the stack is "[", which does not match ")".'],
+    practice: ['Copy StackTools.java. Add evaluation of a postfix expression such as "3 4 + 2 *" and a check that rejects a closing tag </b> that does not match the last opened <i>.',
+      ['"3 4 + 2 *" evaluates to 14.', 'Too few operands is reported as an error.', 'Tag mismatches report both positions.', 'All methods are O(n).']],
+    references: [['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/'], ['Java 21 API · Deque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Deque.html']]
+  },
+  'd-linkedlist-01': {
+    notes: [
+      'A singly linked list is a chain of nodes, each holding a value and a reference to the next node. Inserting or removing after a known node is O(1), but reaching the k-th node is O(k), because there is no index. Most linked-list bugs come from changing a reference before saving what it pointed to.',
+      'Reversal in place uses three references. In ReverseList.java, for each node: first save next = cur.next, then set cur.next = prev, then move prev to cur and cur to next. If you skip the first step on A→B→C, setting B.next to A loses the only reference to C. At the end prev is the new head, and the old head, now the tail, has next = null. Test zero, one and three nodes.',
+      'Merging two sorted lists relinks existing nodes instead of copying them. A dummy head node removes the special case for the first element: keep a tail pointer, attach the smaller front node, advance, and when one list runs out attach the rest of the other. Using <= on ties takes from the first list first, which keeps the merge stable. It is O(n + m) time and O(1) extra space, and it is the merge step of merge sort on linked lists.'
+    ],
+    code: {
+      title: 'ReverseList.java · in-place reversal (save next first), empty and single lists, and merging two sorted lists · java ReverseList.java',
+      text: String.raw`// Iterative reversal (save next first!) and merging two sorted lists by relinking nodes.
+public class ReverseList {
+    static final class Node { final String v; Node next; Node(String v, Node next) { this.v = v; this.next = next; } }
+
+    static Node list(String... vs) { Node h = null; for (int i = vs.length - 1; i >= 0; i--) h = new Node(vs[i], h); return h; }
+    static String show(Node h) { StringBuilder sb = new StringBuilder(); for (Node n = h; n != null; n = n.next) sb.append(n.v).append(n.next != null ? "→" : ""); return sb.length() == 0 ? "(empty)" : sb.toString(); }
+
+    static Node reverse(Node head) {
+        Node prev = null, cur = head;
+        while (cur != null) {
+            Node next = cur.next;   // 1. save the rest of the list
+            cur.next = prev;        // 2. point back
+            prev = cur;             // 3. advance both
+            cur = next;
+        }
+        return prev;
+    }
+
+    static Node mergeSorted(Node a, Node b) {
+        Node dummy = new Node("", null), tail = dummy;
+        while (a != null && b != null) {
+            if (a.v.compareTo(b.v) <= 0) { tail.next = a; a = a.next; } else { tail.next = b; b = b.next; }
+            tail = tail.next;
+        }
+        tail.next = a != null ? a : b;
+        return dummy.next;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("reverse A→B→C : " + show(reverse(list("A", "B", "C"))));
+        System.out.println("reverse A     : " + show(reverse(list("A"))));
+        System.out.println("reverse empty : " + show(reverse(null)));
+        Node r = reverse(list("A", "B", "C"));
+        Node tail = r; while (tail.next != null) tail = tail.next;
+        System.out.println("new tail is " + tail.v + ", tail.next = " + tail.next);
+        System.out.println("merge         : " + show(mergeSorted(list("A", "D", "F"), list("B", "C", "G"))));
+    }
+}
+`,
+      output: String.raw`reverse A→B→C : C→B→A
+reverse A     : A
+reverse empty : (empty)
+new tail is A, tail.next = null
+merge         : A→B→C→D→F→G`
+    },
+    takeaways: ['Save next before changing cur.next.', 'prev is the new head; the old head’s next is null.', 'A dummy head simplifies building a list.', 'Merging relinks nodes in O(n + m) time.'],
+    interview: [
+      ['Which reference must you save before reversing a link, and what breaks if you do not?', 'Before setting cur.next = prev, I must save the original cur.next, because it is the only reference to the unprocessed rest of the list. On A→B→C with cur at B and prev at A, if I set B.next to A first, nothing points to C any more, so the loop stops early and C is lost, and in Java it becomes garbage. The correct order is: save next, point cur back to prev, move prev to cur, move cur to next. At the end prev is the new head. I test empty, one-node and three-node lists and assert that the new tail’s next is null.'],
+      ['How do you merge two sorted linked lists?', 'I create a dummy node and a tail pointer that starts at it. While both lists have nodes, I compare their fronts, attach the smaller one to tail.next, advance that list and move tail forward. When one list runs out, I attach the remainder of the other in one step, because it is already sorted. The result starts at dummy.next. Using <= on ties takes from the first list, which keeps equal values in a stable order. No nodes are copied, so it is O(n + m) time and O(1) extra space. The dummy node avoids a special case for choosing the head.'],
+      ['When would you use a linked list rather than an ArrayList in Java?', 'Rarely for plain sequences. ArrayList gives O(1) indexed access, uses memory compactly and is cache-friendly, and appending is amortized O(1). LinkedList only wins when you insert or remove in the middle at a position you already hold through an iterator, or need a deque, and even then ArrayDeque is usually faster for queue and stack use. Linked structures matter more inside other data structures: an LRU cache links entries in a doubly linked list so it can move one to the front in O(1) given a reference from a hash map, and hash buckets and adjacency lists also use links.']
+    ],
+    check: ['In ReverseList.java, what is the new tail after reversing A→B→C, and what is its next?',
+      ['C, pointing to null', 'A, pointing to null', 'A, pointing to B', 'B, pointing to A'], 1,
+      'The old head A becomes the tail, and its next must be null, or the list would loop.'],
+    practice: ['Copy ReverseList.java. Add a recursive reverse, reverseFirstK(head, k) and removal of the k-th node from the end in one pass with two pointers.',
+      ['Recursive and iterative reversal give the same result.', 'reverseFirstK(A→B→C→D, 2) gives B→A→C→D.', 'Removing the 1st from the end of A→B→C gives A→B.', 'Empty and one-node lists work.']],
+    references: [['Princeton Algorithms · Stacks and queues (linked lists)', 'https://algs4.cs.princeton.edu/13stacks/']]
+  },
   // @@packets
 };
 
@@ -3539,6 +3745,10 @@ export const lateDistractors = {
     ['The sign bit, which tells whether n is negative.', 'Whether n is a power of two.'],
     ['After checking every odd number below n / 2.', 'As soon as one odd candidate fails to divide n.']
   ],
+  28: [
+    ['Pick a random side on ties.', 'Sort each half with a different algorithm.'],
+    ['Only the head of the original list.', 'The value stored in the current node.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -3576,6 +3786,8 @@ export const lateExplanations = {
     'Kruskal only compares weights, so negative and equal weights are fine. The nonnegative rule belongs to Dijkstra.'],
   56: ['n & 1 keeps only bit 0. In two’s complement that bit is 1 for odd values and 0 for even values, including negative ones.',
     'Every composite n has a divisor d with d × d ≤ n. Once d > n / d, no unchecked divisor can exist, so n is prime.'],
+  28: ['Taking the left item on equal keys keeps the earlier record first, which is what makes merge sort stable. Random or right-side choices can swap equal keys.',
+    'Reversal needs the next unprocessed node, so the rest of the list is not lost, and the reversed prefix, so the current node can point back to it.'],
   // @@explanations
 };
 
@@ -3701,6 +3913,14 @@ export const lateAssessment = {
       choices: ['31, and it returns 3', '31, and it throws NumberFormatException because 2 is not a binary digit', '15, and it throws', '1F cannot be parsed, and it returns 12'], answer: 1,
       explanation: '1F is 1 × 16 + 15 = 31. In radix 2 only the digits 0 and 1 are valid, so "12" is rejected.' }
   ],
+  28: [
+    { question: 'Booking requests must be sorted by priority while keeping arrival order for equal priorities. Which Java call does that?',
+      choices: ['Arrays.sort on an int[] of priorities', 'list.sort(Comparator.comparingInt(Req::priority)), because object sorting is stable', 'Collections.shuffle, then sort', 'A HashSet of requests'], answer: 1,
+      explanation: 'List.sort on objects uses TimSort, which is stable, so equal priorities keep their order.' },
+    { question: 'Which input does a stack-based validator report as unclosed?',
+      choices: ['"()"', '"(()"', '"())"', '"([)]"'], answer: 1,
+      explanation: '"(()" ends with "(" still on the stack. "())" has an unexpected closer and "([)]" a mismatch.' }
+  ],
   // @@assessment
 };
 
@@ -3771,6 +3991,20 @@ export const lateStretchPlans = {
       { id: 'd-bits-01.stretch-review', minutes: 40, title: 'Stretch review · course recap without notes',
         prompt: 'This is the last day of the course. Without opening notes, list the 10 topics from Days 1–56 you would least like to be asked about in an interview. For each, write one sentence explaining it and the Java class you would sketch. Then open the notes, correct each answer and schedule the three weakest for revision.',
         acceptance: ['Ten topics are listed before opening notes.', 'Each has one corrected sentence and a Java class name.', 'Three weakest topics are scheduled for revision.'] }
+    ]
+  },
+  28: {
+    assign: { 'd-sort-01.packet': 45, 'd-stacks-01.packet': 45, 'd-sort-01.stretch': 40, 'd-linkedlist-01.packet': 30 },
+    extra: [
+      { id: 'd-sort-01.stretch-lab', minutes: 50, title: 'Stretch lab · sort booking requests like production',
+        prompt: 'Build a BookingQueue that sorts requests by priority, then arrival, using your own stable merge sort and List.sort, and compare them on 10,000 random requests with many equal priorities. Then add an insertion sort for the nearly sorted case (each request at most 3 places out of order) and time all three.',
+        acceptance: ['Both stable sorts give identical output, and equal priorities keep arrival order.', 'An unstable variant is shown to break arrival order on the same data.', 'Timings are recorded for random and nearly sorted input with a fixed seed.', 'One sentence explains which sort you would use and why.'] },
+      { id: 'd-sort-01.stretch-set', minutes: 35, title: 'Stretch DSA · three more stack and list problems',
+        prompt: 'In one Java file solve: (1) evaluate a postfix expression; (2) detect whether a linked list is a palindrome in O(1) extra space; (3) the largest rectangle in a histogram with a monotonic stack.',
+        acceptance: ['"3 4 + 2 *" evaluates to 14.', '1→2→2→1 is a palindrome and 1→2→3 is not.', 'Heights 2 1 5 6 2 3 give a largest rectangle of 10.', 'Time and space written for all three.'] },
+      { id: 'd-sort-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · sorting, stacks and lists',
+        prompt: 'Answer aloud in 2 minutes each, without notes: how merge sort works and what it costs; what stability means and when it matters; how you validate brackets; how a min-stack works; which reference you save when reversing a list. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
   // @@stretch
@@ -3858,6 +4092,11 @@ export const lateInterviewGuides = {
     'It depends on how many numbers I must test and how large they are. For one number, or a few scattered ones, trial division up to √n is enough. I handle n < 2 and 2 first, then test odd divisors while d <= n / d, which is O(√n) time and O(1) space. For many queries below a known bound N, a sieve costs O(N log log N) time and O(N) memory once, and then each query is an O(1) array lookup. The break-even point is roughly when the total trial-division work for all queries exceeds the sieve cost, and the sieve’s memory still fits. For values near two billion, an int-indexed sieve is not practical, so the bound decides it.',
     'A sieve up to two billion would need about two billion flags, roughly 2 GB as a boolean array or 250 MB as a bitset, just to answer five queries, so it is the wrong tool. Trial division up to √n is about 44,722 for n near two billion, and testing only odd divisors halves that, so five queries take a few hundred thousand operations. That is instant. For boundary checks, I loop with d <= n / d to avoid overflowing d × d near Integer.MAX_VALUE, and test 0, 1, 2, an even number, the prime square 46,337² = 2,147,117,569 (the largest prime square that fits in an int), and Integer.MAX_VALUE, which is prime. For many large queries, I would use deterministic Miller–Rabin.',
     'For positive a and b, lcm(a, b) = a / gcd(a, b) × b. Computing a × b first can overflow even when the LCM itself fits. For example, two longs around 3 × 10^10 that share a large factor have a product above Long.MAX_VALUE but a small LCM. Dividing by the gcd first means the intermediate value is never larger than the final answer. An overflow check is still needed whenever the true LCM may exceed the type, which is common when folding over an array, because LCMs grow quickly. Use Math.multiplyExact, which throws ArithmeticException instead of wrapping silently, and fall back to BigInteger if the caller needs the exact large value. If any value is zero, return zero first.'
+  ],
+  28: [
+    'Space depends on the implementation, so I name it first. Array merge sort needs an O(n) buffer for merging, plus O(log n) call-stack depth from the recursion. Iterative linked-list reversal keeps only three references, prev, cur and next, so it uses O(1) extra space whatever the length. Delimiter validation uses a stack that can hold up to n openers in the worst case, such as "((((", so O(n). Merging two sorted linked lists relinks existing nodes and needs only a dummy node and a tail pointer, O(1). I state the peak working memory and do not count the input or the output list.',
+    'The merge step must take the left-half item when the keys compare equal, because the left half holds the records that arrived first. If the merge takes the right item on ties, for example by using < instead of <= on the left side, records with the same key swap places, so arrival order is lost even though the keys still look sorted. I test it with records that share a key but have distinct arrival IDs, such as 10B and 10E, and assert both the order and that every record survives. In Java, List.sort on objects is already stable, which is the safer choice in production.',
+    'Before setting current.next = previous, I must save the original current.next, because it is the only reference to the unprocessed part of the list. On A→B→C with current = B and previous = A, assigning B.next = A first loses the only pointer to C, so the loop stops and C is dropped from the result. The correct order is: save next, point current back to previous, move previous to current, then move current to the saved next. At the end previous is the new head, C→B→A, and I assert that the new tail A has next == null and that zero- and one-node lists work.'
   ],
   // @@guides
 };
