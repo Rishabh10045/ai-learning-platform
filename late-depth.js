@@ -84,6 +84,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · TreeMap (floorEntry, ceilingEntry)', jdk + 'java/util/TreeMap.html')],
     recall: 'In a floor binary search, what do you do when a[mid] ≤ t, and why must the range always shrink past mid?'
   },
+  49: {
+    title: 'Ring buffer for event replay',
+    concept: 'Keep the last N events in a fixed array. Event s goes into slot s mod N, so a new event overwrites the oldest. The oldest retained sequence is max(1, next − N). A client asking for older events has a gap and must resync.',
+    example: 'Capacity 4 with events 1–6 retains 3–6. since(2) returns 3, 4, 5, 6. since(1) is a gap because event 2 was overwritten.',
+    practice: 'Implement EventRing with append(String) returning the sequence, oldestRetained() and since(long after), which returns null on a gap. Then write a generic CircularQueue<T> with a head index and a count.',
+    checks: ['since(1) after 3 events → [2:A2 sold, 3:A1 sold], and since(3) → [].', 'After 6 events, oldest retained = 3 and since(1) reports a gap.', 'The circular queue handles full, empty and wrap-around cases.'],
+    readings: [reading('Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html')],
+    recall: 'How does a ring buffer decide which slot an event goes into, and how do you detect that a reconnecting client is too far behind?'
+  },
   // @@lanes
 };
 
@@ -1980,6 +1989,244 @@ TreeMap.floorEntry(2999) -> k2`
       ['Floor and ceiling agree with TreeMap.floorKey and ceilingKey on 10 random values.', 'searchInsert([1,3,5,6], 2) = 1.', 'Ship capacity for [1..10], D = 5 is 15.', 'State the time of each method.']],
     references: [['Java 21 API · TreeMap.floorEntry', jdk + 'java/util/TreeMap.html']]
   },
+  'h-api-01': {
+    notes: [
+      'An API gateway is the single entry point between clients and your services. It handles edge concerns that every request shares: TLS termination, routing by path or host, checking that a token is present and well-formed, rate limiting per client, request IDs for tracing, CORS, request size limits and timeouts. It should not contain business rules such as "a seat can have one owner". Those belong in the service that owns the data, otherwise the gateway becomes a fragile monolith that every team must change.',
+      'GatewayChain.java models a gateway as an ordered chain of filters, each of which either stops the request with a response or lets it continue: request ID, authentication, rate limit, route. Order matters. Unauthenticated requests are rejected before they spend rate-limit budget, and the request ID is attached first so even rejections can be traced. Routing uses the longest matching prefix, so /api/bookings/b-100 goes to booking-service, and an unknown path returns 404 at the edge. Spring Cloud Gateway, Envoy, NGINX and cloud API gateways implement the same ideas with configuration.',
+      'Choose the API style by client and contract. REST over HTTP with JSON fits public and browser clients: it is cacheable, easy to debug and supported everywhere. GraphQL lets clients ask for exactly the fields they need from one endpoint, which helps when many different screens combine data. The costs are harder HTTP caching, query-cost limits and N+1 risks in resolvers. gRPC uses HTTP/2 and Protocol Buffers with a generated, strongly typed contract and streaming. It is efficient for service-to-service calls inside your system, but browsers need gRPC-Web and a proxy.',
+      'For the booking system, a sensible split is: public REST for browsers and partners (GET /events/42/seats, POST /bookings with an Idempotency-Key header), gRPC between internal services where low latency and typed contracts help, and SSE for live seat updates to browsers. Whatever the style, keep the contract versioned and backward compatible, put a timeout and a retry policy on every internal call, and make the gateway pass through the authenticated subject so services can do their own authorization.'
+    ],
+    code: {
+      title: 'GatewayChain.java · a gateway as an ordered filter chain: request ID, auth, rate limit, routing · java GatewayChain.java',
+      text: String.raw`import java.util.*;
+
+public class GatewayChain {
+    record Request(String method, String path, String token, String client) {}
+    record Response(int status, String body) {}
+
+    interface Filter { Optional<Response> apply(Request r, Map<String, String> headers); }   // empty = continue
+
+    // Edge concerns live in the gateway: auth presence, rate limits, request IDs, routing. Business rules do not.
+    static final Map<String, String> routes = new LinkedHashMap<>(Map.of(
+            "/api/bookings", "booking-service", "/api/help", "help-service", "/api/events", "catalog-service"));
+    static final Map<String, Integer> usedThisMinute = new HashMap<>();
+    static int nextRequestId = 1;
+
+    static final Filter requestId = (r, h) -> { h.put("X-Request-Id", "req-" + nextRequestId++); return Optional.empty(); };
+    static final Filter authenticated = (r, h) ->
+            r.path().startsWith("/api/events") || r.token() != null ? Optional.empty()
+                    : Optional.of(new Response(401, "missing bearer token"));
+    static final Filter rateLimit = (r, h) -> {
+        int used = usedThisMinute.merge(r.client(), 1, Integer::sum);
+        return used <= 3 ? Optional.empty() : Optional.of(new Response(429, "Retry-After: 60"));
+    };
+    static final Filter route = (r, h) -> {
+        String best = null;   // longest matching prefix wins
+        for (String prefix : routes.keySet())
+            if ((r.path().equals(prefix) || r.path().startsWith(prefix + "/")) && (best == null || prefix.length() > best.length())) best = prefix;
+        if (best == null) return Optional.of(new Response(404, "no route"));
+        return Optional.of(new Response(200, "forwarded to " + routes.get(best) + " with " + h.get("X-Request-Id")));
+    };
+
+    static Response handle(Request r) {
+        Map<String, String> headers = new HashMap<>();
+        for (Filter f : List.of(requestId, authenticated, rateLimit, route)) {
+            Optional<Response> stop = f.apply(r, headers);
+            if (stop.isPresent()) return stop.get();
+        }
+        throw new IllegalStateException("route filter always answers");
+    }
+
+    public static void main(String[] args) {
+        List<Request> requests = List.of(
+                new Request("GET", "/api/events/42", null, "web-1"),
+                new Request("POST", "/api/bookings", null, "web-1"),
+                new Request("POST", "/api/bookings", "t1", "web-1"),
+                new Request("GET", "/api/help/refunds", "t1", "web-1"),
+                new Request("GET", "/api/bookings/b-100", "t1", "web-1"),
+                new Request("GET", "/api/admin", "t2", "app-2"));
+        for (Request r : requests) {
+            Response res = handle(r);
+            System.out.println(r.method() + " " + r.path() + " -> " + res.status() + " " + res.body());
+        }
+    }
+}
+`,
+      output: String.raw`GET /api/events/42 -> 200 forwarded to catalog-service with req-1
+POST /api/bookings -> 401 missing bearer token
+POST /api/bookings -> 200 forwarded to booking-service with req-3
+GET /api/help/refunds -> 200 forwarded to help-service with req-4
+GET /api/bookings/b-100 -> 429 Retry-After: 60
+GET /api/admin -> 404 no route`
+    },
+    takeaways: ['The gateway owns edge concerns; services own business rules and authorization.', 'Filter order matters: trace ID first, reject unauthenticated traffic before rate limiting.', 'REST for public and browser APIs, GraphQL for flexible client queries, gRPC for typed internal calls.', 'Version contracts and keep them backward compatible.'],
+    interview: [
+      ['What belongs in an API gateway and what does not?', 'Edge concerns that apply to every request belong in the gateway: TLS termination, routing, rejecting requests without a valid token format, per-client rate limits and quotas, request IDs, CORS, request size limits, timeouts and basic metrics. Business logic does not belong there. Neither does fine-grained authorization such as "may this user cancel this booking?", because that needs the service’s data, and keeping it in the gateway couples every team to one shared component. Services still validate the token audience and enforce ownership themselves, so a request that bypasses the gateway, or a bug in it, cannot break the rules. A gateway is also a single point of failure, so it must be replicated.'],
+      ['When would you choose gRPC over REST, and when GraphQL?', 'I choose gRPC for internal service-to-service calls where I control both sides. It gives a generated, typed contract from .proto files, compact binary encoding, HTTP/2 multiplexing, deadlines and streaming, which matters for chatty, latency-sensitive paths. Its downsides are weaker browser support, which needs gRPC-Web, and harder debugging. I choose REST for public and browser APIs, because it works with every client, caches with standard HTTP semantics, and is easy to inspect. GraphQL fits when many clients need different shapes of the same data and over-fetching hurts, for example mobile screens. It needs query-depth and cost limits, per-field authorization and batching to avoid N+1 resolvers.'],
+      ['How would you rate-limit at the gateway without hurting legitimate users?', 'I limit per client identity, such as an API key or token subject, rather than per IP address, which can be shared by many users behind one NAT. I use a token bucket so short bursts are allowed while the average stays bounded, and return 429 with a Retry-After header. Limits are stored in a shared store such as Redis so all gateway replicas agree. I apply cheaper checks first, so unauthenticated junk is rejected before it consumes a real client’s budget, and I set separate limits for expensive endpoints such as POST /bookings or AI help. I monitor the 429 rate per client to tune limits instead of guessing.']
+    ],
+    check: ['In GatewayChain.java, why does the unauthenticated POST /api/bookings not count against web-1’s rate limit?',
+      ['Because POST requests are never rate-limited', 'Because the authentication filter rejects it before the rate-limit filter runs', 'Because the request ID filter resets the counter', 'Because 401 responses are free in HTTP'], 1,
+      'Filters run in order and stop at the first response. The 401 is returned before the rate limiter is reached.'],
+    practice: ['Copy GatewayChain.java. Replace the per-minute counter with a token bucket (capacity 3, refill 1 token per 20 seconds, using a fake clock), add a request-size filter returning 413 above 10 KB, and route /api/bookings/admin to a different service using the longest-prefix rule.',
+      ['The token bucket allows a burst of 3, then about 1 request per 20 seconds.', 'Oversized requests get 413 before routing.', '/api/bookings/admin/x goes to the admin service and /api/bookings/b-1 still goes to booking-service.', 'The filter order is explained in one sentence.']],
+    references: [['Spring Cloud Gateway reference', 'https://docs.spring.io/spring-cloud-gateway/reference/'], ['gRPC · Introduction', 'https://grpc.io/docs/what-is-grpc/introduction/'], ['GraphQL · Learn', 'https://graphql.org/learn/']]
+  },
+  'h-realtime-01': {
+    notes: [
+      'Live seat availability flows almost entirely one way, from server to browser. Server-sent events (SSE) fit that: the browser opens one long-lived HTTP response with Content-Type text/event-stream, and the server writes events as lines such as "id: 7" and "data: A1 sold" followed by a blank line. The browser’s EventSource API reconnects automatically after a drop and sends the last ID it saw in a Last-Event-ID header, so the server can resume from there. SSE works through ordinary HTTP infrastructure and needs no special protocol.',
+      'WebSockets (RFC 6455) upgrade an HTTP connection to a full-duplex channel where both sides send messages at any time. Use them when the client also sends frequent messages, as in chat, collaborative editing or games. They need more work: your own reconnection, heartbeats, message IDs and replay, and proxies or load balancers configured for long-lived upgraded connections. For booking updates, SSE is simpler. The booking write itself remains an ordinary POST to the authoritative API, never a message on the stream.',
+      'Design for reconnection and gaps from the start. The server keeps a bounded history of recent events with increasing IDs. On reconnect it replays events after Last-Event-ID if they are still retained. If they are not, it must say so instead of silently skipping. SseReplay.java runs a real SSE endpoint on the JDK’s built-in HttpServer, keeping 3 events. The first connect receives events 1–2, and a resume after ID 2 receives 3. Later, after three more events, a resume after ID 2 gets a reset event telling the client to reload the seat snapshot, because event 3 is gone.',
+      'The client’s recovery rule: on reset, or on any detected gap, fetch a fresh snapshot (GET /events/42/seats) that includes the stream position it reflects, replace the local view, then resume the stream from that position. A live update is an observation, not a promise. "A1 free" on the stream does not guarantee that a booking will succeed, because someone may claim it a millisecond later. The POST still decides, and the UI must handle 409. At scale, each open SSE connection holds a socket, so plan connection limits per instance and use a pub/sub layer, such as Redis or Kafka, to fan events out to every instance.'
+    ],
+    code: {
+      title: 'SseReplay.java · a real SSE endpoint with event IDs, Last-Event-ID resume and a reset on gaps · java SseReplay.java',
+      text: String.raw`import com.sun.net.httpserver.HttpServer;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+public class SseReplay {
+    // Server keeps the last 3 seat events. Each SSE event has an id so a reconnecting browser can send Last-Event-ID.
+    static final List<String[]> history = Collections.synchronizedList(new ArrayList<>());   // {id, data}
+    static final int RETAINED = 3;
+    static int nextId = 1;
+
+    static synchronized void publish(String data) {
+        history.add(new String[] { String.valueOf(nextId++), data });
+        if (history.size() > RETAINED) history.remove(0);
+    }
+
+    public static void main(String[] args) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/seats/stream", exchange -> {
+            String last = exchange.getRequestHeaders().getFirst("Last-Event-ID");
+            exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            try (Writer out = new OutputStreamWriter(exchange.getResponseBody(), StandardCharsets.UTF_8)) {
+                long after = last == null ? 0 : Long.parseLong(last);
+                long oldest = Long.parseLong(history.get(0)[0]);
+                if (last != null && after < oldest - 1) {
+                    // The gap is no longer retained: tell the client to reload a snapshot instead of pretending.
+                    out.write("event: reset\ndata: reload snapshot from GET /seats\n\n");
+                    return;
+                }
+                for (String[] e : List.copyOf(history))
+                    if (Long.parseLong(e[0]) > after) out.write("id: " + e[0] + "\ndata: " + e[1] + "\n\n");
+            }   // a real stream stays open; this demo closes after sending what it has
+        });
+        server.start();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/seats/stream";
+        HttpClient client = HttpClient.newHttpClient();
+
+        publish("A1 held"); publish("A2 sold");
+        System.out.println("first connect:      " + read(client, url, null));
+        publish("A1 sold");
+        System.out.println("resume after id 2:  " + read(client, url, "2"));
+        publish("A3 held"); publish("A4 held"); publish("A5 held");
+        System.out.println("resume after id 2:  " + read(client, url, "2"));
+        server.stop(0);
+    }
+
+    // Returns the events as "id:data" items, or the reset instruction.
+    static String read(HttpClient client, String url, String lastEventId) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url));
+        if (lastEventId != null) b.header("Last-Event-ID", lastEventId);
+        List<String> lines = client.send(b.build(), HttpResponse.BodyHandlers.ofLines()).body().toList();
+        List<String> events = new ArrayList<>();
+        String id = null, type = "message";
+        for (String line : lines) {
+            if (line.startsWith("id: ")) id = line.substring(4);
+            else if (line.startsWith("event: ")) type = line.substring(7);
+            else if (line.startsWith("data: ")) events.add(type.equals("reset") ? "RESET (" + line.substring(6) + ")" : id + ":" + line.substring(6));
+        }
+        return String.join(", ", events);
+    }
+}
+`,
+      output: String.raw`first connect:      1:A1 held, 2:A2 sold
+resume after id 2:  3:A1 sold
+resume after id 2:  RESET (reload snapshot from GET /seats)`
+    },
+    takeaways: ['SSE for server-to-browser streams; WebSockets when both sides send often.', 'Event IDs plus Last-Event-ID give resumable streams.', 'If the gap is not retained, send a reset and reload a snapshot with its position.', 'Live updates are observations; the POST to the authoritative API decides.'],
+    interview: [
+      ['Choose a transport for live seat availability in the browser and explain reconnection.', 'I would use server-sent events. The flow is server-to-browser, SSE runs over plain HTTP, and the browser’s EventSource reconnects automatically. Each event carries an increasing id, and on reconnect the browser sends Last-Event-ID, so the server replays retained events after it. The server keeps a bounded history per event, for example the last few minutes. If the requested ID is older than that, it sends a reset, and the client fetches a fresh seat snapshot that includes its stream position, then resumes from there. Booking itself stays a normal POST, and the UI handles 409 because a seat shown as free may already be taken.'],
+      ['When would you choose WebSockets over SSE?', 'When the client needs to send frequent messages over the same connection, with low latency in both directions: chat, multiplayer games, collaborative editing or live cursors. WebSockets give a full-duplex channel after an HTTP upgrade. The trade-off is more work. There is no built-in reconnection or resume, so I add heartbeats, message IDs, acknowledgements and replay myself, and I make sure load balancers and proxies allow long-lived upgraded connections. SSE also has limits: it is text only, and over HTTP/1.1 browsers allow only about six connections per domain, which HTTP/2 removes. For one-way updates, SSE is usually the simpler and more robust choice.'],
+      ['How do you deliver live updates when the service runs on many instances?', 'Each browser keeps an SSE connection to whichever instance the load balancer chose, but the booking that changed a seat may have committed on another instance. So committed changes are published to a shared channel, ideally from the transactional outbox so nothing is lost, through Redis pub/sub, Kafka or a similar broker. Every instance subscribes and forwards relevant events to its connected clients. Event IDs come from the source of truth, such as a per-event sequence, so they mean the same thing on every instance and a client can resume on a different instance after reconnecting. I also cap connections per instance and monitor open connections, because each one holds a socket.']
+    ],
+    check: ['A client reconnects with Last-Event-ID 2, but the server only retains events 4–6. What should happen?',
+      ['Send events 4–6 and continue as if nothing was missed', 'Send a reset so the client reloads a fresh snapshot and resumes from its position', 'Close the connection permanently', 'Send event 2 again'], 1,
+      'Event 3 is gone, so replaying 4–6 would leave a silent gap. The client must resynchronize from a snapshot.'],
+    practice: ['Copy SseReplay.java. Keep the connection open and push new events every second for five seconds. Add a "retry: 2000" field, and write a small client loop that reconnects with Last-Event-ID after the server closes. Then add a snapshot endpoint GET /seats that returns the state and the latest event ID.',
+      ['The client receives every event exactly once across one forced reconnect.', 'After a gap larger than the history, the client reloads the snapshot and resumes from its ID.', 'The snapshot ID and the first resumed event ID are consecutive.', 'One sentence on why a live "A1 free" event does not guarantee a successful booking.']],
+    references: [['HTML Living Standard · Server-sent events', 'https://html.spec.whatwg.org/multipage/server-sent-events.html'], ['MDN · Using server-sent events', 'https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events'], ['RFC 6455 · The WebSocket Protocol', 'https://datatracker.ietf.org/doc/html/rfc6455'], ['JDK 21 API · com.sun.net.httpserver.HttpServer', 'https://docs.oracle.com/en/java/javase/21/docs/api/jdk.httpserver/com/sun/net/httpserver/HttpServer.html']]
+  },
+  'h-api-01.dsa': {
+    notes: [
+      'A ring buffer (circular buffer) stores the most recent N items in a fixed array. A write index wraps around with modulo, so the newest item overwrites the oldest when the buffer is full. Appending is O(1), memory is fixed at N, and nothing is ever shifted. This is exactly the structure behind "replay the last few events to a reconnecting client" and behind many logging and metrics buffers.',
+      'EventRing.java addresses events by an ever-increasing sequence number and stores event s in slot s mod capacity. The oldest retained sequence is max(1, next − capacity). since(after) returns every event after a given sequence if all of them are still retained, an empty list if the client is up to date, and null to signal a gap when the client is further behind than the buffer reaches. With capacity 4 and six events written, since(2) returns events 3–6, and since(1) reports a gap because event 2 was overwritten.',
+      'The edge cases are what interviewers check: an empty buffer, exactly full, wrapped around more than once, a request for exactly the oldest retained item, and a client that is up to date. A related classic is "design a circular queue" with enqueue, dequeue, front and rear, using a head index and a count. Track the count explicitly, or keep one slot empty, because head == tail alone cannot tell a full buffer from an empty one.'
+    ],
+    code: {
+      title: 'EventRing.java · a ring buffer of recent events with gap detection for replay · java EventRing.java',
+      text: String.raw`import java.util.*;
+
+public class EventRing {
+    // Fixed-capacity ring buffer of the most recent events, addressed by an ever-increasing sequence number.
+    private final String[] slots;
+    private long nextSeq = 1;                        // sequence number the next event will get
+
+    EventRing(int capacity) { slots = new String[capacity]; }
+
+    long append(String event) {
+        slots[(int) (nextSeq % slots.length)] = event;   // overwrite the oldest slot when full
+        return nextSeq++;
+    }
+
+    long oldestRetained() { return Math.max(1, nextSeq - slots.length); }
+
+    // Events with seq > after, or empty if the client is up to date; null signals a gap (client must resync).
+    List<String> since(long after) {
+        if (after + 1 < oldestRetained()) return null;
+        List<String> out = new ArrayList<>();
+        for (long s = after + 1; s < nextSeq; s++) out.add(s + ":" + slots[(int) (s % slots.length)]);
+        return out;
+    }
+
+    public static void main(String[] args) {
+        EventRing ring = new EventRing(4);
+        for (String e : List.of("A1 held", "A2 sold", "A1 sold")) ring.append(e);
+        System.out.println("since 1: " + ring.since(1));
+        System.out.println("since 3: " + ring.since(3));
+        for (String e : List.of("A3 held", "A4 held", "A5 held")) ring.append(e);
+        System.out.println("oldest retained: " + ring.oldestRetained());
+        System.out.println("since 2: " + ring.since(2));
+        System.out.println("since 1: " + (ring.since(1) == null ? "gap, resync from snapshot" : ring.since(1)));
+    }
+}
+`,
+      output: String.raw`since 1: [2:A2 sold, 3:A1 sold]
+since 3: []
+oldest retained: 3
+since 2: [3:A1 sold, 4:A3 held, 5:A4 held, 6:A5 held]
+since 1: gap, resync from snapshot`
+    },
+    takeaways: ['Fixed array plus modulo index: O(1) append, O(N) memory.', 'Sequence s lives in slot s mod capacity.', 'Oldest retained = max(1, next − capacity); older requests are gaps.', 'head == tail is ambiguous without a count.'],
+    interview: [
+      ['Design a circular queue with enqueue, dequeue, front and isFull in O(1).', 'I use a fixed array of size k, a head index pointing at the front element, and a count. enqueue fails if count equals k. Otherwise it writes at (head + count) mod k and increments count. dequeue fails if count is zero. Otherwise it clears the slot at head, sets head to (head + 1) mod k and decrements count. front returns the element at head, and rear returns the one at (head + count − 1) mod k. isEmpty and isFull compare count with 0 and k. Every operation is O(1) and memory is O(k). Keeping the count avoids the classic ambiguity where head equals tail both when empty and when full.'],
+      ['How would you keep the last 1,000 events per stream for replay, and what happens when a client is too far behind?', 'Per stream I keep a ring buffer of 1,000 slots and a next-sequence counter. Event s goes into slot s mod 1000, so appends are O(1) and memory is fixed. When a client reconnects with its last sequence, I check whether last + 1 is at least the oldest retained sequence, next − 1000. If it is, I replay from there to the newest. If it is not, the events in between are gone, so I return a reset signal and the client reloads a snapshot that carries its own sequence number, then resumes. For many streams, I evict idle buffers and size retention by time rather than count if traffic is bursty.'],
+      ['Why not just use an ArrayList and remove the first element when it is full?', 'Removing index 0 from an ArrayList shifts every remaining element left, which is O(n) per append once the list is full. At high event rates that work adds up, and it also creates garbage and cache churn. An ArrayDeque with pollFirst would be O(1) and is a fine choice in Java. The explicit ring buffer has extra advantages for replay: fixed memory allocated once, and direct O(1) access to any retained sequence number by computing its slot, which a deque does not give without walking. For a bounded cache of recent events with lookups by sequence, the ring is the natural structure.']
+    ],
+    check: ['A ring of capacity 4 has received events 1–6. Which events are retained?',
+      ['1–4', '3–6', '1–6', '5–6'], 1,
+      'Events 5 and 6 overwrote the slots of 1 and 2, so the oldest retained is 6 − 4 + 1 = 3.'],
+    practice: ['Copy EventRing.java. Implement a generic CircularQueue<T> with enqueue, dequeue, front, rear, isEmpty and isFull, and test the full and empty edge cases. Then make EventRing thread-safe and explain the lock you chose.',
+      ['Enqueue on a full queue returns false, and dequeue on an empty one returns null.', 'After wrapping three times, front and rear are correct.', 'since() and append() are safe under concurrent use.', 'State the time and space of each operation.']],
+    references: [['Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html']]
+  },
   // @@packets
 };
 
@@ -2018,6 +2265,10 @@ export const lateDistractors = {
     ['How long the token may be cached by the browser.', 'Which scopes the user selected on the consent screen.'],
     ['The client secret sent in the authorization redirect URL.', 'A nonce stored in the user’s ID token by the API.']
   ],
+  49: [
+    ['Browser-to-server file uploads only.', 'Server-to-server RPC with generated stubs.'],
+    ['That the server has reserved the seat for this browser.', 'That every other client has already seen the same event.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -2037,6 +2288,8 @@ export const lateExplanations = {
     'JdbcTemplate moves the cursor and calls mapRow once per row. The mapper only turns that row into a value. It does not manage transactions, connections or SQL.'],
   48: ['aud names the intended recipients. An API must reject a token whose audience does not include it, even when the signature and expiry are valid.',
     'PKCE binds the code to the client: the authorization request carries a hash (challenge), and the token exchange must present the matching verifier, which only the real client knows.'],
+  49: ['SSE is a one-way stream from server to browser over ordinary HTTP. Bidirectional or upload-heavy flows need WebSockets or normal requests.',
+    'A live update reports something that happened at the source. It reserves nothing and guarantees nothing about future requests or other clients.'],
   // @@explanations
 };
 
@@ -2106,6 +2359,14 @@ export const lateAssessment = {
       choices: ['The signature check', 'An object-level check that the booking owner equals the token subject', 'The audience check', 'Nothing; scope is sufficient'], answer: 1,
       explanation: 'Scopes grant kinds of action, not access to every object. Broken object-level authorization is OWASP API1:2023, so the service must compare the owner with token.sub.' }
   ],
+  49: [
+    { question: 'Which concern belongs in the service rather than the API gateway?',
+      choices: ['Per-client rate limiting', 'Checking that a booking belongs to the token’s subject', 'Attaching a request ID', 'Routing /api/bookings to booking-service'], answer: 1,
+      explanation: 'Ownership needs the service’s data and must hold even if a request bypasses the gateway. Rate limits, request IDs and routing are edge concerns.' },
+    { question: 'After a network drop, the browser’s EventSource reconnects. What lets the server resume without losing events?',
+      choices: ['The browser resends every event it received', 'The Last-Event-ID header with the id of the last event the browser saw', 'A WebSocket upgrade', 'A new login'], answer: 1,
+      explanation: 'Each SSE event carries an id. On reconnect EventSource sends Last-Event-ID, and the server replays retained events after it, or signals a reset.' }
+  ],
   // @@assessment
 };
 
@@ -2137,6 +2398,20 @@ export const lateStretchPlans = {
       { id: 'ai-customization-01.stretch-review', minutes: 35, title: 'Stretch review · AI week recap without notes',
         prompt: 'Without opening notes, write one paragraph each on Days 41–43: tool authorization, prompt-injection layers, retry budgets and the customization decision. Then open the notes and mark what you missed in a different colour.',
         acceptance: ['Four paragraphs written before opening notes.', 'At least one missed point marked per paragraph.'] }
+    ]
+  },
+  49: {
+    assign: { 'h-api-01.packet': 45, 'h-realtime-01.packet': 45, 'h-api-01.stretch': 40, 'h-api-01.dsa.packet': 30 },
+    extra: [
+      { id: 'h-realtime-01.stretch-lab', minutes: 50, title: 'Stretch lab · a resumable live seat stream',
+        prompt: 'Extend SseReplay.java into a stream that stays open: publish one seat event per second, kill the client connection at event 4, reconnect with Last-Event-ID, and then force a gap larger than the history. Add GET /seats returning the state plus its latest event ID, and make the client recover from the reset with it.',
+        acceptance: ['Every event is received exactly once across the forced reconnect.', 'After a gap the client reloads the snapshot and resumes from its ID with no missing or duplicate event.', 'Booking still happens through a POST, and the stream is never used to claim a seat.', 'One paragraph comparing this with a WebSocket design for the same feature.'] },
+      { id: 'h-api-01.stretch-set', minutes: 35, title: 'Stretch DSA · three more circular-buffer and queue problems',
+        prompt: 'In one Java file solve: (1) design a circular queue with enqueue, dequeue, front, rear, isEmpty and isFull; (2) moving average of the last k numbers from a stream using a ring; (3) a hit counter that returns hits in the last 300 seconds using 300 buckets. Write the time and space of each before coding.',
+        acceptance: ['The circular queue passes full, empty and wrap-around tests.', 'Moving average of 1, 10, 3, 5 with k = 3 gives 1.0, 5.5, 4.67, 6.0.', 'The hit counter ignores hits older than 300 s, using O(300) memory.', 'Time and space written for all three.'] },
+      { id: 'h-api-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · API style and real-time choices',
+        prompt: 'Answer aloud in 2 minutes each, without notes: when to use gRPC over REST; what belongs in a gateway; SSE versus WebSockets for live seats; how a client recovers from a stream gap; how live updates reach clients on many instances. Then compare with today’s model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
   // @@stretch
@@ -2184,6 +2459,11 @@ export const lateInterviewGuides = {
     'Authentication establishes who the caller is, for example by validating a signed token from a trusted issuer. Authorization decides whether that caller may perform this action on this resource. The audience check makes sure the token was issued for this API: aud must include booking-api, so a token minted for help-api cannot be replayed against the booking API, even though its signature is valid. The scope check makes sure the client was granted this kind of action, such as booking:write for POST /bookings. Neither proves ownership, so the service still compares the booking owner with the token subject. Signature, issuer, expiry or audience failures return 401. A missing scope returns 403.',
     'The audience check distinguishes it. The token’s signature, issuer and expiry are valid, because the same authorization server issued it, but its aud claim names help-api rather than booking-api. The booking API must require its own identifier in aud and reject the token with 401 invalid_token before looking at scopes. Otherwise any service that receives a user’s token, including a less trusted one such as an AI help feature, could use it to act on bookings. In Spring Boot I set spring.security.oauth2.resourceserver.jwt.audiences, or add a custom audience validator, because it is not checked by default. If help-api needs booking data, it gets its own read-only token whose audience is booking-api.',
     'I would build signed token fixtures with a test key and a fixed clock, and send the same request with each one. No Authorization header, a malformed token, a bad signature, an expired token, the wrong issuer and the wrong audience must all return 401 with WWW-Authenticate: Bearer error="invalid_token" where a token was presented. A correctly signed, in-date token for booking-api with only booking:read must return 403 insufficient_scope on POST /bookings. A valid booking:write token for another user’s booking must return 404. A valid write token for the caller’s own booking must succeed. I also assert that no booking row changed for any rejected case, by checking the database, not just the status.'
+  ],
+  49: [
+    'For a mostly server-to-browser flow such as live seat availability, I would choose server-sent events. SSE uses an ordinary long-lived HTTP response, works through standard proxies and load balancers, and the browser’s EventSource reconnects automatically. Each event carries an increasing id. On reconnect the browser sends Last-Event-ID, and the server replays retained events after it. If the requested ID is older than the retained history, the server sends a reset, and the client reloads a snapshot with its stream position, then resumes. Writes stay ordinary POST requests to the booking API. WebSockets would only be worth their extra reconnection and heartbeat work if the browser also sent frequent messages.',
+    'The client should reconnect with the ID of the last event it applied, which EventSource does automatically through Last-Event-ID, using a backoff with jitter so thousands of clients do not reconnect in the same second. The server replays every retained event after that ID, and the client applies them in order, ignoring any ID it has already applied. If the server says the history no longer covers the gap, or the client detects a jump in IDs, the client fetches a fresh snapshot of seat availability that includes the stream position it reflects, replaces its local view, and resumes from that position. Throughout, the displayed state is advisory. A booking attempt still goes to the authoritative API and may return 409.',
+    'gRPC is preferable for internal service-to-service calls that I control on both ends, where a strongly typed contract generated from .proto files, compact Protocol Buffers encoding, HTTP/2 multiplexing, deadlines and streaming matter. An example is booking-service calling pricing-service or seat-inventory many times per request with tight latency budgets. Public browser-oriented REST is better for external clients and browsers. It works everywhere without a proxy, uses standard HTTP caching and status codes, and is easy to inspect with common tools. gRPC in browsers needs gRPC-Web and a translating proxy, and its binary payloads are harder to debug. Many systems use both: REST at the edge and gRPC behind the gateway.'
   ],
   // @@guides
 };
