@@ -11,6 +11,292 @@ export const topicLessons = {
   ...foundationTopics,
   ...backendFoundationTopics,
   ...systemFoundationTopics,
+  'd-complexity-01': {
+    notes: [
+      'Pick the input parameter before choosing a bound. Here n is the number of booking IDs in an array. Count key comparisons in firstIndex. Searching for 4 in [4, -2, 7, 4] makes one comparison. Searching for 7 makes three, and searching for 3 makes four. For arrays of length n, the worst case is the maximum comparison count over the inputs of that size. Its tight growth rate is Θ(n).',
+      'Big-O names an asymptotic upper bound and Θ names a tight bound. A linear scan is also O(n²), but Θ(n) is more informative for its worst case. The best case for a nonempty array is Θ(1). A claim about average or expected cost needs a distribution on input positions or hash behavior. A dynamic-array append has amortized O(1) cost across appends even though an individual growth step can copy Θ(n) items.',
+      'Arrays expose 0-based indexing in constant time under the usual word RAM model. Allocating a prefix array costs Θ(n) time and Θ(n) auxiliary space. Each later range query uses two entries and is Θ(1). For q queries the resulting time is Θ(n+q), compared with Θ(nq) when each scan can cover the entire array. This trade-off assumes the source array is static between preprocessing and queries.',
+      'Report stack frames and anything you allocate separately from the input. An iterative firstIndex uses O(1) auxiliary space. A recursive linear scan makes Θ(n) calls and can keep Θ(n) live frames. Checking only a short successful input can hide the cost and the stack risk on a long miss.'
+    ],
+    takeaways: ['State n and what work is counted.', 'Worst case chooses inputs, while Big-O and Θ describe growth.', 'Report precomputation, query and update costs separately.', 'Count the live stack in auxiliary space.'],
+    practice: ['Use ArrayScanTrace.java in the DSA lane. Add a counter to firstIndex. Spend 10 minutes checking first, last and missing targets at n=4 and n=8, then compare 100 full-range queries with a prefix-array build and 100 constant-time queries.', ['Predicted first/last/missing comparisons are 1/4/4 and 1/8/8.', 'The explanation distinguishes Θ(n) worst-case scan from Θ(1) best case.', 'Report Θ(n) prefix setup and auxiliary space, and explain when an update invalidates the prefix array.']],
+    interview: [
+      ['If an array scan stops at the first hit, can you still say worst-case Θ(n)?', 'Yes. Pick an absent target or a hit at the last index to force n comparisons. The existence of an input that returns immediately changes the best case.'],
+      ['Why might a one-time range sum use a scan instead of preprocessing?', 'Both can cost linear time for a full range, and the scan needs constant auxiliary space. A prefix array pays off when many queries reuse stable input.'],
+      ['What separates expected constant lookup from amortized constant append?', 'Expectation uses a probability or distribution assumption. Amortization bounds total work across a sequence even when individual steps are expensive, such as resizing a dynamic array.'],
+      ['What changes if comparing each string examines up to m characters?', 'The key operation now has a worst-case O(m) cost, so n comparisons can cost O(nm). State whether m is bounded before treating comparisons as constant time.']
+    ],
+    check: ['One search inspects the first element and returns. What can be concluded?', ['The worst-case time is always constant.', 'The best case for nonempty input can be constant and the worst case is still linear.', 'The algorithm must allocate a prefix array.', 'The expected time is constant for every input distribution.'], 1, 'An absent target still forces a scan of every element.'],
+    references: [['Princeton Algorithms · Analysis of Algorithms', 'https://algs4.cs.princeton.edu/14analysis/']]
+  },
+  'd-arrays-01': {
+    notes: [
+      'An array’s physical length is fixed. A partially filled array also has a logical size. To insert in the middle, validate index and free capacity, then shift entries from right to left. Inserting 7 at index 1 of logical [4, 9] shifts 9 to index 2. Deleting that index shifts left and lowers the logical size; slots at or above the new size no longer count. Reversing the shift order can overwrite values still needed later.',
+      'For a static array, define prefix[i] as the sum of elements with index below i. For [4, -2, 7, 4], the prefix array is [0, 4, 2, 9, 13]. The sum over [1, 3) is prefix[3] − prefix[1] = 5. An empty valid interval [2, 2) has sum zero. Reject bounds outside 0 ≤ from ≤ to ≤ n. Using long for int inputs avoids wraparound on MAX_VALUE + 1. An update can invalidate all prefix entries after the changed index.',
+      'For the second distinct maximum, maintain the two largest different values seen so far. A duplicate of the maximum changes neither. [7, 7, -2] gives -2, and [7, 7] has no result. OptionalInt expresses absence and a sentinel outside the input type keeps Integer.MIN_VALUE representable as genuine data in this implementation.',
+      'For strict suffix leaders, maintain the largest value already seen from the right. An element qualifies only if it is larger than every element after it, so [8, 8, 3] returns [8, 3]. If an interview defines leaders with greater-than-or-equal, both 8s qualify. Clarify the rule and reverse the output once to restore encounter order.'
+    ],
+    takeaways: ['Check logical size and capacity before shifting.', 'With prefix[0] = 0, sum [l, r) is prefix[r] − prefix[l].', 'State distinctness and duplicate policy.', 'Choose a numeric type and absence representation that fit the contract.'],
+    practice: ['Spend 30 minutes on ArrayScanTrace.java: 12 minutes tracing insert/delete and strict leaders, 10 minutes implementing firstIndex and rangeSum without looking, and 8 minutes extending the test cases. Add full-buffer, invalid-position and invalid-range tests. Explain why a valid empty range returns zero.', ['Insertion and deletion recover [4, 9] with logical size 2.', 'First 4 is at index 0 and a missing value returns -1.', 'Range [1, 3) gives 5 and [2, 2) gives 0. An invalid range is rejected.', 'The all-equal array has no second distinct maximum. [8, 8, 3] has strict leaders [8, 3].']],
+    interview: [
+      ['Why shift right from the end when inserting?', 'A rightward write would otherwise overwrite the next source before it is copied. Moving from the last occupied slot to the insertion point preserves every displaced element.'],
+      ['Why does prefix subtraction still work with negative numbers?', 'It cancels the identical prefix before the left boundary by addition and subtraction. The proof does not rely on monotonic sums.'],
+      ['How do you track a second maximum with duplicates and negative values?', 'Keep the two largest distinct values, update both when a new maximum arrives, and ignore equal maxima. Use an explicit absent result or an out-of-domain sentinel.'],
+      ['What makes a suffix-leader scan linear?', 'Each element is compared once to an aggregate maximum from the suffix already processed. Apart from the result list, the scan needs one running maximum.']
+    ],
+    check: ['For [4, -2, 7, 4], prefix = [0, 4, 2, 9, 13]. What is the sum for [1, 3)?', ['9', '7', '5', '11'], 2, 'The elements are -2 and 7. Subtract prefix[1] from prefix[3].'],
+    references: [
+      ['GFG DSA plus System Design · course listing, Class 3', 'https://www.geeksforgeeks.org/courses/dsa-system-design-live-sde-interview-course'],
+      ['Java 21 API · System.arraycopy', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html#arraycopy(java.lang.Object,int,java.lang.Object,int,int)']
+    ],
+    code: { title: 'ArrayScanTrace.java · java ArrayScanTrace.java', text: "import java.util.ArrayList;\nimport java.util.Collections;\nimport java.util.List;\nimport java.util.OptionalInt;\n\npublic class ArrayScanTrace {\n    static int firstIndex(int[] values, int target) {\n        for (int i = 0; i < values.length; i++) {\n            if (values[i] == target) return i;\n        }\n        return -1;\n    }\n\n    static long[] prefix(int[] values) {\n        long[] sums = new long[values.length + 1];\n        for (int i = 0; i < values.length; i++) {\n            sums[i + 1] = sums[i] + values[i];\n        }\n        return sums;\n    }\n\n    static long rangeSum(long[] sums, int from, int to) {\n        if (from < 0 || from > to || to >= sums.length) {\n            throw new IndexOutOfBoundsException(\"Invalid half-open range\");\n        }\n        return sums[to] - sums[from];\n    }\n\n    static int insert(int[] buffer, int size, int index, int value) {\n        if (size < 0 || size >= buffer.length || index < 0 || index > size) {\n            throw new IllegalArgumentException(\"Invalid insertion or full buffer\");\n        }\n        for (int i = size; i > index; i--) buffer[i] = buffer[i - 1];\n        buffer[index] = value;\n        return size + 1;\n    }\n\n    static int delete(int[] buffer, int size, int index) {\n        if (size < 0 || size > buffer.length || index < 0 || index >= size) {\n            throw new IllegalArgumentException(\"Invalid deletion\");\n        }\n        for (int i = index; i < size - 1; i++) buffer[i] = buffer[i + 1];\n        return size - 1;\n    }\n\n    static OptionalInt secondDistinctMaximum(int[] values) {\n        long largest = Long.MIN_VALUE;\n        long second = Long.MIN_VALUE;\n        for (int value : values) {\n            if (value > largest) {\n                second = largest;\n                largest = value;\n            } else if (value < largest && value > second) {\n                second = value;\n            }\n        }\n        return second == Long.MIN_VALUE ? OptionalInt.empty() : OptionalInt.of((int) second);\n    }\n\n    static List<Integer> strictLeaders(int[] values) {\n        List<Integer> leaders = new ArrayList<>();\n        long maxOnRight = Long.MIN_VALUE;\n        for (int i = values.length - 1; i >= 0; i--) {\n            if (values[i] > maxOnRight) {\n                leaders.add(values[i]);\n                maxOnRight = values[i];\n            }\n        }\n        Collections.reverse(leaders);\n        return leaders;\n    }\n\n    static void require(boolean condition, String description) {\n        if (!condition) throw new AssertionError(description);\n    }\n\n    public static void main(String[] args) {\n        int[] values = { 4, -2, 7, 4 };\n        long[] sums = prefix(values);\n        require(firstIndex(values, 4) == 0, \"Returns first match\");\n        require(firstIndex(values, 3) == -1 && firstIndex(new int[0], 4) == -1, \"Missing target\");\n        require(rangeSum(sums, 1, 3) == 5 && rangeSum(sums, 2, 2) == 0, \"Range sums\");\n        require(rangeSum(prefix(new int[] { Integer.MAX_VALUE, 1 }), 0, 2) == 2147483648L, \"Wide sum\");\n        int[] buffer = { 4, 9, 0 };\n        int size = insert(buffer, 2, 1, 7);\n        require(size == 3 && buffer[1] == 7 && buffer[2] == 9, \"Shift right\");\n        size = delete(buffer, size, 1);\n        require(size == 2 && buffer[0] == 4 && buffer[1] == 9, \"Shift left\");\n        require(secondDistinctMaximum(new int[] { 7, 7, -2 }).orElseThrow() == -2, \"Distinct maximum\");\n        require(secondDistinctMaximum(new int[] { 7 }).isEmpty(), \"No second maximum\");\n        require(secondDistinctMaximum(new int[] { 0, Integer.MIN_VALUE }).orElseThrow() == Integer.MIN_VALUE, \"Minimum int is data\");\n        require(strictLeaders(new int[] { 8, 8, 3 }).equals(List.of(8, 3)), \"Strict leader contract\");\n        require(strictLeaders(new int[0]).isEmpty(), \"Empty leaders\");\n        System.out.println(\"firstIndex=0 rangeSum=5 second=-2 leaders=[8, 3]\");\n    }\n}\n", output: 'firstIndex=0 rangeSum=5 second=-2 leaders=[8, 3]' }
+  },
+  'd-recursion-02': {
+    notes: [
+      'Define the method’s input domain, a base result, and a measure that shrinks on every recursive edge. For factorial with 0 ≤ n ≤ 20, return 1 for n = 0 or n = 1. Otherwise compute n × factorial(n − 1). The pending multiplications live in separate frames. For n = 4, the calls descend 4 → 3 → 2 → 1 and values return 1 → 2 → 6 → 24.',
+      'Fibonacci has two base results, F(0)=0 and F(1)=1. In the direct form F(n)=F(n−1)+F(n−2), F(5) expands to 15 calls yet reaches only five active frames at its deepest path. Total calls grow exponentially, whereas stack depth grows linearly. Trace F(3) under both branches of F(5) to identify repeated subproblems.',
+      'Memoization reuses each computed value and leaves the recursion stack in place. Iteration can keep the previous two values in O(1) auxiliary space and compute F(n) in O(n) time. Use a small input for the naive trace. For signed long, 20! and F(92) fit but 21! and F(93) do not. Numeric range and stack capacity are independent limits.',
+      'Invalid inputs need a separate decision. If factorial accepts a negative n and always recurses with n − 1, it moves away from its valid base case. A very deep valid recursion can also exhaust the JVM stack. A decreasing measure proves algorithmic termination under its model and does not promise enough runtime stack space.'
+    ],
+    takeaways: ['Define domain, base result and a shrinking measure.', 'Distinguish total work from peak stack depth.', 'Repeated subproblems motivate memoization or iteration.', 'Check numeric range independently of recursion depth.'],
+    practice: ['Use 24 minutes in the main practice block. Draw the factorial(4) stack and Fibonacci(5) call tree. Run RecurrenceTrace.java and compare the two Fibonacci algorithms. Add one rejection test for fibonacciIterative(93) and explain why the Fibonacci call counter cannot stand in for peak depth.', ['factorial(0)=1 and factorial(4)=24. Invalid -1 and 21 fail.', 'The naive Fibonacci result is 5 with 15 calls and at most five active recurrence frames.', 'Iterative Fibonacci gives the same small answer and rejects 93.', 'Explain the work and auxiliary space of both approaches.']],
+    interview: [
+      ['How do you show that a recursive algorithm terminates?', 'Name an ordered measure bounded below and show it decreases on every recursive call until a handled base case. Validate inputs outside the declared domain.'],
+      ['Why are Fibonacci’s work and stack bounds different?', 'One call can start two subcalls, so the full call tree contains repeated branches. The implementation runs those branches in sequence and only one path is active at a time.'],
+      ['How would memoization change the direct implementation?', 'Cache by n and compute each distinct state once. Time becomes O(n), while the memo table and pending recursion frames use O(n) space.'],
+      ['Why can replacing recursion with iteration still give a wrong answer for F(93)?', 'Iteration reduces stack usage. The exact value still exceeds a signed long. Validate the bound or use BigInteger if larger results are required.']
+    ],
+    check: ['Naive Fibonacci(5) makes 15 calls. What does that tell you about stack depth?', ['It proves all 15 calls are active at once.', 'It proves the depth is constant for every n.', 'The count is total work. Peak depth is measured along the deepest live path.', 'It proves the result is 15.'], 2, 'Only one path is live at a time in this sequential recursion.'],
+    references: [
+      ['Princeton · Recursion', 'https://introcs.cs.princeton.edu/java/23recursion/'],
+      ['Java 21 API · Math and overflow checks', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html']
+    ],
+    code: { title: 'RecurrenceTrace.java · java RecurrenceTrace.java', text: "public class RecurrenceTrace {\n    static long factorial(int n) {\n        if (n < 0 || n > 20) throw new IllegalArgumentException(\"Require 0 <= n <= 20\");\n        return n <= 1 ? 1 : n * factorial(n - 1);\n    }\n\n    static long fibonacci(int n, int[] calls) {\n        if (n < 0 || n > 20) throw new IllegalArgumentException(\"Require 0 <= n <= 20 for the naive trace\");\n        return fibonacciCalls(n, calls);\n    }\n\n    private static long fibonacciCalls(int n, int[] calls) {\n        calls[0]++;\n        return n <= 1 ? n : fibonacciCalls(n - 1, calls) + fibonacciCalls(n - 2, calls);\n    }\n\n    static long fibonacciIterative(int n) {\n        if (n < 0 || n > 92) throw new IllegalArgumentException(\"Require 0 <= n <= 92\");\n        if (n == 0) return 0;\n        long previous = 0;\n        long current = 1;\n        for (int i = 2; i <= n; i++) {\n            long next = previous + current;\n            previous = current;\n            current = next;\n        }\n        return current;\n    }\n\n    public static void main(String[] args) {\n        int[] calls = { 0 };\n        long f = fibonacci(5, calls);\n        if (factorial(0) != 1 || factorial(4) != 24 || f != 5 || calls[0] != 15\n                || f != fibonacciIterative(5) || fibonacciIterative(92) != 7540113804746346429L) {\n            throw new AssertionError(\"Recurrence or boundary result differs\");\n        }\n        for (int n : new int[] { -1, 21 }) {\n            try {\n                factorial(n);\n                throw new AssertionError(\"Accepted invalid factorial input \" + n);\n            } catch (IllegalArgumentException expected) {\n                // The public factorial method rejects unsupported inputs.\n            }\n        }\n        System.out.println(\"factorial(4)=24 fib(5)=5 calls=15\");\n    }\n}\n", output: 'factorial(4)=24 fib(5)=5 calls=15' }
+  },
+  'd-pointers-01': {
+    notes: [
+      'A two-pointer algorithm is useful when an ordering or an invariant justifies eliminating several candidates with one move. In a sorted int array, start a pair-sum search with the smallest and largest remaining values. If their sum is below the target, pairing the left value with any other remaining value is also too small, so advance left. If the sum is above the target, pairing the right value with any other remaining value is also too large, so decrease right. Keep left < right so an item cannot pair with itself. Use long sums for int inputs. The scan is O(n) with O(1) auxiliary space after sorting, and sorting an unsorted input adds its own time and space cost.',
+      'For unique value triplets, fix each distinct first value in a sorted array and solve the remaining pair problem to its right. For [-2, 0, 0, 2, 2, 3] with target 0, fixing -2 gives (-2, 0, 2). Move both pointers past equal values after emitting that triple and skip equal first values. This is O(n²) after sorting with O(1) scan space, excluding the output. If the question asks for all index triplets, skipping equal values can discard valid index combinations. Define which contract you are implementing before writing the loop.',
+      'A variable window tracks a contiguous range. Store the latest index for each seat ID to keep the active interval [left, right] distinct. For [A, B, B, A, C], when the second B arrives, set left to 2. The next A was seen at index 0, outside the window, so left must stay 2. Updating left to previous + 1 unconditionally would move it back to 1 and include both Bs. Use max(left, previous + 1). After processing C the longest valid window has length 3. With appropriate hashing and constant-cost keys, the map scan is O(n) expected time and uses O(u) memory for u distinct IDs. The same rule solves longest distinct substring if each element is a text unit. Say whether a Java String task counts UTF-16 code units or Unicode code points. The ASCII example ABBAC gives length 3 under either policy.',
+      'For the maximum sum of a fixed length k, compute the first complete window, then add the entering value and subtract the departing one. Start best at the first window sum so an all-negative input can return a negative answer. For [-8, -3, -5, -2] with k = 2, the sums are -11, -8 and -7. Accumulate int values in a long. The fixed-width scan has O(n) time and O(1) extra space. A different problem that shrinks a window while its sum exceeds a threshold usually needs nonnegative inputs. With [5, -4] and threshold 2, dropping 5 as soon as it exceeds the threshold loses a valid length-two window of sum 1.'
+    ],
+    takeaways: [
+      'Prove every pointer move can discard the whole eliminated group.',
+      'Advance the left boundary monotonically in a last-seen window.',
+      'Initialize a fixed-window maximum from a valid complete window.',
+      'State whether answers are unique value tuples or distinct index tuples.'
+    ],
+    practice: ['Use 20 minutes of Day 27’s existing practice block. Run Day27Windows.java with Java 21, then trace [A, B, B, A, C] by hand. Extend pair search to emit unique sorted value triplets. Use a fixed first value and two pointers in the remaining suffix.', [
+      'The longest distinct lengths are 3 and 0 for the shown nonempty and empty inputs.',
+      'The maximum sums are -7 for the all-negative case and 4294967294 for two large ints, and invalid window sizes are rejected.',
+      'The sorted pair routine finds 0 + 2 = 2 and rejects a false overflow match.',
+      'For [-2, 0, 0, 2, 2, 3] and target 0, the triplet routine emits (-2, 0, 2) once. An all-zero input with at least three items yields exactly one value triplet.'
+    ]],
+    interview: [
+      ['Why is moving the left pointer safe when the endpoint sum is too small?', 'The right endpoint is the largest partner still in range. Pairing the same left endpoint with any smaller candidate cannot reach the target.'],
+      ['Why keep the old left boundary when the last seen index falls before it?', 'The earlier occurrence is already outside the distinct window. Moving left backwards would reintroduce elements already eliminated for a duplicate.'],
+      ['Would zero be a safe initial best for a fixed-length maximum sum?', 'Only if the problem permits an empty result with sum zero. Every valid fixed-length window can have a negative sum. Initialize to the sum of the first valid window.'],
+      ['Do you skip duplicate values if asked for every index triplet?', 'No. Equal values at different indices can represent distinct valid answers. Skipping repeats suits an answer contract based on unique value tuples.'],
+      ['What makes a shrink-on-large-sum strategy unreliable with negative numbers?', 'A later negative number can reduce the sum of a longer window that has already been discarded. The sum no longer changes monotonically when you extend or shrink the interval.']
+    ],
+    check: ['While scanning [A, B, B, A, C], left is 2 just before the second A at index 3. Its last position is 0. What is left after processing that A?', ['0', '1', '2', '3'], 2, 'The previous A is already outside the active window. max(2, 0 + 1) preserves the distinct range.'],
+    references: [
+      ['GeeksforGeeks syllabus · Track 1, Array II and III', 'https://media.geeksforgeeks.org/courses/syllabus/4fba2a7424e0c6195d2a0dc8966739d4.pdf#page=7'],
+      ['Java 21 API · HashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html'],
+      ['USACO Guide · Two Pointers and Sliding Window', 'https://usaco.guide/silver/two-pointers']
+    ],
+    code: { title: 'Day27Windows.java · java Day27Windows.java', text: `import java.util.HashMap;
+import java.util.Map;
+
+class Day27Windows {
+    static int longestDistinct(String[] values) {
+        Map<String, Integer> lastSeen = new HashMap<>();
+        int left = 0;
+        int best = 0;
+        for (int right = 0; right < values.length; right++) {
+            Integer previous = lastSeen.put(values[right], right);
+            if (previous != null) {
+                left = Math.max(left, previous + 1);
+            }
+            best = Math.max(best, right - left + 1);
+        }
+        return best;
+    }
+
+    static long maxFixedSum(int[] values, int width) {
+        if (width < 1 || width > values.length) {
+            throw new IllegalArgumentException("window width outside input");
+        }
+        long sum = 0;
+        for (int i = 0; i < width; i++) {
+            sum += values[i];
+        }
+        long best = sum;
+        for (int right = width; right < values.length; right++) {
+            sum += (long) values[right] - values[right - width];
+            best = Math.max(best, sum);
+        }
+        return best;
+    }
+
+    static boolean hasSortedPair(int[] values, long target) {
+        int left = 0;
+        int right = values.length - 1;
+        while (left < right) {
+            long sum = (long) values[left] + values[right];
+            if (sum == target) return true;
+            if (sum < target) {
+                left++;
+            } else {
+                right--;
+            }
+        }
+        return false;
+    }
+
+    public static void main(String[] args) {
+        int distinct = longestDistinct(new String[]{"A", "B", "B", "A", "C"});
+        if (distinct != 3 || longestDistinct(new String[0]) != 0) {
+            throw new AssertionError("distinct window");
+        }
+
+        long maximum = maxFixedSum(new int[]{-8, -3, -5, -2}, 2);
+        long large = maxFixedSum(new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE}, 2);
+        if (maximum != -7 || large != 4_294_967_294L) {
+            throw new AssertionError("fixed window");
+        }
+        try {
+            maxFixedSum(new int[]{1, 2}, 3);
+            throw new AssertionError("invalid window accepted");
+        } catch (IllegalArgumentException expected) {
+            System.out.println("invalid window rejected");
+        }
+
+        boolean pair = hasSortedPair(new int[]{-3, 0, 2, 4, 7}, 2);
+        boolean overflowMatch = hasSortedPair(new int[]{1, Integer.MAX_VALUE}, Integer.MIN_VALUE);
+        if (!pair || overflowMatch || hasSortedPair(new int[]{2}, 4)) {
+            throw new AssertionError("pair sum");
+        }
+        System.out.printf("distinct=%d maxNegative=%d maxLarge=%d pair=%b%n",
+                distinct, maximum, large, pair);
+    }
+}
+`, output: 'invalid window rejected\ndistinct=3 maxNegative=-7 maxLarge=4294967294 pair=true' }
+  },
+  'd-search-01': {
+    notes: [
+      'Linear search can find the first matching index of an unsorted array by scanning in order. It takes O(n) time in the worst case and O(1) auxiliary space. A sorted array can answer repeated positional queries faster. Its lower bound is the first index whose value is greater than or equal to the target, including an insertion point when the exact target is absent. Return length when every element is smaller. Checking a[i] == target is a separate step, guarded by i < length.',
+      'Maintain a half-open search interval [lo, hi). Values before lo are strictly below the target and values from hi onward meet the predicate. Test mid = lo + (hi - lo) / 2. If values[mid] < target, raise lo to mid + 1. Otherwise make hi equal to mid, which retains mid as a possible boundary and looks for an earlier match. For [10, 15, 15, 27] and target 15, start (lo, hi) = (0, 4). Testing indices 2, 1 and 0 brings the boundaries to (1, 1). Returning immediately on equality might give index 2, which breaks the first-match contract.',
+      'The recursive form uses the same invariant. Stop when lo equals hi and return that boundary, with no access to an element in an empty interval. Each call strictly shrinks the interval. Passing mid as the new lo on a failing predicate can repeat a one-element interval forever. An iterative implementation uses O(1) auxiliary memory and the recursive version uses O(log n) stack space. Both use O(log n) comparisons on a sorted random-access array.',
+      'A ceiling is the value at lowerBound if that position exists. A floor is the value immediately before upperBound, where upperBound finds the first index with a value strictly greater than the target. For [10, 15, 15, 27] and target 15, lowerBound = 1 and upperBound = 3. The first exact index is 1 and the last is 2. For target 16, ceiling is 27 and floor is 15. A rotated array can violate the false-then-true predicate, so this routine does not apply to it without accounting for the rotation.',
+      'Java Arrays.binarySearch accepts sorted input and returns an index of any matching duplicate when the key is present. If the key is absent, a negative result encodes the insertion point as -(result + 1). A found index is insufficient to answer a first-match query in the presence of duplicates.'
+    ],
+    takeaways: [
+      'Use linear search for an unsorted first-match query unless you have an index or can afford preprocessing.',
+      'A first-true search needs a monotone predicate and a shrinking interval.',
+      'The end sentinel is a valid insertion point but an invalid array index.',
+      'Lower and upper bound use different predicates on duplicates.'
+    ],
+    practice: ['Use 20 minutes of Day 27’s DSA block. Run Day27Bounds.java with Java 21, then write out each [lo, hi) state for targets 15 and 30. Explain the one predicate difference in upperBound, then implement your own floor and last-index wrappers. Compare sorted search with the unsorted firstLinear scan.', [
+      'Iterative and recursive lower bounds agree for duplicate, empty, and absent targets, including the array-length sentinel.',
+      'The first exact index of 15 is 1 and exact search for 16 returns -1. On unsorted [27, 15, 10, 15], firstLinear returns 1 for 15 and -1 for 16.',
+      'upperBound(15) is 3, the last exact index is 2, and for target 16 the floor is 15 and ceiling is 27.',
+      'No floor exists below 10 and no ceiling exists above 27. The learner explains why binary search fails without a sorted or otherwise monotone predicate.'
+    ]],
+    interview: [
+      ['What invariant guarantees that lowerBound returns the first possible match?', 'Each step puts a verified false prefix before lo or a verified true suffix from hi onward. Once lo equals hi there is a unique boundary between those regions.'],
+      ['Why do you use hi = mid when the predicate is true?', 'mid could be the first true index, but any index between lo and mid could be earlier. Retaining mid as the candidate boundary lets the search check those positions.'],
+      ['What does the algorithm return for an empty array or for a target larger than the last element?', 'It returns 0 for the empty array and the array length when the target is larger than every element. In both cases, no matching index exists.'],
+      ['How do you get a floor and the last matching index from upperBound?', 'The floor is the value at upperBound minus 1 when that index exists. It is the last match only if that value equals the target.'],
+      ['Would Arrays.binarySearch replace lowerBound in a first-duplicate query?', 'Its successful result can be any matching index. For a first-duplicate requirement, implement a lower bound or use an API that guarantees the first boundary.']
+    ],
+    check: ['On [10, 15, 15, 27] with target 30, what should lowerBound return?', ['0', '3', '4', '-1'], 2, 'All four values are below 30. Index 4 represents insertion after the last value and must not be dereferenced.'],
+    references: [
+      ['GeeksforGeeks syllabus · Track 1, Searching', 'https://media.geeksforgeeks.org/courses/syllabus/4fba2a7424e0c6195d2a0dc8966739d4.pdf#page=7'],
+      ['Java 21 API · Arrays.binarySearch', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html#binarySearch(int%5B%5D,int)'],
+      ['Princeton Algorithms · Binary search reference implementation', 'https://algs4.cs.princeton.edu/11model/BinarySearch.java.html']
+    ],
+    code: { title: 'Day27Bounds.java · java Day27Bounds.java', text: `class Day27Bounds {
+    static int lowerBound(int[] values, int target) {
+        int lo = 0;
+        int hi = values.length;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (values[mid] < target) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        return lo;
+    }
+
+    static int lowerBoundRecursive(int[] values, int target, int lo, int hi) {
+        if (lo == hi) return lo;
+        int mid = lo + (hi - lo) / 2;
+        return values[mid] < target
+                ? lowerBoundRecursive(values, target, mid + 1, hi)
+                : lowerBoundRecursive(values, target, lo, mid);
+    }
+
+    static int upperBound(int[] values, int target) {
+        int lo = 0;
+        int hi = values.length;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (values[mid] <= target) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        return lo;
+    }
+
+    static int firstLinear(int[] values, int target) {
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] == target) return i;
+        }
+        return -1;
+    }
+
+    static int firstExact(int[] values, int target) {
+        int i = lowerBound(values, target);
+        return i < values.length && values[i] == target ? i : -1;
+    }
+
+    static void checkLowerBound(int[] values, int target, int expected) {
+        if (lowerBound(values, target) != expected
+                || lowerBoundRecursive(values, target, 0, values.length) != expected) {
+            throw new AssertionError("unexpected boundary for " + target);
+        }
+    }
+
+    public static void main(String[] args) {
+        int[] values = {10, 15, 15, 27};
+        checkLowerBound(values, 0, 0);
+        checkLowerBound(values, 15, 1);
+        checkLowerBound(values, 16, 3);
+        checkLowerBound(values, 30, 4);
+        checkLowerBound(new int[0], 10, 0);
+        int[] unsorted = {27, 15, 10, 15};
+        if (firstLinear(unsorted, 15) != 1 || firstLinear(unsorted, 16) != -1
+                || firstLinear(new int[0], 10) != -1) {
+            throw new AssertionError("linear search contract");
+        }
+        if (firstExact(values, 15) != 1 || firstExact(values, 16) != -1
+                || firstExact(values, 30) != -1 || firstExact(new int[0], 10) != -1
+                || upperBound(values, 15) != 3 || upperBound(values, 9) != 0) {
+            throw new AssertionError("upper bound or exact-match contract");
+        }
+        System.out.printf("lower(15)=%d upper(15)=%d floor(16)=%d ceiling(16)=%d exact(30)=%d%n",
+                lowerBound(values, 15), upperBound(values, 15),
+                values[upperBound(values, 16) - 1], values[lowerBound(values, 16)],
+                firstExact(values, 30));
+    }
+}
+`, output: 'lower(15)=1 upper(15)=3 floor(16)=15 ceiling(16)=27 exact(30)=-1' }
+  },
   'j-oop-01': {
     notes: [
       'A class defines fields and operations. An object owns a particular set of field values. Construct Seat A1 and A2 separately so that choosing an owner for A1 leaves A2 available. The constructor initializes the identity before callers can use the object. Mark the id final, allow the owner to change through the booking operation and use private fields to limit the points where state can change.',
