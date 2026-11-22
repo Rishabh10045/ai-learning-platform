@@ -2092,8 +2092,9 @@ TreeMap.floorEntry(2999) -> k2`
     notes: [
       'An API gateway is the single entry point between clients and your services. It handles edge concerns that every request shares: TLS termination, routing by path or host, checking that a token is present and well-formed, rate limiting per client, request IDs for tracing, CORS, request size limits and timeouts. It should not contain business rules such as "a seat can have one owner". Those belong in the service that owns the data, otherwise the gateway becomes a fragile monolith that every team must change.',
       'GatewayChain.java models a gateway as an ordered chain of filters, each of which either stops the request with a response or lets it continue: request ID, authentication, rate limit, route. Order matters. Unauthenticated requests are rejected before they spend rate-limit budget, and the request ID is attached first so even rejections can be traced. Routing uses the longest matching prefix, so /api/bookings/b-100 goes to booking-service, and an unknown path returns 404 at the edge. Spring Cloud Gateway, Envoy, NGINX and cloud API gateways implement the same ideas with configuration.',
-      'Choose the API style by client and contract. REST over HTTP with JSON fits public and browser clients: it is cacheable, easy to debug and supported everywhere. GraphQL lets clients ask for exactly the fields they need from one endpoint, which helps when many different screens combine data. The costs are harder HTTP caching, query-cost limits and N+1 risks in resolvers. gRPC uses HTTP/2 and Protocol Buffers with a generated, strongly typed contract and streaming. It is efficient for service-to-service calls inside your system, but browsers need gRPC-Web and a proxy.',
-      'For the booking system, a sensible split is: public REST for browsers and partners (GET /events/42/seats, POST /bookings with an Idempotency-Key header), gRPC between internal services where low latency and typed contracts help, and SSE for live seat updates to browsers. Whatever the style, keep the contract versioned and backward compatible, put a timeout and a retry policy on every internal call, and make the gateway pass through the authenticated subject so services can do their own authorization.'
+      'Choose the API style by client and contract. REST over HTTP with JSON fits public and browser clients: it can use standard HTTP caching where a response allows it, and it is easy to debug and supported everywhere. GraphQL lets clients ask for exactly the fields they need from one endpoint, which helps when many different screens combine data. The costs are harder HTTP caching, query-cost limits and N+1 risks in resolvers. gRPC uses HTTP/2 and Protocol Buffers with a generated, strongly typed contract and streaming. It is efficient for service-to-service calls inside your system, but browsers need gRPC-Web and a proxy.',
+      'For the booking system, a sensible split is: public REST for browsers and partners (GET /events/42/seats, POST /bookings with an Idempotency-Key header), gRPC between internal services where low latency and typed contracts help, and SSE for live seat updates to browsers. Whatever the style, keep the contract versioned and backward compatible, put a timeout and a retry policy on every internal call, and make the gateway pass through the authenticated subject so services can do their own authorization.',
+      'HTTP responses are not cacheable just because the API is REST. RFC 9111 makes reuse depend on the request method (normally GET or HEAD), the status code, the Cache-Control directives, validators and authorization. Shared caches such as a CDN or the gateway must not reuse a response to a request that carried an Authorization header unless the response explicitly allows it (public, s-maxage or must-revalidate). Contrast two booking responses. The public event catalog, GET /events/42, can send Cache-Control: public, max-age=60 with an ETag; after a minute the client revalidates with If-None-Match and gets 304 Not Modified if nothing changed. A user’s booking, GET /bookings/b-100, sends Cache-Control: private, no-store, so no shared cache ever serves one user’s booking to another, and seat availability that must be live is not cached at the edge at all.'
     ],
     code: {
       title: 'GatewayChain.java · a gateway as an ordered filter chain: request ID, auth, rate limit, routing · java GatewayChain.java',
@@ -2161,7 +2162,7 @@ GET /api/admin -> 404 no route`
     takeaways: ['The gateway owns edge concerns; services own business rules and authorization.', 'Filter order matters: trace ID first, reject unauthenticated traffic before rate limiting.', 'REST for public and browser APIs, GraphQL for flexible client queries, gRPC for typed internal calls.', 'Version contracts and keep them backward compatible.'],
     interview: [
       ['What belongs in an API gateway and what does not?', 'Edge concerns that apply to every request belong in the gateway: TLS termination, routing, rejecting requests without a valid token format, per-client rate limits and quotas, request IDs, CORS, request size limits, timeouts and basic metrics. Business logic does not belong there. Neither does fine-grained authorization such as "may this user cancel this booking?", because that needs the service’s data, and keeping it in the gateway couples every team to one shared component. Services still validate the token audience and enforce ownership themselves, so a request that bypasses the gateway, or a bug in it, cannot break the rules. A gateway is also a single point of failure, so it must be replicated.'],
-      ['When would you choose gRPC over REST, and when GraphQL?', 'I choose gRPC for internal service-to-service calls where I control both sides. It gives a generated, typed contract from .proto files, compact binary encoding, HTTP/2 multiplexing, deadlines and streaming, which matters for chatty, latency-sensitive paths. Its downsides are weaker browser support, which needs gRPC-Web, and harder debugging. I choose REST for public and browser APIs, because it works with every client, caches with standard HTTP semantics, and is easy to inspect. GraphQL fits when many clients need different shapes of the same data and over-fetching hurts, for example mobile screens. It needs query-depth and cost limits, per-field authorization and batching to avoid N+1 resolvers.'],
+      ['When would you choose gRPC over REST, and when GraphQL?', 'I choose gRPC for internal service-to-service calls where I control both sides. It gives a generated, typed contract from .proto files, compact binary encoding, HTTP/2 multiplexing, deadlines and streaming, which matters for chatty, latency-sensitive paths. Its downsides are weaker browser support, which needs gRPC-Web, and harder debugging. I choose REST for public and browser APIs, because it works with every client, can use standard HTTP caching (Cache-Control and ETag) for the responses that allow it, and is easy to inspect. GraphQL fits when many clients need different shapes of the same data and over-fetching hurts, for example mobile screens. It needs query-depth and cost limits, per-field authorization and batching to avoid N+1 resolvers.'],
       ['How would you rate-limit at the gateway without hurting legitimate users?', 'I limit per client identity, such as an API key or token subject, rather than per IP address, which can be shared by many users behind one NAT. I use a token bucket so short bursts are allowed while the average stays bounded, and return 429 with a Retry-After header. Limits are stored in a shared store such as Redis so all gateway replicas agree. I apply cheaper checks first, so unauthenticated junk is rejected before it consumes a real client’s budget, and I set separate limits for expensive endpoints such as POST /bookings or AI help. I monitor the 429 rate per client to tune limits instead of guessing.']
     ],
     check: ['In GatewayChain.java, why does the unauthenticated POST /api/bookings not count against web-1’s rate limit?',
@@ -2169,7 +2170,7 @@ GET /api/admin -> 404 no route`
       'Filters run in order and stop at the first response. The 401 is returned before the rate limiter is reached.'],
     practice: ['Copy GatewayChain.java. Replace the per-minute counter with a token bucket (capacity 3, refill 1 token per 20 seconds, using a fake clock), add a request-size filter returning 413 above 10 KB, and route /api/bookings/admin to a different service using the longest-prefix rule.',
       ['The token bucket allows a burst of 3, then about 1 request per 20 seconds.', 'Oversized requests get 413 before routing.', '/api/bookings/admin/x goes to the admin service and /api/bookings/b-1 still goes to booking-service.', 'The filter order is explained in one sentence.']],
-    references: [['Spring Cloud Gateway reference', 'https://docs.spring.io/spring-cloud-gateway/reference/'], ['gRPC · Introduction', 'https://grpc.io/docs/what-is-grpc/introduction/'], ['GraphQL · Learn', 'https://graphql.org/learn/']]
+    references: [['Spring Cloud Gateway reference', 'https://docs.spring.io/spring-cloud-gateway/reference/'], ['RFC 9111 · HTTP Caching (§3–5: storing, reusing and freshness)', 'https://www.rfc-editor.org/rfc/rfc9111.html'], ['gRPC · Introduction', 'https://grpc.io/docs/what-is-grpc/introduction/'], ['GraphQL · Learn', 'https://graphql.org/learn/']]
   },
   'h-realtime-01': {
     notes: [
@@ -2909,18 +2910,19 @@ cyclic graph: cycle: no topological order`
   'd-math-01': {
     notes: [
       'The greatest common divisor gcd(a, b) is the largest integer that divides both a and b. Euclid’s algorithm rests on one fact: any common divisor of a and b also divides a mod b, so gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Repeating the step shrinks the numbers quickly. EuclidGcd.java traces gcd(252, 105) → gcd(105, 42) → gcd(42, 21) → 21.',
-      'The running time is O(log min(a, b)) steps, because the larger value at least halves every two steps (Lamé’s theorem connects the worst case to consecutive Fibonacci numbers). Handle the edges explicitly. Take absolute values so gcd(−48, 18) = 6. gcd(0, 7) = 7, and by convention gcd(0, 0) = 0. Java’s % keeps the sign of the dividend, which is another reason to normalize signs first.',
+      'The running time is O(log min(a, b)) steps, because the larger value at least halves every two steps (Lamé’s theorem connects the worst case to consecutive Fibonacci numbers). Handle the edges explicitly: gcd(−48, 18) = 6, gcd(0, 7) = 7, and by convention gcd(0, 0) = 0. Java’s % keeps the sign of the dividend, so the program runs Euclid on the signed values and removes the sign once, at the end, with Math.absExact. Do not use Math.abs here: Math.abs(Long.MIN_VALUE) is still Long.MIN_VALUE, a negative number, because 2^63 does not fit in a long. With absExact, gcd(MIN_VALUE, 0) and lcm(MIN_VALUE, 1) throw an ArithmeticException instead of returning −9223372036854775808, while gcd(MIN_VALUE, 2) = 2 still works. If you need the exact value 2^63, use BigInteger.',
       'The extended Euclidean algorithm also returns coefficients x and y with a·x + b·y = gcd(a, b), known as Bézout’s identity. For 240 and 46 it finds 240·(−9) + 46·47 = 2. It is how you compute a modular inverse when gcd(a, m) = 1, which appears in hashing and cryptography questions. It is also the basis of the "water jug" puzzle: you can measure exactly the multiples of gcd(a, b).',
       'The least common multiple is lcm(a, b) = |a| / gcd(a, b) · |b|. Divide before multiplying, because a · b can overflow long even when the LCM itself fits. Dividing first keeps the intermediate value no larger than the result. When the result itself does not fit, Math.multiplyExact throws an ArithmeticException instead of silently wrapping around, as the program shows for two large coprime numbers. To fold the LCM over an array, combine left to right with the same function and stop at the first overflow.'
     ],
     code: {
-      title: 'EuclidGcd.java · Euclid trace, signs and zero, extended Euclid, LCM with an overflow guard · java EuclidGcd.java',
+      title: 'EuclidGcd.java · Euclid trace, signs and zero, extended Euclid, LCM and Long.MIN_VALUE with overflow guards · java EuclidGcd.java',
       text: String.raw`public class EuclidGcd {
     // Euclid: gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Each step at least halves the larger value every two steps.
+    // Signs are removed only at the end with absExact: |Long.MIN_VALUE| = 2^63 does not fit in a long,
+    // so gcd(MIN_VALUE, 0) throws instead of silently returning a negative number (Math.abs would).
     static long gcd(long a, long b) {
-        a = Math.abs(a); b = Math.abs(b);
         while (b != 0) { long r = a % b; a = b; b = r; }
-        return a;
+        return Math.absExact(a);
     }
 
     static String trace(long a, long b) {
@@ -2936,10 +2938,10 @@ cyclic graph: cycle: no topological order`
         return new long[] {r[0], r[2], r[1] - (a / b) * r[2]};
     }
 
-    // LCM: divide before multiplying to keep the intermediate small; Math.multiplyExact still guards overflow.
+    // LCM: divide before multiplying to keep the intermediate small; absExact and multiplyExact guard overflow.
     static long lcm(long a, long b) {
         if (a == 0 || b == 0) return 0;
-        return Math.multiplyExact(Math.abs(a) / gcd(a, b), Math.abs(b));
+        return Math.multiplyExact(Math.absExact(a / gcd(a, b)), Math.absExact(b));
     }
 
     public static void main(String[] args) {
@@ -2953,6 +2955,14 @@ cyclic graph: cycle: no topological order`
         } catch (ArithmeticException ex) {
             System.out.println("lcm of two large coprimes: " + ex.getMessage());
         }
+        System.out.println("gcd(MIN_VALUE, 2) = " + gcd(Long.MIN_VALUE, 2));
+        for (long[] p : new long[][] {{Long.MIN_VALUE, 0}, {Long.MIN_VALUE, 1}}) {
+            try {
+                System.out.println("unexpected: " + (p[1] == 0 ? gcd(p[0], p[1]) : lcm(p[0], p[1])));
+            } catch (ArithmeticException ex) {
+                System.out.println((p[1] == 0 ? "gcd(MIN_VALUE, 0)" : "lcm(MIN_VALUE, 1)") + " rejected: 2^63 does not fit in a long (" + ex.getMessage() + ")");
+            }
+        }
     }
 }
 `,
@@ -2960,7 +2970,10 @@ cyclic graph: cycle: no topological order`
 gcd(-48, 18) = 6, gcd(0, 7) = 7, gcd(0, 0) = 0
 240*(-9) + 46*(47) = 2
 lcm(4, 6) = 12, lcm(21, 6) = 42
-lcm of two large coprimes: long overflow`
+lcm of two large coprimes: long overflow
+gcd(MIN_VALUE, 2) = 2
+gcd(MIN_VALUE, 0) rejected: 2^63 does not fit in a long (Overflow to represent absolute value of Long.MIN_VALUE)
+lcm(MIN_VALUE, 1) rejected: 2^63 does not fit in a long (Overflow to represent absolute value of Long.MIN_VALUE)`
     },
     takeaways: ['gcd(a, b) = gcd(b, a mod b); gcd(a, 0) = |a|; O(log min(a, b)).', 'Normalize signs; gcd(0, 0) = 0 by convention.', 'Extended Euclid gives Bézout coefficients and modular inverses.', 'lcm = |a| / gcd · |b|, with Math.multiplyExact to catch overflow.'],
     interview: [

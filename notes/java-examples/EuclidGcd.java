@@ -1,9 +1,10 @@
 public class EuclidGcd {
     // Euclid: gcd(a, b) = gcd(b, a mod b), and gcd(a, 0) = |a|. Each step at least halves the larger value every two steps.
+    // Signs are removed only at the end with absExact: |Long.MIN_VALUE| = 2^63 does not fit in a long,
+    // so gcd(MIN_VALUE, 0) throws instead of silently returning a negative number (Math.abs would).
     static long gcd(long a, long b) {
-        a = Math.abs(a); b = Math.abs(b);
         while (b != 0) { long r = a % b; a = b; b = r; }
-        return a;
+        return Math.absExact(a);
     }
 
     static String trace(long a, long b) {
@@ -19,10 +20,10 @@ public class EuclidGcd {
         return new long[] {r[0], r[2], r[1] - (a / b) * r[2]};
     }
 
-    // LCM: divide before multiplying to keep the intermediate small; Math.multiplyExact still guards overflow.
+    // LCM: divide before multiplying to keep the intermediate small; absExact and multiplyExact guard overflow.
     static long lcm(long a, long b) {
         if (a == 0 || b == 0) return 0;
-        return Math.multiplyExact(Math.abs(a) / gcd(a, b), Math.abs(b));
+        return Math.multiplyExact(Math.absExact(a / gcd(a, b)), Math.absExact(b));
     }
 
     public static void main(String[] args) {
@@ -35,6 +36,14 @@ public class EuclidGcd {
             lcm(4_000_000_007L, 4_000_000_009L);
         } catch (ArithmeticException ex) {
             System.out.println("lcm of two large coprimes: " + ex.getMessage());
+        }
+        System.out.println("gcd(MIN_VALUE, 2) = " + gcd(Long.MIN_VALUE, 2));
+        for (long[] p : new long[][] {{Long.MIN_VALUE, 0}, {Long.MIN_VALUE, 1}}) {
+            try {
+                System.out.println("unexpected: " + (p[1] == 0 ? gcd(p[0], p[1]) : lcm(p[0], p[1])));
+            } catch (ArithmeticException ex) {
+                System.out.println((p[1] == 0 ? "gcd(MIN_VALUE, 0)" : "lcm(MIN_VALUE, 1)") + " rejected: 2^63 does not fit in a long (" + ex.getMessage() + ")");
+            }
         }
     }
 }

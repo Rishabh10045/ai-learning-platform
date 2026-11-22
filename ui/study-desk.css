@@ -399,3 +399,12 @@
 
 .sd-stretchplan { margin: 6px 0 0; padding-left: 1.2em; font-size: .9em; line-height: 1.45; }
 .sd-stretchplan li { margin: 2px 0; }
+/* Calendar rows on phones (QA 2026-11-23): date + status on the first line, the session title with full width below,
+   so "Session 1" never breaks mid-word at 320 px. */
+@media (max-width: 480px) {
+  .sd-calrow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+  .sd-calrow .sd-cal-date { grid-column: 1; grid-row: 1; font-weight: 600; }
+  .sd-calrow > .sd-badge { grid-column: 2; grid-row: 1; justify-self: end; }
+  .sd-calrow .sd-cal-main { grid-column: 1; grid-row: 2; overflow-wrap: break-word; }
+  .sd-calrow .sd-cal-off { grid-column: 2; grid-row: 2; justify-self: end; }
+}
