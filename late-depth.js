@@ -48,6 +48,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · Comparator.comparingInt', jdk + 'java/util/Comparator.html')],
     recall: 'Why must intervals be sorted by start before merging, and what are the two comparisons that detect overlap of half-open intervals?'
   },
+  45: {
+    title: 'LRU cache with a HashMap and a doubly linked list',
+    concept: 'Keep a HashMap from key to node, and a doubly linked list ordered from least to most recently used. get moves the node to the most-recent end. put on a new key evicts the least-recent node first when the cache is full. Both are O(1).',
+    example: 'Capacity 2: put A1, put A2, get A1 (order A2, A1), put A3 evicts A2. Updating A1 then putting A4 evicts A3.',
+    practice: 'Implement LruCache<K, V> with get and put, sentinel head and tail nodes, and a toString that prints least recent first. Then rebuild it with LinkedHashMap(accessOrder = true) and removeEldestEntry.',
+    checks: ['The example sequence prints [A2=held, A1=free], then [A1=free, A3=free], then [A1=sold, A4=free].', 'get of a missing key returns null and does not change the order.', 'Explain why each node stores its key and why the list is doubly linked.'],
+    readings: [reading('Java 21 API · LinkedHashMap', jdk + 'java/util/LinkedHashMap.html')],
+    recall: 'Which two data structures make an LRU cache O(1) for both get and put, and what does each one contribute?'
+  },
   // @@lanes
 };
 
@@ -902,6 +911,272 @@ merge of no holds: []`
       ['insert([[0,20),[30,40)], [18,32)) returns [[0,40)].', 'minRooms([[0,30),[5,10),[15,20)]) returns 2.', 'Empty inputs return an empty list and 0.', 'State the time and space of both methods.']],
     references: [['Java 21 API · List.sort and Comparator', jdk + 'java/util/Comparator.html'], ['PostgreSQL · Range types and exclusion constraints', 'https://www.postgresql.org/docs/current/rangetypes.html']]
   },
+  'l-review-01': {
+    notes: [
+      'A machine-coding round gives you 60–90 minutes to build a small working system, such as a parking lot, an expense splitter or a booking service, and then asks you to explain and extend it. Interviewers look for four things: working code that runs, a clean model with the right types, correct handling of edge cases, and the ability to change it when the requirement changes. A half-finished "perfect" design scores worse than a small design that runs and is easy to extend.',
+      'Use a fixed routine. Spend 5–10 minutes clarifying scope: list the operations, the inputs, the invalid cases, and what you will leave out. Then name the types: records for values (Expense), a class for the stateful service (Ledger), and an interface only where a second implementation is likely. Write main() early with the happy path and one invalid input, and make it run before adding features. Keep money in integer paise or cents, never double. Validate in constructors so bad objects cannot exist.',
+      'ExpenseSplit.java is a typical round. An expense is split equally, and leftover paise go to the first sharers, so the balances always sum to zero. The program prints that sum as a check. Settle-up is greedy: the largest debtor pays the largest creditor until everyone is at zero, using two priority queues with a name tiebreak so the output is deterministic. The program also shows an invalid expense being rejected. That is enough to run, explain and extend.',
+      'Expect a change request, for example "split by percentage" or "add groups". If the split rule is in one method, you can add a SplitStrategy interface with Equal and Percent implementations in a few minutes. Narrate the trade-offs as you go: greedy settle-up is simple and gives at most n − 1 transfers, but it is not always the minimum number of transfers, which is a much harder problem. After the round, review your own work in four separate columns: correctness, design, edge cases and delivery. Write down which hints you needed.'
+    ],
+    code: {
+      title: 'ExpenseSplit.java · a machine-coding round: types, validation, equal split, greedy settle-up · java ExpenseSplit.java',
+      text: String.raw`import java.util.*;
+
+public class ExpenseSplit {
+    // Machine-coding style: small types, one service, a clear rule, and a main that exercises the edge cases.
+    record Expense(String paidBy, long amountPaise, List<String> sharedBy) {
+        Expense {
+            if (amountPaise <= 0) throw new IllegalArgumentException("amount must be positive");
+            if (sharedBy.isEmpty()) throw new IllegalArgumentException("nobody shares the expense");
+        }
+    }
+
+    static final class Ledger {
+        private final Map<String, Long> balance = new TreeMap<>();   // + means is owed money, - means owes money
+
+        void add(Expense e) {
+            long share = e.amountPaise() / e.sharedBy().size();
+            long remainder = e.amountPaise() % e.sharedBy().size();     // leftover paise go to the first sharers
+            balance.merge(e.paidBy(), e.amountPaise(), Long::sum);
+            for (int i = 0; i < e.sharedBy().size(); i++) {
+                long owed = share + (i < remainder ? 1 : 0);
+                balance.merge(e.sharedBy().get(i), -owed, Long::sum);
+            }
+        }
+
+        // Greedy settle-up: the biggest debtor pays the biggest creditor until everyone is at zero.
+        List<String> settle() {
+            Comparator<Map.Entry<String, Long>> byAmount = Map.Entry.comparingByValue();
+            PriorityQueue<Map.Entry<String, Long>> creditors = new PriorityQueue<>(byAmount.reversed().thenComparing(Map.Entry.comparingByKey()));
+            PriorityQueue<Map.Entry<String, Long>> debtors = new PriorityQueue<>(byAmount.thenComparing(Map.Entry.comparingByKey()));
+            for (var e : balance.entrySet()) {
+                if (e.getValue() > 0) creditors.add(new AbstractMap.SimpleEntry<>(e));
+                if (e.getValue() < 0) debtors.add(new AbstractMap.SimpleEntry<>(e));
+            }
+            List<String> transfers = new ArrayList<>();
+            while (!creditors.isEmpty()) {
+                var c = creditors.poll();
+                var d = debtors.poll();
+                long amount = Math.min(c.getValue(), -d.getValue());
+                transfers.add(d.getKey() + " pays " + c.getKey() + " " + rupees(amount));
+                if (c.getValue() - amount > 0) creditors.add(new AbstractMap.SimpleEntry<>(c.getKey(), c.getValue() - amount));
+                if (d.getValue() + amount < 0) debtors.add(new AbstractMap.SimpleEntry<>(d.getKey(), d.getValue() + amount));
+            }
+            return transfers;
+        }
+
+        Map<String, Long> balances() { return Collections.unmodifiableMap(balance); }
+    }
+
+    static String rupees(long paise) { return String.format("Rs %d.%02d", paise / 100, paise % 100); }
+
+    public static void main(String[] args) {
+        Ledger ledger = new Ledger();
+        ledger.add(new Expense("asha", 90000, List.of("asha", "ben", "chen")));   // dinner Rs 900, split three ways
+        ledger.add(new Expense("ben", 10000, List.of("asha", "ben", "chen")));    // taxi Rs 100: 3334 + 3333 + 3333
+        ledger.add(new Expense("chen", 30000, List.of("chen", "dev")));           // tickets Rs 300 for two
+        System.out.println("balances (paise): " + ledger.balances());
+        System.out.println("sum of balances: " + ledger.balances().values().stream().mapToLong(Long::longValue).sum());
+        ledger.settle().forEach(System.out::println);
+        try {
+            ledger.add(new Expense("dev", 0, List.of("dev")));
+        } catch (IllegalArgumentException ex) {
+            System.out.println("rejected: " + ex.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`balances (paise): {asha=56666, ben=-23333, chen=-18333, dev=-15000}
+sum of balances: 0
+ben pays asha Rs 233.33
+chen pays asha Rs 183.33
+dev pays asha Rs 150.00
+rejected: amount must be positive`
+    },
+    takeaways: ['Clarify scope, name types, make main() run early, then extend.', 'Money in integer paise; validate in constructors.', 'Print an invariant (balances sum to zero) as a self-check.', 'Keep the changeable rule in one place so a change request is quick.'],
+    interview: [
+      ['You have 75 minutes to build an expense splitter. How do you use the time?', 'For the first 8 minutes I ask questions and write the scope: add an expense, split equally, show balances, settle up, reject invalid input. Groups and currencies are out unless asked. The next 7 minutes go on the model: an Expense record validated in its constructor, a Ledger class holding a balance map, and integer paise for money. Then I spend 30 minutes making main() run end to end with real numbers and an invalid case, and 15 minutes on settle-up and tests for rounding. The last 15 minutes are for a change request and for explaining trade-offs. I keep the code runnable at every step, so I can stop at any point and still demonstrate something working.'],
+      ['Why store money as long paise instead of double rupees?', 'Binary floating point cannot represent most decimal fractions exactly, so 0.1 + 0.2 is not exactly 0.3, and errors accumulate when you add many expenses or split three ways. Balances that should be zero end up as tiny non-zero values, and comparisons with zero fail. Integer paise make addition exact, and the program decides explicitly where leftover paise go when an amount does not divide evenly. ExpenseSplit gives them to the first sharers, so the balances still sum to exactly zero. BigDecimal is the other correct option when you need different scales or rounding modes, at some cost in verbosity and speed.'],
+      ['The interviewer says "now support percentage splits". What do you change?', 'I move the split rule out of Ledger.add into a SplitStrategy interface with one method that turns an amount and the participants into a map of shares. EqualSplit holds today’s logic, including the leftover-paise rule. PercentSplit takes a map of percentages, validates that they add up to 100, computes each share, and assigns the rounding remainder deterministically. Expense then carries a strategy, or the shares are computed when the expense is created. Balances and settle-up do not change, because they only see shares. I add a test with 33.33/33.33/33.34 percent and check that balances still sum to zero.']
+    ],
+    check: ['In ExpenseSplit.java a Rs 100 taxi (10000 paise) is shared by three people. How is it split?',
+      ['3333 each, and 1 paisa is lost', '3334, 3333, 3333, with the extra paisa going to the first sharer', '3333.33 each as a double', 'The payer covers the remainder separately at settle-up'], 1,
+      'Integer division gives 3333 with remainder 1. The remainder goes to the first sharers, so the total is exact.'],
+    practice: ['Do a timed 60-minute round: build a parking-lot allocator (levels, spot sizes, park and leave, ticket with entry time, fee by hour) without notes. Use the routine: scope, types, runnable main, then features. Afterwards, score yourself in four columns and note hints used.',
+      ['main() runs with a happy path and at least two invalid cases.', 'Fees use integer money and a tested rounding rule.', 'A change request (an EV spot type) takes under 10 minutes.', 'The self-review has correctness, design, edge cases and delivery scored separately.']],
+    references: [['Java 21 API · record classes (java.lang.Record)', jdk + 'java/lang/Record.html'], ['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html']]
+  },
+  'h-review-01': {
+    notes: [
+      'An architecture walkthrough in an interview is a guided tour of one system you built, told so that each design choice is linked to a requirement and to evidence. Interviewers use it to judge depth: do you know why each part exists, what fails first, and what you would change? Prepare one system well, which for this course is the Seat Booking lab, rather than many systems superficially.',
+      'Use a fixed structure. Start with the requirement and its numbers: users book seats for events, one owner per seat, holds expire after 10 minutes, and expected peaks. Then draw the request path from the client through the load balancer and stateless instances to the database. Mark the single authority for the invariant and the advisory components, such as the cache and the AI help. Then walk one write path in detail, the conditional claim with its idempotency key, and one failure path, such as a timeout and retry or a provider outage.',
+      'Separate what you measured from what you expect. "Two instances, eight clients, 200 rounds, exactly one winner each round" is measured. "This would handle 10,000 requests per second" is a hypothesis unless you ran a load test. Say which experiment would test it: a hot-event load run that measures p95 latency, connection-pool waits and invariant checks afterwards. Interviewers trust candidates who draw this line clearly much more than candidates who claim everything.',
+      'Prepare for the changed constraint. Common ones are ten times the traffic on one hot event, a second region, a read replica that lags, or a database failover. For each one, name the first part that breaks and your first move. For a hot event, that is row contention on a few seats, and the first move is a queue or virtual waiting room in front of the claim. For replicas, the risk is stale seat maps, which is fine, but the claim must still go to the primary. For multi-region, the question is who owns the decision. Practise the whole walkthrough in 5 minutes, and a 90-second version.'
+    ],
+    takeaways: ['Requirement → request path → authority → one write path → one failure path.', 'Label every claim as measured or expected, and name the experiment for the expected ones.', 'For each changed constraint, name what breaks first and your first move.', 'Rehearse a 5-minute and a 90-second version.'],
+    interview: [
+      ['Give me a 90-second walkthrough of your project.', 'I built a seat booking service where the key rule is one confirmed owner per seat. Requests go through a load balancer to two stateless Spring Boot instances and one PostgreSQL database. The database is the single authority: a claim is a conditional UPDATE that only succeeds while the seat is unowned, and the reply is stored under an idempotency key so client retries replay instead of double-booking. A short-lived cache serves seat maps, and an optional AI help feature answers policy questions with citations. Neither can change ownership. I proved the rule with a race test across two instances and a forced provider timeout. I have not load-tested it, and that is the next experiment.'],
+      ['What fails first if one event gets ten times the traffic?', 'The hot seats themselves. Thousands of claims for a few rows serialize on row locks, so latency climbs, connection-pool waits grow, and timeouts can trigger retries that add more load. The invariant still holds because of the conditional write, but the experience degrades. My first move would be admission control in front of the claim: a virtual waiting room or a queue that lets a bounded number of users try to claim at once, plus a shorter hold time. I would measure before and after with a load test on one hot event: p95 claim latency, pool wait time, error rate and an invariant check at the end.'],
+      ['An interviewer asks which parts of your answer you actually measured. How do you respond?', 'I list them precisely. Measured: the two-instance race with eight clients produced exactly one winner in each of 200 rounds. A retry with the same key replayed the original reply. A forced provider timeout returned the help fallback while another booking committed. Not measured: throughput, tail latency under load, failover, and behavior with read replicas. For each of those I name the experiment I would run and the signal I would watch, for example p99 claim latency and pool wait during a hot-event load test. Being explicit about the boundary makes the measured claims more credible, and it shows I know how to close the gaps.']
+    ],
+    check: ['Which statement belongs in the "measured" column of a walkthrough?',
+      ['The service would handle 10,000 requests per second', 'Exactly one winner in 200 of 200 rounds with 8 clients on two instances', 'Read replicas would remove all database load', 'The design is correct for any schedule'], 1,
+      'Only the race result came from a run with stated conditions. The others are hypotheses that need their own experiments.'],
+    practice: ['Record yourself giving the 5-minute walkthrough of your booking lab with a drawn diagram, then the 90-second version. Then answer two changed constraints (a hot event and a second region) in 2 minutes each.',
+      ['The diagram marks the single authority and the advisory components.', 'Every numeric claim is labelled measured or expected.', 'Each changed constraint names what breaks first and a first move.', 'The 90-second version fits in 90 seconds.']],
+    references: [['PostgreSQL · Explicit locking (row-level locks)', 'https://www.postgresql.org/docs/current/explicit-locking.html']]
+  },
+  'ai-review-01': {
+    notes: [
+      'When you explain an AI feature in an interview, the interviewer wants to know why each decision was made and how you would know it is working. "We used RAG with GPT" is a description, not an explanation. A strong answer gives the user need, the failure you were preventing, the options you compared, the evidence that picked one, and the guardrail that protects the core system if the model is wrong.',
+      'Make decisions with a written rule and a fixed evaluation set. Before you run anything, write the acceptance bar: for example, at least 90% correct on 40 real policy questions, zero answers citing a source they were not given, and p95 latency under 2.5 seconds. Then run each variant on the same set and record accuracy, unsupported answers, latency and cost. VariantDecision.java applies such a rule. The prompt-only variant fails on accuracy and unsupported citations, and RAG top-10 fails the latency budget. Of the two passing variants, the program picks the cheaper small model, because 2.5 extra points of accuracy above the bar are not worth eight times the cost.',
+      'Show the guardrails as part of the design, not as an afterthought. The help feature is read-only, so its tools cannot change bookings. Retrieved policies are treated as untrusted data. Answers must cite supplied passages, or the feature shows a fallback. Calls have a timeout and a budget, so a provider outage gives a fast fallback while booking keeps working. Each guardrail should have a test you can show: an injected instruction in a policy, a missing policy that requires abstention, and a forced timeout.',
+      'Be clear about limits and next steps. Forty questions is a small evaluation set. It catches large regressions, but a 2-point difference between variants is within noise. Production needs monitoring: the fallback rate, the citation-check failure rate, user feedback, latency and cost per day. Say what you would add next, such as a larger evaluation set drawn from real traffic and a weekly regression run when policies or the model change.'
+    ],
+    code: {
+      title: 'VariantDecision.java · pick an AI variant with a rule written before the numbers · java VariantDecision.java',
+      text: String.raw`import java.util.*;
+
+public class VariantDecision {
+    // Results of running each variant on the same fixed 40-question evaluation set.
+    record Result(String variant, int correct, int total, int unsupported, int p95Millis, double costPer1kRequests) {
+        double accuracy() { return 100.0 * correct / total; }
+    }
+
+    // The decision rule is written down BEFORE looking at the numbers.
+    static final double MIN_ACCURACY = 90.0;
+    static final int MAX_UNSUPPORTED = 0;   // an answer citing a source it was not given fails the feature
+    static final int P95_BUDGET_MILLIS = 2500;
+
+    static String verdict(Result r) {
+        List<String> reasons = new ArrayList<>();
+        if (r.accuracy() < MIN_ACCURACY) reasons.add(String.format("accuracy %.1f%% < %.0f%%", r.accuracy(), MIN_ACCURACY));
+        if (r.unsupported() > MAX_UNSUPPORTED) reasons.add(r.unsupported() + " unsupported answers");
+        if (r.p95Millis() > P95_BUDGET_MILLIS) reasons.add("p95 " + r.p95Millis() + " ms > " + P95_BUDGET_MILLIS + " ms");
+        return reasons.isEmpty() ? "passes" : "fails: " + String.join(", ", reasons);
+    }
+
+    public static void main(String[] args) {
+        List<Result> results = List.of(
+                new Result("prompt only, large model", 31, 40, 4, 1900, 9.00),
+                new Result("RAG top-3, small model", 37, 40, 0, 1400, 1.20),
+                new Result("RAG top-3, large model", 38, 40, 0, 2300, 9.60),
+                new Result("RAG top-10, large model", 38, 40, 0, 3100, 14.10));
+        for (Result r : results) {
+            System.out.printf("%-26s %5.1f%%  unsupported=%d  p95=%dms  cost=$%.2f/1k  %s%n",
+                    r.variant(), r.accuracy(), r.unsupported(), r.p95Millis(), r.costPer1kRequests(), verdict(r));
+        }
+        // Among passing variants, pick the cheapest. Accuracy ties beyond the bar are not worth 8x the cost.
+        Result chosen = results.stream().filter(r -> verdict(r).equals("passes"))
+                .min(Comparator.comparingDouble(Result::costPer1kRequests)).orElseThrow();
+        System.out.println("chosen: " + chosen.variant());
+    }
+}
+`,
+      output: String.raw`prompt only, large model    77.5%  unsupported=4  p95=1900ms  cost=$9.00/1k  fails: accuracy 77.5% < 90%, 4 unsupported answers
+RAG top-3, small model      92.5%  unsupported=0  p95=1400ms  cost=$1.20/1k  passes
+RAG top-3, large model      95.0%  unsupported=0  p95=2300ms  cost=$9.60/1k  passes
+RAG top-10, large model     95.0%  unsupported=0  p95=3100ms  cost=$14.10/1k  fails: p95 3100 ms > 2500 ms
+chosen: RAG top-3, small model`
+    },
+    takeaways: ['Need → failure prevented → options → evidence → guardrail.', 'Write the acceptance rule before running variants on a fixed eval set.', 'Among variants that pass, prefer the cheapest and simplest.', 'Small eval sets catch big regressions; small differences are noise.'],
+    interview: [
+      ['Why did you choose RAG over prompting alone for the help feature?', 'The failure I was preventing was confident wrong answers about policies that change. With prompting alone the model answered from its training data, and on our 40-question evaluation set it scored 77.5% and produced four answers citing sources it had never been given. With retrieval of the top three policy passages, accuracy passed our 90% bar with zero unsupported citations, because the model saw the current text and had to cite it. Retrieval also lets us update a policy in minutes and respect per-venue access. I wrote the bar before running the variants, so the choice came from the rule, not from whichever number looked best.'],
+      ['Two variants both pass your bar. One is 2.5 points more accurate and eight times more expensive. Which do you ship?', 'I would ship the cheaper one, and I can justify it. The acceptance bar already encodes the accuracy the feature needs, and both meet it with zero unsupported answers and within the latency budget. On a 40-question set, 2.5 points is a single question, which is within the noise of a set that small. Paying eight times the cost per request for a difference I cannot distinguish from noise is a poor trade. I would keep the larger model as a measured fallback option, grow the evaluation set from real traffic, and revisit the decision if the bigger set shows a consistent gap on an important category.'],
+      ['How do you show an interviewer the AI feature cannot break bookings?', 'I show it at three levels. First the architecture: the help feature only has read-only tools for policies and availability, and every claim goes through the booking service’s conditional write, so the model has no path to change ownership. Second the tests: an injected instruction inside a policy document asking to book a seat produces no booking and a safe answer, a forced provider timeout returns the fallback within the deadline, and a booking for another seat still commits during the outage. Third the monitoring: fallback rate, citation-check failures and tool-call denials are counted, so a regression shows up quickly.']
+    ],
+    check: ['In VariantDecision.java, why is "RAG top-10, large model" rejected despite 95% accuracy?',
+      ['Its accuracy is below the bar', 'Its p95 latency of 3100 ms exceeds the 2500 ms budget', 'It produced unsupported answers', 'It is the most accurate, so it is chosen'], 1,
+      'The rule has three conditions. Top-10 passes accuracy and grounding but fails the latency budget.'],
+    practice: ['Write a one-page decision record for your help feature: the need, the failure prevented, three variants, the acceptance rule written first, a results table from your own small evaluation (at least 15 questions), the choice, and two guardrails with their tests.',
+      ['The acceptance rule is dated before the results.', 'All variants ran on the same question set.', 'The choice follows from the rule, and ties are broken by cost or simplicity.', 'Each guardrail names a test that demonstrates it.']],
+    references: [['OWASP Top 10 for LLM Applications', 'https://genai.owasp.org/llm-top-10/'], ['Spring AI reference', 'https://docs.spring.io/spring-ai/reference/']]
+  },
+  'l-review-01.dsa': {
+    notes: [
+      'An LRU (least recently used) cache keeps at most capacity entries and, when full, evicts the entry that was used longest ago. Both get and put must run in O(1). A HashMap alone gives O(1) lookup but no order. A list alone gives order but O(n) lookup. The standard design combines them: a HashMap from key to node, and a doubly linked list of nodes ordered from least to most recently used.',
+      'Every get of an existing key unlinks its node and appends it at the most-recent end. Every put of a new key appends a node, and if the cache is full it first removes the node at the least-recent end and its map entry. Sentinel head and tail nodes remove the special cases for an empty list. In LruCache.java, after get A1 the order is [A2, A1], so putting A3 evicts A2. Updating A1 moves it to the most-recent end, so putting A4 evicts A3.',
+      'In real Java code you would usually use LinkedHashMap with accessOrder = true and override removeEldestEntry, or a library cache such as Caffeine, which also handles concurrency and expiry. Interviewers ask for the hand-built version to see the two structures working together. Mention thread safety: this class is not thread-safe, and the simple fix is to synchronize get and put, at the cost of contention.'
+    ],
+    code: {
+      title: 'LruCache.java · HashMap plus doubly linked list, O(1) get and put · java LruCache.java',
+      text: String.raw`import java.util.*;
+
+public class LruCache<K, V> {
+    // HashMap for O(1) lookup + doubly linked list for O(1) "move to most recent" and "evict least recent".
+    private final class Node {
+        final K key; V value; Node prev, next;
+        Node(K key, V value) { this.key = key; this.value = value; }
+    }
+
+    private final int capacity;
+    private final Map<K, Node> index = new HashMap<>();
+    private final Node head = new Node(null, null), tail = new Node(null, null);   // sentinels: head.next is the LRU
+
+    LruCache(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException("capacity must be positive");
+        this.capacity = capacity;
+        head.next = tail; tail.prev = head;
+    }
+
+    V get(K key) {
+        Node n = index.get(key);
+        if (n == null) return null;
+        unlink(n); append(n);                 // now the most recently used
+        return n.value;
+    }
+
+    void put(K key, V value) {
+        Node n = index.get(key);
+        if (n != null) { n.value = value; unlink(n); append(n); return; }
+        if (index.size() == capacity) {       // evict the least recently used
+            Node lru = head.next;
+            unlink(lru); index.remove(lru.key);
+        }
+        n = new Node(key, value);
+        index.put(key, n); append(n);
+    }
+
+    private void unlink(Node n) { n.prev.next = n.next; n.next.prev = n.prev; }
+
+    private void append(Node n) { n.prev = tail.prev; n.next = tail; tail.prev.next = n; tail.prev = n; }
+
+    public String toString() {                // least recent first
+        StringJoiner j = new StringJoiner(", ", "[", "]");
+        for (Node n = head.next; n != tail; n = n.next) j.add(n.key + "=" + n.value);
+        return j.toString();
+    }
+
+    public static void main(String[] args) {
+        LruCache<String, String> cache = new LruCache<>(2);
+        cache.put("A1", "free");
+        cache.put("A2", "held");
+        System.out.println("get A1 -> " + cache.get("A1") + "   order " + cache);
+        cache.put("A3", "free");              // evicts A2, the least recently used
+        System.out.println("after put A3: " + cache + "   get A2 -> " + cache.get("A2"));
+        cache.put("A1", "sold");              // update moves A1 to most recent
+        cache.put("A4", "free");              // evicts A3
+        System.out.println("after update A1 and put A4: " + cache);
+    }
+}
+`,
+      output: String.raw`get A1 -> free   order [A2=held, A1=free]
+after put A3: [A1=free, A3=free]   get A2 -> null
+after update A1 and put A4: [A1=sold, A4=free]`
+    },
+    takeaways: ['HashMap for lookup, doubly linked list for recency order.', 'get moves the node to the most-recent end; put evicts from the least-recent end.', 'Sentinels remove empty-list special cases.', 'In production: LinkedHashMap(accessOrder) or a library cache.'],
+    interview: [
+      ['Design an LRU cache with O(1) get and put.', 'I use a HashMap from key to a node in a doubly linked list that is ordered from least to most recently used, with sentinel head and tail nodes. get looks up the node in the map. If it is missing I return null. Otherwise I unlink the node and append it before the tail, which is O(1) because each node knows its neighbours, and return the value. put on an existing key updates the value and moves the node. put on a new key first checks the size, and if it is at capacity I remove head.next from the list and its key from the map, then insert the new node. Both operations are O(1), and memory is O(capacity).'],
+      ['Why does the list need to be doubly linked?', 'To unlink an arbitrary node in O(1), I need to reach its predecessor and set predecessor.next to the node’s successor. In a singly linked list, finding the predecessor means walking from the head, which is O(n) and breaks the O(1) requirement for get. The node also stores its key, which seems redundant, but eviction needs it: when I remove head.next, I must also delete that key from the HashMap, and only the node can tell me which key it was. Those two details, prev pointers and keys in nodes, are the usual follow-up questions.'],
+      ['How would you build this in production Java?', 'For a simple single-threaded cache, LinkedHashMap already maintains a doubly linked list. Constructing it with accessOrder set to true and overriding removeEldestEntry to return size() > capacity gives an LRU cache in a few lines. For a shared cache under concurrency I would use a library such as Caffeine, which provides size-based eviction (its Window TinyLFU policy usually beats plain LRU on hit rate), time-based expiry and statistics without a global lock. Wrapping my hand-built class in synchronized methods also works, but every get then contends on one lock, because a get also writes the list. I would choose based on measured contention.']
+    ],
+    check: ['Capacity 2: put A1, put A2, get A1, put A3. Which key is evicted?',
+      ['A1, because it was inserted first', 'A2, because A1 was used more recently', 'A3, because it is the newest', 'None, because get does not change the order'], 1,
+      'get A1 moves A1 to the most-recent end, so A2 is the least recently used when A3 arrives.'],
+    practice: ['Implement the same cache with LinkedHashMap(capacity, 0.75f, true) and removeEldestEntry. Run both versions on the same operations and compare. Then add a hit/miss counter.',
+      ['Both versions print the same order after each step.', 'Capacity ≤ 0 is rejected.', 'Hit and miss counts are correct for the main() sequence.', 'One sentence on why get must be synchronized if the cache is shared.']],
+    references: [['Java 21 API · LinkedHashMap (accessOrder, removeEldestEntry)', jdk + 'java/util/LinkedHashMap.html']]
+  },
   // @@packets
 };
 
@@ -924,6 +1199,10 @@ export const lateDistractors = {
     ['A screenshot of the seat map after one successful booking.', 'A load-balancer health check that returns 200 OK.'],
     ['Whichever application instance received the request first.', 'The help assistant, because it reads the current policy.']
   ],
+  45: [
+    ['That the code is correct for every possible schedule and input.', 'Only that the program compiled without errors.'],
+    ['The number of lines of code written.', 'A list of buzzwords that match the job description.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -935,6 +1214,8 @@ export const lateExplanations = {
     'Fine-tuning creates a model lifecycle. You curate data, train, deploy a new version, and rerun regression evaluations whenever the data or base model changes.'],
   44: ['A defensible demo starts from a known fixture, runs written commands and compares observable results with expectations written beforehand. Anyone can rerun it from a clean checkout.',
     'Only the database’s conditional write serializes competing claims across instances. Instance order, caches and the model are advisory and can be stale or wrong.'],
+  45: ['One controlled run is evidence about its stated scenario only. Throughput, resilience and other schedules need their own experiments.',
+    'A strong trade-off answer says what constraint changed, what you decided, what evidence supported it and what the decision costs or leaves unproven.'],
   // @@explanations
 };
 
@@ -971,6 +1252,14 @@ export const lateAssessment = {
     { question: 'Your race test has passed 500 rounds. What is the most accurate claim?',
       choices: ['The booking service handles any production load', 'The invariant held for 500 rounds of the tested interleavings and fixture', 'Concurrency bugs are impossible in this code', 'The database no longer needs a conditional write'], answer: 1,
       explanation: 'A passing race test is evidence for the tested conditions only. Combine it with the design argument and a test shown to fail on a broken version.' }
+  ],
+  45: [
+    { question: 'In ExpenseSplit.java, why is money stored as long paise rather than double rupees?',
+      choices: ['Because long is faster to print', 'Because integer arithmetic is exact, so balances sum to exactly zero after splits', 'Because double cannot hold values above Rs 1,000', 'Because Java has no decimal type'], answer: 1,
+      explanation: 'Binary floating point cannot represent most decimal fractions exactly, so errors accumulate. Integer paise plus an explicit remainder rule keeps every total exact.' },
+    { question: 'Two AI variants both pass a written acceptance bar on a 40-question set. One scores 2.5 points higher and costs eight times as much. What is the best default?',
+      choices: ['Ship the more accurate one, because higher is always better', 'Ship the cheaper one and grow the eval set before revisiting', 'Ship both and let users choose', 'Discard the bar and pick by intuition'], answer: 1,
+      explanation: 'Both meet the bar, and 2.5 points is one question on a 40-question set, which is within noise. Choose the cheaper variant and collect more evidence.' }
   ],
   // @@assessment
 };
@@ -1030,6 +1319,11 @@ export const lateInterviewGuides = {
     'One changed requirement is that booking must keep working when the AI provider is down. I first state the invariant: one confirmed owner per seat, decided by the database’s conditional write. Then I trace the paths: the help feature reads policies and calls the model, and booking never waits on either. The trade-off I make is that help degrades to a static policy page with a link instead of retrying for a long time, because a slow help answer is worse than an honest fallback. My demo shows a normal cited answer, then a forced provider timeout that returns the fallback within the deadline, and a booking for another seat that still commits.',
     'The single claim authority must change first. Today one PostgreSQL primary serializes every claim. With cross-region confirmation I need either one primary authority for each seat that every region calls, which costs latency for remote users, a store that agrees across regions using a consensus protocol, or exclusive seat ownership per region, so a region never confirms a seat it does not own. Whichever I choose, I add fencing so an old leader cannot keep confirming after a failover, and I define partition behavior. The safe default is to reject or queue claims when agreement is impossible, so availability drops but the one-owner rule holds. Browsing holds can stay local.',
     'A two-instance contention test supports one claim: for the tested fixture and code paths, exactly one claim commits and the losers get 409. It shows the decision lives in the shared database rather than in instance memory. It does not support claims about throughput, tail latency, connection-pool limits, hot-seat contention at scale or failover behavior. Those need a load run with a representative mix of reads and claims, many concurrent writers on one hot event, injected failures, and measurements of p95/p99 latency, error rates and an invariant check after the run. In an interview I link each claim to the command and output that produced it, and I say plainly which claims I have not measured.'
+  ],
+  45: [
+    'My feature is seat booking with one confirmed owner per seat. I enforced it with a conditional UPDATE in PostgreSQL that succeeds only while the seat is unowned, and I store each reply under an idempotency key so retries replay. Under a two-instance race with eight clients, exactly one claim returned 201 in every round, and the others returned 409. One limitation is that I have not measured hot-event throughput. All claims for a popular seat serialize on one row, so latency will rise. For ten times the traffic, I would put a waiting room or a bounded queue in front of the claim, then run a hot-event load test and watch p95 claim latency, pool waits and an invariant check.',
+    'I would answer precisely and not overclaim. The test shows that under the stated fixture, eight concurrent clients across two instances with one database, exactly one claim committed and the other clients received 409, repeated over 200 rounds. That is evidence for the ownership invariant on those code paths. It is not evidence of resilience under production load. That claim would need a representative load mix of reads and claims, many concurrent writers on a hot event, injected failures such as database timeouts and instance restarts, and measurements of p95/p99 latency, error rates and an invariant check after the run. I would describe the experiment I would run next and the result that would change my design.',
+    'Evidence that adds an independent, production-like constraint changes the strength of the claim. Examples are a hot-key load run with p95 and p99 latency, a test with a lagging read replica showing the claim still goes to the primary, a forced database timeout showing retries replay rather than double-book, or an outbox retry that delivers each event exactly once to consumers that deduplicate. For each one I record the baseline, the configuration, the expected invariant and the observed metrics. Evidence that only repeats the same happy path many times does not strengthen the claim much. In the interview, I tie each sentence to a result I actually reproduced and label the rest as next steps.'
   ],
   // @@guides
 };
