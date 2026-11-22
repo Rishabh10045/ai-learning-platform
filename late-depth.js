@@ -273,6 +273,204 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/')],
     recall: 'What two optimizations make union-find nearly constant time?'
   },
+  4: {
+    title: 'Hash collisions and one-pass lookups',
+    concept: 'Different keys can share a hash code; a HashMap uses the hash to find a bucket and equals to pick the key. The same map answers “have I seen the complement?” in one pass.',
+    example: '"Aa" and "BB" both hash to 2112 but stay separate entries. twoSum([2, 7, 11, 15], 9) returns [0, 1].',
+    practice: 'Run HashLookups.java, then add a count of pairs with a given sum and a first-repeated-ID finder.',
+    checks: ['A second put on the same key returns the old value and keeps the size.', 'twoSum handles duplicates and no answer.', 'Explain expected versus worst-case O(1).'],
+    readings: [reading('Java 21 API · HashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html')],
+    recall: 'Why does a HashMap need equals even after the hash matches?'
+  },
+  5: {
+    title: 'Strings with two pointers',
+    concept: 'Walk two indexes towards each other to test palindromes in O(n) time and O(1) space, and build strings with StringBuilder instead of + in loops.',
+    example: '"A man, a plan, a canal: Panama" is a palindrome once punctuation and case are ignored; "  seat A1   is   free " reversed by word is "free is A1 seat".',
+    practice: 'Implement isPalindrome and reverseWords, then the one-deletion palindrome variant.',
+    checks: ['Punctuation and case are skipped.', 'Empty input works.', 'No String concatenation in a loop.'],
+    readings: [reading('Java 21 API · StringBuilder', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuilder.html')],
+    recall: 'Why is the two-pointer palindrome check O(1) extra space?'
+  },
+  6: {
+    title: 'Grouping with a canonical key: anagrams',
+    concept: 'Map each word to a key shared by all its anagrams, such as its sorted letters, and group by that key with computeIfAbsent or Collectors.groupingBy.',
+    example: 'listen, silent and enlist share the key eilnst; cat, act and tac share act.',
+    practice: 'Group anagrams with a loop and a stream, then switch to a letter-count key.',
+    checks: ['Loop and stream versions agree.', 'Output order is deterministic.', 'Complexity stated for both keys.'],
+    readings: [reading('Java 21 API · Collectors', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html')],
+    recall: 'What makes a good grouping key for anagrams?'
+  },
+  7: {
+    title: 'Maximum subarray (Kadane)',
+    concept: 'Track the best sum ending at the current index and restart when it turns negative; the best of those is the answer in O(n).',
+    example: '[−2, 1, −3, 4, −1, 2, 1, −5, 4] has maximum sum 6 from index 3 to 6; [−8, −3, −6] gives −3.',
+    practice: 'Implement Kadane with bounds and verify it against brute force on random arrays.',
+    checks: ['All-negative input handled.', 'Bounds are correct.', 'Brute-force comparison passes.'],
+    readings: [reading('Wikipedia · Maximum subarray problem', 'https://en.wikipedia.org/wiki/Maximum_subarray_problem')],
+    recall: 'Why is it safe to drop a negative running sum?'
+  },
+  8: {
+    title: 'Stack design: O(1) minimum',
+    concept: 'Store the current minimum with each stack entry so push, pop, top and min all run in O(1).',
+    example: 'Push 5, 3, 7, 3, 2: minimums 5, 3, 3, 3, 2. Popping 2 restores 3.',
+    practice: 'Implement MinStack with records on an ArrayDeque, then a two-stack variant.',
+    checks: ['Empty-stack behaviour defined.', 'Duplicate minimums handled.', 'Randomized test against brute force.'],
+    readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
+    recall: 'How does popping restore the previous minimum without a search?'
+  },
+  9: {
+    title: 'Binary search: lower and upper bounds',
+    concept: 'On a sorted array, lower bound is the first index with value ≥ key and upper bound the first with value > key; both take O(log n) with a half-open range.',
+    example: 'In [2, 4, 4, 4, 7, 9], key 4 has lower 1 and upper 4, so it occurs 3 times; key 5 would be inserted at 4.',
+    practice: 'Implement lowerBound and upperBound, then count occurrences and compare with a linear scan.',
+    checks: ['Empty and missing-key cases pass.', 'mid computed without overflow.', 'Explain what Arrays.binarySearch returns for a missing key.'],
+    readings: [reading('Java 21 API · Arrays', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html')],
+    recall: 'What is the difference between lower bound and upper bound?'
+  },
+  10: {
+    title: 'Two pointers: merging sorted arrays',
+    concept: 'Compare the current items of two sorted arrays, take the smaller, and advance that pointer; the merge is O(n + m) and stable if ties take from the left.',
+    example: '[1, 3, 5, 5, 9] and [2, 3, 5, 10] merge to [1, 2, 3, 3, 5, 5, 5, 9, 10]; their common values are [3, 5].',
+    practice: 'Implement merge and intersect, then a k-way merge with a PriorityQueue.',
+    checks: ['Empty inputs handled.', 'Ties keep left-first order.', 'Each common value reported once.'],
+    readings: [reading('Princeton Algorithms · Mergesort', 'https://algs4.cs.princeton.edu/22mergesort/')],
+    recall: 'Why is merging two sorted arrays linear?'
+  },
+  11: {
+    title: 'Grid traversal: spiral order',
+    concept: 'Traverse a matrix in spiral order with four shrinking bounds, re-checking the bounds before the bottom and left passes so rectangular grids do not repeat cells.',
+    example: '[[1, 2, 3], [4, 5, 6], [7, 8, 9]] gives 1, 2, 3, 6, 9, 8, 7, 4, 5; [[1, 2, 3, 4], [5, 6, 7, 8]] gives 1, 2, 3, 4, 8, 7, 6, 5.',
+    practice: 'Implement spiral order and grid validation, then in-place 90-degree rotation.',
+    checks: ['Single row and single column work.', 'Jagged input is rejected clearly.', 'O(rows × cols) stated.'],
+    readings: [reading('Java 21 API · Arrays', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html')],
+    recall: 'Why are the two extra bound checks needed in spiral traversal?'
+  },
+  12: {
+    title: 'Hash sets: longest consecutive run',
+    concept: 'Put the numbers in a HashSet and count upwards only from numbers whose predecessor is missing, which finds the longest consecutive run in expected O(n).',
+    example: 'Among 100, 4, 200, 1, 3, 2, 2, 101, 102 the longest run is 1–4 (length 4).',
+    practice: 'Implement the run finder, return the run, and compare with a sort-based version.',
+    checks: ['Duplicates ignored.', 'Ties broken deterministically.', 'Explain why the total work is linear.'],
+    readings: [reading('Java 21 API · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html')],
+    recall: 'Why does counting only from run starts keep the algorithm O(n)?'
+  },
+  13: {
+    title: 'Boyer–Moore majority vote',
+    concept: 'Cancel pairs of different values with a candidate and a counter to find the only possible majority in one pass, then verify it with a second pass.',
+    example: '[2, 2, 1, 1, 1, 2, 2] gives 2; [1, 2, 3] and [1, 1, 2, 2] have no majority.',
+    practice: 'Implement the vote and the verification, then the n/3 variant with two candidates.',
+    checks: ['Verification pass present.', 'Exactly-half case returns no majority.', 'O(1) extra space.'],
+    readings: [reading('Wikipedia · Boyer–Moore majority vote algorithm', 'https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_majority_vote_algorithm')],
+    recall: 'Why must the majority candidate be verified?'
+  },
+  14: {
+    title: 'Three-way partition (Dutch national flag)',
+    concept: 'Partition values into three groups in one pass with low, mid and high pointers and an unknown middle region.',
+    example: 'Seat states [2, 0, 2, 1, 1, 0, 0, 2, 1] become [0, 0, 0, 1, 1, 1, 2, 2, 2].',
+    practice: 'Implement the partition, test it against Arrays.sort, then use it in a three-way quicksort.',
+    checks: ['mid does not advance after a swap with high.', 'All-equal input works.', 'Random test against a sort passes.'],
+    readings: [reading('Princeton Algorithms · Quicksort', 'https://algs4.cs.princeton.edu/23quicksort/')],
+    recall: 'Why must mid stay put after swapping with high?'
+  },
+  15: {
+    title: 'Peak overlap: minimum rooms',
+    concept: 'Sort bookings by start and keep a min-heap of end times; the heap size is the number of rooms needed, which equals peak concurrency.',
+    example: '[9:00–10:00), [9:30–11:00), [10:00–10:30), [10:30–12:00), [10:45–11:15) need 3 rooms.',
+    practice: 'Implement the heap and sweep versions and compare them on random bookings.',
+    checks: ['Back-to-back bookings share a room.', 'Empty input returns 0.', 'Both versions agree.'],
+    readings: [reading('Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html')],
+    recall: 'What does the min-heap of end times represent?'
+  },
+  16: {
+    title: 'Prefix and suffix passes',
+    concept: 'Precompute running totals so each query is O(1): prefix sums for range totals, and left and right products for the product of all other elements without division.',
+    example: '[1, 2, 3, 4] gives [24, 12, 8, 6]; [2, 0, 5] gives [0, 10, 0].',
+    practice: 'Implement productExceptSelf and prefix sums, then a 2D prefix sum.',
+    checks: ['No division used.', 'Zeros handled.', 'Range totals match brute force.'],
+    readings: [reading('Princeton Algorithms · Analysis of algorithms', 'https://algs4.cs.princeton.edu/14analysis/')],
+    recall: 'How does the suffix pass complete each product?'
+  },
+  17: {
+    title: 'Rotation and modular arithmetic',
+    concept: 'Rotate an array in place with three reversals after normalizing k with modulo; the same modulo drives round-robin routing.',
+    example: '[1..7] rotated right by 3 is [5, 6, 7, 1, 2, 3, 4]; rotating [1, 2, 3] by 5 equals rotating by 2.',
+    practice: 'Implement rotate with reversals and a round-robin router, then a weighted router.',
+    checks: ['k larger than n handled.', 'Negative k handled.', 'O(1) extra space.'],
+    readings: [reading('Java 21 API · Math.floorMod', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html')],
+    recall: 'Why do three reversals rotate an array?'
+  },
+  18: {
+    title: 'Sliding window: peak request rate',
+    concept: 'With sorted timestamps, two pointers find the busiest fixed-width window in O(n), which is the number to size for.',
+    example: 'Ten requests over 4 seconds average 2.5 per second, but 7 arrive within one 1,000 ms window.',
+    practice: 'Implement the peak window, report several window widths, and estimate instances with headroom.',
+    checks: ['Window is half-open.', 'Peak and average both reported.', 'Instances rounded up.'],
+    readings: [reading('Google SRE book · Handling overload', 'https://sre.google/sre-book/handling-overload/')],
+    recall: 'Why size capacity for the peak window rather than the average?'
+  },
+  19: {
+    title: 'Ordered maps: an expiry index',
+    concept: 'Keep holds in a TreeMap ordered by expiry time so “everything expired by now” is one headMap range and “next expiry” is one higherKey lookup, both O(log n).',
+    example: 'Holds expiring at 1000, 1500, 1500 and 3000: at now = 1000 only the first is expired, because a hold is valid only while now < expiresAt.',
+    practice: 'Implement the index with a composite key (expiry, hold ID), then add renew and remove operations.',
+    checks: ['Equal expiry times do not overwrite each other.', 'Equality counts as expired.', 'Next expiry is null when nothing is left.'],
+    readings: [reading('Java 21 API · TreeMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html')],
+    recall: 'Why does the key include the hold ID as well as the expiry time?'
+  },
+  20: {
+    title: 'Sliding-window duplicates',
+    concept: 'Detect repeats within k positions with a set that holds only the last k items, and repeats within a time window with a map of last-seen times. Both are O(n).',
+    example: 'IDs k1, k2, k3, k1 repeat within 3 positions but not within 2; key a seen at 0 and 50 is a replay inside a 100 ms window.',
+    practice: 'Implement both checks, then evict expired keys from the time-window map so memory stays bounded.',
+    checks: ['Window shrinks before the next item is added.', 'Expired keys count as first uses.', 'Memory is bounded by the window.'],
+    readings: [reading('Java 21 API · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html')],
+    recall: 'What does Set.add returning false tell you?'
+  },
+  21: {
+    title: 'Consistent hashing ring',
+    concept: 'Place nodes and keys on a hash ring and give each key to the first node clockwise; adding a node moves only about 1/N of the keys. Virtual nodes even out the load.',
+    example: 'With 3 nodes and 100 virtual nodes each, 10,000 keys split roughly 3,400/3,000/3,600, and adding a fourth node moves about 2,100 keys instead of about 7,500 with modulo hashing.',
+    practice: 'Implement the ring with a TreeMap, measure load with 1, 10 and 100 virtual nodes, and count moved keys when a node is removed.',
+    checks: ['Lookup wraps from the end of the ring to the start.', 'Hashing is deterministic.', 'Moved-key count is measured, not assumed.'],
+    readings: [reading('Java 21 API · TreeMap.tailMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html')],
+    recall: 'Why does consistent hashing not fix a single hot key?'
+  },
+  22: {
+    title: 'LRU versus LFU on real traces',
+    concept: 'LRU evicts the entry unused for longest; LFU evicts the least frequently used. Which one wins depends on the access pattern, so measure hit counts on a trace.',
+    example: 'A one-off scan flushes a popular key from LRU (3 hits) but not from LFU (5 hits); when interest shifts, LFU keeps a stale favourite (3 hits) while LRU adapts (7 hits).',
+    practice: 'Run both policies on the two traces, then add an aging rule to LFU and re-measure.',
+    checks: ['Capacity is respected.', 'LFU ties are broken by recency.', 'Hit counts are reported for both traces.'],
+    readings: [reading('Java 21 API · LinkedHashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html')],
+    recall: 'Which trace makes LFU worse than LRU, and why?'
+  },
+  23: {
+    title: 'Hash partitioning and deduplication',
+    concept: 'Hash the key to choose a partition so events for one key stay in order, and keep a set of processed event IDs so a redelivered event is skipped.',
+    example: 'Events for seat A1 land in one partition in order HELD then BOOKED; when e1 is delivered again after a crash, the processed set skips it, so A1 stays BOOKED.',
+    practice: 'Add a second consumer that owns one partition and show that per-seat order still holds.',
+    checks: ['Same key always maps to the same partition.', 'A duplicate is skipped, not applied.', 'Final state matches a run without duplicates.'],
+    readings: [reading('Apache Kafka documentation · Design', 'https://kafka.apache.org/documentation/#design')],
+    recall: 'Why would applying e1 a second time be harmful here?'
+  },
+  24: {
+    title: 'Min-heap routing and percentiles',
+    concept: 'A min-heap of “free at” times sends each request to the instance that frees up first; nearest-rank percentiles describe the latency tail that a mean hides.',
+    example: 'With every fourth request slow, round robin sends all slow ones to one instance: p95 520 ms. Least-loaded routing gives p95 100 ms with the same traffic.',
+    practice: 'Simulate both policies, then add a fifth instance and report mean, p50, p95 and max for each.',
+    checks: ['Percentile uses a stated rank rule.', 'Same traffic for both policies.', 'Tail and mean both reported.'],
+    readings: [reading('Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html')],
+    recall: 'Why does round robin perform badly with this traffic pattern?'
+  },
+  25: {
+    title: 'Quorum overlap',
+    concept: 'With N replicas, a write acknowledged by W and a read from R always overlap when R + W > N, so the read sees the newest version if it keeps the highest version number.',
+    example: 'N = 3, W = 2: a read from the lagging replica alone returns the old value, but any 2-replica read returns version 1.',
+    practice: 'Enumerate all read and write sets for N = 5 and several W and R values, and count the overlapping pairs.',
+    checks: ['Highest version wins.', 'R + W > N gives full overlap.', 'A non-overlapping case is shown.'],
+    readings: [reading('Amazon Dynamo paper (2007)', 'https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf')],
+    recall: 'Why must R + W be greater than N?'
+  },
   // @@lanes
 };
 
@@ -6207,6 +6405,1244 @@ A and C same team: true, A and D: false`
       ['Component count matches a DFS count.', 'The first cycle edge is reported.', 'Kruskal sorts edges and skips cycle edges.', 'Complexity stated.']],
     references: [['Princeton Algorithms · Union-find', 'https://algs4.cs.princeton.edu/15uf/']]
   },
+  'j-oop-02.dsa': {
+    notes: [
+      'Many string problems are solved with two pointers that walk towards each other. To check whether a sentence is a palindrome while ignoring punctuation and case, start i at the first character and j at the last. Skip anything that is not a letter or digit, compare the two characters in lower case, and move both inwards. The method stops early on the first mismatch. It is O(n) time and O(1) extra space, because it never builds a cleaned copy.',
+      'Reversing the order of words shows how to build strings efficiently. strip removes outer spaces, split("\\\\s+") splits on runs of whitespace, and a StringBuilder appends the words from last to first with single spaces. Concatenating with + inside a loop would create a new String each time, which costs O(n²) characters copied for long input.',
+      'Remember that Strings are compared with equals, not ==. PalindromeWords.java builds "A1" at runtime with a StringBuilder, so == is false even though equals is true.'
+    ],
+    code: {
+      title: 'PalindromeWords.java · two-pointer palindrome check that skips punctuation, word reversal with StringBuilder, and == versus equals · java PalindromeWords.java',
+      text: String.raw`public class PalindromeWords {
+    // Two pointers from both ends, skipping anything that is not a letter or digit. O(n) time, O(1) space.
+    static boolean isPalindrome(String s) {
+        int i = 0, j = s.length() - 1;
+        while (i < j) {
+            char a = s.charAt(i), b = s.charAt(j);
+            if (!Character.isLetterOrDigit(a)) { i++; continue; }
+            if (!Character.isLetterOrDigit(b)) { j--; continue; }
+            if (Character.toLowerCase(a) != Character.toLowerCase(b)) return false;
+            i++; j--;
+        }
+        return true;
+    }
+
+    // Reverse word order, collapsing extra spaces. StringBuilder avoids creating a new String per word.
+    static String reverseWords(String s) {
+        String[] words = s.strip().split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (int k = words.length - 1; k >= 0; k--) {
+            if (words[k].isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(words[k]);
+        }
+        return sb.toString();
+    }
+
+    public static void main(String[] args) {
+        System.out.println("'A man, a plan, a canal: Panama' palindrome: " + isPalindrome("A man, a plan, a canal: Panama"));
+        System.out.println("'race a car' palindrome: " + isPalindrome("race a car"));
+        System.out.println("'' palindrome: " + isPalindrome(""));
+        System.out.println("reverse '  seat A1   is   free ' -> '" + reverseWords("  seat A1   is   free ") + "'");
+        String a = "A1", b = new StringBuilder("A").append(1).toString();
+        System.out.println("a == b: " + (a == b) + ", a.equals(b): " + a.equals(b));
+    }
+}
+`,
+      output: String.raw`'A man, a plan, a canal: Panama' palindrome: true
+'race a car' palindrome: false
+'' palindrome: true
+reverse '  seat A1   is   free ' -> 'free is A1 seat'
+a == b: false, a.equals(b): true`
+    },
+    takeaways: ['Two pointers from both ends: O(n), O(1) space.', 'Skip characters instead of building a cleaned copy.', 'Use StringBuilder in loops.', 'Compare Strings with equals.'],
+    interview: [
+      ['How do you check whether a string is a palindrome, ignoring case and punctuation?', 'I use two indexes, i from the start and j from the end. While i < j, I advance i past any character that is not a letter or digit, and move j back past any such character. Then I compare the two characters after converting both to lower case; if they differ, it is not a palindrome. Otherwise I move both inwards. If the pointers meet, it is a palindrome. This reads each character at most once, so it is O(n) time, and it uses O(1) extra space because it does not build a cleaned copy. I test an empty string, a single character, punctuation only, and mixed case.']
+    ],
+    check: ['What does PalindromeWords.java return for "race a car"?',
+      ['true', 'false', 'It throws an exception', 'It depends on the locale'], 1,
+      'After removing the space, "raceacar" read backwards is "racaecar", so the characters differ.'],
+    practice: ['Copy PalindromeWords.java. Add a check for whether a string can become a palindrome by deleting at most one character, and a method that reverses each word in place but keeps word order.',
+      ['"abca" returns true for one deletion.', 'Word-by-word reversal keeps spaces.', 'Both are O(n).', 'Edge cases tested.']],
+    references: [['Java 21 API · StringBuilder', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuilder.html']]
+  },
+  'j-generics-01.dsa': {
+    notes: [
+      'Two words are anagrams if they contain the same letters with the same counts, like listen and silent. To group anagrams, compute a key that is the same for every word in a group: the word’s characters sorted. Then use a map from key to a list of words. For n words of length k this costs O(n · k log k) time. For lowercase English letters, a 26-entry count array turned into a string gives an O(n · k) key.',
+      'AnagramGroups.java shows the same grouping twice: with a loop and computeIfAbsent, and with a stream pipeline, Collectors.groupingBy(key, TreeMap::new, toList()). Passing TreeMap::new makes the output order stable, which matters for tests; a HashMap’s order is not defined.',
+      'The helper largest is generic: <K extends Comparable<K>, V> lets it work for any key type that can be compared and any element type, while the compiler still checks the types at each call.'
+    ],
+    code: {
+      title: 'AnagramGroups.java · group anagrams by sorted-letter key with a loop and with Collectors.groupingBy, plus a generic helper · java AnagramGroups.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+
+public class AnagramGroups {
+    // Key = the word's letters sorted. O(n · k log k) for n words of length k.
+    static String key(String w) {
+        char[] c = w.toCharArray();
+        Arrays.sort(c);
+        return new String(c);
+    }
+
+    static Map<String, List<String>> groupLoop(List<String> words) {
+        Map<String, List<String>> groups = new TreeMap<>();
+        for (String w : words) groups.computeIfAbsent(key(w), k -> new ArrayList<>()).add(w);
+        return groups;
+    }
+
+    // The same grouping as a stream pipeline; TreeMap::new keeps the printed order stable.
+    static Map<String, List<String>> groupStream(List<String> words) {
+        return words.stream().collect(Collectors.groupingBy(AnagramGroups::key, TreeMap::new, Collectors.toList()));
+    }
+
+    // Generic helper: the largest group, ties broken by the smaller key.
+    static <K extends Comparable<K>, V> K largest(Map<K, List<V>> groups) {
+        K best = null;
+        for (Map.Entry<K, List<V>> e : groups.entrySet())
+            if (best == null || e.getValue().size() > groups.get(best).size()) best = e.getKey();
+        return best;
+    }
+
+    public static void main(String[] args) {
+        List<String> words = List.of("listen", "silent", "enlist", "google", "gooegl", "cat", "act", "tac", "dog");
+        Map<String, List<String>> g = groupLoop(words);
+        System.out.println("groups: " + g.values());
+        System.out.println("stream version equal: " + g.equals(groupStream(words)));
+        System.out.println("largest group key: " + largest(g) + " -> " + g.get(largest(g)));
+    }
+}
+`,
+      output: String.raw`groups: [[cat, act, tac], [dog], [google, gooegl], [listen, silent, enlist]]
+stream version equal: true
+largest group key: act -> [cat, act, tac]`
+    },
+    takeaways: ['A canonical key turns grouping into a map lookup.', 'Sorted letters: O(k log k) per word.', 'groupingBy(key, TreeMap::new, toList()) gives stable order.', 'Bounded generics keep helpers type-safe.'],
+    interview: [
+      ['How would you group a list of words into anagrams?', 'I map every word to a canonical key that is identical for all its anagrams, then group by that key. The simplest key is the word’s characters sorted, so listen, silent and enlist all become eilnst. I use a Map<String, List<String>> and computeIfAbsent to append each word to its group, or Collectors.groupingBy in a stream. Sorting costs O(k log k) per word, so the total is O(n · k log k) time and O(n · k) space. If the alphabet is small, such as 26 lowercase letters, a key built from letter counts takes O(k) per word. I use a TreeMap or sort the output when the order must be deterministic.']
+    ],
+    check: ['Which key puts listen, silent and enlist in the same group?',
+      ['The first letter', 'The word length', 'The letters sorted: eilnst', 'The word’s hashCode'], 2,
+      'Anagrams share exactly the same letters, so sorting them gives the same string.'],
+    practice: ['Copy AnagramGroups.java. Replace the sorted key with a 26-letter count key, compare the results on 10,000 random words, and add a method that checks whether two strings are anagrams in O(n).',
+      ['Both keys produce the same groups.', 'The count key is O(k).', 'Upper case and non-letters are handled or rejected.', 'Output order is deterministic.']],
+    references: [['Java 21 API · Collectors.groupingBy', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html']]
+  },
+  'j-executors-01.dsa': {
+    notes: [
+      'The maximum subarray problem asks for the contiguous range with the largest sum, for example the busiest stretch of booking demand where each value is the change from the previous hour. Checking every range is O(n²). Kadane’s algorithm does it in one pass.',
+      'Keep cur, the best sum of a range ending at the current index, and best, the best sum seen anywhere. For each value, if cur is negative, start a new range at this value, because a negative prefix can only make any later range smaller; otherwise extend cur. Update best whenever cur beats it, and record the range bounds. MaxSubarray.java finds 6 for indexes 3 to 6 in [−2, 1, −3, 4, −1, 2, 1, −5, 4].',
+      'Define the edge case: if the subarray must be non-empty, an all-negative array returns its largest element, here −3. The program also checks Kadane against a brute-force version on 1,000 random arrays, a good habit for any clever algorithm.'
+    ],
+    code: {
+      title: 'MaxSubarray.java · Kadane’s algorithm with range bounds, the all-negative case, and a check against brute force on 1,000 random arrays · java MaxSubarray.java',
+      text: String.raw`public class MaxSubarray {
+    // Kadane: best sum of a non-empty contiguous subarray, with its bounds. O(n) time, O(1) space.
+    static long[] kadane(int[] a) {
+        long best = a[0], cur = a[0];
+        int bestL = 0, bestR = 0, curL = 0;
+        for (int i = 1; i < a.length; i++) {
+            if (cur < 0) { cur = a[i]; curL = i; }      // a negative prefix never helps: restart here
+            else cur += a[i];
+            if (cur > best) { best = cur; bestL = curL; bestR = i; }
+        }
+        return new long[] {best, bestL, bestR};
+    }
+
+    static long bruteForce(int[] a) {
+        long best = Long.MIN_VALUE;
+        for (int i = 0; i < a.length; i++) {
+            long s = 0;
+            for (int j = i; j < a.length; j++) { s += a[j]; best = Math.max(best, s); }
+        }
+        return best;
+    }
+
+    public static void main(String[] args) {
+        int[] demand = {-2, 1, -3, 4, -1, 2, 1, -5, 4};
+        long[] r = kadane(demand);
+        System.out.println("best sum " + r[0] + " from index " + r[1] + " to " + r[2]);
+        long[] neg = kadane(new int[] {-8, -3, -6});
+        System.out.println("all negative: best " + neg[0] + " at index " + neg[1]);
+        java.util.Random rnd = new java.util.Random(7);
+        boolean ok = true;
+        for (int t = 0; t < 1000; t++) {
+            int[] a = new int[1 + rnd.nextInt(12)];
+            for (int i = 0; i < a.length; i++) a[i] = rnd.nextInt(21) - 10;
+            ok &= kadane(a)[0] == bruteForce(a);
+        }
+        System.out.println("1000 random arrays match brute force: " + ok);
+    }
+}
+`,
+      output: String.raw`best sum 6 from index 3 to 6
+all negative: best -3 at index 1
+1000 random arrays match brute force: true`
+    },
+    takeaways: ['Restart when the running sum is negative.', 'O(n) time, O(1) space.', 'Decide if empty ranges are allowed.', 'Test against brute force.'],
+    interview: [
+      ['Explain Kadane’s algorithm and why it is correct.', 'I scan once and keep two values: cur, the maximum sum of a subarray that ends at the current index, and best, the maximum seen so far. At each element, the best subarray ending here is either the element alone or the element added to the best subarray ending at the previous index. So cur becomes max(a[i], cur + a[i]), which is the same as restarting when cur is negative. best is the maximum of all cur values. This is a small dynamic programming argument, and it runs in O(n) time with O(1) space. I clarify whether an empty subarray with sum 0 is allowed, since that changes the all-negative case.']
+    ],
+    check: ['For [−8, −3, −6], what does a non-empty maximum subarray return?',
+      ['0', '−3', '−17', '−8'], 1,
+      'Every range has a negative sum, so the best single element, −3, is the answer when the range must be non-empty.'],
+    practice: ['Copy MaxSubarray.java. Add the maximum circular subarray sum (total minus minimum subarray, with the all-negative case), and the maximum product subarray, each tested against brute force.',
+      ['Circular case handles all-negative input.', 'Product version tracks min and max.', 'Brute-force checks pass.', 'Complexity stated.']],
+    references: [['Wikipedia · Maximum subarray problem (Kadane’s algorithm)', 'https://en.wikipedia.org/wiki/Maximum_subarray_problem']]
+  },
+  'l-uml-01.dsa': {
+    notes: [
+      'A stack is last in, first out. A common design question is a stack that also returns its minimum in O(1). The trick is to store, with every entry, the minimum of the stack at the moment that entry was pushed.',
+      'MinStack.java pushes records of (value, min). push computes min as the smaller of the new value and the current top’s min. min simply reads the top’s min, and pop removes the top, which automatically restores the previous minimum. Every operation is O(1), and the extra space is O(n). An alternative keeps a second stack that only holds the minimums, which can save space when many values are larger than the current minimum.',
+      'Define behaviour on an empty stack: here min and pop throw IllegalStateException. Use ArrayDeque, not the legacy Stack class, which is synchronized and extends Vector.'
+    ],
+    code: {
+      title: 'MinStack.java · a stack that returns its minimum in O(1) by storing the minimum with each entry · java MinStack.java',
+      text: String.raw`import java.util.ArrayDeque;
+import java.util.Deque;
+
+public class MinStack {
+    // Each entry stores its value and the minimum of the stack at the time it was pushed.
+    private record Entry(int value, int min) {}
+    private final Deque<Entry> stack = new ArrayDeque<>();
+
+    void push(int x) {
+        int min = stack.isEmpty() ? x : Math.min(x, stack.peek().min());
+        stack.push(new Entry(x, min));
+    }
+
+    int pop() {
+        if (stack.isEmpty()) throw new IllegalStateException("empty stack");
+        return stack.pop().value();
+    }
+
+    int top() { return stack.peek().value(); }
+    int min() {
+        if (stack.isEmpty()) throw new IllegalStateException("empty stack");
+        return stack.peek().min();
+    }
+
+    public static void main(String[] args) {
+        MinStack s = new MinStack();
+        for (int x : new int[] {5, 3, 7, 3, 2}) { s.push(x); System.out.print("push " + x + " min " + s.min() + "; "); }
+        System.out.println();
+        while (true) {
+            int v = s.pop();
+            if (s.stack.isEmpty()) { System.out.println("pop " + v + " -> empty"); break; }
+            System.out.print("pop " + v + " min " + s.min() + "; ");
+        }
+        try { s.min(); } catch (IllegalStateException e) { System.out.println("min on empty: " + e.getMessage()); }
+    }
+}
+`,
+      output: String.raw`push 5 min 5; push 3 min 3; push 7 min 3; push 3 min 3; push 2 min 2; 
+pop 2 min 3; pop 3 min 3; pop 7 min 3; pop 3 min 5; pop 5 -> empty
+min on empty: empty stack`
+    },
+    takeaways: ['Store the running minimum with each entry.', 'All operations O(1).', 'Pop restores the previous minimum for free.', 'Use ArrayDeque, not Stack.'],
+    interview: [
+      ['How do you design a stack that returns its minimum in constant time?', 'Each push stores the value together with the minimum of the whole stack at that moment, which is the smaller of the new value and the previous top’s minimum. min then just reads the top entry’s minimum, which is O(1). When I pop, the entry below still carries the minimum that was correct before the popped value arrived, so nothing needs to be recomputed. push, pop, top and min are all O(1), with O(n) extra space. A variant keeps a second stack of minimums and pushes to it only when a value is less than or equal to the current minimum, which uses less memory when values are mostly large.']
+    ],
+    check: ['After pushing 5, 3, 7, 3 and 2, then popping twice, what does min return?',
+      ['2', '3', '5', '7'], 1,
+      'Popping 2 and then 3 leaves 5, 3, 7, whose minimum is 3.'],
+    practice: ['Copy MinStack.java. Add a max as well, a version with a separate minimum stack that only grows on new minimums, and a randomized test against a brute-force minimum.',
+      ['Both versions agree on 10,000 random operations.', 'Duplicate minimums are handled.', 'Empty-stack behaviour is defined.', 'Space use compared.']],
+    references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html']]
+  },
+  'j-build-01.dsa': {
+    notes: [
+      'Binary search finds a position in a sorted array in O(log n) by halving the candidate range each step. The most useful forms are lower bound, the first index whose value is at least the key, and upper bound, the first index whose value is greater than the key. Together they answer “how many times does the key occur?” as upper − lower, and “where would it be inserted?” as lower.',
+      'SearchBounds.java keeps a half-open range [lo, hi). If a[mid] is too small, the answer is to the right, so lo = mid + 1; otherwise hi = mid. The loop ends when lo = hi, and returning n means every value is smaller. Compute mid as lo + (hi − lo) / 2 so large indexes cannot overflow.',
+      'Java’s Arrays.binarySearch returns any matching index, not necessarily the first, and returns −(insertion point) − 1 when the key is missing, which is why searching for 5 gives −5.'
+    ],
+    code: {
+      title: 'SearchBounds.java · lower and upper bound with a half-open range, counting duplicates, and what Arrays.binarySearch returns for a missing key · java SearchBounds.java',
+      text: String.raw`import java.util.Arrays;
+
+public class SearchBounds {
+    // First index i with a[i] >= key (n if none). Half-open [lo, hi): O(log n).
+    static int lowerBound(int[] a, int key) {
+        int lo = 0, hi = a.length;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;          // no overflow, unlike (lo + hi) / 2
+            if (a[mid] < key) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    // First index i with a[i] > key.
+    static int upperBound(int[] a, int key) {
+        int lo = 0, hi = a.length;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (a[mid] <= key) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    public static void main(String[] args) {
+        int[] rows = {2, 4, 4, 4, 7, 9};               // sorted seat rows that have bookings
+        System.out.println("rows " + Arrays.toString(rows));
+        for (int key : new int[] {4, 5, 1, 10}) {
+            int lo = lowerBound(rows, key), hi = upperBound(rows, key);
+            System.out.println("key " + key + ": lower " + lo + ", upper " + hi + ", count " + (hi - lo));
+        }
+        System.out.println("Arrays.binarySearch for 5 returns " + Arrays.binarySearch(rows, 5) + " = -(insertion point) - 1");
+        System.out.println("empty array lower bound: " + lowerBound(new int[0], 3));
+    }
+}
+`,
+      output: String.raw`rows [2, 4, 4, 4, 7, 9]
+key 4: lower 1, upper 4, count 3
+key 5: lower 4, upper 4, count 0
+key 1: lower 0, upper 0, count 0
+key 10: lower 6, upper 6, count 0
+Arrays.binarySearch for 5 returns -5 = -(insertion point) - 1
+empty array lower bound: 0`
+    },
+    takeaways: ['Lower bound: first ≥ key. Upper bound: first > key.', 'Count = upper − lower.', 'Use lo + (hi − lo) / 2.', 'Arrays.binarySearch may return any match.'],
+    interview: [
+      ['How do you find the first and last position of a value in a sorted array?', 'I run two binary searches. Lower bound finds the first index whose value is at least the key: with a half-open range [lo, hi), if a[mid] < key I set lo = mid + 1, otherwise hi = mid, until lo equals hi. Upper bound is the same with a[mid] <= key, so it finds the first index greater than the key. If lower equals upper, the key is absent; otherwise the first position is lower and the last is upper − 1, and the count is their difference. Each search is O(log n). I compute mid as lo + (hi − lo) / 2 to avoid overflow and test empty arrays, missing keys and keys beyond both ends.']
+    ],
+    check: ['In [2, 4, 4, 4, 7, 9], what are lower bound and upper bound for 4?',
+      ['0 and 3', '1 and 4', '1 and 3', '2 and 4'], 1,
+      'The first 4 is at index 1 and the first value greater than 4 is at index 4, so there are 3 fours.'],
+    practice: ['Copy SearchBounds.java. Add a search in a rotated sorted array, the smallest x with x² ≥ n using binary search on the answer, and a randomized test against a linear scan.',
+      ['Bounds match a linear scan on random arrays.', 'Rotated search handles duplicates or states the limit.', 'Square-root search avoids overflow with long.', 'All are O(log n).']],
+    references: [['Java 21 API · Arrays.binarySearch', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html']]
+  },
+  'b-http-01.dsa': {
+    notes: [
+      'Merging two sorted sequences is a two-pointer pattern: compare the current items of both, take the smaller, and advance that pointer. When one side runs out, copy the rest of the other. It costs O(n + m) time and is the core step of merge sort and of combining sorted results from two services.',
+      'MergeSorted.java takes from the first array on ties, which keeps the merge stable: equal items keep their original relative order. The same pointers also find values present in both arrays: advance the smaller side, and when the values are equal, record it once and advance both.',
+      'Always test an empty input and duplicates on both sides. These patterns appear in APIs too, for example merging two paginated, sorted result lists into one response.'
+    ],
+    code: {
+      title: 'MergeSorted.java · stable merge of two sorted arrays and their intersection with two pointers · java MergeSorted.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class MergeSorted {
+    // Merge two sorted arrays in O(n + m); on ties take from a first so the merge is stable.
+    static int[] merge(int[] a, int[] b) {
+        int[] out = new int[a.length + b.length];
+        int i = 0, j = 0, k = 0;
+        while (i < a.length && j < b.length) out[k++] = a[i] <= b[j] ? a[i++] : b[j++];
+        while (i < a.length) out[k++] = a[i++];
+        while (j < b.length) out[k++] = b[j++];
+        return out;
+    }
+
+    // Values present in both sorted arrays, each reported once.
+    static List<Integer> intersect(int[] a, int[] b) {
+        List<Integer> out = new ArrayList<>();
+        int i = 0, j = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] < b[j]) i++;
+            else if (a[i] > b[j]) j++;
+            else {
+                if (out.isEmpty() || out.get(out.size() - 1) != a[i]) out.add(a[i]);
+                i++; j++;
+            }
+        }
+        return out;
+    }
+
+    public static void main(String[] args) {
+        int[] morning = {1, 3, 5, 5, 9}, evening = {2, 3, 5, 10};
+        System.out.println("merged: " + Arrays.toString(merge(morning, evening)));
+        System.out.println("in both: " + intersect(morning, evening));
+        System.out.println("merge with empty: " + Arrays.toString(merge(new int[0], evening)));
+    }
+}
+`,
+      output: String.raw`merged: [1, 2, 3, 3, 5, 5, 5, 9, 10]
+in both: [3, 5]
+merge with empty: [2, 3, 5, 10]`
+    },
+    takeaways: ['Take the smaller head and advance.', 'Copy the remainder when one side ends.', 'Take from the left on ties for stability.', 'O(n + m) time.'],
+    interview: [
+      ['How do you merge two sorted arrays, and what does it cost?', 'I keep one index into each array and an output index. While both arrays have items left, I compare the current items, copy the smaller one into the output, and advance that index; on a tie I take from the first array, which keeps the merge stable. When one array is exhausted, I copy the remaining items of the other, which are already sorted. Every item is copied exactly once, so the time is O(n + m), and the output needs O(n + m) space. If I must merge in place into the first array with spare capacity at the end, I fill from the back so nothing is overwritten.']
+    ],
+    check: ['Which values does the intersection of [1, 3, 5, 5, 9] and [2, 3, 5, 10] report?',
+      ['[3, 5, 5]', '[3, 5]', '[1, 2, 3, 5, 9, 10]', '[5]'], 1,
+      'Both arrays contain 3 and 5; the method reports each common value once.'],
+    practice: ['Copy MergeSorted.java. Add a k-way merge of sorted lists with a PriorityQueue, an in-place merge into an array with spare capacity, and tests with duplicates and empty inputs.',
+      ['k-way merge is O(N log k).', 'In-place merge fills from the end.', 'Stability is preserved on ties.', 'Edge cases tested.']],
+    references: [['Princeton Algorithms · Mergesort', 'https://algs4.cs.princeton.edu/22mergesort/']]
+  },
+  'b-validation-01.dsa': {
+    notes: [
+      'Grid traversal problems test careful index handling. To read a matrix in spiral order, keep four bounds, top, bottom, left and right. Walk the top row left to right and move top down; walk the right column top to bottom and move right inwards; then, if rows remain, walk the bottom row right to left; and, if columns remain, walk the left column bottom to top.',
+      'The two “if” checks are what make SpiralGrid.java correct for non-square grids: without them, a 2×4 grid or a single column would repeat cells. Each cell is visited once, so the cost is O(rows × cols).',
+      'As with API input, validate a grid before trusting it. The program rejects a jagged map with a clear message instead of failing later with ArrayIndexOutOfBoundsException.'
+    ],
+    code: {
+      title: 'SpiralGrid.java · spiral order with four shrinking bounds, correct for wide and single-column grids, plus input validation · java SpiralGrid.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+
+public class SpiralGrid {
+    // Walk the outer ring, then shrink the four bounds. Each cell is visited once: O(rows × cols).
+    static List<Integer> spiral(int[][] g) {
+        List<Integer> out = new ArrayList<>();
+        if (g.length == 0) return out;
+        int top = 0, bottom = g.length - 1, left = 0, right = g[0].length - 1;
+        while (top <= bottom && left <= right) {
+            for (int c = left; c <= right; c++) out.add(g[top][c]);
+            top++;
+            for (int r = top; r <= bottom; r++) out.add(g[r][right]);
+            right--;
+            if (top <= bottom) { for (int c = right; c >= left; c--) out.add(g[bottom][c]); bottom--; }
+            if (left <= right) { for (int r = bottom; r >= top; r--) out.add(g[r][left]); left++; }
+        }
+        return out;
+    }
+
+    // Validate a seat map before using it: rectangular, values in range. Fail with a clear message.
+    static void validate(int[][] g) {
+        for (int r = 0; r < g.length; r++) {
+            if (g[r].length != g[0].length) throw new IllegalArgumentException("row " + r + " has " + g[r].length + " seats, expected " + g[0].length);
+            for (int v : g[r]) if (v < 0) throw new IllegalArgumentException("negative seat number in row " + r);
+        }
+    }
+
+    public static void main(String[] args) {
+        int[][] square = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+        int[][] wide = {{1, 2, 3, 4}, {5, 6, 7, 8}};
+        int[][] column = {{1}, {2}, {3}};
+        System.out.println("3x3: " + spiral(square));
+        System.out.println("2x4: " + spiral(wide));
+        System.out.println("3x1: " + spiral(column));
+        try {
+            validate(new int[][] {{1, 2}, {3}});
+        } catch (IllegalArgumentException e) {
+            System.out.println("invalid map: " + e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`3x3: [1, 2, 3, 6, 9, 8, 7, 4, 5]
+2x4: [1, 2, 3, 4, 8, 7, 6, 5]
+3x1: [1, 2, 3]
+invalid map: row 1 has 1 seats, expected 2`
+    },
+    takeaways: ['Keep four bounds and shrink after each side.', 'Check bounds again before the bottom and left passes.', 'O(rows × cols).', 'Validate the shape before traversal.'],
+    interview: [
+      ['How do you print a matrix in spiral order without repeating cells?', 'I maintain four boundaries: top, bottom, left and right. Each loop prints the top row from left to right and increments top, then the right column from top to bottom and decrements right. Before printing the bottom row from right to left, I check that top is still at most bottom, and before printing the left column from bottom to top, I check that left is still at most right; then I shrink those bounds. The checks matter for rectangular grids, where the last pass is a single row or column. Every cell is printed once, so it is O(rows × cols) time and O(1) extra space besides the output.']
+    ],
+    check: ['What does SpiralGrid.java print for the 2×4 grid [[1, 2, 3, 4], [5, 6, 7, 8]]?',
+      ['[1, 2, 3, 4, 8, 7, 6, 5]', '[1, 2, 3, 4, 5, 6, 7, 8]', '[1, 5, 6, 2, 3, 7, 8, 4]', '[1, 2, 3, 4, 8, 7, 6, 5, 5]'], 0,
+      'Top row, right column (8), bottom row backwards; the bound checks stop any repeat.'],
+    practice: ['Copy SpiralGrid.java. Add rotation of a square matrix by 90 degrees in place, a search in a row- and column-sorted matrix in O(rows + cols), and tests for 1×1 and empty grids.',
+      ['Rotation works for odd and even sizes.', 'Sorted-matrix search starts at the top-right corner.', 'Edge cases pass.', 'Complexity stated.']],
+    references: [['Java 21 API · Arrays', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Arrays.html']]
+  },
+  'b-sql-01.dsa': {
+    notes: [
+      'Given unsorted seat numbers, the longest run of consecutive numbers can be found in expected O(n) without sorting. Put every number in a HashSet. A number starts a run only if number − 1 is not in the set; from each start, count upwards while the next number is present.',
+      'Each number is counted inside at most one run, because counting only starts at run starts, so the total work is O(n) expected. Sorting first would be O(n log n). ConsecutiveRun.java finds the run 1, 2, 3, 4 among 100, 4, 200, 1, 3, 2, 2, 101, 102, ignoring the duplicate 2, and breaks ties by the smaller start so the result is deterministic.',
+      'The same idea, a set for membership plus counting only from starting points, appears in database work as well, for example finding gaps or blocks of free seat IDs.'
+    ],
+    code: {
+      title: 'ConsecutiveRun.java · longest run of consecutive seat numbers in expected O(n) with a HashSet, counting only from run starts · java ConsecutiveRun.java',
+      text: String.raw`import java.util.HashSet;
+import java.util.Set;
+
+public class ConsecutiveRun {
+    // Longest run of consecutive seat numbers, in expected O(n): start counting only at run starts.
+    static int[] longestRun(int[] seats) {
+        Set<Integer> set = new HashSet<>();
+        for (int s : seats) set.add(s);
+        int bestLen = 0, bestStart = 0;
+        for (int s : set) {
+            if (set.contains(s - 1)) continue;          // not the start of a run
+            int len = 1;
+            while (set.contains(s + len)) len++;
+            if (len > bestLen || (len == bestLen && s < bestStart)) { bestLen = len; bestStart = s; }
+        }
+        return new int[] {bestStart, bestLen};
+    }
+
+    public static void main(String[] args) {
+        int[] free = {100, 4, 200, 1, 3, 2, 2, 101, 102};
+        int[] r = longestRun(free);
+        System.out.println("longest run starts at " + r[0] + ", length " + r[1]);
+        int[] tie = {10, 11, 1, 2};
+        int[] t = longestRun(tie);
+        System.out.println("tie: starts at " + t[0] + ", length " + t[1]);
+        System.out.println("empty: length " + longestRun(new int[0])[1]);
+    }
+}
+`,
+      output: String.raw`longest run starts at 1, length 4
+tie: starts at 1, length 2
+empty: length 0`
+    },
+    takeaways: ['A HashSet gives O(1) expected membership.', 'Count only from numbers whose predecessor is missing.', 'Expected O(n), no sorting.', 'Break ties explicitly.'],
+    interview: [
+      ['How do you find the longest consecutive sequence in an unsorted array in linear time?', 'I insert every number into a HashSet, which also removes duplicates. Then for each number in the set, I check whether number − 1 is present. If it is, this number is in the middle of a run and I skip it. If it is not, the number starts a run, and I count upwards while number + 1, number + 2 and so on are in the set. Because counting only starts at the beginning of each run, every number is visited by the inner loop at most once, so the total is expected O(n) time and O(n) space. Sorting would also work but costs O(n log n).']
+    ],
+    check: ['Why does ConsecutiveRun.java skip a number when number − 1 is in the set?',
+      ['To save memory', 'Because that number is not the start of a run, so counting from it would repeat work', 'Because duplicates are not allowed', 'To sort the numbers'], 1,
+      'Counting only from run starts keeps the total work linear.'],
+    practice: ['Copy ConsecutiveRun.java. Return the run itself, find all gaps between booked seat numbers in a range, and compare the HashSet version with a sort-based version on 100,000 random numbers.',
+      ['Both versions agree.', 'Gaps are reported as ranges.', 'Duplicates do not change the answer.', 'Timing difference noted.']],
+    references: [['Java 21 API · HashSet', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashSet.html']]
+  },
+  'b-jdbc-01.dsa': {
+    notes: [
+      'The majority element is the value that appears more than half the time. The Boyer–Moore voting algorithm finds the only possible candidate in one pass with O(1) space: keep a candidate and a counter; when the counter is 0, take the current value as the candidate; add 1 for a match and subtract 1 otherwise.',
+      'Pairs of different values cancel each other, and a true majority cannot be fully cancelled, so if a majority exists it is the final candidate. But the algorithm always produces some candidate, so a second pass must count it and confirm it appears more than n / 2 times. MajorityVote.java returns null for [1, 2, 3] and for [1, 1, 2, 2], where exactly half is not a majority.',
+      'Like a database transaction that must re-check its decision inputs, the verification pass is what makes the result trustworthy.'
+    ],
+    code: {
+      title: 'MajorityVote.java · Boyer–Moore majority vote in one pass with O(1) space, plus the verification pass · java MajorityVote.java',
+      text: String.raw`public class MajorityVote {
+    // Boyer–Moore: one pass, O(1) space. The candidate must be verified with a second pass.
+    static Integer majority(int[] votes) {
+        int candidate = 0, count = 0;
+        for (int v : votes) {
+            if (count == 0) candidate = v;
+            count += (v == candidate) ? 1 : -1;
+        }
+        int occurrences = 0;
+        for (int v : votes) if (v == candidate) occurrences++;
+        return occurrences > votes.length / 2 ? candidate : null;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("[2, 2, 1, 1, 1, 2, 2] -> " + majority(new int[] {2, 2, 1, 1, 1, 2, 2}));
+        System.out.println("[3, 3, 4] -> " + majority(new int[] {3, 3, 4}));
+        System.out.println("[1, 2, 3] -> " + majority(new int[] {1, 2, 3}) + " (no majority; the candidate failed verification)");
+        System.out.println("[1, 1, 2, 2] -> " + majority(new int[] {1, 1, 2, 2}) + " (exactly half is not a majority)");
+    }
+}
+`,
+      output: String.raw`[2, 2, 1, 1, 1, 2, 2] -> 2
+[3, 3, 4] -> 3
+[1, 2, 3] -> null (no majority; the candidate failed verification)
+[1, 1, 2, 2] -> null (exactly half is not a majority)`
+    },
+    takeaways: ['Different values cancel in pairs.', 'One pass finds the only possible candidate.', 'Always verify with a second pass.', 'O(n) time, O(1) space.'],
+    interview: [
+      ['How does the Boyer–Moore majority vote algorithm work, and why must you verify the result?', 'I keep a candidate and a count. For each value, if the count is 0 I make the value the candidate; then I add 1 if the value equals the candidate and subtract 1 otherwise. Each decrement cancels one candidate occurrence against one different value. A value occurring more than n / 2 times cannot be cancelled completely, so if a majority exists it is the final candidate. But the algorithm returns a candidate even when no majority exists, for example for [1, 2, 3]. So a second pass counts the candidate and accepts it only if it occurs more than n / 2 times. Both passes are O(n) with O(1) space.']
+    ],
+    check: ['What does MajorityVote.java return for [1, 1, 2, 2]?',
+      ['1', '2', 'null, because exactly half is not more than half', 'It throws an exception'], 2,
+      'A majority needs more than n / 2 occurrences; 2 of 4 is not enough, so verification fails.'],
+    practice: ['Copy MajorityVote.java. Extend it to find all values that appear more than n / 3 times (at most two candidates), and test both versions against a HashMap count on random arrays.',
+      ['The n/3 version keeps two candidates and verifies both.', 'Results match a HashMap count.', 'Empty input handled.', 'Complexity stated.']],
+    references: [['Wikipedia · Boyer–Moore majority vote algorithm', 'https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_majority_vote_algorithm']]
+  },
+  'b-transactions-02.dsa': {
+    notes: [
+      'Partitioning an array into three groups in one pass is the Dutch national flag problem. Here every seat has a state, 0 free, 1 held or 2 booked, and we want all free seats first, then held, then booked. Sorting would work in O(n log n), but three pointers do it in O(n) with O(1) extra space.',
+      'ThreeWayPartition.java keeps an invariant: everything before low is 0, everything from low to mid − 1 is 1, everything after high is 2, and mid to high is still unknown. A 0 at mid is swapped to low and both advance; a 1 just advances mid; a 2 is swapped with high and high moves left, but mid stays, because the value swapped in has not been examined yet. That one detail is the usual bug.',
+      'The program checks the result against Arrays.sort on 1,000 random states, a cheap way to gain confidence in an invariant-based loop.'
+    ],
+    code: {
+      title: 'ThreeWayPartition.java · Dutch national flag partition of seat states in one pass, checked against a sort · java ThreeWayPartition.java',
+      text: String.raw`import java.util.Arrays;
+
+public class ThreeWayPartition {
+    // Dutch national flag: 0 = free, 1 = held, 2 = booked. One pass, O(1) extra space.
+    // Invariant: [0, low) are 0s, [low, mid) are 1s, (high, end] are 2s, [mid, high] unknown.
+    static void partition(int[] a) {
+        int low = 0, mid = 0, high = a.length - 1;
+        while (mid <= high) {
+            if (a[mid] == 0) swap(a, low++, mid++);
+            else if (a[mid] == 1) mid++;
+            else swap(a, mid, high--);           // do not advance mid: the swapped-in value is unknown
+        }
+    }
+
+    static void swap(int[] a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+
+    public static void main(String[] args) {
+        int[] states = {2, 0, 2, 1, 1, 0, 0, 2, 1};
+        partition(states);
+        System.out.println("partitioned: " + Arrays.toString(states));
+        int[] one = {2, 2, 2};
+        partition(one);
+        System.out.println("all booked: " + Arrays.toString(one));
+        int[] random = new java.util.Random(3).ints(1000, 0, 3).toArray();
+        int[] expected = random.clone();
+        Arrays.sort(expected);
+        partition(random);
+        System.out.println("1000 random states match a sort: " + Arrays.equals(random, expected));
+    }
+}
+`,
+      output: String.raw`partitioned: [0, 0, 0, 1, 1, 1, 2, 2, 2]
+all booked: [2, 2, 2]
+1000 random states match a sort: true`
+    },
+    takeaways: ['Three regions plus an unknown middle.', 'Do not advance mid after swapping with high.', 'O(n) time, O(1) space.', 'Check against a simple reference.'],
+    interview: [
+      ['How do you sort an array of 0s, 1s and 2s in one pass?', 'I use three pointers: low, mid and high, with the invariant that indexes before low hold 0, indexes from low to mid − 1 hold 1, indexes after high hold 2, and mid to high is unexamined. While mid ≤ high, if a[mid] is 0 I swap it with a[low] and advance both; if it is 1 I just advance mid; if it is 2 I swap it with a[high] and decrement high without moving mid, because the swapped-in value is still unexamined. Each step shrinks the unknown region, so it is one pass, O(n) time, and O(1) extra space. Counting sort with two passes also works, but this is one pass and in place.']
+    ],
+    check: ['Why does ThreeWayPartition.java not advance mid after swapping a 2 to the end?',
+      ['To save time', 'The value swapped into mid came from the unknown region and has not been checked', 'Because 2s are always last already', 'It is a bug'], 1,
+      'Advancing mid would skip that value, which might be a 0 or a 2.'],
+    practice: ['Copy ThreeWayPartition.java. Generalize it to partition around a pivot value (less, equal, greater) and use it in a quicksort that handles many duplicates, tested against Arrays.sort.',
+      ['Pivot partition keeps the invariant.', 'Quicksort with three-way partition is correct on duplicates.', 'Random tests pass.', 'Complexity stated.']],
+    references: [['Princeton Algorithms · Quicksort (3-way partitioning)', 'https://algs4.cs.princeton.edu/23quicksort/']]
+  },
+  'b-transactions-03.dsa': {
+    notes: [
+      'How many rooms, or seats, or connections, are needed so that overlapping bookings never share one? Sort the bookings by start time and keep a min-heap of end times for rooms in use. For each booking, if the earliest-ending room is free by its start, reuse that room by polling it; then add this booking’s end time. The heap size at the end is the answer.',
+      'MinRooms.java also solves it with a sweep: sort starts and ends separately, and walk through starts, releasing every room whose end is at or before the current start. The maximum number in use at once is the answer. Both are O(n log n). Using half-open intervals means a booking ending at 10:00 and another starting at 10:00 can share a room.',
+      'The same count is the peak concurrency, which is how you size a lock pool or connection pool: it tells you how many things are held at the same time.'
+    ],
+    code: {
+      title: 'MinRooms.java · minimum rooms for overlapping bookings with a min-heap of end times and with a start/end sweep · java MinRooms.java',
+      text: String.raw`import java.util.Arrays;
+import java.util.PriorityQueue;
+
+public class MinRooms {
+    // Minimum rooms so that no two overlapping bookings share a room. Half-open [start, end).
+    static int minRooms(int[][] bookings) {
+        int[][] b = bookings.clone();
+        Arrays.sort(b, (x, y) -> Integer.compare(x[0], y[0]));
+        PriorityQueue<Integer> endTimes = new PriorityQueue<>();   // end time of each room in use
+        for (int[] bk : b) {
+            if (!endTimes.isEmpty() && endTimes.peek() <= bk[0]) endTimes.poll();   // reuse the room that frees first
+            endTimes.offer(bk[1]);
+        }
+        return endTimes.size();
+    }
+
+    // Same answer with two sorted arrays: count starts minus ends seen so far.
+    static int sweep(int[][] bookings) {
+        int n = bookings.length;
+        int[] s = new int[n], e = new int[n];
+        for (int i = 0; i < n; i++) { s[i] = bookings[i][0]; e[i] = bookings[i][1]; }
+        Arrays.sort(s); Arrays.sort(e);
+        int rooms = 0, best = 0, j = 0;
+        for (int i = 0; i < n; i++) {
+            while (j < n && e[j] <= s[i]) { j++; rooms--; }
+            rooms++;
+            best = Math.max(best, rooms);
+        }
+        return best;
+    }
+
+    public static void main(String[] args) {
+        int[][] day = {{900, 1000}, {930, 1100}, {1000, 1030}, {1030, 1200}, {1045, 1115}};
+        System.out.println("heap: " + minRooms(day) + " rooms, sweep: " + sweep(day) + " rooms");
+        int[][] backToBack = {{900, 1000}, {1000, 1100}};
+        System.out.println("back to back: " + minRooms(backToBack) + " room");
+        System.out.println("none: " + minRooms(new int[0][]) + " rooms");
+    }
+}
+`,
+      output: String.raw`heap: 3 rooms, sweep: 3 rooms
+back to back: 1 room
+none: 0 rooms`
+    },
+    takeaways: ['Sort by start; a min-heap holds end times.', 'Reuse the room that frees first.', 'Peak concurrency = rooms needed.', 'Half-open intervals let back-to-back bookings share.'],
+    interview: [
+      ['How do you find the minimum number of meeting rooms for a list of bookings?', 'I sort the bookings by start time and keep a min-heap of end times, one per room in use. For each booking, if the smallest end time in the heap is at or before the booking’s start, that room is free, so I poll it to reuse the room; then I push the booking’s end time. The heap never removes a room that is still busy, and it reuses the one that frees earliest. The heap size at the end is the maximum number of rooms in use at once. Sorting is O(n log n) and each heap step is O(log n). An equivalent sweep sorts starts and ends separately and counts active bookings.']
+    ],
+    check: ['Bookings [9:00, 10:00) and [10:00, 11:00). How many rooms does MinRooms.java need?',
+      ['0', '1', '2', 'It depends on the order'], 1,
+      'With half-open intervals the first ends exactly when the second starts, so one room is enough.'],
+    practice: ['Copy MinRooms.java. Return which room each booking gets, find the time of peak concurrency, and test with random bookings against a brute-force count over every minute.',
+      ['Room assignments never overlap.', 'Peak time reported.', 'Brute-force check passes.', 'Back-to-back case uses one room.']],
+    references: [['Java 21 API · PriorityQueue', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/PriorityQueue.html']]
+  },
+  'b-jpa-01.dsa': {
+    notes: [
+      'Prefix computations turn repeated work into one pass. A prefix-sum array, p[i + 1] = p[i] + a[i], answers “how many bookings in hours l to r − 1?” as p[r] − p[l] in O(1) after O(n) setup.',
+      'Product of the array except self uses the same idea in both directions, without division: first store in out[i] the product of everything to the left of i, then walk from the right with a running suffix product and multiply it in. ExceptSelf.java gives [24, 12, 8, 6] for [1, 2, 3, 4] and handles a zero correctly, which a division-based version would not.',
+      'Like avoiding N+1 queries in JPA, the lesson is to compute what many lookups need in one pass rather than repeating work for each item.'
+    ],
+    code: {
+      title: 'ExceptSelf.java · product of all other elements without division using prefix and suffix passes, plus prefix-sum range totals · java ExceptSelf.java',
+      text: String.raw`import java.util.Arrays;
+
+public class ExceptSelf {
+    // out[i] = product of all a[j] with j != i, without division. O(n) time, O(1) extra besides the output.
+    static long[] productExceptSelf(int[] a) {
+        int n = a.length;
+        long[] out = new long[n];
+        long prefix = 1;
+        for (int i = 0; i < n; i++) { out[i] = prefix; prefix *= a[i]; }
+        long suffix = 1;
+        for (int i = n - 1; i >= 0; i--) { out[i] *= suffix; suffix *= a[i]; }
+        return out;
+    }
+
+    // Prefix sums answer many range-total queries in O(1) each after O(n) setup.
+    static long[] prefixSums(int[] a) {
+        long[] p = new long[a.length + 1];
+        for (int i = 0; i < a.length; i++) p[i + 1] = p[i] + a[i];
+        return p;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("except self [1, 2, 3, 4] -> " + Arrays.toString(productExceptSelf(new int[] {1, 2, 3, 4})));
+        System.out.println("with a zero [2, 0, 5] -> " + Arrays.toString(productExceptSelf(new int[] {2, 0, 5})));
+        int[] bookingsPerHour = {3, 8, 5, 0, 6, 9};
+        long[] p = prefixSums(bookingsPerHour);
+        System.out.println("bookings in hours [1, 4) = " + (p[4] - p[1]) + ", in [0, 6) = " + (p[6] - p[0]));
+    }
+}
+`,
+      output: String.raw`except self [1, 2, 3, 4] -> [24, 12, 8, 6]
+with a zero [2, 0, 5] -> [0, 10, 0]
+bookings in hours [1, 4) = 13, in [0, 6) = 31`
+    },
+    takeaways: ['Prefix sums give O(1) range totals.', 'Left and right running products avoid division.', 'Zeros need no special case.', 'O(n) time.'],
+    interview: [
+      ['How do you compute the product of all elements except self without division?', 'I make two passes. In the first, from left to right, I store in out[i] the product of all elements before i, using a running prefix that starts at 1. In the second, from right to left, I keep a running suffix product, also starting at 1, multiply out[i] by it, and then multiply the suffix by a[i]. Each out[i] ends up as the product of everything before and after i. It is O(n) time and O(1) extra space besides the output. It avoids division, so zeros are handled naturally, and I use long or check for overflow when values can be large.']
+    ],
+    check: ['What does ExceptSelf.java return for [2, 0, 5]?',
+      ['[0, 0, 0]', '[0, 10, 0]', '[10, 0, 0]', 'It divides by zero'], 1,
+      'Only the zero’s position has a non-zero product, 2 × 5 = 10.'],
+    practice: ['Copy ExceptSelf.java. Add a 2D prefix sum for rectangle totals on a seat map, and a difference array that applies many range increments in O(1) each.',
+      ['Rectangle sums match brute force.', 'Difference array applies range updates correctly.', 'Overflow considered.', 'Complexity stated.']],
+    references: [['Princeton Algorithms · Analysis of algorithms', 'https://algs4.cs.princeton.edu/14analysis/']]
+  },
+  'h-scaling-01.dsa': {
+    notes: [
+      'Rotating an array by k positions in place can be done with three reversals: reverse the whole array, then reverse the first k elements, then reverse the rest. Each element moves a fixed number of times, so it is O(n) time and O(1) extra space.',
+      'Normalize k first: k % n handles values larger than the array, and ((k % n) + n) % n also handles a negative k, which means rotating left. RotateSeats.java rotates [1..7] right by 3 to [5, 6, 7, 1, 2, 3, 4].',
+      'Modular arithmetic is also how simple round-robin load balancing works: request r goes to instance (r + offset) % instances, which spreads requests evenly across the app nodes you run today.'
+    ],
+    code: {
+      title: 'RotateSeats.java · in-place rotation by three reversals with k normalized, and round-robin routing with modulo · java RotateSeats.java',
+      text: String.raw`import java.util.Arrays;
+
+public class RotateSeats {
+    // Rotate right by k in place with three reversals. O(n) time, O(1) space.
+    static void rotate(int[] a, int k) {
+        int n = a.length;
+        if (n == 0) return;
+        k = ((k % n) + n) % n;                 // handles k > n and negative k
+        reverse(a, 0, n - 1);
+        reverse(a, 0, k - 1);
+        reverse(a, k, n - 1);
+    }
+
+    static void reverse(int[] a, int i, int j) {
+        while (i < j) { int t = a[i]; a[i++] = a[j]; a[j--] = t; }
+    }
+
+    // Round-robin: which of the instances handles request r, starting from instance offset.
+    static int route(long request, int instances, int offset) {
+        return (int) ((request + offset) % instances);
+    }
+
+    public static void main(String[] args) {
+        int[] a = {1, 2, 3, 4, 5, 6, 7};
+        rotate(a, 3);
+        System.out.println("rotate right 3: " + Arrays.toString(a));
+        int[] b = {1, 2, 3};
+        rotate(b, 5);
+        System.out.println("rotate right 5 (= 2): " + Arrays.toString(b));
+        int[] c = {1, 2, 3, 4};
+        rotate(c, -1);
+        System.out.println("rotate left 1: " + Arrays.toString(c));
+        StringBuilder sb = new StringBuilder();
+        for (long r = 0; r < 6; r++) sb.append(route(r, 2, 1)).append(r < 5 ? " " : "");
+        System.out.println("round-robin over 2 instances from offset 1: " + sb);
+    }
+}
+`,
+      output: String.raw`rotate right 3: [5, 6, 7, 1, 2, 3, 4]
+rotate right 5 (= 2): [2, 3, 1]
+rotate left 1: [2, 3, 4, 1]
+round-robin over 2 instances from offset 1: 1 0 1 0 1 0`
+    },
+    takeaways: ['Rotate with three reversals.', 'Normalize k with modulo.', 'O(n) time, O(1) space.', 'Round-robin is (r + offset) % n.'],
+    interview: [
+      ['How do you rotate an array by k positions in place?', 'First I normalize k with k % n, and ((k % n) + n) % n if negative values mean left rotation, so k is between 0 and n − 1. Then, to rotate right, I reverse the whole array, reverse the first k elements, and reverse the remaining n − k elements. After the first reversal the last k elements are at the front but backwards, and the two smaller reversals put both parts back in order. Every element is swapped a constant number of times, so it is O(n) time and O(1) extra space. A cyclic replacement approach also works, but the reversal method is simpler to get right.']
+    ],
+    check: ['What does rotating [1, 2, 3] right by 5 give?',
+      ['[1, 2, 3]', '[2, 3, 1]', '[3, 1, 2]', 'It throws an exception'], 1,
+      '5 % 3 = 2, so it is the same as rotating right by 2.'],
+    practice: ['Copy RotateSeats.java. Add a check for whether one array is a rotation of another, and a weighted round-robin router that sends twice as many requests to a larger instance.',
+      ['Rotation check works in O(n) using a doubled array or KMP.', 'Weighted router distributes 2:1 over 30 requests.', 'Negative k handled.', 'Complexity stated.']],
+    references: [['Java 21 API · Math.floorMod', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html']]
+  },
+  'h-requirements-01.dsa': {
+    notes: [
+      'Capacity estimates need the peak, not the average. Given request timestamps in sorted order, the busiest window of a fixed width can be found with two pointers: move right through the timestamps and advance left while the window is wider than allowed. The largest window size seen is the peak.',
+      'PeakWindow.java finds 7 requests in a 1,000 ms window, while the average over the whole period is only 2.5 per second. Sizing for 2.5 per second would leave the service overloaded during the burst; at 4 requests per second per instance, the peak needs 2 instances.',
+      'Each pointer only moves forward, so the scan is O(n). The same pattern measures concurrency for rate limits and finds hot periods in logs.'
+    ],
+    code: {
+      title: 'PeakWindow.java · busiest fixed-width time window with two pointers, compared with the average rate · java PeakWindow.java',
+      text: String.raw`public class PeakWindow {
+    // Largest number of requests in any window of width ms, from sorted timestamps. Two pointers: O(n).
+    static int[] peak(long[] t, long width) {
+        int best = 0, bestStart = 0, left = 0;
+        for (int right = 0; right < t.length; right++) {
+            while (t[right] - t[left] >= width) left++;   // keep window [t[left], t[left] + width)
+            if (right - left + 1 > best) { best = right - left + 1; bestStart = left; }
+        }
+        return new int[] {best, bestStart};
+    }
+
+    public static void main(String[] args) {
+        long[] ts = {0, 200, 400, 1000, 1100, 1150, 1180, 1190, 2500, 4000};
+        int[] r = peak(ts, 1000);
+        System.out.println("peak in any 1000 ms window: " + r[0] + " requests, starting at " + ts[r[1]] + " ms");
+        System.out.println("average over the whole period: " + Math.round(10.0 * ts.length / ((ts[ts.length - 1] - ts[0]) / 1000.0)) / 10.0 + " requests per second");
+        long peakRps = r[0];
+        int perInstance = 4;
+        System.out.println("instances needed at peak with " + perInstance + " req/s each: " + (peakRps + perInstance - 1) / perInstance);
+    }
+}
+`,
+      output: String.raw`peak in any 1000 ms window: 7 requests, starting at 200 ms
+average over the whole period: 2.5 requests per second
+instances needed at peak with 4 req/s each: 2`
+    },
+    takeaways: ['Size for the peak, not the average.', 'Two pointers find the busiest window in O(n).', 'Window is half-open: [t, t + width).', 'Round instance counts up.'],
+    interview: [
+      ['How would you find the peak request rate from a log of timestamps?', 'I sort the timestamps if they are not sorted already, then use a sliding window with two pointers. For each right index, I advance left while t[right] − t[left] is at least the window width, so the window covers [t[left], t[left] + width). The number of requests in the window is right − left + 1, and I keep the maximum and where it started. Each pointer moves forward at most n times, so after sorting the scan is O(n). I report the peak per second alongside the average, because capacity, autoscaling thresholds and rate limits must handle bursts, not the daily average.']
+    ],
+    check: ['In PeakWindow.java, why is the peak more useful than the average for sizing?',
+      ['The average is always higher', 'Bursts can far exceed the average, and the service must survive them', 'The peak is easier to compute', 'Averages cannot be computed from timestamps'], 1,
+      'Seven requests arrive in one second although the average is 2.5 per second.'],
+    practice: ['Copy PeakWindow.java. Report the peak for 1 s, 10 s and 60 s windows, compute the 99th percentile of per-second counts, and estimate instances with 30% headroom.',
+      ['Peaks reported for three widths.', 'p99 computed from per-second buckets.', 'Headroom applied and rounded up.', 'Assumptions written down.']],
+    references: [['Google SRE book · Handling overload', 'https://sre.google/sre-book/handling-overload/']]
+  },
+  'l-invariants-02.dsa': {
+    notes: [
+      'A cleanup job needs two questions answered quickly: which holds have expired by now, and how long can I sleep until the next one expires? Scanning every hold is O(n) each time. A TreeMap keyed by expiry time keeps holds sorted, so the first question is a headMap range and the second is a higherKey lookup, each O(log n) plus the size of the answer.',
+      'ExpiryIndex.java uses a composite key of expiry time and hold ID. If the key were only the time, two holds expiring at 1500 would collide and the second put would silently replace the first. The hold ID breaks ties and keeps every hold distinct. The headMap bound uses the largest possible ID at time now, inclusive, which encodes the rule that a hold is valid only while now < expiresAt, so equality counts as expired.',
+      'The index helps cleanup, but it is not the authority. Confirmation must still check expiry inside the guarded database write, because cleanup can run late. The data structure decides what to clean; the transition decides what is allowed.'
+    ],
+    code: {
+      title: 'ExpiryIndex.java · holds ordered by expiry in a TreeMap, expired-by-now range and next-expiry lookup · java ExpiryIndex.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+public class ExpiryIndex {
+    // Holds ordered by expiry time (then ID, so equal times stay distinct). Range queries are O(log n + k).
+    record Key(long expiresAt, String holdId) implements Comparable<Key> {
+        public int compareTo(Key o) {
+            int c = Long.compare(expiresAt, o.expiresAt);
+            return c != 0 ? c : holdId.compareTo(o.holdId);
+        }
+    }
+
+    private final TreeMap<Key, String> bySeat = new TreeMap<>();   // key -> seat
+
+    void add(String holdId, String seat, long expiresAt) { bySeat.put(new Key(expiresAt, holdId), seat); }
+
+    // A hold is valid while now < expiresAt, so a hold expiring exactly at now is expired.
+    List<String> expired(long now) {
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<Key, String> e : bySeat.headMap(new Key(now, "\uffff"), true).entrySet())
+            out.add(e.getKey().holdId() + "@" + e.getValue());
+        return out;
+    }
+
+    // Earliest upcoming expiry after now: tells a cleanup job how long it may sleep.
+    Long nextExpiry(long now) {
+        Key k = bySeat.higherKey(new Key(now, "\uffff"));
+        return k == null ? null : k.expiresAt();
+    }
+
+    public static void main(String[] args) {
+        ExpiryIndex idx = new ExpiryIndex();
+        idx.add("H1", "A1", 1_000);
+        idx.add("H2", "A2", 1_500);
+        idx.add("H3", "B7", 1_500);
+        idx.add("H4", "C3", 3_000);
+        System.out.println("expired at 999:  " + idx.expired(999));
+        System.out.println("expired at 1000: " + idx.expired(1_000) + " - equality counts as expired");
+        System.out.println("expired at 1500: " + idx.expired(1_500));
+        System.out.println("next expiry after 1500: " + idx.nextExpiry(1_500));
+        System.out.println("next expiry after 3000: " + idx.nextExpiry(3_000));
+    }
+}
+`,
+      output: String.raw`expired at 999:  []
+expired at 1000: [H1@A1] - equality counts as expired
+expired at 1500: [H1@A1, H2@A2, H3@B7]
+next expiry after 1500: 3000
+next expiry after 3000: null`
+    },
+    takeaways: ['A TreeMap answers range and next-key questions in O(log n).', 'Break ties so equal times do not collide.', 'Encode the boundary rule in the range bound.', 'Cleanup is housekeeping, not authority.'],
+    interview: [
+      ['How would you find all expired holds efficiently?', 'I keep holds in a sorted structure keyed by expiry time, for example a TreeMap in Java. Everything that has expired by now is the prefix of that map up to now, so headMap(now, inclusive) returns exactly those entries in O(log n + k), where k is the number returned, instead of scanning all n holds. The key must include the hold ID as a tie-breaker, otherwise two holds with the same expiry overwrite each other. The same map tells the cleanup worker the next expiry with higherKey, so it can sleep exactly until then instead of polling.'],
+      ['Why is the index not enough to stop an expired hold being confirmed?', 'Because the index lives in one process and is only used by cleanup, which can be delayed, crash or run on another node. A confirmation can arrive after the hold expired but before cleanup removed it. If confirmation only checked that the hold row exists, it would accept an expired hold. The rule must be part of the authoritative transition, for example an UPDATE that requires state = HELD, the hold ID and owner to match, and now < expires_at, all in one statement. The index makes cleanup efficient; the guarded write makes the system correct.'],
+      ['What boundary rule do you use at exactly expiresAt, and how do you test it?', 'I state it explicitly: the hold is valid only while now < expiresAt, so at exactly expiresAt it is expired. In the index the range bound is inclusive at now, and in SQL the confirmation predicate is now() < expires_at. I test it with a controllable clock: create a hold expiring at 1000, then check confirmation at 999 succeeds, at 1000 fails and at 1001 fails. Using a fake clock makes the boundary deterministic, whereas sleeping in a test is slow and flaky.']
+    ],
+    check: ['Why does ExpiryIndex.java include the hold ID in the TreeMap key?',
+      ['To make lookups faster', 'So two holds with the same expiry time do not overwrite each other', 'Because TreeMap requires string keys', 'To sort by owner'], 1,
+      'A map keeps one value per key; without the tie-breaker, the second hold expiring at 1500 would replace the first.'],
+    practice: ['Copy ExpiryIndex.java. Add renew(holdId, newExpiry) and remove(holdId), keeping a second HashMap from hold ID to its current key so both run in O(log n).',
+      ['Renew removes the old key before adding the new one.', 'Remove of an unknown ID is a no-op.', 'Expired range is still correct after renewals.', 'Complexity stated.']],
+    references: [['Java 21 API · NavigableMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/NavigableMap.html']]
+  },
+  'b-http-02.dsa': {
+    notes: [
+      'Idempotency is a duplicate-detection problem with a window. A classic version asks whether any value repeats within k positions. The brute-force answer compares each item with the previous k items, O(n·k). A HashSet that holds only the last k items does it in O(n): add each item, and if add returns false, it is a repeat; when the set grows past k, remove the item that just left the window.',
+      'RecentRepeats.java also solves the time-based version an idempotency store faces: is this key a replay within ttl of its first use? A HashMap from key to first-seen time answers it in O(1) per request. When an old record has expired, the next use counts as a first use again and replaces the timestamp, which mirrors what happens after an idempotency key expires on a server.',
+      'In production the map is a database table with a unique key, because duplicates arrive at different instances and must be detected across them. The algorithm is the same; the storage must be shared and the record must commit together with the effect.'
+    ],
+    code: {
+      title: 'RecentRepeats.java · repeats within k positions with a sliding HashSet, and replays within a time window with a last-seen map · java RecentRepeats.java',
+      text: String.raw`import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+public class RecentRepeats {
+    // Is any request ID repeated within k positions? Keep a sliding set of the last k IDs: O(n) time, O(k) space.
+    static boolean repeatWithin(String[] ids, int k) {
+        Set<String> window = new HashSet<>();
+        for (int i = 0; i < ids.length; i++) {
+            if (!window.add(ids[i])) return true;          // add returns false if already present
+            if (window.size() > k) window.remove(ids[i - k]);
+        }
+        return false;
+    }
+
+    // Is any key repeated within ttl time units? Remember when each key was last seen.
+    static int replaysWithin(String[] keys, long[] at, long ttl) {
+        Map<String, Long> lastSeen = new HashMap<>();
+        int replays = 0;
+        for (int i = 0; i < keys.length; i++) {
+            Long prev = lastSeen.get(keys[i]);
+            if (prev != null && at[i] - prev < ttl) replays++;
+            else lastSeen.put(keys[i], at[i]);              // first use, or the old record expired
+        }
+        return replays;
+    }
+
+    public static void main(String[] args) {
+        String[] ids = {"k1", "k2", "k3", "k1", "k4"};
+        System.out.println("repeat within 3: " + repeatWithin(ids, 3));
+        System.out.println("repeat within 2: " + repeatWithin(ids, 2));
+        String[] keys = {"a", "b", "a", "a", "b"};
+        long[] at = {0, 10, 50, 200, 400};
+        System.out.println("replays within ttl 100: " + replaysWithin(keys, at, 100));
+        System.out.println("replays within ttl 1000: " + replaysWithin(keys, at, 1000));
+    }
+}
+`,
+      output: String.raw`repeat within 3: true
+repeat within 2: false
+replays within ttl 100: 1
+replays within ttl 1000: 3`
+    },
+    takeaways: ['A set of the last k items finds near repeats in O(n).', 'Set.add returns false for a duplicate.', 'Expired records count as first uses.', 'Shared storage is needed across instances.'],
+    interview: [
+      ['How do you check whether any element repeats within k positions?', 'I slide a window of size k over the array with a HashSet holding the items currently in the window. For each index i, I try to add a[i]; if add returns false, the same value is already in the window, so there is a repeat within k positions and I return true. Otherwise, if the set now holds more than k items, I remove a[i − k], the item that just fell out of the window. Each item is added and removed at most once, so it runs in O(n) time with O(k) extra space, compared with O(n·k) for comparing each item with its k predecessors.'],
+      ['How does that relate to an idempotency key store?', 'An idempotency store asks the same question in time instead of positions: has this key been seen within the retention window? A map from key to first-seen time gives O(1) lookups. Inside the window, a repeated key replays the stored result; after the window, the record has expired and the next request is treated as new. The difference in production is that the map must be shared and durable, usually a table with a unique constraint on caller and key, and the record must commit in the same transaction as the booking, otherwise a crash between the two can duplicate the effect or replay a result that never happened.'],
+      ['How do you keep the time-window map from growing without limit?', 'I evict expired entries. In memory, I can keep keys in a queue or LinkedHashMap ordered by first-seen time and remove from the front while the oldest entry is older than the window, so each key is removed once and the work is amortized O(1). In a database, a scheduled job deletes rows whose expiry has passed, using an index on the expiry column. Either way, lookups must still treat an expired record as absent even if cleanup has not yet removed it, so correctness does not depend on cleanup timing.']
+    ],
+    check: ['In RecentRepeats.java, what does it mean when window.add(id) returns false?',
+      ['The set is full', 'The ID is already in the current window, so it repeats within k positions', 'The ID is null', 'The window must be cleared'], 1,
+      'HashSet.add returns false when an equal element is already present.'],
+    practice: ['Copy RecentRepeats.java. Add eviction to replaysWithin using an ArrayDeque of (key, time) so the map never holds keys older than ttl, and test with 100,000 random keys.',
+      ['Map size stays bounded by the window.', 'Results match the version without eviction.', 'Each key is evicted at most once.', 'Complexity stated.']],
+    references: [['IETF draft · The Idempotency-Key HTTP header field', 'https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/']]
+  },
+  'h-databases-01.dsa': {
+    notes: [
+      'Sharding by hash(key) mod N is simple, but changing N moves almost every key: going from 3 to 4 shards moves about three quarters of them, which means a huge data migration. Consistent hashing places both nodes and keys on a ring of hash values, and each key belongs to the first node clockwise from it. Adding a node only takes keys from its neighbours, about 1/N of the total.',
+      'HashRing.java stores the ring in a TreeMap from hash to node. Lookup is tailMap(hash(key)): the first entry is the owner, and if the tail is empty the search wraps around to the first entry of the ring. Each physical node is placed at 100 virtual positions so that the load evens out; with only one position per node, the arcs between nodes are very uneven.',
+      'The run shows the limits as well as the benefits. Adding db-4 moves about 2,100 of 10,000 keys instead of about 7,500. But a single hot key, such as one very popular event, still lives on one node. Consistent hashing spreads many keys; it cannot split one key. A hot event needs caching, read replicas or splitting the event into sub-keys such as sections.'
+    ],
+    code: {
+      title: 'HashRing.java · consistent hashing with virtual nodes in a TreeMap, load per node and keys moved when a node is added · java HashRing.java',
+      text: String.raw`import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+public class HashRing {
+    // Consistent hashing: nodes and keys hash onto a ring; a key belongs to the first node clockwise.
+    private final TreeMap<Long, String> ring = new TreeMap<>();
+    private final int virtualNodes;
+
+    HashRing(int virtualNodes) { this.virtualNodes = virtualNodes; }
+
+    static long hash(String s) {
+        try {
+            byte[] d = MessageDigest.getInstance("MD5").digest(s.getBytes(StandardCharsets.UTF_8));
+            long h = 0;
+            for (int i = 0; i < 8; i++) h = (h << 8) | (d[i] & 0xff);
+            return h;
+        } catch (Exception e) { throw new IllegalStateException(e); }
+    }
+
+    void add(String node) { for (int v = 0; v < virtualNodes; v++) ring.put(hash(node + "#" + v), node); }
+    void remove(String node) { for (int v = 0; v < virtualNodes; v++) ring.remove(hash(node + "#" + v)); }
+
+    String nodeFor(String key) {
+        SortedMap<Long, String> tail = ring.tailMap(hash(key));
+        return tail.isEmpty() ? ring.firstEntry().getValue() : tail.get(tail.firstKey());
+    }
+
+    public static void main(String[] args) {
+        HashRing r = new HashRing(100);
+        for (String n : new String[] {"db-1", "db-2", "db-3"}) r.add(n);
+        int keys = 10_000;
+        Map<String, Integer> load = new TreeMap<>();
+        String[] before = new String[keys];
+        for (int i = 0; i < keys; i++) { before[i] = r.nodeFor("event-" + i); load.merge(before[i], 1, Integer::sum); }
+        System.out.println("load on 3 nodes: " + load);
+        r.add("db-4");
+        int moved = 0;
+        for (int i = 0; i < keys; i++) if (!r.nodeFor("event-" + i).equals(before[i])) moved++;
+        System.out.println("adding db-4 moved " + moved + " of " + keys + " keys (modulo hashing would move about 7500)");
+        System.out.println("a hot key still lives on one node: event-42 -> " + r.nodeFor("event-42"));
+    }
+}
+`,
+      output: String.raw`load on 3 nodes: {db-1=3394, db-2=2958, db-3=3648}
+adding db-4 moved 2102 of 10000 keys (modulo hashing would move about 7500)
+a hot key still lives on one node: event-42 -> db-4`
+    },
+    takeaways: ['Modulo sharding moves most keys when N changes.', 'Consistent hashing moves about 1/N of keys.', 'Virtual nodes balance the load.', 'One hot key still lands on one node.'],
+    interview: [
+      ['What problem does consistent hashing solve?', 'It reduces data movement when the number of nodes changes. With hash(key) mod N, changing N from 3 to 4 reassigns roughly three quarters of the keys, so almost all data must move. With consistent hashing, nodes and keys are placed on the same hash ring and each key belongs to the next node clockwise. Adding a node only takes over the keys between it and its predecessor, about 1/N of the total, and removing a node hands its keys to its successor. Lookups use a sorted map, so finding the owner is O(log V), where V is the number of virtual node positions.'],
+      ['Why use virtual nodes?', 'With one position per physical node, the ring is divided into a few arcs of random length, so one node can own far more keys than another. Placing each node at many positions, for example 100, splits its share into many small arcs, and the totals average out, so load is much more even. Virtual nodes also make rebalancing smoother: when a node leaves, its many small arcs are spread across many successors instead of all landing on one neighbour. They also allow weighting, giving a larger machine more virtual nodes.'],
+      ['Does consistent hashing fix a hotspot on one popular event?', 'No. It distributes many different keys, but every request for the same key still maps to the same node, so one very popular event still lands on one shard. To handle that I would measure the hot key first, then cache the read-heavy seat map, serve display reads from replicas where staleness is acceptable, and if writes are the problem, split the event into finer keys such as event plus section so that booking writes spread across nodes. The booking guard must still be enforced on whichever node owns each seat.']
+    ],
+    check: ['In HashRing.java, what happens when tailMap(hash(key)) is empty?',
+      ['The key has no owner', 'The lookup wraps around to the first node on the ring', 'A new node is created', 'An exception is thrown'], 1,
+      'The ring is circular, so a hash larger than every node position belongs to the first position.'],
+    practice: ['Copy HashRing.java. Measure the largest and smallest node load with 1, 10 and 100 virtual nodes, then remove db-2 and count how many keys move and where they go.',
+      ['Load spread reported for each virtual-node count.', 'Only db-2’s keys move on removal.', 'Results are deterministic.', 'A short conclusion written.']],
+    references: [['Karger et al. · Consistent hashing and random trees (1997)', 'https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf']]
+  },
+  'b-messaging-01.dsa': {
+    notes: [
+      'Kafka chooses a partition by hashing the record key, so all events for one key go to the same partition and are read in offset order. That is the guarantee: order per partition, not across the whole topic. If booking events use the seat ID as the key, HELD and BOOKED for seat A1 are always consumed in the order they were produced.',
+      'DedupConsumer.java simulates this with three in-memory lists and Math.floorMod(key.hashCode(), 3). floorMod matters because hashCode can be negative and the % operator would then return a negative partition number. The consumer keeps a set of processed event IDs and applies an event only if the ID is new. The demo crashes after applying e1 but before committing the offset, so e1 is delivered again; the set skips it.',
+      'Skipping matters for correctness, not just efficiency. If e1 (HELD) were applied again after e3 (BOOKED), seat A1 would move backwards to HELD. In a real consumer, the processed-ID row and the state change must commit in the same database transaction, so either both happen or neither does.'
+    ],
+    code: {
+      title: 'DedupConsumer.java · key-hash partitioning that keeps per-seat order, and a processed-ID set that skips a redelivered event · java DedupConsumer.java',
+      text: String.raw`import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public class DedupConsumer {
+    record Event(String id, String seat, String type) {}
+
+    // Same key -> same partition, so events for one seat stay in order.
+    static int partitionFor(String key, int partitions) { return Math.floorMod(key.hashCode(), partitions); }
+
+    // The processed-ID set and the effect change together, as one database transaction would.
+    static final Set<String> processed = new HashSet<>();
+    static final Map<String, String> seatState = new LinkedHashMap<>();
+    static int applied = 0, skipped = 0;
+
+    static void handle(Event e) {
+        if (!processed.add(e.id())) { skipped++; return; }    // already applied: acknowledge and skip
+        seatState.put(e.seat(), e.type());
+        applied++;
+    }
+
+    public static void main(String[] args) {
+        int partitions = 3;
+        List<List<Event>> log = new ArrayList<>();
+        for (int p = 0; p < partitions; p++) log.add(new ArrayList<>());
+        Event[] produced = {
+            new Event("e1", "A1", "HELD"), new Event("e2", "B4", "HELD"), new Event("e3", "A1", "BOOKED"),
+            new Event("e4", "C2", "HELD"), new Event("e5", "B4", "RELEASED")
+        };
+        for (Event e : produced) log.get(partitionFor(e.seat(), partitions)).add(e);
+        for (int p = 0; p < partitions; p++) System.out.println("partition " + p + ": " + log.get(p));
+
+        // Consume partition by partition; the consumer crashes after applying offset 0 of the
+        // first non-empty partition but before committing it, so that record is delivered again.
+        for (List<Event> part : log) {
+            int committed = 0;
+            for (int offset = committed; offset < part.size(); offset++) handle(part.get(offset));
+            if (!part.isEmpty() && applied == part.size() && skipped == 0) {
+                System.out.println("crash before commit; redelivering " + part.get(0).id());
+                handle(part.get(0));
+            }
+        }
+        System.out.println("applied " + applied + ", duplicates skipped " + skipped);
+        System.out.println("final seat states: " + seatState);
+    }
+}
+`,
+      output: String.raw`partition 0: [Event[id=e1, seat=A1, type=HELD], Event[id=e3, seat=A1, type=BOOKED], Event[id=e4, seat=C2, type=HELD]]
+partition 1: [Event[id=e2, seat=B4, type=HELD], Event[id=e5, seat=B4, type=RELEASED]]
+partition 2: []
+crash before commit; redelivering e1
+applied 5, duplicates skipped 1
+final seat states: {A1=BOOKED, C2=HELD, B4=RELEASED}`
+    },
+    takeaways: ['Same key, same partition, same order.', 'Use floorMod for hash-based buckets.', 'At-least-once delivery means duplicates.', 'Record the event ID with the effect atomically.'],
+    interview: [
+      ['How does Kafka keep events for one booking in order?', 'The producer sets a key, for example the seat or booking ID, and the default partitioner hashes the key to choose a partition, so every event with that key goes to the same partition. Within a partition, records have increasing offsets and a consumer in a group reads them in that order. There is no order across partitions, so events for different seats can interleave. Order can still break if the number of partitions changes, because keys then hash to different partitions, or if the producer retries without idempotence enabled, so I keep producer idempotence on and avoid repartitioning live topics.'],
+      ['Why must a consumer deduplicate, and how?', 'Kafka consumers normally get at-least-once delivery: if a consumer applies an event and crashes before committing its offset, the event is delivered again after restart or rebalance. Without deduplication the effect runs twice, which can send two emails or, worse, move a seat back to an older state. I give every event a stable ID, and in the same database transaction as the effect I insert that ID into a processed_events table with a unique constraint. If the insert conflicts, the event was already applied, so I skip the effect and commit the offset.'],
+      ['Why use Math.floorMod rather than % to pick a bucket from a hashCode?', 'hashCode can be negative in Java, and the % operator keeps the sign of the dividend, so -7 % 3 is -1, which is not a valid partition index and would throw or misroute. Math.floorMod(-7, 3) returns 2, always in the range 0 to n − 1. An alternative is masking off the sign bit with hash & 0x7fffffff before %, which Kafka itself does with its murmur2 hash. Either way, the mapping must be deterministic so the same key always lands in the same bucket.']
+    ],
+    check: ['What would go wrong in DedupConsumer.java if the redelivered e1 were applied again?',
+      ['Nothing', 'Seat A1 would move back from BOOKED to HELD', 'Partition 2 would receive events', 'The offset would be lost'], 1,
+      'e1 is the older HELD event; reapplying it after BOOKED moves the seat backwards.'],
+    practice: ['Copy DedupConsumer.java. Add a version number per seat and make handle reject any event older than the current version, then show that this also protects against out-of-order delivery across partitions.',
+      ['Duplicate and stale events are both skipped.', 'Final state is unchanged by redelivery.', 'A test reorders two events.', 'The trade-off with an ID set is written down.']],
+    references: [['Apache Kafka documentation · Message delivery semantics', 'https://kafka.apache.org/documentation/#semantics']]
+  },
+  'h-loadbalance-01.dsa': {
+    notes: [
+      'Round robin sends request i to instance i mod n. It is fair in request count but blind to request cost. LeastLoaded.java uses traffic where every fourth request is a slow 100 ms booking and the rest take 10 ms. With 4 instances, round robin sends every slow request to instance 0, which queues up, while the others sit idle.',
+      'Least-loaded routing keeps a min-heap of the time each instance will next be free and sends each request to the top of the heap. Polling and re-inserting is O(log n), so routing stays cheap even with many instances. On the same traffic, p95 drops from 520 ms to 100 ms. Real balancers approximate this with least-outstanding-requests or “power of two choices”, because they do not know service times in advance.',
+      'The percentile function uses nearest rank: sort the samples and take the value at position ceil(p/100 × n). Always state the rule and the sample count, because different tools interpolate differently. Notice that the mean, 100 ms for round robin, hides the fact that some requests wait over half a second.'
+    ],
+    code: {
+      title: 'LeastLoaded.java · round robin versus min-heap least-loaded routing on uneven traffic, with nearest-rank p50, p95 and max · java LeastLoaded.java',
+      text: String.raw`import java.util.Arrays;
+import java.util.PriorityQueue;
+
+public class LeastLoaded {
+    // Route each request to the instance that becomes free first (a min-heap on free time),
+    // compared with plain round robin. Returns each request's latency = wait + service time.
+    static long[] simulate(long[] arrival, long[] service, int instances, boolean leastLoaded) {
+        long[] freeAt = new long[instances];
+        PriorityQueue<long[]> heap = new PriorityQueue<>((a, b) -> a[0] != b[0] ? Long.compare(a[0], b[0]) : Long.compare(a[1], b[1]));
+        for (int i = 0; i < instances; i++) heap.add(new long[] {0, i});
+        long[] latency = new long[arrival.length];
+        for (int r = 0; r < arrival.length; r++) {
+            int target;
+            if (leastLoaded) target = (int) heap.poll()[1];
+            else target = r % instances;
+            long start = Math.max(arrival[r], freeAt[target]);
+            freeAt[target] = start + service[r];
+            if (leastLoaded) heap.add(new long[] {freeAt[target], target});
+            latency[r] = freeAt[target] - arrival[r];
+        }
+        return latency;
+    }
+
+    // Nearest-rank percentile: the smallest value with at least p percent of samples at or below it.
+    static long percentile(long[] values, int p) {
+        long[] s = values.clone();
+        Arrays.sort(s);
+        int rank = (int) Math.ceil(p / 100.0 * s.length);
+        return s[Math.max(rank, 1) - 1];
+    }
+
+    public static void main(String[] args) {
+        int n = 40;
+        long[] arrival = new long[n], service = new long[n];
+        for (int i = 0; i < n; i++) {
+            arrival[i] = i * 10L;
+            service[i] = (i % 4 == 0) ? 100 : 10;      // every fourth request is a slow hot-seat booking
+        }
+        for (boolean ll : new boolean[] {false, true}) {
+            long[] lat = simulate(arrival, service, 4, ll);
+            long sum = 0;
+            for (long v : lat) sum += v;
+            System.out.println((ll ? "least loaded" : "round robin ") + ": mean " + (sum / n) + " ms, p50 "
+                + percentile(lat, 50) + " ms, p95 " + percentile(lat, 95) + " ms, max " + percentile(lat, 100) + " ms");
+        }
+    }
+}
+`,
+      output: String.raw`round robin : mean 100 ms, p50 10 ms, p95 520 ms, max 640 ms
+least loaded: mean 32 ms, p50 10 ms, p95 100 ms, max 100 ms`
+    },
+    takeaways: ['Round robin ignores request cost.', 'A min-heap picks the least-loaded instance in O(log n).', 'State the percentile rule and sample count.', 'The mean hides the tail.'],
+    interview: [
+      ['When does round robin perform badly?', 'Round robin assumes requests cost about the same and instances are equally fast. When costs vary, it can pile expensive requests on one instance while others are idle; in the simulation every fourth request is slow and all of them land on the same instance, so its queue grows and p95 reaches 520 ms. It also ignores an instance that has become slow, for example because of a bad database connection. Least-outstanding-requests or power-of-two-choices routing adapts to actual load, and health checks or outlier detection remove an instance that is consistently failing or slow.'],
+      ['How would you compute p95 latency, and what can go wrong?', 'Collect latencies for a defined window, sort them and take the nearest-rank value at position ceil(0.95 × n), or use a histogram or sketch when there are too many samples to keep. Common mistakes are averaging percentiles across instances, which is mathematically wrong, so merge histograms instead; too few samples, where p95 of 20 requests is essentially the second slowest; and measuring only server time, which hides queueing in the client or load balancer. I always report the window, sample count, rule and whether errors are included.'],
+      ['Why is least-loaded routing implemented with a heap?', 'The router needs the instance with the smallest current load for every request, and the loads change after each assignment. A min-heap gives the minimum in O(1) and updates in O(log n), so each routing decision is O(log n) rather than O(n) for scanning all instances. In practice large balancers often sample two random instances and pick the less loaded one, which avoids shared global state and gives most of the benefit, but the heap is the clearest exact version and is what the simulation uses.']
+    ],
+    check: ['Why does round robin give a p95 of 520 ms in LeastLoaded.java?',
+      ['The heap is unbalanced', 'Every slow request lands on the same instance, so its queue grows', 'Percentiles are computed wrongly', 'There are too few instances'], 1,
+      'Request i goes to instance i mod 4, and the slow requests are exactly those with i mod 4 = 0.'],
+    practice: ['Copy LeastLoaded.java. Add power-of-two-choices routing with a seeded Random, compare all three policies, and add a fifth instance.',
+      ['Same traffic for every policy.', 'Seeded randomness gives repeatable output.', 'Mean, p50, p95 and max reported.', 'A short recommendation written.']],
+    references: [['Mitzenmacher · The power of two choices in randomized load balancing', 'https://www.eecs.harvard.edu/~michaelm/postscripts/mythesis.pdf']]
+  },
+  'h-consistency-01.dsa': {
+    notes: [
+      'Replicated stores often let you choose how many replicas must acknowledge a write (W) and how many must answer a read (R) out of N. If R + W > N, every read set shares at least one replica with every write set, so a read that keeps the highest version sees the latest acknowledged write. If R + W ≤ N, a read can miss every replica that took the write.',
+      'QuorumReads.java uses N = 3 and W = 2. Reading only the lagging replica returns the old value, free, version 0. Any two-replica read includes at least one up-to-date replica and returns version 1. The program then enumerates every two-replica write set against every two-replica read set and confirms all 9 pairs overlap.',
+      'Quorums trade latency and availability for consistency: larger R or W means waiting for more replicas and failing when too few are reachable. Even with quorums, a strict rule such as one owner per seat still needs a single conditional write or consensus, because two concurrent writers can each reach a quorum with different values.'
+    ],
+    code: {
+      title: 'QuorumReads.java · N = 3 replicas with versions, reads that keep the highest version, and an overlap count for R + W > N · java QuorumReads.java',
+      text: String.raw`import java.util.Arrays;
+
+public class QuorumReads {
+    // N replicas each hold (version, value). A write reaches W replicas; a read asks R replicas
+    // and keeps the highest version. If R + W > N, every read set overlaps every write set.
+    static final int N = 3;
+    static long[] version = new long[N];
+    static String[] value = new String[N];
+
+    static void write(String v, long ver, int[] reached) {
+        for (int i : reached) { version[i] = ver; value[i] = v; }
+    }
+
+    static String read(int[] asked) {
+        int best = asked[0];
+        for (int i : asked) if (version[i] > version[best]) best = i;
+        return value[best] + " (v" + version[best] + ")";
+    }
+
+    public static void main(String[] args) {
+        Arrays.fill(value, "free");
+        write("owned by U1", 1, new int[] {0, 1});          // W = 2; replica 2 lags
+        System.out.println("R=1 from the lagging replica: " + read(new int[] {2}));
+        System.out.println("R=2 from replicas 1 and 2:    " + read(new int[] {1, 2}));
+        System.out.println("R=2 from replicas 0 and 2:    " + read(new int[] {0, 2}));
+        int overlapsFound = 0, pairs = 0;
+        int[][] writeSets = {{0, 1}, {0, 2}, {1, 2}};
+        int[][] readSets = {{0, 1}, {0, 2}, {1, 2}};
+        for (int[] w : writeSets) for (int[] r : readSets) {
+            pairs++;
+            boolean overlap = false;
+            for (int a : w) for (int b : r) if (a == b) overlap = true;
+            if (overlap) overlapsFound++;
+        }
+        System.out.println("W=2, R=2, N=3: " + overlapsFound + " of " + pairs + " read/write quorum pairs overlap");
+        System.out.println("W=1, R=1, N=3: a read can miss the only replica that took the write");
+    }
+}
+`,
+      output: String.raw`R=1 from the lagging replica: free (v0)
+R=2 from replicas 1 and 2:    owned by U1 (v1)
+R=2 from replicas 0 and 2:    owned by U1 (v1)
+W=2, R=2, N=3: 9 of 9 read/write quorum pairs overlap
+W=1, R=1, N=3: a read can miss the only replica that took the write`
+    },
+    takeaways: ['R + W > N guarantees overlap.', 'Keep the highest version on read.', 'Bigger quorums cost latency and availability.', 'Uniqueness still needs a conditional write or consensus.'],
+    interview: [
+      ['What does R + W > N guarantee?', 'It guarantees that any set of R replicas answering a read and any set of W replicas that acknowledged a write share at least one replica, because there are only N replicas and the two sets together are larger than N. If the read keeps the value with the highest version, it therefore sees the latest acknowledged write. With N = 3, W = 2 and R = 2, every combination overlaps. With W = 1 and R = 1, a read can hit a replica that has not received the write and return stale data, which is acceptable for a seat map but not for a booking decision.'],
+      ['What does a quorum not guarantee?', 'It does not by itself give linearizability or uniqueness under concurrent writes. Two clients can write different owners for the same seat at the same time, each reaching a different write quorum, and the replicas then disagree until a conflict rule such as last-writer-wins picks one, silently losing the other booking. Sloppy quorums and hinted handoff can weaken the overlap further during failures. For a one-owner rule I use a single authoritative conditional write, or a consensus-based store such as one built on Raft, rather than relying on quorum reads.'],
+      ['How do you choose R and W?', 'I start from the operation’s needs. A read-heavy display can use a small R for low latency if it tolerates staleness. A write that must survive a node loss needs W of at least 2. If reads must see the latest write, I keep R + W > N, for example R = W = 2 with N = 3, which also tolerates one node being down for both reads and writes. Larger values increase latency, because the slowest of the needed replicas determines response time, and reduce availability, so I measure p99 with realistic replica delays before fixing the numbers.']
+    ],
+    check: ['Why does a read from replicas 0 and 2 return version 1 in QuorumReads.java?',
+      ['Replica 2 was updated later', 'Replica 0 took the write, and the read keeps the highest version', 'Reads always return the newest value', 'Replica 2 is the leader'], 1,
+      'The write reached replicas 0 and 1; any two-replica read includes at least one of them.'],
+    practice: ['Copy QuorumReads.java. Generalize it to N = 5, enumerate all write sets of size W and read sets of size R, and print which (R, W) pairs always overlap.',
+      ['All combinations are enumerated.', 'The R + W > N rule is confirmed.', 'A failing case is printed.', 'Complexity of the enumeration stated.']],
+    references: [['Designing Data-Intensive Applications · Chapter 5 summary (quorums)', 'https://dataintensive.net/']]
+  },
   // @@packets
 };
 
@@ -6339,6 +7775,94 @@ export const lateDistractors = {
     ['The array is always sorted first.', 'The inner loop restarts at the beginning each time.'],
     ['It moves to the current index.', 'It moves to one past the old duplicate, even if that is further left.']
   ],
+  4: [
+    ['They are stored in different buckets.', 'Their toString values are identical.'],
+    ['As a guarantee only when the map is a TreeMap.', 'Never; lookup is always O(n).']
+  ],
+  5: [
+    ['A programming error that should crash the service.', 'A reason to retry the request until it succeeds.'],
+    ['Only when the class must be serialized.', 'When you need a private helper method.']
+  ],
+  6: [
+    ['Only when the stream is parallel.', 'When the stream variable is assigned.'],
+    ['That the list cannot be modified.', 'That every Seat is immutable.']
+  ],
+  7: [
+    ['The JVM heap size.', 'The number of CPU cores, whatever the database does.'],
+    ['Read the exception from the thread’s log output only.', 'submit returns null when the task fails.']
+  ],
+  8: [
+    ['That a log line was printed.', 'That the repository was called exactly once, and nothing else.'],
+    ['Use as many design patterns as possible.', 'Put all logic in one class so it changes in one place.']
+  ],
+  9: [
+    ['Only after the first HTTP request reaches the controller.', 'When Maven resolves dependencies from the repository.'],
+    ['That the application starts and connects to its database.', 'That all tests in every module were skipped safely.']
+  ],
+  10: [
+    ['404 Not Found, because the seat is no longer free.', '500 Internal Server Error, because two users collided.'],
+    ['POST, because it carries a request body.', 'DELETE, because it removes a hold.']
+  ],
+  11: [
+    ['The HTTP reason phrase, such as "Bad Request".', 'The order of fields in the JSON body.'],
+    ['The database unique constraint, which runs first.', 'The client’s own JavaScript validation only.']
+  ],
+  12: [
+    ['It encrypts the referenced value.', 'It creates an index on every column of the table.'],
+    ['The total number of active bookings across all venues.', 'Whether another transaction committed first.']
+  ],
+  13: [
+    ['Only rows changed by other transactions, even if not committed.', 'A frozen snapshot taken when the connection opened.'],
+    ['The thread pool that runs the request.', 'The JDBC driver’s global singleton.']
+  ],
+  14: [
+    ['In the API gateway’s request log.', 'In a scheduled job that repairs owners afterwards.'],
+    ['The seat must have been deleted by the update.', 'The transaction committed twice.']
+  ],
+  15: [
+    ['That two users clicked at the same millisecond.', 'That the database index is missing.'],
+    ['It lasts until the connection pool is resized.', 'It applies to every table in the database.']
+  ],
+  16: [
+    ['Discards all pending changes in the persistence context.', 'Starts a new transaction for each entity.'],
+    ['An in-memory database is always faster, so it is preferred.', 'Lock tests do not depend on the database.']
+  ],
+  17: [
+    ['A ConcurrentHashMap shared through static fields.', 'Sticky sessions on the load balancer.'],
+    ['That the seat is now reserved for this user.', 'That no other instance can see the seat.']
+  ],
+  18: [
+    ['As the number of servers needed, without assumptions.', 'As a single daily total that includes peaks implicitly.'],
+    ['Only if the total traffic exceeds the database limit.', 'No, hot keys are a caching myth.']
+  ],
+  19: [
+    ['The hold is valid for one extra second as a grace period.', 'The result depends on which server receives the request.'],
+    ['It makes cleanup run more often.', 'It is needed only for logging.']
+  ],
+  20: [
+    ['In a cache that is written after the response is sent.', 'In the client’s local storage.'],
+    ['Apply the new payload and overwrite the stored result.', 'Return 500 and delete the key.']
+  ],
+  21: [
+    ['It rewrites the query to use every index.', 'It only checks the SQL syntax.'],
+    ['Yes, if the replica is in the same data centre.', 'Yes, once a second has passed since the write.']
+  ],
+  22: [
+    ['In Redis, because it is faster.', 'In the browser, using the last seat map it showed.'],
+    ['Before the transaction starts, so readers see the change early.', 'Only when the TTL expires.']
+  ],
+  23: [
+    ['Ordering by the time each consumer receives the record.', 'Ordering by event type across all topics.'],
+    ['Adding more consumers than partitions.', 'Using a key on every record.']
+  ],
+  24: [
+    ['The fastest single request observed.', 'The number of instances, with no traffic details.'],
+    ['How seat ownership is enforced.', 'How data is replicated between regions.']
+  ],
+  25: [
+    ['The client should assume it succeeded and continue.', 'The server rolled back, so a retry with a new key is safe.'],
+    ['Any replica that answers quickly.', 'The client’s last cached seat map.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -6406,6 +7930,50 @@ export const lateExplanations = {
     'After one O(n) pass, prefix[r] − prefix[l] gives the sum of [l, r) with two lookups, so each query is O(1).'],
   27: ['Each pointer only moves forward, so together they make at most 2n moves, which is O(n).',
     'An occurrence before left is already outside the window. Moving left back to it would re-admit elements that were removed because of an earlier duplicate.'],
+  4: ['The hashCode contract requires equal objects to have equal hash codes; otherwise a map would look in the wrong bucket for an equal key.',
+    'HashMap lookup is O(1) on average when hashes spread well and key comparison is cheap. Heavy collisions or expensive keys break that.'],
+  5: ['Someone else already holding the seat is a normal, expected outcome, so the API should return a defined conflict result rather than treat it as bad input.',
+    'An interface earns its place when it captures a real contract that more than one implementation, or a test double, must satisfy.'],
+  6: ['Streams are lazy: nothing runs until a terminal operation such as findFirst or toList pulls elements through the pipeline.',
+    'The type argument tells the compiler what the list holds, so callers get Seat back without casts. It does not copy or protect the objects.'],
+  7: ['Adding Java threads cannot create more database connections; with eight connections, at most eight queries run at once.',
+    'Exceptions thrown inside a Callable are captured and rethrown by Future.get as an ExecutionException with the original cause.'],
+  8: ['A test should prove the rule: U2’s attempt fails and the owner is still U1. Checking only a return value can miss an incorrect mutation.',
+    'A SOLID argument should point to a concrete reason for change, so the design separates code that changes for different reasons.'],
+  9: ['Spring resolves constructor arguments while it creates the bean in the application context, before any request is handled.',
+    'mvn package proves the build lifecycle ran and produced an artifact; it does not prove the application works against real dependencies.'],
+  10: ['The request is valid but conflicts with the seat’s current state, which is exactly what 409 Conflict means.',
+    'GET is a safe method: it should only read the current availability and never reserve anything.'],
+  11: ['Clients should depend on stable, documented fields such as an error code, not on stack traces or wording that may change.',
+    'Request-format validation runs at the boundary first; only a well-formed request reaches the domain conflict check.'],
+  12: ['A foreign key requires that the referenced key exists; it does not make the referencing column unique.',
+    'A check constraint tests a condition on the values of a single row, such as status being one of a fixed set.'],
+  13: ['Under Read Committed, each statement sees data committed before it began, plus its own transaction’s changes.',
+    'In JDBC, transaction state belongs to the Connection: commit and rollback apply to the statements run on it.'],
+  14: ['Only the database sees every concurrent writer, so the availability condition must be part of the UPDATE that changes the row.',
+    'Zero affected rows means no row matched all predicates when the statement ran: the seat may not exist, or it no longer satisfies the condition.'],
+  15: ['A version column records which state the decision was based on; if the row changed since, the version no longer matches and the write is rejected.',
+    'Row locks taken with SELECT … FOR UPDATE are held until the transaction commits or rolls back.'],
+  16: ['flush sends pending INSERT and UPDATE statements to the database inside the current transaction; only commit makes them durable.',
+    'Isolation levels, locking and error codes differ between engines, so lock tests must run on the same database as production.'],
+  17: ['Java locks only exist inside one JVM. Independent processes need a shared authority such as the database.',
+    'An availability read is a snapshot; another request can book the seat before this user’s booking arrives.'],
+  18: ['Useful estimates state requests per second with their assumptions and call out the peak separately from the average.',
+    'Load can concentrate on one hot key, such as a single popular seat or event, which can saturate even when total traffic is low.'],
+  19: ['Under the strict rule now < expiry, equality fails the condition, so the hold is expired for confirmation whether or not cleanup has removed the row.',
+    'Cleanup that matches the expected expiry cannot delete a hold that was renewed after the worker read it, because the renewed row no longer matches.'],
+  20: ['If the replay record and the booking commit in one transaction, a crash leaves either both or neither, so a retry can never duplicate the effect or replay a missing one.',
+    'A changed payload with the same key means the caller’s intent differs; replaying the old result or applying the new one would both be wrong, so the contract rejects it.'],
+  21: ['EXPLAIN ANALYZE runs the statement and reports actual row counts and timings next to the planner’s estimates, which is how you see a bad estimate.',
+    'An asynchronous replica can be behind the primary, so it may still show a seat as free; the booking must go through the path that enforces uniqueness.'],
+  22: ['The cache is a copy that can be stale; only the guarded database write sees every concurrent booking and can decide ownership.',
+    'Invalidating before commit lets a reader refill the cache with the old value before the write is visible; after commit, the next fill reads the new state.'],
+  23: ['Kafka orders records by offset within one partition; records in different partitions have no defined order relative to each other.',
+    'If the consumer applies an effect and dies before committing its offset, the record is delivered again, so the handler must be idempotent.'],
+  24: ['A load-test number means little without its inputs: workload mix, request rate, duration, error count and sample size make it reproducible and comparable.',
+    'A load balancer decides which instance receives each request; it does not enforce business rules, which still belong to the authoritative store.'],
+  25: ['A timeout tells the caller only that no response arrived in time; the server may have committed, so the outcome is unknown until checked or retried with the same key.',
+    'A strict confirmation must come from the component that enforces the rule; a remote cache can be stale during a partition.'],
   // @@explanations
 };
 
@@ -6656,6 +8224,182 @@ export const lateAssessment = {
       choices: ['The synchronized keyword, because it is global to the cluster', 'Making owner volatile', 'An atomic conditional update in the shared database, such as UPDATE … WHERE owner IS NULL', 'Running the threads at a higher priority'], answer: 2,
       explanation: 'Java monitors only coordinate threads in one JVM, so the decision must move to a shared authority.' }
   ],
+  4: [
+    { question: 'A SeatId record normalizes its code to upper case in the constructor. Why does that make HashMap lookups with "a1" and " A1 " work?',
+      choices: ['HashMap ignores case by default', 'Both become the same canonical value, so equals and hashCode agree', 'Records cannot be used as keys', 'The map rehashes on every lookup'], answer: 1,
+      explanation: 'Normalizing once at construction means equal seats always have equal fields, so equals and hashCode are consistent.' },
+    { question: 'What does map.put("Aa", 10) return if "Aa" was already mapped to 1?',
+      choices: ['null', '1', '10', 'It throws because "Aa" and "BB" collide'], answer: 1,
+      explanation: 'put replaces the value for an existing key and returns the previous value; the size does not change.' }
+  ],
+  5: [
+    { question: 'A try-with-resources body throws, and then close() also throws. What does the caller see?',
+      choices: ['Only the close() exception', 'The body’s exception, with the close() exception attached as suppressed', 'Both are lost', 'A new RuntimeException'], answer: 1,
+      explanation: 'The primary exception is the body’s; Java records the close() failure with addSuppressed.' },
+    { question: 'Why can two Strings that both print A1 compare false with ==?',
+      choices: ['== compares references, and they can be different objects with the same characters', 'Strings are mutable', '== ignores case', 'One has a hidden newline'], answer: 0,
+      explanation: 'Use equals to compare String contents; == only tells you whether both references point to the same object.' }
+  ],
+  6: [
+    { question: 'Why is List<Integer> not a subtype of List<Number>?',
+      choices: ['Because Integer is final', 'Because then code could add a Double to a list that must contain only Integers', 'Because of autoboxing', 'It is a subtype'], answer: 1,
+      explanation: 'Mutable generic types are invariant to keep writes type-safe; use List<? extends Number> to read Numbers.' },
+    { question: 'A pipeline is seats.stream().filter(Seat::isFree).map(Seat::id).findFirst(). How many seats does it examine if the second seat is free?',
+      choices: ['All of them', 'Two', 'One', 'None until toList is called'], answer: 1,
+      explanation: 'Streams are lazy and findFirst short-circuits, so a sequential pipeline stops at the first match.' }
+  ],
+  7: [
+    { question: 'A ThreadPoolExecutor has 1 worker and a queue of 1, and both are full. What happens to a third task by default?',
+      choices: ['It waits forever', 'It is rejected with RejectedExecutionException (AbortPolicy)', 'A new thread is always created', 'It replaces the queued task'], answer: 1,
+      explanation: 'When the workers and the bounded queue are full, the default AbortPolicy rejects new work.' },
+    { question: 'Two threads each hold a local variable pointing to the same Seat. Can they race?',
+      choices: ['No, local variables are private to each thread', 'Yes, the locals are private but the Seat object they refer to is shared', 'Only if the variables are static', 'Only on multi-core CPUs'], answer: 1,
+      explanation: 'Locals live on each thread’s stack, but objects live on the shared heap.' }
+  ],
+  8: [
+    { question: 'Why use a fake repository but a real Seat in a booking unit test?',
+      choices: ['Seat is too slow to construct', 'The repository is an external boundary, while Seat owns the rule under test', 'Fakes are required by JUnit', 'Real objects cannot be asserted on'], answer: 1,
+      explanation: 'Replace boundaries, not the logic you want to verify.' },
+    { question: 'Which diagram best shows the order of calls when U2’s booking attempt fails?',
+      choices: ['Class diagram', 'Sequence diagram', 'Deployment diagram', 'Package diagram'], answer: 1,
+      explanation: 'A sequence diagram shows who calls whom, in what order, including alternative branches.' }
+  ],
+  9: [
+    { question: 'Two beans implement SeatRepository and BookingService asks for one by constructor. What happens if nothing selects between them?',
+      choices: ['Spring picks one at random', 'Startup fails with NoUniqueBeanDefinitionException until @Primary, @Qualifier or a profile resolves it', 'Both are injected into a list automatically', 'The first one alphabetically is used'], answer: 1,
+      explanation: 'With two candidates for a single-valued injection point, Spring needs extra information to choose.' },
+    { question: 'Why is constructor injection preferred over field injection for BookingService?',
+      choices: ['It is faster at runtime', 'Required dependencies are explicit and final, and a plain unit test can call new BookingService(fakeRepo)', 'Field injection is not supported by Spring Boot', 'It avoids the need for a repository'], answer: 1,
+      explanation: 'Constructor injection makes dependencies visible and the class testable without starting Spring.' }
+  ],
+  10: [
+    { question: 'Which HTTP methods are idempotent by definition?',
+      choices: ['GET, PUT and DELETE', 'POST and PATCH', 'Only GET', 'All methods'], answer: 0,
+      explanation: 'Repeating GET, PUT or DELETE has the same intended effect as doing it once; POST is not idempotent by default.' },
+    { question: 'A client sends malformed JSON to POST /bookings. Which response fits?',
+      choices: ['409 Conflict', '400 Bad Request with a stable error body', '201 Created', '500 Internal Server Error'], answer: 1,
+      explanation: 'Decoding fails before any business logic runs, so it is a client input error, not a conflict.' }
+  ],
+  11: [
+    { question: 'A batch job calls BookingService directly, bypassing the controller. Which validation still protects the seat?',
+      choices: ['@Valid on the controller’s request DTO', 'Checks inside the service or domain, plus database constraints', 'The browser form validation', 'None is needed for internal callers'], answer: 1,
+      explanation: '@Valid only runs at the MVC entry point; rules that must always hold belong in the service, domain and schema.' },
+    { question: 'Which error body is best for clients?',
+      choices: ['A Java stack trace', '{"code":"SEAT_TAKEN","message":"Seat A1 is already booked"}', 'An HTML error page', 'An empty body with status 200'], answer: 1,
+      explanation: 'A stable code that clients can branch on, with a human-readable message and no internal details.' }
+  ],
+  12: [
+    { question: 'Two application instances write bookings. Which rule must live in the database to stay true?',
+      choices: ['The colour of the seat map', 'One active booking per seat, as a unique (partial) index or constraint', 'The order of JSON fields', 'The log format'], answer: 1,
+      explanation: 'Only the shared database sees every writer, so uniqueness and integrity rules belong there.' },
+    { question: 'You add a NOT NULL column to a table that already has rows. What is the safe sequence?',
+      choices: ['Add it as NOT NULL immediately', 'Add it as nullable, backfill and verify, then add NOT NULL once all writers set it', 'Drop and recreate the table', 'Only change the Java entity'], answer: 1,
+      explanation: 'Expand, backfill, then contract: existing rows and older clients must not break during the migration.' }
+  ],
+  13: [
+    { question: 'The seat update succeeds but the audit insert fails on the same connection with auto-commit off. What should the code do?',
+      choices: ['Commit the seat update and log the audit failure', 'Roll back the transaction so neither change is kept', 'Retry only the audit insert on a new connection', 'Ignore the error'], answer: 1,
+      explanation: 'Both writes form one unit of work; rolling back keeps them consistent.' },
+    { question: 'Why must a column name never be built from user input with string concatenation?',
+      choices: ['It is slower', 'It allows SQL injection; identifiers cannot be bound, so choose them from a whitelist', 'JDBC forbids column names', 'It breaks transactions'], answer: 1,
+      explanation: 'Parameters bind values only. Identifiers must come from a fixed set of allowed options.' }
+  ],
+  14: [
+    { question: 'Which statement books A1 for U2 only if nobody owns it, in one atomic step?',
+      choices: ['SELECT owner FROM seats WHERE id = \'A1\', then UPDATE if null', 'UPDATE seats SET owner = \'U2\' WHERE id = \'A1\' AND owner IS NULL', 'UPDATE seats SET owner = \'U2\' WHERE id = \'A1\'', 'DELETE FROM seats WHERE id = \'A1\''], answer: 1,
+      explanation: 'The condition is evaluated by the database as part of the write, so two concurrent updates cannot both succeed.' },
+    { question: 'Two adjacent seats must be booked together. The first guarded update returns 1 row and the second returns 0. What should happen?',
+      choices: ['Commit the first seat', 'Roll back the transaction and report a group conflict', 'Retry the second update forever', 'Ignore the second result'], answer: 1,
+      explanation: 'All-or-nothing means both updates must succeed before commit; otherwise roll back.' }
+  ],
+  15: [
+    { question: 'One very popular seat receives hundreds of concurrent booking attempts. What tends to happen with optimistic locking?',
+      choices: ['Every attempt succeeds', 'Many attempts fail on the version check and retry, adding load and tail latency', 'The database deadlocks every time', 'Nothing changes compared with low contention'], answer: 1,
+      explanation: 'Optimistic locking is cheap when conflicts are rare; under heavy contention, retries pile up.' },
+    { question: 'How do you reduce deadlocks when a transaction locks several seats?',
+      choices: ['Lock seats in a consistent order, for example by seat ID', 'Use more threads', 'Lock seats in random order', 'Never commit'], answer: 0,
+      explanation: 'If every transaction acquires locks in the same order, no cycle of waits can form.' }
+  ],
+  16: [
+    { question: 'A list endpoint loads 50 bookings and then runs one query per booking to load each owner. What is this called?',
+      choices: ['A deadlock', 'The N+1 query problem', 'Optimistic locking', 'A dirty read'], answer: 1,
+      explanation: 'One query for the list plus N lazy loads; fix it with a fetch join, an entity graph or batch fetching, and measure.' },
+    { question: 'Why can @Transactional on a test method hide a bug?',
+      choices: ['It makes tests slower', 'The test transaction rolls back at the end and may change visibility, so commit-time behaviour is never exercised', 'It disables assertions', 'It runs tests in parallel'], answer: 1,
+      explanation: 'Some constraint and visibility problems appear only at commit or across connections.' }
+  ],
+  17: [
+    { question: 'Two app nodes give 160 requests per second of capacity, but the database handles only 120. What does adding a third node do?',
+      choices: ['Raises throughput to 240', 'Little or nothing; the database is the bottleneck', 'Halves latency', 'Removes the need for a database'], answer: 1,
+      explanation: 'Throughput is limited by the slowest shared dependency.' },
+    { question: 'What does sticky routing (session affinity) risk hiding?',
+      choices: ['Slow DNS', 'Important state kept in one instance’s memory, which is lost on failover or scale-in', 'Database constraints', 'TLS errors'], answer: 1,
+      explanation: 'Stateless instances with shared state elsewhere survive instance loss; affinity can mask the dependency.' }
+  ],
+  18: [
+    { question: 'Which is a measurable non-functional requirement?',
+      choices: ['The app must be fast', 'p95 latency of POST /holds under 300 ms at 500 requests per second, measured over 10 minutes', 'Users should be happy', 'Use the latest framework'], answer: 1,
+      explanation: 'It names the operation, the percentile, the threshold, the load and the measurement window.' },
+    { question: 'Right after a deploy, the seat-map cache is empty. What should the capacity plan assume?',
+      choices: ['The steady 95% hit rate applies immediately', 'Most requests miss and reach the origin until the cache fills, so origin load must be bounded, for example with request coalescing', 'Cold caches reduce origin load', 'Nothing; caches never start empty'], answer: 1,
+      explanation: 'A cold cache breaks the steady-state hit assumption; plan for the fill period.' }
+  ],
+  19: [
+    { question: 'Cleanup runs every 5 minutes. A hold expired 2 minutes ago and its row still says HELD. Another user tries to claim the seat. What should happen?',
+      choices: ['Reject the claim until cleanup runs', 'Allow the claim if the guarded write treats the expired hold as reclaimable', 'Extend the old hold automatically', 'Delete all holds and start again'], answer: 1,
+      explanation: 'Correctness must not depend on cleanup timing; the claim’s own predicate can treat now ≥ expires_at as free.' },
+    { question: 'Why should expiry tests use a controllable clock?',
+      choices: ['It makes the code run faster in production', 'It lets the test set the exact time, so boundary cases like now = expiresAt are deterministic', 'Real clocks cannot represent milliseconds', 'It removes the need for a database'], answer: 1,
+      explanation: 'A fake clock avoids sleeps and makes the equality case reproducible.' }
+  ],
+  20: [
+    { question: 'Which fields should scope an idempotency record?',
+      choices: ['Only the key string', 'Authenticated caller, operation and key, plus a hash of the normalized request', 'The server instance that handled it', 'The client’s IP address'], answer: 1,
+      explanation: 'Scoping by caller and operation stops collisions between users, and the request hash detects key reuse with changed intent.' },
+    { question: 'A client times out and retries with a new idempotency key. What can happen?',
+      choices: ['Nothing; the server always detects it', 'A second booking may be created if the first one committed', 'The first booking is rolled back automatically', 'The request is rejected as a duplicate'], answer: 1,
+      explanation: 'The server can only replay results for the same key; a new key looks like a new request, so domain guards are the only protection left.' }
+  ],
+  21: [
+    { question: 'A query filters by event_id and orders by seat_no. Which index fits best?',
+      choices: ['(seat_no)', '(event_id, seat_no)', '(seat_no, event_id)', 'A separate index on each column only'], answer: 1,
+      explanation: 'The equality column leads, and the next column supplies the sort order within it.' },
+    { question: 'A user books a seat and immediately reloads “My bookings”, which reads from a lagging replica. What fixes the empty page?',
+      choices: ['Add another replica', 'Route that user’s reads to the primary for a short time after a write, or read with a known commit position', 'Increase the replica cache size', 'Disable the index'], answer: 1,
+      explanation: 'Read-your-writes needs a read that has the recent write, such as the primary or a replica caught up to it.' }
+  ],
+  22: [
+    { question: 'A popular seat map key expires and 500 requests miss at once. What reduces the load on the database?',
+      choices: ['Shorter TTLs', 'Request coalescing so one request refills the key while the others wait', 'Deleting the key more often', 'Disabling the cache'], answer: 1,
+      explanation: 'Coalescing, or single-flight, turns many identical misses into one origin query.' },
+    { question: 'Which eviction policy keeps a popular key during a one-off scan of many cold keys?',
+      choices: ['LRU', 'LFU, because the popular key has a high use count', 'FIFO', 'Random'], answer: 1,
+      explanation: 'A scan touches many keys once; LRU lets them push out the popular key, while LFU keeps frequently used entries.' }
+  ],
+  23: [
+    { question: 'A topic has 4 partitions and a consumer group has 6 consumers. What happens?',
+      choices: ['All 6 share every partition', '4 consumers get one partition each and 2 stay idle', 'Kafka creates 2 new partitions', 'Messages are duplicated to all consumers'], answer: 1,
+      explanation: 'Within a group, each partition is assigned to at most one consumer.' },
+    { question: 'Which design deduplicates a booking-confirmed event safely?',
+      choices: ['Keep processed IDs in memory on each consumer', 'Insert the event ID into a table with a unique constraint in the same transaction as the effect', 'Commit the offset before applying the effect', 'Rely on the producer never retrying'], answer: 1,
+      explanation: 'The unique row and the effect commit together, so a redelivered event finds the ID and is skipped.' }
+  ],
+  24: [
+    { question: 'The mean latency is 40 ms but users complain. What should you check first?',
+      choices: ['The minimum latency', 'Tail percentiles such as p95 and p99 for the affected endpoint', 'The number of log lines', 'CPU model of the load balancer'], answer: 1,
+      explanation: 'A few very slow requests can hide behind a low mean; percentiles show the tail.' },
+    { question: 'One instance has slow database access. Which balancer feature helps most?',
+      choices: ['Round robin', 'Least-outstanding-requests routing with outlier detection', 'Sticky sessions', 'A longer DNS TTL'], answer: 1,
+      explanation: 'It sends fewer requests to the slow instance and can eject it if errors or latency stay high.' }
+  ],
+  25: [
+    { question: 'Three services each retry 3 times. A request at the top fails at the bottom. Up to how many bottom-layer calls can result?',
+      choices: ['3', '9', '27', '81'], answer: 2,
+      explanation: 'Each layer multiplies attempts: 3 × 3 × 3 = 27, which is why retries belong in one layer with a budget.' },
+    { question: 'Under PACELC, what choice remains when there is no partition?',
+      choices: ['Between durability and cost', 'Between latency and consistency', 'Between SQL and NoSQL', 'There is no choice'], answer: 1,
+      explanation: 'Even without a partition, waiting for more replicas improves consistency but adds latency.' }
+  ],
   // @@assessment
 };
 
@@ -6781,6 +8525,90 @@ export const lateStretchPlans = {
         acceptance: ['LFU evicts the least frequently used key, and the least recent among ties.', 'Stream "aabc" gives a, -, b, b as first non-repeating characters.', 'The hit counter uses O(300) memory.', 'Time and space written for all three.'] },
       { id: 'd-lru-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · LRU, machine coding and queues',
         prompt: 'Answer aloud in 2 minutes each, without notes: how an O(1) LRU works; why the map stores nodes; why get needs a lock; how LinkedHashMap gives LRU; why a two-stack queue is amortized O(1). Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  7: {
+    assign: { 'j-executors-01.packet': 45, 'j-jvm-01.packet': 45, 'j-executors-01.stretch': 40, 'j-executors-01.dsa.packet': 30 },
+    extra: [
+      { id: 'j-executors-01.stretch-lab', minutes: 50, title: 'Stretch lab · a bounded booking executor under load',
+        prompt: 'Build a BookingDispatcher with a ThreadPoolExecutor (4 workers, ArrayBlockingQueue of 8, AbortPolicy) in front of a fake database that allows 4 concurrent queries via a Semaphore and takes 50 ms per call. Submit 100 requests from 10 threads, count accepted, rejected and completed, and measure the 95th-percentile latency.',
+        acceptance: ['Accepted + rejected = 100.', 'No more than 4 queries run at once (asserted with the Semaphore).', 'Rejection is tested deterministically with a latch.', 'A short note explains how you would choose the numbers.'] },
+      { id: 'j-executors-01.stretch-set', minutes: 35, title: 'Stretch DSA · three array problems',
+        prompt: 'In one Java file solve: (1) the maximum circular subarray sum; (2) the best time to buy and sell once (max profit); (3) the product of the array except self without division. Test each against brute force on random arrays.',
+        acceptance: ['Circular case handles all-negative input.', 'Max profit is 0 when prices only fall.', 'Product-except-self is O(n) with O(1) extra space besides the output.', 'Complexity written for all three.'] },
+      { id: 'j-executors-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · executors and memory',
+        prompt: 'Answer aloud in 2 minutes each, without notes: workers versus tasks; how to size a pool for 8 database connections; Future timeout versus cancel; why private locals can still race; why deep recursion fails with free heap. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  8: {
+    assign: { 'l-uml-01.packet': 35, 'l-solid-01.packet': 35, 'b-testing-01.packet': 35, 'l-uml-01.stretch': 25, 'l-uml-01.dsa.packet': 30 },
+    extra: [
+      { id: 'l-solid-01.stretch-lab', minutes: 50, title: 'Stretch lab · add notifications without touching Seat',
+        prompt: 'Extend the booking lab with a Notifier interface, an EmailNotifier adapter and a SmsNotifier adapter with different fake APIs. BookingService publishes after a successful booking only. Write a sequence diagram for success and conflict, and a shared contract test that runs against both notifiers.',
+        acceptance: ['Seat and its tests are unchanged.', 'No notification on conflict.', 'One contract suite passes for both adapters.', 'The diagram shows the alternative branch.'] },
+      { id: 'l-uml-01.stretch-set', minutes: 35, title: 'Stretch DSA · three stack problems',
+        prompt: 'In one Java file solve: (1) evaluate a postfix expression; (2) next greater element for each array item with a monotonic stack; (3) a queue built from two stacks. Test each with edge cases.',
+        acceptance: ['Postfix handles negative results and division order.', 'Next greater returns -1 where none exists, in O(n).', 'The two-stack queue is amortized O(1).', 'Complexity written for all three.'] },
+      { id: 'l-uml-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · design and testing',
+        prompt: 'Answer aloud in 2 minutes each, without notes: what each booking class owns; where email confirmation belongs; when Adapter, Strategy or State is justified; why fake the repository but use a real Seat; what a sequence diagram shows. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  14: {
+    assign: { 'b-transactions-02.packet': 60, 'b-transactions-02.stretch': 70, 'b-transactions-02.dsa.packet': 30 },
+    extra: [
+      { id: 'b-transactions-02.stretch-lab', minutes: 50, title: 'Stretch lab · guarded updates under real concurrency',
+        prompt: 'With PostgreSQL (Testcontainers or a local instance) and plain JDBC, run 50 threads that each try to book seat A1 with UPDATE … WHERE id = ? AND owner IS NULL, plus a group booking of A2 and A3 in one transaction. Count winners and assert the final rows.',
+        acceptance: ['Exactly one thread wins A1; 49 see zero rows.', 'The group booking is all-or-nothing when A3 is taken.', 'Unknown seat and taken seat give different results.', 'No sleeps: ordering uses latches.'] },
+      { id: 'b-transactions-02.stretch-set', minutes: 35, title: 'Stretch DSA · three partition problems',
+        prompt: 'In one Java file solve: (1) move all zeros to the end keeping order; (2) partition an array around a pivot (less, equal, greater); (3) sort an array of 0s, 1s and 2s with counting and compare with the one-pass version.',
+        acceptance: ['Order preserved in (1).', 'Pivot partition keeps the invariant.', 'Both 0/1/2 versions agree on random input.', 'Complexity written for all three.'] },
+      { id: 'b-transactions-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · atomic SQL updates',
+        prompt: 'Answer aloud in 2 minutes each, without notes: why the condition belongs in the UPDATE; what zero affected rows means; how to book two seats all-or-nothing; how to test a concurrent update deterministically; how to release a seat safely. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  15: {
+    assign: { 'b-transactions-03.packet': 60, 'b-transactions-03.stretch': 70, 'b-transactions-03.dsa.packet': 30 },
+    extra: [
+      { id: 'b-transactions-03.stretch-lab', minutes: 50, title: 'Stretch lab · optimistic versus pessimistic under contention',
+        prompt: 'Implement booking with a version column and with SELECT … FOR UPDATE. Run two workloads: 200 users over 200 seats, and 200 users on one hot seat. Record throughput, p95 latency, retries and lock waits for each strategy, then add a deadlock test with two seats locked in opposite orders and fix it with sorted locking.',
+        acceptance: ['A results table for both strategies and both workloads.', 'Retries are bounded.', 'The deadlock is reproduced, then prevented by ordering.', 'A recommendation with reasons.'] },
+      { id: 'b-transactions-03.stretch-set', minutes: 35, title: 'Stretch DSA · three interval problems',
+        prompt: 'In one Java file solve: (1) merge overlapping intervals; (2) insert a new interval into a sorted, non-overlapping list; (3) find free gaps between bookings within opening hours.',
+        acceptance: ['Touching intervals handled by a stated rule.', 'Insert is O(n).', 'Gaps exclude zero-length ranges.', 'Complexity written for all three.'] },
+      { id: 'b-transactions-03.stretch-interview', minutes: 25, title: 'Stretch interview drill · locking strategies',
+        prompt: 'Answer aloud in 2 minutes each, without notes: optimistic versus pessimistic locking; what happens on a hot seat; how deadlocks form and how to prevent them; what signals an optimistic conflict; when SELECT FOR UPDATE is worth it. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  21: {
+    assign: { 'h-databases-01.packet': 45, 'b-sql-02.packet': 45, 'h-databases-01.stretch': 40, 'h-databases-01.dsa.packet': 30 },
+    extra: [
+      { id: 'h-databases-01.stretch-lab', minutes: 50, title: 'Stretch lab · index and replica experiment',
+        prompt: 'Load 1,000,000 seat rows across 2,000 events into PostgreSQL. Run the “seats for one event, ordered by seat number” query with EXPLAIN (ANALYZE, BUFFERS) before and after adding an index on (event_id, seat_no), then on a 1,000-row copy. Write down when the planner chooses a sequential scan and why, and which reads in the app could safely go to a replica.',
+        acceptance: ['Plans and timings recorded for both table sizes, before and after the index.', 'Row estimates compared with actual rows.', 'A list of replica-safe and primary-only reads.', 'A one-paragraph recommendation.'] },
+      { id: 'h-databases-01.stretch-set', minutes: 35, title: 'Stretch DSA · hashing and partitioning',
+        prompt: 'In one Java file solve: (1) count keys moved when modulo sharding goes from N to N + 1 for N = 3, 4 and 8; (2) a weighted consistent-hash ring where a node gets virtual nodes in proportion to its weight; (3) find the hottest key in a stream of 100,000 requests with a HashMap and report its share.',
+        acceptance: ['Moved-key counts match roughly N/(N + 1).', 'Weighted load is within 10% of the target shares.', 'Hot-key share printed.', 'Complexity written for all three.'] },
+      { id: 'h-databases-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · database scaling',
+        prompt: 'Answer aloud in 2 minutes each, without notes: shard versus replica; when replica reads are unsafe; how to choose a shard key and what a hotspot is; how to choose composite index order; why the planner might ignore an index. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  22: {
+    assign: { 'b-caching-01.packet': 45, 'h-caching-01.packet': 45, 'b-caching-01.stretch': 40, 'd-lru-01.packet': 30 },
+    extra: [
+      { id: 'b-caching-01.stretch-lab', minutes: 50, title: 'Stretch lab · cache stampede and stale refill',
+        prompt: 'With the cached availability endpoint, expire a hot key while 200 concurrent requests read it and count database queries. Add single-flight request coalescing and repeat. Then reproduce the stale refill race with a test hook that pauses a reader between its database read and its cache write, and fix it with a versioned value or a short TTL. Confirm a booking attempt still hits the database guard throughout.',
+        acceptance: ['Database query counts with and without coalescing.', 'The stale refill is reproduced deterministically.', 'The fix is shown by the same test.', 'No double booking in any run.'] },
+      { id: 'b-caching-01.stretch-set', minutes: 35, title: 'Stretch DSA · cache structures',
+        prompt: 'In one Java file implement: (1) an O(1) LRU cache with a HashMap and a doubly linked list, without LinkedHashMap; (2) an O(1) LFU cache using frequency buckets; (3) a TTL cache whose get ignores expired entries, using a controllable clock.',
+        acceptance: ['All operations O(1), with the reasoning written.', 'LFU ties broken by recency.', 'Expired entries never returned.', 'Tests compare against the CachePolicies.java hit counts.'] },
+      { id: 'b-caching-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · caching',
+        prompt: 'Answer aloud in 2 minutes each, without notes: cache-aside versus write-through; expiration versus eviction; why invalidation after commit can still leave stale data; how to protect the database when Redis is down; LRU versus LFU. Then compare with the model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
@@ -6955,6 +8783,116 @@ export const lateInterviewGuides = {
     'Two JVMs each have their own A1 object and their own locks, so synchronized cannot coordinate them. The booking decision must move to a store both processes share, normally the database, and be made atomically there. A conditional update does it in one statement: UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL. The database guarantees that only one of two concurrent updates finds owner still null, so exactly one call updates one row. The code treats an update count of 1 as success and 0 as a conflict, which becomes 409. A unique constraint on the booking’s seat ID, or optimistic locking with a version column, are alternatives.',
     'The Java Memory Model defines a happens-before edge from the release of a monitor to every later acquisition of the same monitor. When T1 sets owner inside synchronized (seat) and leaves the block, it releases the monitor. When T2 later enters synchronized (seat), it acquires that same monitor, so everything T1 did before releasing, including the write to owner, is visible to T2. That is why T2 sees U1 and returns a conflict instead of booking again. The edge only exists for the same monitor object: if T2 locked a different object, there would be no guaranteed visibility and no mutual exclusion.'
   ],
+  4: [
+    'The contract is that if a.equals(b) is true, then a.hashCode() must equal b.hashCode(). The reverse is not required: different keys may share a hash code, which is a collision. A HashMap uses the hash to choose a bucket and then calls equals on the keys in that bucket to find the right one, so both methods must use the same fields. If equals is true but the hash codes differ, the map looks in the wrong bucket and misses the entry. The fields used must also stay stable while the key is in the map, so keys should be immutable, for example a record with final fields.',
+    'I normalize once, at the domain boundary, when the SeatId is created: strip spaces and convert to upper case with Locale.ROOT, then store only the canonical form in a final field. A record whose compact constructor does this gets equals and hashCode from that canonical field, so A1, a1 and " A1 " are all equal and hash the same way. I verify the contract with tests: put an entry with SeatId("a1"), look it up with a separately created SeatId(" A1 "), assert the two are equal and have equal hash codes, and check that unequal IDs such as A1 and A2 stay separate, including two keys that collide.',
+    'A HashMap places an entry in a bucket based on the key’s hash at the time of insertion. If a field used by equals or hashCode changes afterwards, the key now hashes to a different bucket, or no longer equals itself as stored, so get and remove miss the entry, even though it is still in the map taking up space. containsKey can return false for the very object you inserted. The fix is to use immutable keys, such as records or Strings, and keep any changing data in the value instead. If a key really must change, remove the entry first, update the key, and insert it again.'
+  ],
+  5: [
+    'An exception is for a call that breaks the method’s stated preconditions, such as a null or blank user ID, or an unknown seat ID if the API says callers must pass a valid one. That is a programming or input error, so failing fast with IllegalArgumentException makes the mistake visible. A competing claim on a seat that is already owned is different: the input is valid and the outcome is a normal part of the business, so the method returns false or a result type such as CONFLICT. Callers handle it with ordinary code, and the API layer can map it to 409, while invalid input becomes 400.',
+    'The domain API should return a result that names each case rather than a single boolean. For example, a sealed interface BookingResult with Booked, SeatNotFound and SeatTaken, or an enum with those values. The service validates the user ID first and throws IllegalArgumentException, or returns an InvalidUser result, if it is blank. The controller then maps each case to a status: Booked to 201, SeatNotFound to 404, SeatTaken to 409 and invalid user to 400. Typed outcomes make the controller’s switch exhaustive, so adding a case later causes a compile error instead of a silent wrong status, and tests can assert each outcome directly.',
+    'I let an exception propagate when the current layer cannot do anything useful about it, such as recover, retry or add context. A layer that sits at a boundary translates it: a repository catches SQLException and throws a domain StorageException, passing the original exception as the cause, so stack traces still show the real database error. The service usually lets that propagate, and the web layer maps it to a 503 or 500 response with a generic message, logging the details. I never swallow exceptions or replace them without the cause, because that destroys the information needed to diagnose the failure.'
+  ],
+  6: [
+    'The input is a typed collection, for example List<Seat>. seats.stream() creates a stream, filter(Seat::isFree) keeps only free seats, and map(Seat::id) transforms each one into its String ID. None of this runs yet: intermediate operations are lazy. A terminal operation such as toList() pulls the elements through and produces the result, here a List<String> of free seat IDs in the original order. The types flow through each step: Stream<Seat> after filter, Stream<String> after map, so the compiler catches mistakes. The original list is not modified; the stream produces a new result.',
+    'Both must use the same predicate and traverse the same ordered source, such as a List. The loop iterates in index order and returns the first seat for which isFree is true, or null or Optional.empty() if none matches. The stream version is seats.stream().filter(Seat::isFree).findFirst(), which returns an Optional<Seat>. Because a List’s stream is ordered and findFirst short-circuits, it also stops at the first match and returns the same seat. I would avoid findAny, which may return a different element in parallel streams, and avoid unordered sources such as a HashSet if the caller expects input order. A test compares both on the same fixtures.',
+    'An unmodifiable list, such as one from List.copyOf or Collections.unmodifiableList, prevents structural changes: callers cannot add, remove or replace elements, and those methods throw UnsupportedOperationException. It does not make the elements immutable. If Seat has a setter, any caller can still change a seat through the list. Also, Collections.unmodifiableList is a view, so changes to the original list show through, while List.copyOf takes a snapshot. For real read-only data, I combine an unmodifiable list with immutable elements, such as records, or return copies of the elements.'
+  ],
+  7: [
+    'Tasks are units of work submitted to an executor; worker threads are the threads that run them. A pool with four workers can accept a thousand tasks: four run at once, and the rest wait in the queue, or are rejected if the queue is bounded and full. So the worker count limits concurrency, and the task count is just demand. Each worker has its own stack for local variables and calls, but all of them share the heap, so any object reachable from more than one task, such as a shared Seat or a counter, is shared state that needs coordination.',
+    'The real limit is eight database connections, so more than about eight concurrent database tasks only adds waiting. I would size the pool to the connection pool, or slightly above if part of each request does not use the database, and use a small bounded queue, for example ArrayBlockingQueue, so waiting work and memory stay limited. When the queue is full, the request should be rejected quickly with 503 and a Retry-After header, or the caller should be slowed down, rather than piling up unbounded. I would measure latency and the connection wait time under load, then adjust the numbers.',
+    'future.get(2, SECONDS) only limits how long the caller waits. If it throws TimeoutException, the task is still running or queued, still holding resources, and may still complete its side effects. future.cancel(true) is a separate request: it marks the future cancelled and, if the task is running, interrupts its thread. The task stops only if its code responds to interruption, for example blocking calls that throw InterruptedException or loops that check the interrupt flag. So after a timeout I decide whether to cancel, and the task must be written to handle interruption and leave no half-finished state.'
+  ],
+  8: [
+    'Seat owns its state and the rule for changing it: it can be claimed only when it is free, and the owner never changes on a failed claim. BookingService owns the use case: it validates the request, finds the seat through a repository, asks the seat to change, and returns a result. The repository owns storage and lookup. The controller, if present, only maps HTTP to the service and results to status codes. My tests protect the core rule: U1 claims A1 and succeeds; U2 then fails and the owner is still U1; an unknown seat gives a not-found result; and an invalid user ID is rejected.',
+    'Sending email is a new responsibility that belongs outside Seat and outside the booking rule. The service, after the booking is saved, publishes an event such as SeatBooked or calls a Notifier interface. The email adapter implements that interface. The domain model is unchanged and knows nothing about email. In unit tests I pass a fake Notifier and assert that one notification is recorded after a successful booking and none after a conflict. A separate test checks that an email failure does not undo the booking, or that it is retried, depending on the requirement. The real adapter gets an integration test.',
+    'I add a pattern only when a real change needs it. Adapter fits when two notification providers expose different APIs and the service should depend on one Notifier interface. Strategy fits when a policy truly varies, for example different hold durations or pricing rules per venue, selected at run time. State fits when a seat gains several states with different allowed transitions, such as free, held, booked and cancelled, and the transition rules start filling methods with conditionals. Before any of these, the single Seat with one claim method is simpler and better. Naming the concrete change is what justifies the extra classes.'
+  ],
+  9: [
+    'When the application starts, Spring Boot scans the configured packages and registers bean definitions for classes such as @Service, @Repository and @RestController. To create the controller, Spring looks at its constructor, sees that it needs a BookingService, and finds or creates that bean first, which in turn needs a SeatRepository. It resolves each constructor parameter by type, using qualifiers or @Primary if several beans match, creates the objects in dependency order, and passes them in. By default each bean is a singleton, so the same BookingService instance is shared by every request. If a required bean is missing or ambiguous, startup fails with a clear error.',
+    'I make the choice explicit in configuration rather than relying on luck. With profiles, the JDBC repository is annotated @Profile("prod") and the in-memory one @Profile("test"), and each environment activates one profile, so only one candidate exists. Alternatively, both beans exist and the injection point uses @Qualifier("jdbcSeatRepository"), or one is marked @Primary as the default. In tests, @TestConfiguration or @MockBean can replace the bean, and plain unit tests just pass a fake to the constructor. I add a context test per profile that starts the application and asserts which implementation was injected.',
+    'Startup usually fails with NoUniqueBeanDefinitionException, which names the injection point and the candidate beans. I check which classes are annotated as beans and which @Bean methods return the interface, which profiles are active, and whether component scanning picked up a test or library class by accident. Then I decide whether both beans should exist: if not, remove one or restrict it to a profile; if yes, mark the default with @Primary or use @Qualifier at the injection point. Running with --debug or looking at the actuator beans endpoint shows the registered beans and why each was created.'
+  ],
+  10: [
+    'GET /seats/A1 asks for a representation of the seat’s current state. It is a safe method: it should not change anything, so it can be repeated, cached or prefetched without side effects. POST /bookings asks the server to create a booking, which changes durable state and can fail if someone else got the seat first. So the methods differ in meaning: GET returns 200 with the seat, or 404 if it does not exist, while POST returns 201 Created with a Location header on success, 409 Conflict if the seat is taken, and 400 for invalid input. Clients and proxies rely on these meanings.',
+    'The client sends an Idempotency-Key header with a unique value for the logical operation, such as a UUID generated when the user clicks Book, and reuses it on every retry. The server stores the key with a fingerprint of the request and the final response, inside the same transaction as the booking. On a retry with the same key and the same request, it returns the stored result, for example the same 201 and booking ID, instead of booking again. If the same key comes with a different request body, it returns an error such as 422. Keys are scoped to the caller and expire after a defined period.',
+    'A safe method, such as GET or HEAD, is intended to be read-only. An idempotent method, such as PUT or DELETE, may change state, but doing it several times has the same intended effect as doing it once: deleting booking B7 twice still leaves it deleted. POST is neither by default. Replay is a separate problem because idempotency is about intended effect, not about what the client sees: a retried DELETE may return 404 the second time, and a retried POST would create a second booking. So for POST, the server needs an explicit replay contract, such as idempotency keys, to recognise a repeat and return the original result.'
+  ],
+  11: [
+    'At the HTTP boundary, the controller checks that the request can be decoded and has the right shape: required fields present, seat ID matches the format, user ID not blank. Bean Validation with @Valid does this and produces a 400 with a stable error body. The domain enforces invariants that depend on state and must hold no matter who calls: a seat can be claimed only when free, and the owner never changes on a failed claim. Those checks live in the service and entity, and the database adds constraints such as uniqueness. Keeping both layers means bad input is rejected early and the core rule still protects other entry points.',
+    'Anything that must always be true cannot rely on the controller, because the internal caller never runs @Valid. So the application service validates its own inputs: seat ID and user ID present and well formed, the user exists and may book. The domain transition still enforces that only a free seat can be claimed and that a failed claim leaves the owner unchanged. The database constraints, such as one active booking per seat, protect against both callers at once. I test this by calling the service directly with a blank user ID and asserting that it is rejected and that the seat state did not change.',
+    'A well-formed actor ID only shows that the input has the right shape, not that the caller may use it. The service must resolve the caller from a trusted source, such as the authenticated principal for HTTP or the job’s configured service identity, never from a field the caller sets. Then it checks authorization for this action and resource: may this identity book on behalf of this user, or cancel this booking? Those checks happen before the state change, inside the same operation. Tests cover an internal job with the wrong identity, a valid identity acting on another user’s booking, and the allowed case.'
+  ],
+  12: [
+    'The database enforces rules for every writer, whether it is our Java service, a second instance, a batch import or a person using SQL directly. A primary key guarantees that no two rows have the same identity. A foreign key guarantees that a booking’s seat_id refers to a seat that exists, and blocks deleting a seat that still has bookings unless a cascade rule says otherwise. A unique constraint, possibly limited to active rows, guarantees one active booking per seat. A check constraint keeps values valid, such as status in a fixed set. These hold even under concurrency, because the database checks them inside each transaction.',
+    'I keep every booking as a row with a status such as ACTIVE or CANCELLED and timestamps, so history is never deleted. To allow only one active booking per seat while keeping cancelled ones, PostgreSQL supports a partial unique index: CREATE UNIQUE INDEX one_active_per_seat ON bookings (seat_id) WHERE status = \'ACTIVE\'. Cancelling changes the status, which removes the row from the index, so A1 can be booked again. Two concurrent attempts to create an active booking for A1 cannot both succeed, because the second insert violates the index. I test cancel then rebook, and two active inserts for the same seat.',
+    'Any rule that must hold across all writers belongs in the shared schema: primary keys for identity, foreign keys for references between tables, unique constraints for one active booking per seat, and NOT NULL and check constraints for required and valid values. A Java check alone cannot guarantee these, because another instance, a script or a concurrent transaction can bypass or race it. The application should still check first to give friendly errors, but the database constraint is the final guard, and the application maps a constraint violation to a clear result such as 409. Tests insert an invalid row directly and assert that the database rejects it.'
+  ],
+  13: [
+    'With auto-commit off, connection A updates the owner of A1 but does not commit yet. Connection B, under PostgreSQL’s default Read Committed, still sees the old owner, because uncommitted changes are invisible to other sessions. When A commits, B’s next statement sees the new owner. If A rolls back instead, the change disappears and B never sees it. Inside A’s own transaction, its own statements do see its uncommitted change. I would demonstrate this with two connections in a test, recording each read and the commit or rollback in order, and asserting what B saw at each step.',
+    'Both inserts must succeed or fail together, so they use the same Connection with auto-commit turned off, forming one transaction. I run the seat update, then the audit insert, then commit. If the audit insert throws, the catch block calls rollback, so the seat update is undone as well, and the error propagates or becomes a clear failure result. The service must not report success unless the commit succeeded. Using a separate connection for the audit would create a separate transaction, which could leave a booking without its audit row. In Spring, @Transactional on the service method does the same through one connection.',
+    'Under Serializable isolation, the database guarantees the result is as if transactions ran one at a time. When two concurrent transactions conflict in a way that cannot be ordered, the database aborts one with a serialization failure, SQLSTATE 40001. That transaction’s reads may have been based on a state that is no longer valid, so retrying only the failed statement is wrong. The whole transaction must be rolled back and run again from the start, re-reading every input and re-making every decision. I wrap it in a retry loop with a small limit and backoff, and make external side effects happen only after commit.'
+  ],
+  14: [
+    'If the application first reads the seat and then runs an unconditional UPDATE, two requests can both read “free” before either writes, and both updates succeed, so the second overwrites the first. Putting the condition in the write, UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL, makes the database check and change the row in one atomic step. The row lock taken by the update means the second request waits for the first to commit, then re-evaluates the condition, finds an owner, and updates zero rows. The application reads the affected-row count: 1 means booked, 0 means not booked. The earlier read can still be used for display, but never to authorize the change.',
+    'Each seat’s guarded update is atomic on its own, but the group must be all-or-nothing, so both updates run in one transaction on one connection with auto-commit off. I run the guarded UPDATE for the first seat, then for the second, and check that each affected exactly one row. Only if both did do I commit. If either returns zero, or any statement fails, I roll back, so the first seat is released, and return a group conflict. Locking seats in a consistent order, such as by seat ID, avoids deadlocks when two groups overlap. Tests cover both seats free, one taken, and two competing groups.',
+    'Zero rows means that when the statement ran, no row matched all of its conditions. With WHERE id = ? AND owner IS NULL, that covers two very different cases: the seat does not exist, or it exists but is already owned. If the API must return 404 for an unknown seat and 409 for a taken one, the service needs one more step: after a zero-row update, it reads the seat by ID in the same transaction to tell which case it was. The extra read only chooses the error; it never authorizes the change. Alternatively, a foreign key or a prior existence check can rule out unknown seats.'
+  ],
+  15: [
+    'Optimistic locking reads without locks and checks on write, for example with a version column: UPDATE … SET owner = ?, version = version + 1 WHERE id = ? AND version = ?. When conflicts are rare, it is cheap: no one waits, and the occasional loser retries or gets a conflict. Pessimistic locking takes the lock up front with SELECT … FOR UPDATE, so competing transactions wait in line. Under high contention that avoids wasted work and endless retries, but waiting adds latency and holds connections, and lock order matters to avoid deadlocks. So I choose optimistic for low contention and short user think times, and pessimistic, or a single conditional UPDATE, for hot rows.',
+    'With rare conflicts, almost every optimistic attempt succeeds on the first try, so latency is low and predictable. If one seat suddenly gets hundreds of concurrent attempts, only one can win each round; the rest fail the version check, re-read and retry, so the database does repeated work and the slowest users see many retries, which inflates p99 latency. Pessimistic locking turns this into a queue: requests wait for the row lock one at a time, which wastes less work but can exhaust the connection pool. For a hot seat the best answer is often a single conditional UPDATE, bounded retries with backoff, and a fast “seat taken” response.',
+    'If transaction T1 locks A then B, and T2 locks B then A, each can end up holding one row and waiting for the other, which is a deadlock. The database detects the cycle and aborts one of them with an error. The fix is to acquire locks in one global order, for example always sorting the seat IDs before locking, so a cycle cannot form. I also keep transactions short, set a lock timeout, and treat deadlock errors as retryable by rerunning the whole transaction a limited number of times. A test with two connections locking in opposite orders demonstrates the problem, and the same test with sorted order shows it gone.'
+  ],
+  16: [
+    'A managed entity is a Java object tracked by the persistence context of the current EntityManager. Changes to it are recorded in memory; they are not in the database yet. At flush, which happens before commit, before certain queries, or when called explicitly, JPA generates SQL statements for the changes and sends them inside the current transaction. They become durable and visible to others only when the transaction commits. In Spring, the transaction usually starts when a @Transactional service method is entered and commits when it returns normally, or rolls back on a runtime exception. So a row and an entity can differ until flush and commit.',
+    'First I confirm it with evidence: enable SQL logging or Hibernate statistics, call the endpoint with realistic data where bookings have different owners, start from a fresh persistence context, and count the queries. One query for bookings plus one per owner confirms N+1. Then I choose a fix that fits the use case: a JOIN FETCH or an entity graph to load owners in the same query, batch fetching to load owners in groups of IDs, or a DTO projection that selects only the needed columns. For paginated lists, I avoid fetch-joining collections. I add a test that asserts the number of queries, so the problem cannot return silently.',
+    'I set up a realistic case: for example, 20 bookings with 20 different owners, so caching or repeated owners cannot hide queries. I clear the persistence context so nothing is already loaded, enable SQL statement logging or Hibernate statistics, call the list operation, and access each booking’s owner as the endpoint does. Then I count the statements: 1 for the bookings and 20 for owners shows N+1. After applying a fetch join or batch fetching, I repeat the same measurement and expect 1 or 2 queries. Recording both counts, and ideally timings on PostgreSQL, turns the claim into evidence, and a test can assert the expected query count.'
+  ],
+  17: [
+    'A Java monitor belongs to one object inside one JVM. Two Spring Boot processes each have their own heap, their own Seat objects and their own locks, so synchronized in one process has no effect on the other; both can decide A1 is free and both can book it. Coordination has to happen in something both processes share. The usual choice is the database: a guarded UPDATE … WHERE owner IS NULL, a unique constraint on active bookings, or row locks inside a transaction. A distributed lock service is possible but adds complexity. Testing with two processes on different ports against one database shows the difference.',
+    'A read replica receives changes from the primary with some delay, so right after a booking it can still show A1 as free. It is fine to use it for things that tolerate slightly old data, such as browsing the seat map, as long as the product accepts that the map may be a few seconds stale and the booking itself is checked on the primary. It must not be used for the booking decision, for confirming a booking to the user who just made it, or for any read that feeds a write. Those go to the primary, or use read-your-writes techniques, such as routing that user to the primary for a short time.',
+    'A per-seat lock, for example a ConcurrentHashMap of ReentrantLocks keyed by seat ID, works perfectly in a single-process test: two threads booking A1 queue on the same lock. But the lock objects live in one JVM’s memory. When the application runs as two instances, each has its own map and its own lock for A1, so a request on instance 1 and a request on instance 2 both get “their” lock and both book the seat. The test passed only because it never exercised the real deployment. A requirement that holds across instances needs a shared authority, such as a conditional database update, and a test that uses two processes.'
+  ],
+  18: [
+    'I start from explicit assumptions: daily active users, how many seat-map views and booking attempts each makes, and how traffic is spread over the day. From those I compute average and peak requests per second, separately for reads and writes, plus request sizes. The estimate that usually decides the first move is the peak read rate on the seat map compared with what one instance and the database can serve, together with hot-key concentration, such as one big event. If peak reads exceed database capacity, the first step is caching or replicas; if a single seat or event is hot, it is contention control rather than more servers.',
+    'Refreshing more often increases reads, not bookings, so I re-estimate the read path: requests per second at the load balancer and gateway, the availability service instances, the cache, and the origin load on the database. With a cache hit ratio h, the origin sees roughly (1 − h) times the read rate, so doubling refreshes doubles origin reads unless the hit ratio improves. Write capacity, the booking service’s transactional path and the primary database’s write load stay the same. I would also check whether refresh traffic concentrates on one popular event, which creates a hot key, and whether rate limits or longer cache lifetimes are acceptable.',
+    'I trust measurements over assumptions. The first thing that would change my estimate is the observed peak on the path in question, at a fine resolution such as per second, compared with my assumed peak. Close behind are latency percentiles on that path and per-key concentration: if most requests target one event, the database row or cache key for that event is the real limit, even when total traffic is fine. Cache hit ratio in production, especially just after deploys, also changes origin load a lot. I would add metrics for these before the launch, then revise the plan with real numbers and keep the assumptions written down.'
+  ],
+  19: [
+    'I define the rule first: a hold is valid only while now < expiresAt, so a confirmation arriving at or after expiresAt is expired. The confirmation runs as one guarded write against the same storage that holds the hold: UPDATE seats SET state = \'BOOKED\' WHERE id = ? AND hold_id = ? AND owner = ? AND state = \'HELD\' AND now() < expires_at. One affected row means confirmed; zero rows means the hold expired, was released or belongs to someone else, and the user gets a clear “hold expired, please try again” response. Whether cleanup has already run does not change the answer.',
+    'If correctness depended on cleanup, a hold that expired at 10:00 would still block the seat, or still be confirmable, until the job ran at 10:05. Instead, the claim and confirmation predicates evaluate expiry directly: a new claim can take a seat that is free or whose hold has expired, with WHERE state = \'FREE\' OR (state = \'HELD\' AND expires_at <= now()). Cleanup then only tidies rows and releases resources. I would test this by stopping the cleanup job entirely and checking that an expired hold can be reclaimed and cannot be confirmed.',
+    'I pick one authoritative clock, normally the database clock used inside the write, so every server compares against the same time and application clock drift does not matter. I state when it is sampled: in PostgreSQL, now() is fixed at transaction start, while clock_timestamp() is the actual time, so a long transaction can see an earlier now(). The comparison is strict, now < expires_at, so equality is expired. In unit tests I inject a controllable clock and check 999, 1000 and 1001 for a hold expiring at 1000.'
+  ],
+  20: [
+    'If the client times out, it does not know whether the booking committed: the server may have committed and then lost the response. Retrying with a new request could create a second booking. So the client retries with the same idempotency key and the same request body. The server looks up the key for that caller and operation; if a completed record exists with the same request hash, it returns the stored response, such as 201 with booking ID B-17, without booking again. If no record exists, the original never committed and it processes the request normally.',
+    'Once the record expires, the server can no longer promise to replay the original response for that key. A late retry is treated as a new request, so protection now comes from the domain rules: the guarded seat update rejects it because the caller already owns the seat, or a unique constraint on (event, seat) refuses a second owner. The server should return a meaningful result such as 409 with a link to the existing booking, and the client can look up its bookings by reference instead of relying on the key.',
+    'The idempotency record is scoped by the authenticated caller, the operation such as POST /bookings, and the key, and it stores a hash of the normalized request body: event, seat and any options. When a live key arrives with a different hash, for example a different seat, the service rejects it, typically with 422 or 409 and an error explaining that the key was reused with a different payload. It must not replay the old result, which would claim the wrong seat was booked, or apply the new request, which would break the key’s meaning.'
+  ],
+  21: [
+    'With asynchronous replication, a replica applies the primary’s changes some time later, so it can show data that is seconds old. That is fine for answers that tolerate staleness: the seat map shown while browsing, event descriptions, or reports. It is not fine for decisions or for a user who just wrote something. A seat booking must use the primary’s guarded write, and the page shown immediately after booking should read from the primary, or from a replica known to have applied that write, so the user sees their own booking.',
+    'Sharding by event ID spreads different events across shards, but a single very popular event sends all its traffic to one shard, which can saturate while the others are idle. I would measure per-shard CPU, query latency, lock waits and connection usage, and per-event request rates, to confirm the hotspot and whether it is read or write heavy. Reads can move to a cache or replicas; if writes are the bottleneck, I would split the event into finer keys such as event plus section, or isolate the hot event on its own node.',
+    'On a tiny table, PostgreSQL may scan the whole table even with an index, because reading a few pages sequentially is cheaper than walking the index and then fetching rows. On a large table where the query matches a small fraction of rows, the index lets the database read only those rows, so the plan changes from Seq Scan to Index Scan and the time drops dramatically. That is why I compare plans with EXPLAIN ANALYZE on realistic data volumes and fresh statistics rather than on a small test fixture.'
+  ],
+  22: [
+    'Cached availability is a copy of a database read that may be a few seconds old, which is acceptable for showing the seat map because the user will confirm later anyway. It is never used to decide a booking. When the user books, the request goes to the authoritative guarded write in the database, which checks the current owner. If the cache showed a seat as free but someone else just booked it, the guarded update returns zero rows and the user gets a conflict message, so a stale cache can only cause a disappointing message, never a double booking.',
+    'If Redis is down, availability reads can fall back to the database, but only within its capacity, because every cache hit suddenly becomes a database query. I would cap fallback concurrency with a semaphore or rate limit, coalesce identical misses so one query serves many waiting requests, and serve a slightly older copy where one exists. Optional reads, such as recommendations, can be switched off. Booking writes always go to the database anyway, so they keep working, and I would alert on the cache outage and watch database latency.',
+    'Expiry removes an entry after its TTL, which bounds how stale it can get but causes periodic misses and possible stampedes on hot keys. Eviction removes entries when memory is full, according to a policy such as LRU, so popular keys can disappear unexpectedly under memory pressure and cause extra database load. Invalidation deletes an entry when the underlying data changes, which keeps data fresh but can race with concurrent readers who refill the old value. Using all three together, with a TTL as a safety net, limits each failure mode.'
+  ],
+  23: [
+    'Most brokers, including Kafka by default, provide at-least-once delivery: a message is redelivered until the consumer confirms it. If the consumer applies the effect, for example marks a booking confirmed, and then crashes before committing its offset, the broker delivers the same event again after restart or rebalance. Rebalances, network timeouts and producer retries can cause the same. So consumers must be idempotent: store the event ID with the effect in one transaction and skip events whose ID is already recorded.',
+    'The email provider is outside my database, so I cannot commit the email and the dedup record together. I would first record the intent, a row saying “confirmation email for booking B-17 pending”, in the same transaction as the booking state. A sender then sends using the provider’s idempotency key, if available, derived from the booking ID, and marks the row sent. If it crashes in between, the retry reuses the same key, so the provider drops the duplicate. Without such a key, I accept a rare duplicate and reconcile using the provider’s send log.',
+    'If the consumer acknowledges first and then crashes before its database transaction commits, the broker thinks the event is done but the effect never happened, so it is lost silently. The recoverable order is: apply the effect and record the event ID in one database transaction, commit, then acknowledge. A crash before the acknowledgement causes a redelivery, and the stored event ID makes that redelivery harmless. Losing an effect is much harder to detect and fix than receiving a duplicate.'
+  ],
+  24: [
+    'Latency depends on what traffic I send. A mix of mostly seat-map reads gives low, stable numbers, while many users fighting for one hot seat produce lock waits and conflicts that raise the tail. So I define the mix, for example 90% reads and 10% bookings with 1% on a hot seat, and report results per request type. A load balancer only distributes requests across instances; it spreads connections or requests but cannot remove database contention, which every instance shares, so adding instances does not help a hot seat.',
+    'If one instance has slow database access, its latency and maybe error rate rise while the other stays healthy. A readiness health check that includes a quick database query can mark it unhealthy and stop routing to it. Least-outstanding-requests routing naturally sends it fewer requests because its requests take longer to finish. Outlier detection can eject an instance whose error rate or latency is consistently worse than its peers for a period. I would confirm it is instance-specific by comparing per-instance metrics before acting.',
+    'As offered load rises, the system completes more requests per second until some resource, such as the connection pool, saturates. Requests then wait in queues, so p95 grows even while throughput still rises slightly or plateaus. To diagnose it I look at queue wait time: connection pool acquire time, executor queue length and active versus maximum connections. If acquire wait grows while database execution time stays flat, the pool or database admission is the bottleneck, not the application code, and resizing or queueing at the pool is the next experiment.'
+  ],
+  25: [
+    'The booking transition must fail safely: if the authoritative database cannot be reached or cannot guarantee the one-owner rule, the request returns a clear “unavailable, try again” or a pending state, never a fake confirmation. Data that only informs the user can be temporarily stale: the seat map from a cache or replica, event details or a user’s booking list with a short delay. Showing a seat as free that was just taken is acceptable because the booking attempt will be checked; confirming a booking that was not committed is not.',
+    'During a partition, the remote region can safely serve cached seat maps and static content, labelled as possibly out of date, and accept actions that do not need the authority, such as browsing. It must not confirm bookings, because it cannot reach the authoritative store to check ownership; those requests should fail clearly or be queued as pending without promising success. Once the partition heals, pending requests are processed through the normal guarded write and users are told the real outcome.',
+    'A timeout means the outcome is unknown: the write may or may not have committed. The caller should retry with the original idempotency key or query the operation status, not report failure or start a new booking. A known conflict, such as 409 “seat already booked by someone else”, is a definite answer: the seat is not yours, and retrying will not help, so the user should pick another seat. The client must handle these differently, and the API must make the difference clear in its status codes.'
+  ],
   // @@guides
 };
 
@@ -6963,6 +8901,157 @@ export const lateInterviewGuides = {
 // question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
 // Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
 export const lateTopicAnswers = {
+  'l-invariants-02': {
+    'Why do you need a hold ID as well as an owner?': 'Because one owner can create several holds over time, and the owner alone cannot tell them apart. Suppose user U1 holds seat A1, the hold expires, and U1 holds A1 again. A late confirmation from the first attempt, perhaps a slow browser tab, would match on owner and seat and wrongly confirm the second hold with the first attempt’s data. With a unique hold ID created for each hold and required in the confirmation predicate, WHERE id = ? AND hold_id = ? AND owner = ?, only the attempt that created this hold can confirm it, and stale attempts get zero rows.',
+    'What happens at exactly expiresAt?': 'It depends on the rule, so the rule must be written down and used everywhere. With the common strict rule, a hold is valid only while now < expiresAt, so at exactly expiresAt the hold is expired and confirmation fails, even if cleanup has not removed the row yet. The SQL predicate must say now() < expires_at, not <=, and the Java code and tests must agree with it. I test the boundary with a controllable clock: confirm at expiresAt − 1 succeeds, and confirm at exactly expiresAt and expiresAt + 1 both fail.'
+  },
+  'b-transactions-04': {
+    'Why can CURRENT_TIMESTAMP surprise an exact expiry test?': 'In PostgreSQL, CURRENT_TIMESTAMP and now() return the time the transaction started, and they stay the same for the whole transaction. If a test opens a transaction, waits, and then checks expiry, the database still uses the start time, so a hold that has really expired can still look valid. clock_timestamp() returns the actual current time instead. For predictable tests I either keep transactions short and compare against a time passed in as a parameter from a controllable clock, or I use clock_timestamp() deliberately and document which one the rule uses.'
+  },
+  'b-http-02': {
+    'What must be covered by an idempotency lookup?': 'The lookup must cover who is asking, what operation they are doing, and which key they sent: the authenticated caller, the operation such as POST /bookings, and the idempotency key. Scoping by caller stops two users who happen to choose the same key from seeing each other’s results. It should also store a hash of the normalized request body, so the server can detect the same key being reused with a different payload and reject it instead of replaying the wrong result. Finally, the record needs a status, such as in progress or completed, and the stored response.'
+  },
+  'h-reliability-01': {
+    'How can a booking succeed even when the client times out?': 'The client’s timeout and the server’s commit are independent. The server can receive the request, commit the booking, and then the response is lost or delayed: the connection drops, a proxy times out, or the client gives up a moment too early. From the client’s point of view the request failed, but the seat is booked in the database. That is why a timeout must be treated as an unknown outcome, and why the client should retry with the same idempotency key or check the booking status rather than tell the user it failed.',
+    'How can retries hurt reliability?': 'When a service is overloaded, every failed request that is retried adds more load, so retries can turn a short slowdown into a long outage, a retry storm. Retries in several layers multiply, and retrying writes without idempotency can duplicate effects such as two bookings or two emails. To keep retries helpful, I retry only operations that are safe or idempotent, use exponential backoff with jitter so clients do not retry in sync, cap the number of attempts, use a retry budget, and put retries in one layer only.'
+  },
+  'h-databases-01': {
+    'How is a shard different from a replica?': 'A shard holds a different part of the data: with sharding by event ID, shard 1 might own events 1 to 1000 and shard 2 events 1001 to 2000, so each write goes to exactly one shard and the system can handle more writes and more data in total. A replica holds a copy of the same data as another node, usually a primary, so it adds read capacity and survives node failures, but it does not add write capacity. Real systems often combine both: each shard has a primary and replicas.'
+  },
+  'b-sql-02': {
+    'How do you choose a composite index order?': 'I start from the queries that matter most. Columns compared with equality go first, because the index can jump straight to that group; then the column used for a range or for ORDER BY, because inside each equality group the index entries are already sorted by it. For WHERE event_id = ? ORDER BY seat_no, the index (event_id, seat_no) finds the event and returns seats in order with no sort step. The reverse order (seat_no, event_id) could not use event_id efficiently. I confirm the choice with EXPLAIN ANALYZE on realistic data.',
+    'Why might PostgreSQL choose a sequential scan with an index available?': 'The planner estimates the cost of each plan and picks the cheapest. If the table is tiny, it fits in a few pages and reading them sequentially is cheaper than walking an index and then fetching rows. If the query matches a large fraction of the rows, an index scan would fetch most pages anyway, in random order, so a sequential scan is faster. Outdated statistics can also mislead the estimate, so I run ANALYZE and test with realistic volumes before concluding the index is useless.'
+  },
+  'b-caching-01': {
+    'How do expiration and eviction differ?': 'Expiration is a time rule for each entry: with a TTL of 30 seconds, the entry is removed or ignored 30 seconds after it was written, whether or not memory is short. It limits how stale the data can be. Eviction happens when the cache runs out of memory: Redis removes entries according to its maxmemory-policy, such as allkeys-lru, to make room for new ones, even if they have not expired. Expiration is a freshness decision you make; eviction is a capacity decision the cache makes, and both can cause misses.'
+  },
+  'h-caching-01': {
+    'When might a shorter TTL hurt?': 'A shorter TTL makes entries expire more often, so more requests miss and go to the database. For a hot key such as the seat map of a popular event, each expiry can cause a burst of simultaneous misses, a cache stampede, where hundreds of requests query the same rows at once. The hit ratio falls and database load and tail latency rise, sometimes more than the staleness was worth. Before shortening a TTL, I check the actual freshness need, and combine a moderate TTL with invalidation after commit and request coalescing for hot keys.',
+    'Why can invalidation after commit still leave stale data?': 'Because a reader can be in the middle of a refill. Reader R misses the cache and reads the seat as free from the database. Then writer W books the seat, commits and deletes the cache key. Finally R, which still holds the old value, writes “free” into the cache. Now the cache is stale until the TTL expires. Mitigations include a short TTL as a safety net, versioned values where the cache only accepts a newer version, or a delayed second delete. Bookings stay correct because they always go through the database guard.'
+  },
+  'd-lru-01': {
+    'How is LFU different from LRU?': 'LRU evicts the entry that was used longest ago, so it adapts quickly when interest shifts but a one-off scan of many keys can push out popular entries. LFU evicts the entry used least often, so it protects consistently popular keys from scans, but an entry that was popular yesterday can stay in the cache long after interest moves on unless counts are aged. In CachePolicies.java, LFU wins on the scan trace with 5 hits against 3, and LRU wins on the shifting trace with 7 hits against 3, which is why you measure with real traces.'
+  },
+  'b-messaging-01': {
+    'Where does Kafka guarantee order?': 'Only within a single partition. Each record in a partition gets an increasing offset, and a consumer reads them in offset order. Across partitions of the same topic there is no total order, so events for different partitions can be processed in any relative order. To keep all events for one booking in order, the producer uses the booking or seat ID as the record key, so they hash to the same partition. Changing the number of partitions changes that mapping, and enabling producer idempotence prevents retries from reordering records.',
+    'What restricts parallel consumption in a single group?': 'The number of partitions. Within one consumer group, each partition is assigned to exactly one consumer at a time, so a topic with 4 partitions can be processed by at most 4 consumers in parallel; a fifth and sixth consumer stay idle as standbys. To increase parallelism you add partitions, ideally planned up front because it changes key-to-partition mapping, or you process records concurrently inside a consumer while keeping per-key order, for example by routing records to worker threads by key.'
+  },
+  'h-queues-01': {
+    'What should a dead-letter path preserve?': 'Everything needed to understand and safely replay the failed message: the original payload and headers unchanged, the event ID, the source topic, partition and offset, the error message and stack trace or failure category, the number of attempts and timestamps. Without these, operators cannot tell whether the problem was bad data or a temporary outage. Replaying should go through the normal idempotent handler, so a message that was partly processed is not applied twice, and the dead-letter queue should have alerts and a retention period.'
+  },
+  'h-loadbalance-01': {
+    'Why might IP hash be skewed?': 'IP hash sends all requests from the same source IP to the same instance. Many users can share one IP address: a company network behind NAT, a mobile carrier gateway, or a proxy or CDN in front of your balancer. All those users then land on one instance, which can be overloaded while others are idle. Also, with only a few large sources, hashing cannot spread load evenly. If stickiness is needed, a cookie or session ID usually spreads better, and least-loaded routing is better when stickiness is not required.'
+  },
+  'h-observability-01': {
+    'What does p95 mean in a specified window?': 'It is the latency below which about 95 percent of the requests in that window fall: if p95 over the last five minutes is 300 ms, about 95 out of 100 requests took 300 ms or less and about 5 took longer. The window and the sample count matter: a p95 over 20 requests is essentially the second slowest request. Different tools compute it differently, by nearest rank, interpolation or histogram buckets, and percentiles from different instances cannot simply be averaged, so merge histograms instead.',
+    'How would you tell pool saturation from app execution latency?': 'I break each request’s time into parts. If the connection pool is saturated, the time spent waiting to acquire a connection grows, active connections sit at the maximum, and pending requests pile up, while the time each query takes inside the database stays roughly the same. If the application itself is slow, acquire wait stays near zero but execution or CPU time per request grows. Under the same traffic, I compare pool acquire wait, active and pending counts, query time and request time to see which one moves, then fix that resource first.'
+  },
+  'h-consistency-01': {
+    'What choice does CAP identify under partition?': 'When a network partition splits the nodes, a system that keeps accepting requests on both sides cannot guarantee every read sees the latest write, and a system that guarantees that must refuse some requests on at least one side. So during a partition you choose, per operation, between consistency and availability. For a booking platform the booking write chooses consistency, failing if the authority is unreachable, while the seat map chooses availability, serving a possibly stale copy. CAP says nothing about normal operation without partitions.',
+    'How does PACELC extend the discussion?': 'PACELC says: if there is a Partition, choose between Availability and Consistency; Else, in normal operation, choose between Latency and Consistency. The second part matters every day: waiting for a synchronous replica or a quorum before answering gives stronger consistency but adds latency, while answering from the nearest replica is faster but may be stale. For booking I accept the extra latency of the primary for writes, and for browsing I accept staleness from a replica or cache for speed.'
+  },
+  'h-reliability-02': {
+    'How can retries multiply across layers?': 'If every layer retries independently, attempts multiply. A gateway that retries 3 times calls a service that retries 3 times, which calls a database client that retries 3 times, so one failing request at the top can cause up to 27 calls at the bottom, exactly when the bottom layer is already struggling. The fix is to retry in one chosen layer, usually the one closest to the user that knows the deadline, pass the remaining deadline down so lower layers stop early, and use retry budgets with backoff and jitter.'
+  },
+  'b-transactions-02': {
+    'Why include availability in the UPDATE predicate?': 'Because the database is the only place that sees every concurrent writer. If the application reads the seat, sees it is free, and then runs an unconditional UPDATE, another request can book the seat between the read and the write, and the second update silently overwrites the first owner. With WHERE id = ? AND owner IS NULL in the UPDATE, the database evaluates the condition and changes the row atomically, holding a row lock while it does. A competing update waits, re-checks the condition after the first commits, and changes nothing. So the earlier read can be used for display, but the write itself is what decides who gets the seat.',
+    'What does an affected-row count of zero tell you?': 'It tells you that the statement found no row matching all its conditions at the moment it ran, and it changed nothing. For UPDATE seats SET owner = ? WHERE id = ? AND owner IS NULL, there are two possible reasons: no seat has that ID, or the seat exists but already has an owner. It does not, on its own, tell you which. If the API must return different responses, such as 404 for an unknown seat and 409 for a taken seat, the service reads the seat by ID afterwards, in the same transaction, to classify the failure. It never retries the update blindly, and it never treats zero rows as success.',
+    'How should a test control a concurrent update?': 'I use two separate connections, because each connection has its own transaction. On connection A I begin a transaction and run the guarded update for A1 without committing, so A holds the row lock. On connection B, in another thread, I run the same update; it blocks waiting for the lock. I set a statement or lock timeout so the test cannot hang. Then I commit A, let B finish, and assert the results: A affected one row, B affected zero, and the final owner is A’s user. Explicitly ordering the steps with latches, instead of using sleeps, makes the test deterministic and repeatable in CI.'
+  },
+  'b-transactions-03': {
+    'When can SELECT FOR UPDATE be useful?': 'SELECT … FOR UPDATE locks the selected rows until the transaction ends, so no other transaction can update or lock them meanwhile. It is useful when a decision needs several statements: for example, reading two seats and the user’s current hold count, deciding whether the booking is allowed, and then updating several rows. Holding the locks keeps the inputs stable between the read and the write. It also suits hot rows where optimistic retries would waste work. The costs are waiting, held connections and deadlock risk, so I keep such transactions short, lock rows in a consistent order and set lock timeouts. For a single-row change, a conditional UPDATE is simpler.',
+    'What is a signal that optimistic locking detected a conflict?': 'With a hand-written version check, UPDATE seats SET owner = ?, version = version + 1 WHERE id = ? AND version = ?, the signal is an affected-row count of zero: someone changed the row after we read it, so our version is stale. With JPA and an @Version field, Hibernate does the same check on flush and throws an OptimisticLockException, which Spring wraps as ObjectOptimisticLockingFailureException. In both cases the application must not overwrite the newer data. It either reloads and re-applies the change if that still makes sense, retrying a limited number of times, or returns a conflict such as 409 so the user can decide again with current data.',
+    'How can multiple row locks deadlock?': 'A deadlock happens when two transactions each hold a lock the other needs. Transaction 1 locks seat A1 and then asks for A2, while transaction 2 has already locked A2 and asks for A1. Neither can continue, so they would wait forever. Databases detect the cycle and abort one transaction with a deadlock error, which the application should treat as retryable by rerunning the whole transaction. To prevent it, every transaction should acquire locks in the same order, for example sorted by seat ID, and keep the time between locks short. Lock timeouts limit the damage when something unexpected still waits too long.'
+  },
+  'b-jpa-01': {
+    'What is the difference between flush and commit?': 'Flush synchronizes the persistence context with the database: Hibernate sends pending INSERT, UPDATE and DELETE statements over the connection, inside the current transaction. After a flush, queries in the same transaction see the changes, and constraint violations may surface, but other transactions still cannot see them, and a rollback would undo them. Commit ends the transaction and makes everything durable and visible to others. Flush happens automatically before commit and before some queries, or explicitly with entityManager.flush(). Calling flush in a test is a useful way to trigger constraint checks before the test transaction rolls back.',
+    'Why can a collection fetch join complicate pagination?': 'A JOIN FETCH of a collection returns one SQL row per parent and child combination, so a booking with three seats appears three times in the result. If you ask for the first 20 rows with LIMIT 20, the database counts joined rows, not bookings, so you could get fewer than 20 bookings and a parent’s children could be cut off. Hibernate notices this and, when combined with setMaxResults, applies the paging in memory after loading everything, logging a warning, which is slow for large tables. Better options are to page over parent IDs first and then fetch their collections, or use batch fetching.'
+  },
+  'b-testing-02': {
+    'How might an outer test transaction hide a problem?': 'With @Transactional on a test, the test method and the code it calls run in one transaction that is rolled back at the end. That is convenient for cleanup, but nothing is ever committed. Constraints checked at commit, such as deferred constraints, do not fire; changes may never be flushed, so SQL errors stay hidden; another connection, like a second application instance, cannot see the data; and REQUIRES_NEW or asynchronous code behaves differently from production. So for behaviour that depends on commits or concurrency, I write tests without the outer transaction, commit for real, and clean up explicitly, for example by truncating tables.'
+  },
+  'h-scaling-01': {
+    'What are the vertical and horizontal scaling choices for an overloaded application?': 'Vertical scaling gives one instance more resources: more CPU, memory or a bigger database server. It is simple and needs no code changes, but it has an upper limit, costs rise steeply, and the instance remains a single point of failure. Horizontal scaling runs more instances behind a load balancer and spreads requests across them. It scales further and survives the loss of an instance, but the application must be stateless, keeping sessions and coordination in shared stores. Before either, I check where the bottleneck is: if the database is saturated, adding application instances does not help, and caching, indexing or replicas would be the right step.',
+    'Why does adding a third app node fail to increase this example’s throughput?': 'Because the application nodes are not the bottleneck. In the example each node can handle 80 requests per second, so two nodes already offer 160, but every request also needs the database, which caps the whole workload at 120 requests per second. Throughput can never exceed the slowest shared stage, so a third node raises application capacity to 240 while actual throughput stays at about 120, and it may even get worse because more concurrent requests queue for database connections. The right move is to measure each stage, then raise the database limit, for example with caching, query tuning or read replicas.',
+    'What problem can sticky routing hide?': 'Sticky routing, or session affinity, sends each user to the same instance every time. That makes it look fine to keep important state in that instance’s memory, such as the user’s session, a cart or a pending hold. The problem appears when the instance dies, is redeployed or the cluster scales in: the state is lost and users are logged out or lose work. Load can also become uneven, because heavy users stay pinned to one node. Keeping instances stateless, with sessions and holds in a shared store such as Redis or the database, removes the dependency, and testing with affinity turned off reveals it.'
+  },
+  'h-requirements-01': {
+    'How do you make “the app must be fast” measurable?': 'I turn it into a service level objective with five parts: which operation, which statistic, what threshold, under what load, and over what window. For example: “POST /holds returns within 300 ms at the 95th percentile and within 800 ms at the 99th, at 500 requests per second, measured over each 10-minute window, counting errors as failures.” Percentiles matter because averages hide slow requests. Separate targets for different operations, such as browsing the seat map versus booking, keep the goals realistic. Then the requirement can be tested with load tests and monitored in production, and everyone agrees when it is met.'
+  },
+  'h-estimates-01': {
+    'How do you justify your first scale decision?': 'I write down the assumptions, compute the numbers, and point to the bottleneck they reveal. For example: 200,000 daily users, 30 seat-map views each, 5% booking; with a peak 10 times the average, that is about 700 reads and 1 write per second at peak. One instance handles 300 requests per second and the database 400 queries per second, so reads at peak exceed the database. The first decision is a cache for the seat map with a short TTL, not more app instances. I state what I would measure to confirm it, such as actual peak RPS and cache hit ratio, and when I would revisit.',
+    'Why can aggregate traffic hide overload?': 'An average over a whole system can look comfortable while one part is overloaded. If 90% of requests go to one popular event, the cache key, database rows or partition for that event receive most of the load, and contention on those rows can queue requests and time out, even though total traffic is far below the system’s limit. Averages over time hide bursts in the same way: 10 requests per second averaged over an hour can include a minute of 200. So I look at per-key and per-partition load, peaks at fine time resolution, and latency percentiles, not only system-wide totals.'
+  },
+  'j-build-01': {
+    'How does a phase differ from a goal?': 'Maven’s build lifecycle is an ordered list of phases, such as validate, compile, test, package, verify, install and deploy. A phase is a step in that sequence, and running mvn package runs every phase up to and including package. A goal is a concrete task provided by a plugin, such as compiler:compile or surefire:test. Phases do no work themselves; plugins bind their goals to phases, either by default for the packaging type or through the POM. You can also run a goal directly, for example mvn dependency:tree, without running the lifecycle. Knowing this explains why mvn package also runs the unit tests: surefire:test is bound to the test phase.',
+    'What does test scope do?': 'A dependency with <scope>test</scope> is available only when compiling and running tests, not when compiling the main code, and it is not packaged into the application or passed on to projects that depend on it. That is the right scope for JUnit, AssertJ, Mockito and Testcontainers. It keeps the production artifact smaller and prevents production code from accidentally using a test library: an import of a test-scoped class in src/main/java fails to compile. Other scopes include compile, the default; runtime, for things such as JDBC drivers needed only when running; and provided, for APIs the server supplies.'
+  },
+  'b-di-01': {
+    'Does a singleton bean guarantee thread safety?': 'No. Singleton scope only means Spring creates one instance of the bean per application context and shares it with everyone who needs it. In a web application that one instance handles many requests at the same time on different threads. If it has mutable fields, such as a counter or a cached list, those fields are shared, and unsynchronized updates can race exactly as with any shared object. Thread safety comes from the design: keep singleton beans stateless, with only final references to other beans; put per-request data in local variables or method parameters; and when shared state is needed, use thread-safe types or proper locking.'
+  },
+  'b-http-01': {
+    'Why can a valid POST return 409?': 'Validation and conflict are different questions. A POST /bookings with a well-formed body, an existing seat and an authenticated user is a valid request, so 400 would be wrong. But it asks for a state change that conflicts with the seat’s current state, because another user already owns it. HTTP defines 409 Conflict for exactly that: the request could not be completed because of a conflict with the current state of the target resource. The response body should explain the conflict with a stable code, such as SEAT_TAKEN, so the client can show the right message or offer another seat, without revealing who owns the seat.',
+    'How do you handle a lost POST response?': 'When a POST times out or the connection drops, the client does not know whether the booking was created. Blindly retrying could create a second booking. There are two safe approaches. The client can send an idempotency key with the original request and reuse it on retry; the server stores the key with the result and returns the original response for a repeat. Or the client can look up the outcome first, for example GET /bookings?requestId=... or list the user’s bookings, and only retry if nothing was created. The server side must store the key in the same transaction as the booking, so a crash cannot leave one without the other.'
+  },
+  'b-rest-01': {
+    'How does invalid JSON differ from a business conflict?': 'Invalid JSON, such as a missing brace or a string where a number is expected, fails while the framework is decoding the request body, before any controller or business logic runs. It is a client error in the request format, so the response is 400 Bad Request, and nothing in the system has been touched. A business conflict happens later: the request was valid, reached the service, and was rejected because of the current state, for example the seat already has an owner. That is 409 Conflict. Keeping them separate lets clients react correctly: fix the request in the first case, choose another seat in the second.'
+  },
+  'b-validation-01': {
+    'What can @Valid protect?': '@Valid on a controller parameter makes Spring run Bean Validation on the request object before the method body executes, checking annotations such as @NotBlank, @Pattern and @Size. If any constraint fails, Spring throws MethodArgumentNotValidException, which an exception handler turns into a 400 with a stable error body. So it protects that HTTP entry point from badly shaped input. It does not protect calls that bypass the controller, such as a batch job calling the service, and it cannot check rules that depend on current state, such as whether the seat is free. Those need checks in the service or domain and constraints in the database.',
+    'When can a request produce 409?': 'A request produces 409 Conflict when it is valid in format and refers to things that exist, but the change it asks for conflicts with the resource’s current state. For bookings: the seat is already owned by someone else, the booking was already cancelled, or an optimistic-lock version is out of date because another update happened first. The client did nothing wrong in the request itself, so 400 would be misleading. The response body should carry a stable code, such as SEAT_TAKEN or VERSION_CONFLICT, so the client can react, for example by refreshing the seat map or offering an alternative.',
+    'How do you confirm malformed input did no damage?': 'Checking the status code is not enough; I check the state. In an integration test I send the malformed request to the real endpoint and assert the 400 status and the error body. Then I read the seat directly from the database or repository and assert that the owner is unchanged and no booking or audit row was created. I repeat the check for the service called directly, which covers callers that bypass the controller. Testing several kinds of bad input, such as blank user, wrong seat format and invalid JSON, shows that every rejection path leaves the system untouched.'
+  },
+  'b-sql-01': {
+    'Which rule belongs in a foreign key instead of an application-only check?': 'Any rule that says a row must refer to another row that exists, such as a booking’s seat_id pointing at a real seat, belongs in a foreign key when several writers or transactions can touch the data. An application check that first reads the seat and then inserts the booking can race: another transaction can delete the seat in between, or a script can insert a booking without running the check. The foreign key is checked by the database inside every transaction, so the reference can never be broken. ON DELETE rules make the behaviour explicit: RESTRICT to block deleting a seat with bookings, or CASCADE where that is really intended.',
+    'Why inspect database state after a rejected insert?': 'The error tells me the insert failed, but not what else happened. If the code ran several statements, or ran outside a transaction, earlier statements might have been committed before the failure, leaving a partial booking, an orphaned audit row or a changed seat. Reading the tables after the rejected insert proves that the constraint fired and that the transaction rolled back everything it should have. It also catches tests that pass for the wrong reason, such as an error thrown before reaching the database. So my test asserts the error type and then the exact row counts and values.'
+  },
+  'b-schema-01': {
+    'How can you add a required column safely to populated rows?': 'I use an expand, migrate and contract sequence. First add the column as nullable, or with a safe default, so existing rows and the currently deployed application keep working. Then deploy application code that writes the new column on every insert and update. Next backfill existing rows in batches and verify that none are null. Only after that do I add the NOT NULL constraint in a later migration. Each step is backward compatible, so a rollback of the application does not break, and long table locks are avoided on large tables. Migration tools such as Flyway record each step’s version.'
+  },
+  'b-jdbc-01': {
+    'How does a PreparedStatement handle an input value?': 'The SQL text is written with placeholders, for example SELECT * FROM seats WHERE id = ?, and the value is supplied separately with setString(1, seatId). The driver sends the value as data, not as part of the SQL text, so the database never parses it as SQL. That is why a seat ID such as A1\' OR \'1\'=\'1 is treated as a strange but harmless string, and SQL injection is prevented. It also handles quoting and types correctly, and the database can reuse the statement plan. Concatenating user input into SQL strings bypasses all of this and must never be done.',
+    'Can you bind a column name like a value?': 'No. Placeholders in a PreparedStatement can only stand for values, such as a seat ID or a date. Identifiers, such as table names, column names and the direction in ORDER BY, are part of the SQL structure and must be in the SQL text before it is prepared. If the user can choose the sort column, I map their choice to a fixed set of allowed SQL fragments, for example a map from "row" to "row_number" and from "price" to "price_cents", and reject anything else. Concatenating the raw user value would reintroduce SQL injection.'
+  },
+  'b-transactions-01': {
+    'How do you retry a serialization failure safely?': 'A serialization failure, SQLSTATE 40001, means the database aborted my transaction because it conflicted with a concurrent one. The transaction is already invalid, so I roll it back. Then I start a completely new transaction and redo the whole unit of work from the beginning, re-reading every value my decision depended on, because the data may have changed. I retry only for this kind of error, with a small limit such as three attempts and a short random backoff, and give up with a clear error after that. External side effects, such as sending email, happen only after a successful commit, so a retry never repeats them.'
+  },
+  'j-equality-01': {
+    'Why does HashMap need both equals and hashCode?': 'A HashMap stores entries in an array of buckets. hashCode lets it jump to the right bucket in O(1) instead of searching every entry. But many keys can share a bucket, because different keys can have the same hash code or be reduced to the same index, so the map then calls equals on each key in that bucket to find the exact match. That is why both are needed and must agree: equal keys must return equal hash codes, otherwise an equal key is searched for in the wrong bucket and get returns null. Unequal keys may share a hash code; that only makes the lookup a little slower.',
+    'Why can mutating a key break a successful lookup?': 'When an entry is inserted, the map uses the key’s hash code at that moment to place it in a bucket. If the key is mutable and a field used in hashCode or equals changes afterwards, a later lookup computes a different hash and searches a different bucket, or finds the stored key no longer equal. So get, containsKey and remove all miss the entry, even with the very same object, and the entry stays in the map as a leak. The fix is to use immutable keys, such as records or Strings, and keep changing data in the value. If a key really must change, remove the entry, change the key, and put it back.'
+  },
+  'j-collections-01': {
+    'When would you replace this map with LinkedHashMap, TreeMap or ConcurrentHashMap?': 'HashMap is the default for fast unordered lookups. I switch to LinkedHashMap when I need a predictable iteration order: insertion order for stable output, or access order with removeEldestEntry for a simple LRU cache. I use TreeMap when keys must be sorted or I need range queries such as floorKey, ceilingKey or subMap; it is a red-black tree with O(log n) operations. I use ConcurrentHashMap when several threads read and update the map; it allows concurrent access without one global lock and offers atomic per-key operations such as computeIfAbsent and merge. HashMap is not thread-safe, and Collections.synchronizedMap serializes every call.'
+  },
+  'j-oop-02': {
+    'What evidence justifies an interface here?': 'An interface is worth adding when there is a real contract with more than one meaningful implementation, or a boundary the caller should not depend on in detail. For a seat repository, an in-memory version for unit tests and a JDBC version for production is good evidence: the service depends on SeatRepository, and either can be supplied. I would prove they are interchangeable with a shared contract test suite that runs the same cases against both, such as find, save, unknown seat and conflict. If there is only one implementation and no test seam is needed, a plain class is simpler, and an interface can be extracted later when a second use appears.',
+    'What would violate substitutability for a repository?': 'The Liskov substitution principle says any implementation must work wherever the interface is expected, without surprising callers. A repository subtype violates it if it demands more than the contract, for example rejecting seat IDs the interface allows, or if it promises less, such as throwing an exception for a missing seat when the contract says it returns Optional.empty(). Other violations are different side effects, such as silently ignoring save, or different ordering guarantees. The caller would need special cases for that subtype, which defeats the abstraction. Running one contract test suite against every implementation catches these differences early.'
+  },
+  'j-exceptions-01': {
+    'What happens when both a try-with-resources body and close fail?': 'try-with-resources always closes the resource, even when the body throws. If the body throws exception A and then close() throws exception B, Java keeps A as the primary exception that propagates to the caller and attaches B to it with addSuppressed. The caller can read B with A.getSuppressed(), and stack traces print it under “Suppressed”. This is better than the old try-finally pattern, where an exception from close() in the finally block replaced the original one and hid the real cause. If only close() fails, its exception propagates normally. Resources are closed in the reverse order of declaration.'
+  },
+  'j-generics-01': {
+    'Why are mutable generic lists invariant?': 'If List<Integer> were a subtype of List<Number>, I could assign a List<Integer> to a List<Number> variable and then add a Double through it. The compiler would accept the add, but the original list, which is supposed to contain only Integers, would now hold a Double, and code reading it as Integer would fail with ClassCastException later, far from the bug. Java prevents this by making generic types invariant: List<Integer> and List<Number> are unrelated. When I only need to read Numbers I use List<? extends Number>, and when I only need to add Integers I use List<? super Integer>. Arrays are covariant and fail at run time instead.',
+    'What can you put into List<? super String>?': 'You can add String values, and null, because whatever the real element type is, it is String or a supertype of String, such as Object or CharSequence, so a String always fits. What you cannot rely on is reading: get returns Object, because the compiler only knows the list holds some supertype of String. This is the “consumer super” half of the PECS rule: producer extends, consumer super. A method that only writes Strings into a list should take List<? super String>, so callers can pass a List<String>, a List<CharSequence> or a List<Object>. A method that only reads should take List<? extends T>.'
+  },
+  'j-executors-01': {
+    'Does a Future timeout cancel the task?': 'No. future.get(timeout, unit) only bounds how long the calling thread waits; when it throws TimeoutException, the task itself keeps running or stays queued, still holding its thread and any database connection, and may still finish its side effects later. To stop it I must call future.cancel(true), which marks the future cancelled and interrupts the worker thread if the task has started. Even then the task stops only if its code responds to interruption, for example by letting InterruptedException propagate from a blocking call. So I design long tasks to check for interruption, make their side effects idempotent, and decide explicitly what a timeout means for the caller.',
+    'How can you test rejection deterministically?': 'I build a ThreadPoolExecutor with one worker and a bounded queue of one, so the limits are known. I submit a first task that blocks on a CountDownLatch, which keeps the only worker busy, then submit a second task, which waits in the queue. Now both are full, so a third submission must hit the rejection policy: with the default AbortPolicy, I assert that it throws RejectedExecutionException. Then I release the latch and assert that the first two tasks complete. No sleeps are used, so the test does not depend on timing. Finally I shut the executor down and await termination so threads do not leak into other tests.'
+  },
+  'j-jvm-01': {
+    'Can two threads have private local variables and still race?': 'Yes. Each thread has its own stack, so local variables themselves are never shared. But a local variable of a reference type holds a reference, and two threads’ locals can point to the same object on the shared heap. If both threads then call seat.claim on that object, they race on its fields exactly as if they shared a global variable. Thread safety depends on how the object’s state is accessed, not on where the reference is stored. The fix is to coordinate access to the shared object, for example with synchronized methods, or to give each thread its own object so nothing is shared.'
+  },
+  'l-solid-01': {
+    'What is a useful Single Responsibility Principle test?': 'I list the realistic reasons the code might change and the people who would ask for them, then check which class each change would touch. For booking: the rules for claiming a seat change when the business changes the policy; the storage changes when we move databases; the HTTP format changes when the API version changes; email wording changes when marketing asks. If one class would change for several of these unrelated reasons, it has too many responsibilities, and changes for one reason risk breaking another. Splitting along those lines, domain, repository, controller and notifier, keeps each change local and each test focused.'
+  },
+  'b-testing-01': {
+    'Why use a fake repository and a real Seat?': 'A unit test should replace boundaries that are slow, external or hard to control, and keep the logic it is supposed to verify. The repository is a boundary to the database, so an in-memory fake makes the test fast and deterministic. Seat contains the actual booking rule, that only a free seat can be claimed and a failed claim does not change the owner, so mocking it would mean testing my mock instead of the rule. With a real Seat, the test checks the true behaviour: U2’s claim returns a conflict and the owner is still U1. The real repository gets its own integration test against a real database.'
+  },
+  'j-streams-01': {
+    'What does laziness buy in a filtered findFirst pipeline?': 'Intermediate operations such as filter and map do nothing when they are declared; they only describe the work. When the terminal operation findFirst runs, elements are pulled through the whole pipeline one at a time, and as soon as one passes the filter, findFirst returns it and the remaining elements are never examined. So for a list of 10,000 seats where the third is free, a sequential stream calls the filter only three times. Without laziness, filter would process the whole list first. It also means side effects in map or peek may run fewer times than you expect, which is why they should not hold required logic.'
+  },
+  'l-uml-01': {
+    'What does a sequence diagram reveal that a class diagram does not?': 'A class diagram shows structure: which classes exist, their fields and methods, and how they are related, such as BookingService using a SeatRepository. It says nothing about what happens during one request. A sequence diagram shows behaviour over time for one scenario: the controller calls the service, the service asks the repository for A1, then calls seat.claim("U2"), which returns false, and the service returns a conflict. It reveals the order of calls, who is responsible for each decision, and alternative branches such as success versus conflict. That makes it easier to spot missing checks, extra round trips or a decision in the wrong layer.'
+  },
   'j-oop-01': {
     'Why does Seat require an ID in its constructor?': 'A seat without an ID cannot be booked, displayed or matched with a request, so a Seat with a null or blank ID would be an invalid object. Making the ID a constructor parameter and validating it there means every Seat that exists is valid from the moment it is created; there is no window where code can see a half-built object. Declaring the field private final means it cannot change later, so the seat’s identity is stable for maps, logs and equality. If validation fails, the constructor throws IllegalArgumentException, so the caller learns about the mistake immediately instead of much later, far from the cause.',
     'When does Java supply a default constructor?': 'The compiler adds a public no-argument default constructor only when a class declares no constructors at all. That default constructor calls super() and leaves fields at their default values, such as null for references and 0 for numbers. As soon as you declare any constructor, for example Seat(String id), the compiler no longer adds one, so new Seat() fails to compile unless you write Seat() yourself. That is useful for a class like Seat: it forces every caller to supply an ID. Frameworks such as JPA need a no-argument constructor, which you can add as protected so ordinary code still has to pass an ID.'
@@ -7021,6 +9110,109 @@ export const lateTopicAnswers = {
 
 // Day 39 (Grok): runnable Java for an existing Codex packet; applied only when the packet has no code.
 export const lateTopicCode = {
+  'd-lru-01': {
+    title: 'CachePolicies.java · LRU with LinkedHashMap access order versus LFU with frequency counts, measured on a scan trace and a shifting trace · java CachePolicies.java',
+      text: String.raw`import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class CachePolicies {
+    // LRU via LinkedHashMap access order; LFU by counting uses (ties: least recently used first).
+    static int lruHits(String[] trace, int capacity) {
+        Map<String, Boolean> cache = new LinkedHashMap<>(16, 0.75f, true) {
+            @Override protected boolean removeEldestEntry(Map.Entry<String, Boolean> e) { return size() > capacity; }
+        };
+        int hits = 0;
+        for (String k : trace) { if (cache.get(k) != null) hits++; else cache.put(k, true); }
+        return hits;
+    }
+
+    static int lfuHits(String[] trace, int capacity) {
+        Map<String, Integer> freq = new HashMap<>();
+        Map<String, Integer> lastUse = new HashMap<>();
+        int hits = 0;
+        for (int t = 0; t < trace.length; t++) {
+            String k = trace[t];
+            if (freq.containsKey(k)) hits++;
+            else if (freq.size() == capacity) {
+                String victim = null;
+                for (String c : freq.keySet())
+                    if (victim == null || freq.get(c) < freq.get(victim)
+                        || (freq.get(c).equals(freq.get(victim)) && lastUse.get(c) < lastUse.get(victim))) victim = c;
+                freq.remove(victim); lastUse.remove(victim);
+            }
+            freq.merge(k, 1, Integer::sum);
+            lastUse.put(k, t);
+        }
+        return hits;
+    }
+
+    public static void main(String[] args) {
+        // A popular event map (E) is read constantly; a one-off scan of other events passes through.
+        String[] scan = {"E", "E", "E", "A", "B", "C", "E", "D", "F", "G", "E", "E"};
+        System.out.println("scan trace, capacity 3: LRU hits " + lruHits(scan, 3) + ", LFU hits " + lfuHits(scan, 3));
+        // Interest shifts: X was popular, now Y and Z are.
+        String[] shift = {"X", "X", "X", "X", "Y", "Z", "Y", "Z", "Y", "Z"};
+        System.out.println("shift trace, capacity 2: LRU hits " + lruHits(shift, 2) + ", LFU hits " + lfuHits(shift, 2));
+    }
+}
+`,
+      output: String.raw`scan trace, capacity 3: LRU hits 3, LFU hits 5
+shift trace, capacity 2: LRU hits 7, LFU hits 3`
+  },
+  'd-hashing-02': {
+    title: 'HashLookups.java · two strings with the same hash stored side by side, put replacing a key, a canonical record key, and one-pass two-sum · java HashLookups.java',
+      text: String.raw`import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+public class HashLookups {
+    record SeatId(String code) {
+        SeatId {
+            if (code == null || code.isBlank()) throw new IllegalArgumentException("blank seat code");
+            code = code.strip().toUpperCase(java.util.Locale.ROOT);   // one canonical form for equals and hashCode
+        }
+    }
+
+    // One pass: look up the complement seen earlier. Expected O(n) time, O(n) space.
+    static int[] twoSum(int[] a, int target) {
+        Map<Integer, Integer> seenAt = new HashMap<>();
+        for (int i = 0; i < a.length; i++) {
+            Integer j = seenAt.get(target - a[i]);
+            if (j != null) return new int[] {j, i};
+            seenAt.putIfAbsent(a[i], i);
+        }
+        return new int[0];
+    }
+
+    public static void main(String[] args) {
+        // Different strings, same hash: the map keeps both and equals tells them apart.
+        System.out.println("\"Aa\".hashCode() = " + "Aa".hashCode() + ", \"BB\".hashCode() = " + "BB".hashCode());
+        Map<String, Integer> m = new HashMap<>();
+        m.put("Aa", 1);
+        m.put("BB", 2);
+        System.out.println("get Aa = " + m.get("Aa") + ", get BB = " + m.get("BB") + ", size " + m.size());
+        Integer old = m.put("Aa", 10);                       // same key: replaces, does not add
+        System.out.println("second put Aa returned " + old + ", size still " + m.size());
+
+        Map<SeatId, String> owners = new HashMap<>();
+        owners.put(new SeatId("a1"), "U1");
+        System.out.println("lookup with ' A1 ' finds " + owners.get(new SeatId(" A1 ")));
+
+        System.out.println("twoSum([2, 7, 11, 15], 9) = " + Arrays.toString(twoSum(new int[] {2, 7, 11, 15}, 9)));
+        System.out.println("twoSum([3, 3], 6) = " + Arrays.toString(twoSum(new int[] {3, 3}, 6)));
+        System.out.println("twoSum([1, 2], 7) = " + Arrays.toString(twoSum(new int[] {1, 2}, 7)));
+    }
+}
+`,
+      output: String.raw`"Aa".hashCode() = 2112, "BB".hashCode() = 2112
+get Aa = 1, get BB = 2, size 2
+second put Aa returned 1, size still 2
+lookup with ' A1 ' finds U1
+twoSum([2, 7, 11, 15], 9) = [0, 1]
+twoSum([3, 3], 6) = [0, 1]
+twoSum([1, 2], 7) = []`
+  },
   'ai-rag-01': {
     title: 'RagPipeline.java · retrieve current authorized passages, generate with a fixture, validate citations and claims, fall back by stage · java RagPipeline.java',
       text: String.raw`import java.util.*;
@@ -7093,4 +9285,31 @@ bad cite  : Fallback[stage=validation, reason=cites B7 outside context]
 no cite   : Fallback[stage=validation, reason=no citation]
 no evidence: Fallback[stage=retrieval, reason=no authorized evidence]`
   }
+};
+
+// Extra note paragraphs appended to existing Codex topic packets (Days 1–27), so short main lessons reach the 700-word standard.
+export const lateTopicNotes = {
+  'b-caching-01': ['Measure the cache rather than assuming it helps. Track the hit ratio per key pattern, the miss rate that reaches the database, memory use and evictions per second, and the latency of hits versus misses. A falling hit ratio with rising evictions means the cache is too small or the policy does not fit the access pattern; a high hit ratio with stale complaints means the TTL or invalidation needs work.'],
+  'h-databases-01': ['A practical order of scaling steps for the booking database: first fix queries and indexes using EXPLAIN ANALYZE, because a missing index is the cheapest problem to solve; then add a connection pool sized to what the database can actually run; then cache read-heavy data such as the seat map; then add read replicas for lag-tolerant reads; and only then partition or shard, because sharding adds routing, cross-shard queries and rebalancing work that the team must operate forever. At each step, measure p95 latency, CPU and lock waits before and after, so the next step is driven by evidence.'],
+  'b-messaging-01': ['A consumer that commits offsets automatically, the Kafka default enable.auto.commit=true, may commit an offset before the handler has finished, so a crash can lose the event. For effects that matter, turn auto-commit off and commit the offset only after the database transaction that applied the effect and stored the event ID has committed. Commit per batch to reduce overhead, and keep handlers idempotent, because a crash between the database commit and the offset commit will still cause a redelivery of the batch.'],
+  'h-loadbalance-01': [
+    'A load test is only useful if someone else can repeat it. Write down the workload mix, such as 90% seat-map reads and 10% booking attempts with a share aimed at one hot seat; the arrival rate and whether it is open, with a fixed rate of new requests, or closed, with a fixed number of users who wait for each response; the duration including warm-up; the environment, instance count and pool sizes; and the starting data. Then change one variable at a time, for example the routing policy, and compare the same metrics: throughput, error rate, p50, p95 and p99, and booking-rule violations, which must be zero.',
+    'Closed-loop tools such as a fixed pool of virtual users hide overload, because when the server slows down, the users send fewer requests, so the measured latency looks better than real users would experience. This is called coordinated omission. An open-model tool keeps sending at the target rate regardless of response time, which shows how queues really grow. For the lab, keep traffic bounded: start low, raise the rate in steps, stop when errors or p95 cross a threshold, and never point a load test at a service you do not own.'
+  ],
+  'h-consistency-01': [
+    'Consistency is chosen per operation, not per system. For the booking platform, write the choices down in a small table: booking a seat needs strong consistency through the authoritative guarded write and fails if that is unreachable; confirming payment needs the same; showing the seat map can be eventually consistent with a stated maximum staleness, such as 5 seconds; a user’s own bookings page needs read-your-writes, so it reads from the primary or a caught-up replica right after a booking; and analytics can be hours behind. Each choice names the data source and what the user sees when that source is unavailable.',
+    'Failure scenarios are easier to reason about when you trace one request through them. During a cache outage, seat-map reads fall back to the database within a concurrency limit, and bookings are unaffected. With a slow database, requests hit their deadlines, the pool fills, and the service should shed optional reads and return clear errors rather than queue without limit. On a retry after timeout, the client reuses its idempotency key so the server replays the original result. Draw each path, mark where the one-owner rule is enforced, and check that no path can confirm a booking without it.'
+  ],
+  'b-transactions-02': ['The same pattern works for releasing a seat: UPDATE seats SET owner = NULL WHERE id = ? AND owner = ? only clears the seat if the caller still owns it, so a stale cancel cannot remove someone else’s booking. For a short hold, add an expiry: SET owner = ?, held_until = now() + interval \'10 minutes\' WHERE id = ? AND (owner IS NULL OR held_until < now()). In every case the rule is in the WHERE clause, the affected-row count decides the outcome, and the service maps 1 to success and 0 to a defined conflict or not-found result.'],
+  'b-transactions-03': [
+    'Optimistic locking in JPA uses a version attribute. Add @Version private long version; to the entity, and Hibernate adds AND version = ? to every UPDATE and increments the version. If another transaction changed the row since it was read, the update matches zero rows and Hibernate throws an OptimisticLockException, which Spring translates to ObjectOptimisticLockingFailureException. The service can catch it and either retry the whole operation with fresh data, a limited number of times, or return 409 so the user decides again.',
+    'Pessimistic locking in JPA uses a lock mode on the query, for example @Lock(LockModeType.PESSIMISTIC_WRITE) on a repository method, which PostgreSQL executes as SELECT … FOR UPDATE. The row stays locked until the transaction commits or rolls back, so the transaction must be short and must not wait for user input or slow external calls while holding the lock. Set a lock timeout, for example with the jakarta.persistence.lock.timeout hint, so a waiting request fails fast instead of holding a connection indefinitely.',
+    'A third option avoids holding locks in the application at all: a single conditional UPDATE that checks and changes the row in one statement, as on Day 14. It needs no version column and no SELECT FOR UPDATE, and it is often the best choice for claiming one seat. Locking strategies matter most when a decision spans several statements or rows.',
+    'Measure before choosing. Run the same booking workload with both strategies under realistic contention: many users across many seats, and many users on one hot seat. Record throughput, p95 and p99 latency, the number of retries or lock waits, and connection pool usage. Optimistic locking usually wins with low contention, and pessimistic locking or a single conditional UPDATE usually wins on a hot row. Whatever you choose, test the conflict path explicitly with two connections so the behaviour is proven, not assumed.'
+  ],
+  'h-requirements-01': ['Write non-functional requirements as testable statements with numbers: availability, such as 99.9% of booking requests succeed per 30 days; latency, such as p95 under 300 ms; durability, such as a confirmed booking is never lost; and consistency, such as a seat is never sold twice. Each one should name how it will be measured. These numbers drive the design: a strict no-double-booking rule points to a transactional database for the booking path, while a relaxed freshness rule for the seat map allows caching.'],
+  'j-build-01': ['A useful habit is to read the effective build before trusting it. mvn help:effective-pom shows the full POM after inheritance from the Spring Boot parent, and mvn dependency:tree shows which library versions were actually chosen, including transitive ones. When two libraries pull different versions of the same dependency, Maven picks the nearest declaration, which can surprise you; the tree makes it visible, and dependencyManagement pins the version explicitly. Commit the Maven wrapper (mvnw) so every machine and CI build uses the same Maven version.'],
+  'b-validation-01': ['Design the error body once and use it everywhere. Spring Boot supports RFC 9457 problem details through ProblemDetail, which gives a standard shape with type, title, status and detail, and you can add your own fields such as a stable code and a list of field errors. A single @RestControllerAdvice can map MethodArgumentNotValidException to 400 with one entry per invalid field, a SeatNotFoundException to 404 and a SeatTakenException to 409. Clients then parse one format, and tests can assert the code and the field names rather than the message text, which may change.'],
+  'b-sql-01': ['Constraints should be named, for example CONSTRAINT bookings_seat_fk FOREIGN KEY (seat_id) REFERENCES seats (id), so that error messages and migrations refer to something meaningful. The application can catch the driver’s constraint-violation error and map it by name: a unique violation on one_active_per_seat becomes 409 SEAT_TAKEN, and a foreign-key violation on bookings_seat_fk becomes 404 SEAT_NOT_FOUND. Indexes matter too: PostgreSQL creates an index for primary keys and unique constraints automatically, but not for the referencing column of a foreign key, so add one on bookings.seat_id if you look bookings up by seat.'],
+  'b-schema-01': ['Use a migration tool such as Flyway or Liquibase rather than running SQL by hand. Each change is a versioned file, for example V3__add_booking_status.sql, applied in order and recorded in a history table, so every environment can be brought to the same schema and you can see exactly which version a database is on. Never edit a migration that has already run; add a new one instead. Run the migrations in CI against a real PostgreSQL, for example with Testcontainers, both on an empty database and on a copy with existing data.']
 };

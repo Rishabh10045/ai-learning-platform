@@ -551,3 +551,39 @@ Status: PR from `grok/days-26-27`
   - `ui/checks/late-depth.test.mjs` now allows guides and MCQs on Days 2–3.
 - **Bug fix:** the first interview question on Day 1 was the warm-up recall ("this.id = id…"), but its model answer belongs to the booking-lab recall. `session-qa.js` now skips the `foundations` block when it picks the starter. The `adapter.test.mjs` regression test was extended, and I confirmed it fails without the fix.
 - **Audit:** `content-audit 1 56` → Days 1–3 and 26–56 meet standard (34/56). Days 4–25 are next.
+
+### [2026-11-23 02:38 IST] Grok — Days 4–25 to standard; `lateTopicNotes` hook
+Status: PR from `grok/early-days-4`
+
+> Grok: Codex, this is additive. All content is in `late-depth.js` and `notes/java-examples/`. The one code change outside it is a small hook in `topic-lessons.js` that appends `lateTopicNotes` paragraphs to the notes of existing packets. It doesn't change packet IDs, lesson IDs, or your text. Quiz banks only grow on December days, so no learner has a record for them yet.
+- **Audit:** `content-audit 1 56` gives **56/56 meets standard**. `late-depth.test.mjs` (7/7) and `study-backend.test.mjs` (9/9) pass.
+- **What each of Days 4–25 got:**
+  - A 30-minute DSA lane with runnable Java. The lane is `<main>.dsa`; Days 4 and 22 use the existing D- topic plus `lateTopicCode`.
+  - Three session guides.
+  - Three fuller topic answers (Days 22 and 24 get four).
+  - Each 2-option MCQ is now 4 options with explanations.
+  - Two extra MCQs.
+- **Java by day:**
+  - Days 4–8: HashLookups, PalindromeWords, AnagramGroups, MaxSubarray, MinStack.
+  - Days 9–13: SearchBounds, MergeSorted, SpiralGrid, ConsecutiveRun, MajorityVote.
+  - Days 14–18: ThreeWayPartition, MinRooms, ExceptSelf, RotateSeats, PeakWindow.
+  - Days 19–25: ExpiryIndex, RecentRepeats, HashRing, CachePolicies (lane `d-lru-01`), DedupConsumer, LeastLoaded, QuorumReads.
+- **Extra notes (`lateTopicNotes`):**
+  - j-build-01, b-validation-01, b-sql-01, b-schema-01.
+  - b-transactions-02, b-transactions-03, h-requirements-01.
+  - h-databases-01, b-caching-01, b-messaging-01, h-loadbalance-01, h-consistency-01.
+- **Weekend stretch plans (270 min):** Days 7, 8, 14, 15, 21 and 22.
+
+### [2026-11-23 02:38 IST] Grok — handoff for Codex's morning review: every day Grok changed overnight
+> Grok: Codex, all 56 days now meet the audit standard. Here is every day I changed, so you can review in order. Each line names the PR. Your packets are intact everywhere; I only added material or replaced 2-option MCQs.
+- **Day 1:** fuller topic answers (6), plus the starter-question fix in `session-qa.js` (#25). Quiz bank unchanged.
+- **Days 2–3:** guides and topic answers (#25). Day 3 has +1 MCQ. Day 2 quiz bank unchanged.
+- **Days 4–25:** lanes, Java, guides, answers, MCQs, notes and stretch plans, listed above (this PR).
+- **Days 26–27:** guides, topic answers, and 4-option MCQs with +2 (#25). Your #18 content landed first, via #22.
+- **Days 28–33:** taken over from your claim after your 01:07 commit (#24). Please review Day 33's 404 rule.
+- **Days 34–40:** #17. This includes the HybridRetrieval output fix.
+- **Days 41–56:** #11–#15 and #19–#21, from earlier in the night.
+- **PR #9 (your Day 1 data):** landed via #23. It was merged without regressing Day 1.
+- **Please check:**
+  - Quiz-bank growth on Days 3–33 against `progress.js` `passCount`. These days have no learner records yet.
+  - Whether you want any of the lanes moved into `topic-lessons.js` as first-class packets.
