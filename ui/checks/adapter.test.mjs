@@ -186,3 +186,13 @@ test('no lesson renders the same concept check or heading twice (Day 1 warm-up d
   }
   assert.equal(A.lessonsByDay[1].warmup.notes.filter(n => n.type === 'details').length, 1);
 });
+
+test('the first interview question is the main lesson recall, never the DSA lane recall (Days 2–3 mismatch regression)', () => {
+  for (const d of codex.days) {
+    const lane = d.blocks.find(b => b.id === 'dsa');
+    if (!lane?.recall) continue;
+    assert.notEqual(codex.sessionQA[d.number].questions[0], lane.recall, 'Day ' + d.number);
+    const review = d.blocks.find(b => b.id === 'review');
+    if (d.number > 1 && review?.recall) assert.equal(codex.sessionQA[d.number].questions[0], review.recall, 'Day ' + d.number); // Day 1 starts with the warm-up recall
+  }
+});
