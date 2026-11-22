@@ -18,8 +18,9 @@ const publicFiles = new Set([
   'lesson-content.js', 'lesson-details.js',
   'lesson-diagrams.js', 'lesson-videos.js', 'lesson-visuals.js', 'progress.js', 'session-qa.js',
   'study-actions.js', 'study-data.js', 'study-panels.js', 'study-planner.js', 'study-sync.js', 'syllabus.js',
-  'topic-index.js', 'topic-lessons.js', 'worked-examples.js',
-  'ui/study-desk.css', 'ui/study-desk.js'
+  'topic-index.js', 'topic-lessons.js', 'worked-examples.js', 'day-depth.js',
+  'ui/study-desk.css', 'ui/study-desk.js', 'ui/engine/schedule-engine.js', 'ui/engine/engagement-engine.js',
+  'ui/adapters/codex-adapter.js'
 ]);
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 const privateHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };

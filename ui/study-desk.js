@@ -111,7 +111,7 @@
       if (m) return { view: m[2] || "plan", day: +m[1], canonical: "day-" + (+m[1]) + (m[2] ? "/" + m[2] : "") };
       m = /^lesson\/(.+)$/.exec(hs);
       if (m) return { view: "lesson", lessonId: m[1] };
-      if (hs === "course" || hs === "calendar" || hs === "today" || hs === "activity" || hs === "settings") return { view: hs };
+      if (hs === "course" || hs === "calendar" || hs === "today" || hs === "activity" || hs === "settings" || hs === "account") return { view: hs };
       if (!hs) return { view: "today" };
       return { view: "not-found", raw: hs };
     }
@@ -324,11 +324,27 @@
       if (r.view === "calendar") return viewCalendar();
       if (r.view === "activity" && derived.eng) return viewActivity();
       if (r.view === "settings" && derived.eng) return viewSettings();
+      if (r.view === "account" && opts.renderAccount) {
+        var slot = h("div", { class: "sd-account-slot" });
+        add(main, [h("header", { class: "sd-hero" }, h("p", { class: "sd-eyebrow", text: "Account" }), h("h1", { text: "Study account" }),
+          h("p", { class: "sd-muted", text: "Without an account, progress is saved in this browser only. Sign in to the study server to use the same progress in every browser." })), slot]);
+        opts.renderAccount(slot);
+        return;
+      }
       if (r.day && derived.res.sessions[r.day - 1]) return viewSession(derived.res.sessions[r.day - 1], r.view);
       main.dataset.view = "not-found";
       add(main, [h("h1", { text: "Not in this plan" }), h("p", { text: "There is no page for “" + (r.raw || "day-" + r.day) + "”. This plan has " + derived.res.count + " sessions." }), h("p", null, h("a", { href: "#today", text: "Go to Today" }))]);
     }
 
+    // Practice items flagged stretch:true (with minutes) form the long-day stretch plan.
+    function stretchPlan(rs) {
+      var items = [];
+      rs.lessons.concat(rs.dsa, rs.warmup ? [rs.warmup] : []).forEach(function (l) { (l.practice || []).forEach(function (p) { if (p.stretch) items.push(p); }); });
+      if (!items.length) return null;
+      return h("ol", { class: "sd-stretchplan" }, items.map(function (p) {
+        return h("li", null, h("a", { href: "#day-" + rs.n + "/practice", text: p.title }), p.minutes ? h("span", { class: "sd-muted", text: " · " + fmtMin(p.minutes) }) : null);
+      }));
+    }
     function blockList(entry, rs) {
       var ol = h("ol", { class: "sd-timeline" });
       entry.blocks.forEach(function (b) {
@@ -338,6 +354,7 @@
           h("div", { class: "sd-tb-time" }, b.start ? h("span", { text: fmtTime(b.start) }) : h("span", { text: "Any time" }), h("small", { text: fmtMin(b.minutes) })),
           h("div", { class: "sd-tb-body" }, h("span", { class: "sd-kind", text: KIND[b.kind] }), h("a", { href: target, class: "sd-tb-title", text: b.title }),
             b.kind === "stretch" ? h("small", { class: "sd-muted", text: "Extra practice on today’s lessons and DSA. Not needed to finish the session." }) : null,
+            b.kind === "stretch" ? stretchPlan(rs) : null,
             b.lessonIds && b.lessonIds.length && b.kind !== "stretch" ? h("small", { class: "sd-muted" }, b.lessonIds.map(function (id) { return h("code", { text: id }); })) : null),
           b.kind === "stretch" ? null : badge(st)));
       });
@@ -501,7 +518,7 @@
       var subj = derived.idx.subjectById[rs.subjectId], st = derived.cal.statuses[rs.n - 1], ent = sessionEntry(rs), dates = (derived.cal.byN[rs.n] || []).map(function (x) { return x.date; });
       var hd = h("header", { class: "sd-dayhead" },
         h("p", { class: "sd-eyebrow" }, "Session " + rs.n + " of " + derived.res.count + " · " + (dates.length ? dates.map(function (d) { return fmtDate(d, true); }).join(" → ") : "")),
-        h("h1", null, subj.title + ": " + rs.lessons.map(function (l) { return l.title; }).join(" · ")),
+        h("h1", null, (function () { var t = rs.lessons.map(function (l) { return l.title; }).join(" · "); return t.toLowerCase().indexOf(subj.title.toLowerCase()) === 0 ? t : subj.title + ": " + t; })()),
         h("div", { class: "sd-hero-meta" }, badge(st.status, "sd-badge-lg"), h("span", { class: "sd-chip", text: st.done + "/" + st.total + " required items" }),
           rs.test ? tbadge(S.testState(derived.idx.moduleById[rs.test].module, data.progress)) : null,
           dates.length > 1 ? h("span", { class: "sd-chip sd-chip-carry", text: "Carried over " + (dates.length - 1) + " date" + (dates.length > 2 ? "s" : "") }) : null));

@@ -387,3 +387,6 @@
 .sd-root .sd-tk { margin: 12px 0; }
 .sd-root .sd-tk-ta { width: 100%; box-sizing: border-box; }
 .sd-root .sd-quiz.is-locked fieldset { opacity: .75; }
+
+.sd-stretchplan { margin: 6px 0 0; padding-left: 1.2em; font-size: .9em; line-height: 1.45; }
+.sd-stretchplan li { margin: 2px 0; }
