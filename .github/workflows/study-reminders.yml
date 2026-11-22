@@ -1,0 +1,58 @@
+# Study Desk email reminders (Grok, 2026-11-23). OFF until Deepak turns it on. See collab/sync-and-email-plan.md.
+#
+# It stays off in two ways:
+#   1. Every job is skipped unless the repository VARIABLE  REMINDERS_ENABLED  is "true"
+#      (Settings → Secrets and variables → Actions → Variables).
+#   2. Even when it is enabled, the script only sends if all four secrets exist:
+#      PROGRESS_READ_TOKEN (read-only, one private repo), RESEND_API_KEY, REMINDER_FROM and REMINDER_TO.
+#      Otherwise it prints a dry run and exits.
+#
+# Six slots, 3 hours apart, outside quiet hours 00:00–06:00 IST: 06:37, 09:37, 12:37, 15:37, 18:37 and 21:37 IST
+# (01:07 … 16:07 UTC; minute 7 avoids the top-of-hour Actions queue). That is at most 6 emails a day, and none once
+# tonight's core session is done (scripts/reminders/reminder.mjs).
+name: Study reminders
+
+on:
+  schedule:
+    - cron: "7 1,4,7,10,13,16 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (print the email, send nothing)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: study-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    if: vars.REMINDERS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Decide and send
+        env:
+          PROGRESS_REPO: ${{ vars.PROGRESS_REPO }}
+          PROGRESS_PATH: ${{ vars.PROGRESS_PATH }}
+          PROGRESS_READ_TOKEN: ${{ secrets.PROGRESS_READ_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          REMINDER_FROM: ${{ secrets.REMINDER_FROM }}
+          REMINDER_TO: ${{ secrets.REMINDER_TO }}
+          REMINDER_NAME: Deepak
+        run: |
+          if [ -z "$PROGRESS_READ_TOKEN" ] || [ -z "$PROGRESS_REPO" ]; then
+            echo "Reminders are enabled but PROGRESS_REPO / PROGRESS_READ_TOKEN are missing; nothing to read. Exiting."
+            exit 0
+          fi
+          extra=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" != "false" ]; then extra="--dry-run"; fi
+          node scripts/reminders/reminder.mjs $extra

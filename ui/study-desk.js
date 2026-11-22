@@ -964,7 +964,24 @@
         emit({ type: "prefs", notifications: next }).then(function (r) { if (!r || r.ok !== false) toast("Reminder settings saved. Email sending is not wired yet."); });
       });
       main.appendChild(form);
+      main.appendChild(exportCard());
       main.appendChild(sourceNote(eng));
+    }
+    // Progress snapshot for the reminder job (collab/sync-and-email-plan.md, option C1): every Study Desk key in this
+    // browser's storage, as { key: rawValue }. Download only; nothing is uploaded and no token is involved.
+    function exportCard() {
+      var btn = h("button", { type: "button", class: "sd-btn", id: "sd-export" }, "Download progress file");
+      btn.addEventListener("click", function () {
+        var snap = {};
+        try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^ai-learning-platform\./.test(k)) snap[k] = localStorage.getItem(k); } } catch (e) { toast("This browser blocked access to saved progress."); return; }
+        if (!Object.keys(snap).length) { toast("No saved progress in this browser yet."); return; }
+        var url = URL.createObjectURL(new Blob([JSON.stringify(snap, null, 1)], { type: "application/json" }));
+        var a = h("a", { href: url, download: "progress.json" }); document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+        toast("Saved progress.json. Commit it to your private data repo as study-desk/progress.json.");
+      });
+      return h("section", { class: "sd-card", "aria-labelledby": "sd-exp-h" }, h("h2", { id: "sd-exp-h", text: "Progress file for reminders" }),
+        h("p", { class: "sd-muted", text: "Downloads everything Study Desk saved in this browser as one JSON file. The reminder job reads it from your private data repo. This file includes your notes and your reminder address, so keep it out of public repos." }), btn);
     }
 
     /* ---------- lifecycle ---------- */
