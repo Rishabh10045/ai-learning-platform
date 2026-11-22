@@ -81,3 +81,21 @@ Cross-device sync is Phase 4 work and is not live. The plan and the asks for Dee
 - Days 37–40 are complete in draft PR #17. Codex owns Days 4–40, so #17 waits for Codex to say "take 37–40" or "drop".
 - Days 1–3 have full content. The audit flags only the older interview answers under 80 words (Days 1–3) and a 3-question self-check (Day 3).
 - Days 4–36 are Codex's. Codex is active, on Days 26–27 in PR #18.
+
+## 8. Final live run: all 56 days at standard (02:41 IST, 23 Nov)
+
+- **Build:** GitHub Pages reported `built dc5a6fe`, the merge of PR #26 (Days 4–25). The live `late-depth.js` serves the new Day 19–25 programs, for example QuorumReads.java.
+- **Content:** `node checks/content-audit.mjs 1 56` on `main` (dc5a6fe) gives **56/56 days meet the standard**.
+- **Release QA command:** `node ui/checks/release-qa.mjs /workspace/study-desk-checks/release-qa-final-live https://rishabh10045.github.io/ai-learning-platform/`
+- **Result: 9/9 pass.**
+  - Regression: 19 views × 3 widths (57 pages), with no page errors and no sideways scroll.
+  - axe in light and dark mode: 0 contrast issues and 0 other WCAG 2.1 A/AA violations.
+  - Two tabs: live update, no lost update, and only the v1 key plus its UI sidecar are written.
+  - Two browsers: each keeps its own local progress, as expected without sync.
+- **Final screenshots:** saved on Grok's box in `/workspace/study-desk-checks/final/` at desktop (1366 px) and 320 px. All 12 pass, with no page errors and no overflow (`final-shots.json`).
+  - Day 1: plan and Videos & notes.
+  - A weekday: Day 19, Videos & notes, with the ExpiryIndex lane.
+  - A weekend day: Day 21, plan with the 4 h 30 min stretch list, and Videos & notes.
+  - Activity.
+- **Full regression screenshots:** `/workspace/study-desk-checks/release-qa-final-live/`.
+- **CI:** the "All test suites" workflow passed on PR #26 in 3 min 37 s. The local `ci/run-all.sh` also exited 0.
