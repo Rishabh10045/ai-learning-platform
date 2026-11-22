@@ -85,6 +85,11 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
   assert.equal(interviewQuestionCount, 3 * days.length + 2);
   assert.equal(quizQuestionCount, 3 * days.length + 6); // +2 Day 2 questions (day-depth.js, Grok 2026-11-22)
   assert.equal(lessons.find(lesson => lesson.id === 'd-union-find-01').source, 'added');
+  assert.equal(lessons.find(lesson => lesson.id === 'd-bits-01').source, 'dsa');
+  assert.deepEqual(courseOutline.days.at(-1).lessonIds, ['d-bits-01']);
+  for (const topic of topicIndex.filter(topic => topic.day <= 25 || topic.day === 56)) {
+    assert.ok(topicLessons[topic.id], topic.id);
+  }
   assert.equal(availabilityBudget('2026-11-28'), 390);
   assert.equal(coverageCurriculum.tracks.length, 4);
   const sunday = sessionAgenda(days[0], availabilityBudget(firstDate));

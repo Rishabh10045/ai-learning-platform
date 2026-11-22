@@ -85,7 +85,8 @@ export const subjectModules = [
   ] },
   { title: 'DSA in Java', modules: [
     { title: 'Hashing, arrays, two pointers and sorting', days: [4, ...span(26, 28)] },
-    { title: 'LRU, heaps, graphs and dynamic programming', days: [...span(29, 32), 52, 53, 55] }
+    { title: 'LRU, heaps, graphs and dynamic programming', days: [...span(29, 32), 52, 53, 55] },
+    { title: 'Bit operations, number bases and prime algorithms', days: [56] }
   ] },
   { title: 'AI engineering', modules: [
     { title: 'LLMs, prompting and Spring AI interfaces', days: span(35, 37) },

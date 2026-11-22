@@ -92,11 +92,106 @@ export const lessonDetails = {
       'Generics are invariant. A List<String> cannot be assigned to List<Object>, since the latter would allow inserting an Integer into the former. For a method that only reads names from a source list, use List<? extends CharSequence>. For a method writing Strings to a destination, use List<? super String>. Think producer extends, consumer super. Day 6 revisits bounds, erasure, and typed stream transformations.'],
     source: ['Dev.java · Introducing generics', 'https://dev.java/learn/generics/']
   },
+  5: {
+    section: ['Compare values before testing the booking contract',
+      'Use the first 12 minutes of the existing Learn block for the seat-ID String exercise. Predict the comparison results and run the displayed Java file. Use the remaining time to study exceptions and the service contract before the main assignment.',
+      'String values are immutable and reference identity can vary. The pooled literal A1 and a runtime String containing A1 are equal by value. Choose String.equals for booking IDs. Use a local StringBuilder for repeated appends and finish it at the boundary with toString.'],
+    code: ['Run SeatIdStrings.java to check the ID contract', 'java', `class SeatIdStrings {
+    private static void require(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
+    }
+
+    public static void main(String[] args) {
+        String literal = "A1";
+        String constant = "A" + "1";
+        String runtime = new String("A") + "1";
+        require(literal == constant, "Equal constant expressions share an interned String");
+        require(literal != runtime && literal.equals(runtime), "Check identity and value separately");
+
+        var bookings = new java.util.HashMap<String, String>();
+        bookings.put(literal, "U1");
+        require("U1".equals(bookings.get(runtime)), "Lookup must use string contents");
+
+        String padded = " A1 ";
+        String normalized = padded.strip();
+        require(literal.equals(normalized) && " A1 ".equals(padded), "String values remain immutable");
+
+        var builder = new StringBuilder();
+        require(builder.toString().isEmpty(), "An empty builder produces an empty value");
+        String firstList = builder.append(literal).append(',').append("A2").toString();
+        builder.append(',').append("A3");
+        require("A1,A2".equals(firstList), "Builder mutation must leave its previous result unchanged");
+
+        String numericFirst = 1 + 2 + " seats";
+        String textFirst = "Seats " + 1 + 2;
+        require("3 seats".equals(numericFirst) && "Seats 12".equals(textFirst), "Track operand types");
+        System.out.println("equal by value; booking=U1; labels=" + firstList);
+        System.out.println(numericFirst + " / " + textFirst);
+    }
+}`],
+    source: ['JLS 21 · String concatenation', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.18.1']
+  },
   7: {
     section: ['Separate a timed wait from cancellation',
       'When Future.get times out, control returns to the caller. The worker may still be queued, blocked on I/O, or about to commit a booking. Calling cancel(true) can request interruption. Application code and the driver determine whether blocking work actually stops. Give the driver its own deadline and decide how the client can look up an ambiguous write outcome.',
       'To reproduce the distinction, hold one task behind a latch until get reaches its time limit. Release the latch and collect the final result with another bounded get. Then run a separate cooperative cancellation case. Always release the latch and shut the executor down in the test cleanup.'],
-    source: ['Oracle Java 21 · Future timeouts and cancellation', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/Future.html#get(long,java.util.concurrent.TimeUnit)']
+    source: ['Oracle Java 21 · Future timeouts and cancellation', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/Future.html#get(long,java.util.concurrent.TimeUnit)'],
+    code: ['Run BoundedBookingWork.java to trace overload', 'java', `import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+class BoundedBookingWork {
+    private static void require(boolean result, String message) {
+        if (!result) throw new AssertionError(message);
+    }
+
+    public static void main(String[] args) throws Exception {
+        var workerStarted = new CountDownLatch(1);
+        var allowFinish = new CountDownLatch(1);
+        var executor = new ThreadPoolExecutor(
+            1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1),
+            new ThreadPoolExecutor.AbortPolicy()
+        );
+        try {
+            var first = executor.submit(() -> {
+                workerStarted.countDown();
+                require(allowFinish.await(5, TimeUnit.SECONDS), "release the worker");
+                return "first";
+            });
+            require(workerStarted.await(5, TimeUnit.SECONDS), "first task started");
+            var second = executor.submit(() -> "second");
+            try {
+                executor.submit(() -> "third");
+                throw new AssertionError("third task should have been rejected");
+            } catch (RejectedExecutionException expected) {
+                System.out.println("Third submission rejected.");
+            }
+
+            try {
+                first.get(20, TimeUnit.MILLISECONDS);
+                throw new AssertionError("waiting should time out");
+            } catch (TimeoutException expected) {
+                require(!first.isDone() && !first.isCancelled(), "waiting did not cancel the task");
+                System.out.println("Timed wait expired while work remained active.");
+            }
+
+            allowFinish.countDown();
+            require(first.get(5, TimeUnit.SECONDS).equals("first"), "first task result");
+            require(second.get(5, TimeUnit.SECONDS).equals("second"), "queued task result");
+        } finally {
+            allowFinish.countDown();
+            executor.shutdown();
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                require(executor.awaitTermination(5, TimeUnit.SECONDS), "workers terminate");
+            }
+        }
+        System.out.println("Accepted tasks completed and executor terminated.");
+    }
+}`]
   },
   8: {
     section: ['Design patterns at a useful boundary',
@@ -136,6 +231,15 @@ export const lessonDetails = {
       'Suppose a query returns four bookings with different owners. It can issue one query for bookings and four more when code accesses the lazy owner objects. Confirm by starting with a fresh persistence context, controlling caches and capturing SQL around the actual read path. A test using one owner per fixture or warm entities can hide the extra queries.',
       'A use-case-specific projection can read exactly the fields the endpoint needs. A fetch join or batch fetching can also help, with different trade-offs. Joining a to-many association may expand database rows and complicate pagination. Compare query counts and assert identical API results, including a representative page boundary.'],
     source: ['Hibernate ORM · Fetching strategies', 'https://docs.hibernate.org/orm/6.6/userguide/html_single/#fetching']
+  },
+  17: {
+    section: ['Identify which layer a scaling decision helps',
+      'Use one measured workload and latency target. If one app instance sustains 80 RPS at that target and the database sustains 120 RPS, a second app process raises the app ceiling to 160 RPS while the system remains bounded by 120 RPS. The effective capacity depends on both budgets and the traffic mix.',
+      'Trace a booking through one instance and query its authoritative result through the other. Then remove one ready instance and repeat through the survivor. Any essential state confined to a lost process can disappear on failover. Confirm the surviving route reads the same authoritative owner before comparing throughput.'],
+    table: {
+      title: 'Trace the capacity ceiling for the same workload', headers: ['Ready app instances', 'App ceiling', 'Database ceiling', 'System ceiling'],
+      rows: [['1', '80 RPS', '120 RPS', '80 RPS'], ['2', '160 RPS', '120 RPS', '120 RPS'], ['3', '240 RPS', '120 RPS', '120 RPS']]
+    }
   },
   18: {
     code: ['Convert assumptions into comparable units', 'text', 'visitors per second = visitors during rush / rush seconds\nread requests per second = visitors per second × reads per visitor\nwrite attempts per second = visitors per second × booking conversion\n\nThen estimate the load on the busiest event or seat separately.']
@@ -315,6 +419,130 @@ class Connectivity {
         var result = kruskal(4, edges);
         if (!result.equals(new Forest(3, 2, 2))) throw new AssertionError(result);
         System.out.println(result);
+    }
+}`]
+  },
+  56: {
+    source: ['Java 21 API · Integer radix and conversion', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html'],
+    table: {
+      title: 'Choose by query pattern and bounds', headers: ['Task', 'Approach', 'Boundary check'],
+      rows: [
+        ['One candidate', 'Trial division through its square root', 'Handle 0, 1, 2 and a perfect square'],
+        ['Many queries in a dense range', 'One sieve, then table lookups', 'Inclusive upper bound and table memory'],
+        ['Array LCM', 'Fold with Euclid and checked multiplication', 'Empty input, zero and overflow']
+      ]
+    },
+    code: ['Run NumberAlgorithms.java against the Day 56 fixtures', 'java', `import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+class NumberAlgorithms {
+    static boolean isOdd(int number) {
+        return (number & 1) != 0;
+    }
+
+    static void xorSwap(int[] values, int i, int j) {
+        if (i == j) return;
+        values[i] ^= values[j];
+        values[j] ^= values[i];
+        values[i] ^= values[j];
+    }
+
+    static boolean isPrime(int number) {
+        if (number < 2) return false;
+        if (!isOdd(number)) return number == 2;
+        for (int divisor = 3; divisor <= number / divisor; divisor += 2) {
+            if (number % divisor == 0) return false;
+        }
+        return true;
+    }
+
+    static List<Integer> primesThrough(int limit) {
+        if (limit < 2) return List.of();
+        boolean[] composite = new boolean[Math.addExact(limit, 1)];
+        for (int prime = 2; prime <= limit / prime; prime++) {
+            if (composite[prime]) continue;
+            for (long multiple = (long) prime * prime; multiple <= limit; multiple += prime) {
+                composite[(int) multiple] = true;
+            }
+        }
+        var result = new ArrayList<Integer>();
+        for (int number = 2; number <= limit; number++) {
+            if (!composite[number]) result.add(number);
+        }
+        return result;
+    }
+
+    static long gcd(long a, long b) {
+        if (a < 0 || b < 0) throw new IllegalArgumentException("Inputs must be nonnegative");
+        while (b != 0) {
+            long remainder = a % b;
+            a = b;
+            b = remainder;
+        }
+        return a;
+    }
+
+    static long lcmAll(long... values) {
+        boolean hasZero = false;
+        for (long value : values) {
+            if (value < 0) throw new IllegalArgumentException("Inputs must be nonnegative");
+            if (value == 0) hasZero = true;
+        }
+        if (hasZero) return 0;
+        long result = 1;
+        for (long value : values) {
+            result = Math.multiplyExact(result / gcd(result, value), value);
+        }
+        return result;
+    }
+
+    private static void require(boolean result, String label) {
+        if (!result) throw new AssertionError(label);
+    }
+
+    private static void requireThrows(Class<? extends RuntimeException> type, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException error) {
+            if (type.isInstance(error)) return;
+            throw error;
+        }
+        throw new AssertionError("Expected " + type.getSimpleName());
+    }
+
+    public static void main(String[] args) {
+        require(isOdd(-3) && !isOdd(-2) && !isOdd(0), "signed parity");
+        int[] positions = {-9, 10};
+        xorSwap(positions, 0, 1);
+        xorSwap(positions, 1, 1);
+        require(Arrays.equals(positions, new int[] {10, -9}), "distinct and identical positions");
+
+        for (int base : new int[] {2, 8, 16}) {
+            String digits = Integer.toString(42, base);
+            require(Integer.parseInt(digits, base) == 42, "radix " + base);
+            require(Integer.parseInt(Integer.toString(-42, base), base) == -42, "signed radix");
+        }
+        requireThrows(NumberFormatException.class, () -> Integer.parseInt("102", 2));
+        requireThrows(NumberFormatException.class, () -> Integer.parseInt("80000000", 16));
+
+        require(!isPrime(0) && !isPrime(1) && isPrime(2) && !isPrime(49), "prime boundaries");
+        require(isPrime(Integer.MAX_VALUE), "division bound for large inputs");
+        var primes = primesThrough(30);
+        require(primes.equals(List.of(2, 3, 5, 7, 11, 13, 17, 19, 23, 29)), "sieve through 30");
+        for (int limit = 0; limit <= 100; limit++) {
+            var trial = new ArrayList<Integer>();
+            for (int number = 2; number <= limit; number++) {
+                if (isPrime(number)) trial.add(number);
+            }
+            require(primesThrough(limit).equals(trial), "sieve through " + limit);
+        }
+        require(gcd(0, 0) == 0 && gcd(54, 24) == 6 && gcd(0, 9) == 9, "Euclidean GCD");
+        require(lcmAll() == 1 && lcmAll(6, 10, 15) == 30, "array LCM");
+        require(lcmAll(Long.MAX_VALUE, 2, 0) == 0, "zero takes precedence over intermediate overflow");
+        requireThrows(ArithmeticException.class, () -> lcmAll(Long.MAX_VALUE, 2));
+        System.out.println("Parity, radix, prime, sieve and LCM checks passed.");
+        System.out.println("Primes through 30: " + primes);
     }
 }`]
   }

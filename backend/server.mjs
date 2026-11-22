@@ -19,6 +19,8 @@ const publicFiles = new Set([
   'lesson-diagrams.js', 'lesson-videos.js', 'lesson-visuals.js', 'progress.js', 'session-qa.js',
   'study-actions.js', 'study-data.js', 'study-panels.js', 'study-planner.js', 'study-sync.js', 'syllabus.js',
   'topic-index.js', 'topic-lessons.js', 'worked-examples.js', 'day-depth.js',
+  'notes/topic-foundations.js', 'notes/topic-number-algorithms.js',
+  'notes/topic-backend-foundations.js', 'notes/topic-system-foundations.js',
   'ui/study-desk.css', 'ui/study-desk.js', 'ui/engine/schedule-engine.js', 'ui/engine/engagement-engine.js',
   'ui/adapters/codex-adapter.js'
 ]);

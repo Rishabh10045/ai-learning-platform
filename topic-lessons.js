@@ -1,6 +1,15 @@
+import { backendFoundationTopics } from './notes/topic-backend-foundations.js';
+import { foundationTopics } from './notes/topic-foundations.js';
+import { numberAlgorithmTopics } from './notes/topic-number-algorithms.js';
 import { depthPackets, packetCode } from './day-depth.js';
+import { systemFoundationTopics } from './notes/topic-system-foundations.js';
+
 // A topic gets its own teaching material only when each item is written for that topic.
 export const topicLessons = {
+  ...numberAlgorithmTopics,
+  ...foundationTopics,
+  ...backendFoundationTopics,
+  ...systemFoundationTopics,
   'j-oop-01': {
     notes: [
       'A class defines fields and operations. An object owns a particular set of field values. Construct Seat A1 and A2 separately so that choosing an owner for A1 leaves A2 available. The constructor initializes the identity before callers can use the object. Mark the id final, allow the owner to change through the booking operation and use private fields to limit the points where state can change.',
@@ -77,6 +86,35 @@ export const topicLessons = {
       ['OpenJDK 21 · HashMap implementation', 'https://github.com/openjdk/jdk/blob/jdk-21-ga/src/java.base/share/classes/java/util/HashMap.java'],
       ['Java lab · HashIndex.java', 'https://github.com/Rishabh10045/ai-learning-platform/blob/109a37d8c0b049b26a1ffbd2088f31bf6c0cd14e/collab/qa/content-standard/HashIndex.java'],
       ['Java lab · BrokenKey.java', 'https://github.com/Rishabh10045/ai-learning-platform/blob/109a37d8c0b049b26a1ffbd2088f31bf6c0cd14e/collab/qa/content-standard/BrokenKey.java']
+    ]
+  },
+  'j-strings-01': {
+    notes: [
+      'A String is an immutable sequence of UTF-16 code units. Operations such as strip and toUpperCase return a String result and leave the original value intact. Reassigning a variable changes which object the variable refers to. In a booking request, keep the business rule for case and whitespace explicit. A distinct copy of A1 should find the same exact-match seat ID.',
+      'String.equals compares contents, while reference equality with == checks whether two operands refer to the same object. Java interns string literals and constant-expression Strings. In the Java 21 example, both the literal "A1" and the constant expression "A" + "1" refer to the pooled value. An explicit new String("A") plus "1" produces a runtime String equal in content and distinct in identity. Use equals or Objects.equals for business comparisons. Use intern only when canonical identity is a deliberate design choice with measured benefit.',
+      'Java assigns built-in meaning to operators. Plus adds numeric operands and concatenates when an operand is a String. Evaluation groups left to right, so 1 + 2 + " seats" produces "3 seats" and "Seats " + 1 + 2 produces "Seats 12". Java method overloads use different parameter lists and have a separate mechanism. Java provides no user-defined operator overloading.',
+      'When assembling one result across many iterations, an unshared StringBuilder allows append operations followed by one toString call. A String produced by toString retains its contents if the builder is later changed. StringBuffer synchronizes methods, and a sequence of calls can still require external coordination. Use simple concatenation for short expressions and choose a builder for a growing result when profiling or clear loop structure justifies it.'
+    ],
+    takeaways: ['Use value equality for identifiers.', 'String immutability stays true when a variable is reassigned.', 'Folded constant expressions and runtime concatenation have different identity guarantees.', 'Use an unshared builder for deliberate incremental construction.'],
+    practice: ['Run the displayed SeatIdStrings.java example in Day 5 Learn with Java 21. Predict its output first. Then replace the run-time part with another literal, add an empty builder, and explain the changed identity and value comparisons.', [
+      'Distinct references containing A1 compare equal and retrieve the same HashMap entry.',
+      'A strip operation returns A1 and preserves the original padded String.',
+      'The builder produces A1,A2. Appending A3 keeps the first String unchanged. An empty builder produces the empty String.',
+      'The two plus expressions produce 3 seats and Seats 12. Explain the left-to-right grouping.'
+    ]],
+    interview: [
+      ['Why can two Strings display A1 even when == is false?', 'The operator compares the two references. Each can refer to a different object holding the same characters. String.equals compares character contents.'],
+      ['How do a literal, a constant-expression concatenation and a runtime concatenation differ?', 'The first two are interned and use the same canonical String if equal. A nonconstant concatenation produces a new String even when its contents match the literal.'],
+      ['What changes after storing the result of input.strip() in the same variable?', 'The reference can change. The original String contents stay unchanged, and any other variable holding that reference still sees them.'],
+      ['When would you use StringBuilder for booking labels?', 'Use an unshared builder when looping through labels to construct a growing result, then call toString once at the boundary. For a short fixed expression, ordinary concatenation is clear.'],
+      ['Does StringBuffer make a read-then-append sequence atomic?', 'Its individual calls can synchronize. A compound sequence still needs coordination outside the buffer or an owner that keeps the buffer local.']
+    ],
+    check: ['A database returns a runtime String containing A1. Which comparison expresses the booking rule?', ['value == "A1"', '"A1".equals(value)', 'value.hashCode() == "A1".hashCode()'], 1, 'String.equals checks the identifier contents. Reference identity is narrower and different values can share a hash.'],
+    references: [
+      ['Java 21 API · String', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html'],
+      ['JLS 21 · String literals and interning', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-3.html#jls-3.10.5'],
+      ['JLS 21 · String concatenation', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.18.1'],
+      ['Java 21 API · StringBuffer', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuffer.html']
     ]
   },
   'j-streams-01': {
@@ -158,6 +196,32 @@ export const topicLessons = {
       ['What code evidence would support the UML?', 'A small test of the actual booking and conflict path that asserts the return value and final owner.']
     ],
     references: [['LLD roadmap · UML and sequence examples', 'https://rishabh10045.github.io/studyapp/lld/roadmap.html']]
+  },
+  'h-scaling-01': {
+    notes: [
+      'Scale vertically by giving one instance more capacity. This can be a quick upgrade when the service saturates CPU or memory and the hardware limit and restart cost are acceptable. Scale horizontally by adding instances and routing traffic over healthy targets. This can improve availability as well as throughput, while making routing, coordination and deployment more complex. Start from the saturated resource and a measurable latency or availability objective.',
+      'Suppose an application sustains 80 requests per second per instance at the agreed p95 latency, and the database sustains 120 requests per second for the same mix. One instance can handle up to 80 under these assumptions. Two app instances give a 160 RPS app ceiling and still cap the system at 120. Adding a third app instance leaves the same ceiling until the dependency changes. Include the cost of each replica and verify the real curve with measurements.',
+      'Round robin routes successive requests around ready targets. Least connections can favor a target with fewer active connections when connection counts track work. IP hashing can route one source consistently, and shared proxies can skew it. Sticky routing that keeps a session in an app process can lose that session when the process fails or is replaced. Store necessary session state in a shared store or use a verified token for the appropriate state, and keep booking ownership in the authoritative database.',
+      'Autoscaling needs a signal, target range, upper and lower bounds, and time for new instances to become ready. A growing queue with saturated workers can justify adding capacity. A growing queue caused by a saturated database needs a dependency fix or load control, since more workers can add contention. Deploying across regions adds latency and consistency decisions for the shared write path. Treat those decisions separately from adding replicas inside one region.'
+    ],
+    takeaways: ['Measure saturation at the app and its dependencies.', 'Adding replicas improves the capacity of the layer you replicate.', 'Verify an identical outcome when requests reach different healthy targets.', 'Choose scaling signals and wait for readiness before shifting traffic.'],
+    practice: ['Spend 15 minutes in the Day 17 Learn block working the capacity trace, then use the existing hands-on assignment to route requests to two processes and observe a shared database. Repeat after removing one ready app process.', [
+      'State the 80 RPS app limit with one process and the 120 RPS dependency limit with two, showing units and assumptions.',
+      'Identify one useful vertical upgrade and one scenario where healthy horizontal replicas improve availability.',
+      'A request to the remaining process observes the authoritative owner after the other process is removed. Competing attempts still leave one owner.',
+      'Explain when routing affinity would hide a process-local session dependency and how to verify failover without it.'
+    ]],
+    interview: [
+      ['What are the vertical and horizontal scaling choices for an overloaded application?', 'A vertical change increases resources on one process or host. A horizontal change uses more instances and routes work across them. The saturated layer, restart risk, availability need and measured cost determine the choice.'],
+      ['Why does adding a third app node fail to increase this example’s throughput?', 'Two nodes already offer 160 RPS of app capacity while the dependency caps the same workload at 120 RPS. Use dependency metrics and a fixed traffic mix to verify that boundary.'],
+      ['What problem can sticky routing hide?', 'An app may store essential session state in one process. Affinity makes that appear to work until failover, process replacement or imbalance. Route the same workflow across different instances to expose it.'],
+      ['What should be checked before scaling on queue depth?', 'Check whether app workers or a downstream dependency are saturated, set replica limits, and measure how long new instances take to become healthy. The useful action depends on the causing layer.']
+    ],
+    check: ['Two app processes can serve 80 RPS each. The shared database supports 120 RPS for the same workload. What is the system ceiling in the example?', ['80 RPS', '120 RPS', '160 RPS'], 1, 'The application ceiling is 160 RPS and the dependency ceiling is 120 RPS. The smaller capacity limits this workload.'],
+    references: [
+      ['GeeksforGeeks · System Design Training, Module 2', 'https://www.geeksforgeeks.org/courses/system-design-training-program'],
+      ['Kubernetes · Horizontal Pod Autoscaling', 'https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/']
+    ]
   },
   'h-estimates-01': {
     notes: [

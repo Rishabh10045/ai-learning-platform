@@ -54,3 +54,33 @@ Reviewed the published `gpt/topic-index` snapshot at `dbe599b4d8f5f6b069c8a12d82
 Fixed Day 1's displayed Java exercise and gave existing topic `j-oop-01` dedicated constructor/encapsulation notes, four answered interview questions, takeaways, practice and a check. The [day and topic readiness matrix](lesson-readiness-matrix.md) records all 55 day and 116 topic rows and the result of 76 reading probes. Three displayed Java snippets ran on JDK 21. Node, Chromium and two-browser progress checks passed.
 
 Pending Phase 1 includes HLD Modules 2–24 and all independent HLD cases, the Java/Spring and AI source-by-source rows, and fixing known DSA gaps. Pending topic depth starts with Java strings and pool behavior. Keep the existing 73-row DSA checklist and the independent 124-row QA baseline unchanged. Day-level field presence is screening evidence. Full teaching sign-off still needs the content and lab run-by-run review, lesson pacing and independent daily DSA scheduling.
+
+## Java Strings VIP and HLD Modules 2–3 · 2026-11-22 11:04 IST
+
+Reviewed and extended `gpt/topic-index@76d7e56`. Day 5 now has an added Java interview topic `j-strings-01` under unchanged parent lesson `j-oop-02`. Java String identity, value equality, interning, immutability, builder behavior and the built-in plus rule are explained and tested with the displayed JDK 21 lab. Use 12 minutes of the existing Learn block, preserving the 120-minute core and prior progress IDs. The selected Java Backend outline provides adjacent Java language context. This String depth packet is `source: added`. The GfG LLD requirement for operator behavior now has a Java-specific teaching row.
+
+Day 17 `h-scaling-01` now has a worked capacity trace, concrete routing and failover acceptance checks and one diagnostic question. [HLD Modules 2–3](curriculum-hld-coverage.md) maps all 13 source rows. Module 2 has three covered and four partial. All six Module 3 rows are partial. The local browser check verifies the new pages and the Java fixture runs. The two-process Spring and PostgreSQL failover exercise still needs separate execution.
+
+Next source locator is HLD Module 4 row 4.1, horizontal partitioning. Next content candidates are Java collectors and `CompletableFuture` after the relevant source rows are checked. Grok acknowledged on [PR #5](https://github.com/Rishabh10045/ai-learning-platform/pull/5#issuecomment-7074768563) and owns Day 1 UI integration from the launch baseline. The unanswered-contact round is resolved.
+
+## Day 1–56 expansion · 2026-11-22 11:20 IST
+
+Started from `gpt/topic-index@17d3fc0`. Day 56 now runs end-to-end through the course and day selectors, Learn, Practice and Coach, scored quiz and topic library. Five Java DSA packets map GfG Class 1.2–1.3 and Class 2.1–2.3 to runnable examples. Day 1's four previously undedicated topics now have notes, practice, interview answers, takeaways and concept checks. Further foundation material covers the Day 2 race, Day 4 collision, Day 5 contracts/exceptions/responsibility, and Day 6 generics. All existing day, block and topic IDs are preserved.
+
+The [readiness matrix](lesson-readiness-matrix.md) now gives 56 day rows and 122 topic rows, with 28 dedicated. The next editorial gap by day is Day 7, executors and JVM memory. The HLD source audit resumes at Module 4 row 4.1. Additional DSA source repairs start with Class 2.4 and Class 3 arrays. Continue topic by topic, verify exercises, and preserve Grok's `ui/**` ownership.
+
+## Days 7–16 and HLD Module 4 · 2026-11-22 11:28 IST
+
+Built on `cdf9d21`. Dedicated packets now exist for every indexed topic in Days 1–16 and Day 56, with 43 of 122 overall. The latest 15 cover executors/JVM, SOLID and tests, Maven/DI, HTTP/REST, constraints and migrations, JDBC, atomic writes and locking, JPA query counts and PostgreSQL integration tests. The Day 7 displayed Java 21 example passes bounded-work, rejection, timeout and termination checks. Spring and PostgreSQL assignments have explicit expected evidence. The exercises requiring running external infrastructure remain execution-unverified.
+
+The HLD Module 4 matrix records six rows with one covered, three partial and two missing. The next HLD source locator is Module 5 row 5.1. The next missing dedicated topic by day is `h-requirements-01` on Day 18, followed by holds, transactions, caching, messaging and resilience. The [readiness matrix](lesson-readiness-matrix.md) maps every remaining topic by day and subject.
+
+## Days 18–25 and v2 integration reconciliation · 2026-11-22 13:58 IST
+
+Merged the released UI and Day 1–3 depth work from main `0203934` into the draft based on `ad54d12`. Saved study IDs and the account storage contract are retained. The 16 new topic packets complete authoring for all indexed topics assigned to Days 1–25 and Day 56. Across the entire course 59 of 122 topics have dedicated materials. New packets cover timed holds, idempotency, partitioning and indexes, cache-aside, Kafka, percentile latency and reliability. Redis, Kafka, PostgreSQL and other external-service assignments remain execution-unverified. The 15 reference probes from this batch returned HTTP 200.
+
+Confirmed the earlier Java warm-up explanation omitted the definite-assignment error for an uninitialized final field and clarified how the HTTP/3 transport differs from HTTP/1.1 and HTTP/2. The Day 2 Two Sum complement now uses long arithmetic. The Java 21 fixture passed the added integer-overflow case.
+
+HLD Module 5 source rows map to Day 22. Two are covered and three partial. Next HLD locator is Module 6 row 6.1. The first remaining topic by day is Day 26 `d-complexity-01`. Follow with its arrays and recursion packets and the next DSA source repairs. [Day and topic matrix](lesson-readiness-matrix.md) lists every row.
+
+Integration blocker was reported on [PR #5](https://github.com/Rishabh10045/ai-learning-platform/pull/5#issuecomment-7076527978). The v2 UI adapter passes an array index as the packet object while flattening notes, hiding text for most packets on a multi-topic day. Topic records, interview answers and practice data are present. Grok owns the rendering change. Keep the 56-session branch in draft pending visual verification against that fix and live account setup.

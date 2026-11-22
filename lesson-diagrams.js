@@ -323,5 +323,16 @@ export const lessonDiagrams = {
         ['Skip duplicate 0–1', 'Both endpoints already have the same root.', ['Components: 3', 'Total cost: 1']],
         ['Accept 1–2', 'Zone 2 joins the component containing zones 0 and 1.', ['Components: 2', 'Total cost: 3']],
         ['Skip 0–2 and finish', 'This edge would close a cycle. Zone 3 remains isolated.', ['Components: 2', 'Total cost: 3']])]
+  },
+  56: {
+    title: 'Trace the sieve through 30',
+    question: 'For each surviving small prime, explain why its square is the first multiple this pass needs to mark.',
+    scenarios: [
+      caseOf('Mark factors 2, 3 and 5',
+        ['Start at 2', 'Zero and one are outside the prime scan.', ['Bound: 30']],
+        ['Process 2', 'Mark 4, 6, 8 and the remaining even composites.', ['First multiple: 4']],
+        ['Process 3', 'Six was handled by 2. Begin at 9.', ['First multiple: 9']],
+        ['Process 5', 'The smaller composite multiples have factors 2 or 3. Mark 25.', ['First multiple: 25']],
+        ['Collect unmarked values', 'The next prime, 7, is beyond the square-root bound. Include 29.', ['Prime count: 10']])]
   }
 };

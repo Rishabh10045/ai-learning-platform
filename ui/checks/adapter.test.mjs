@@ -154,3 +154,25 @@ test('relaxed engine rules are opt-in: the fixture contract is unchanged', () =>
   assert.equal(S.resolveSessions(c).ok, true);
   assert.ok(S.resolveSessions(c).warnings.some(w => /no DSA/.test(w)));
 });
+
+test('every packet on a multi-topic day renders its own heading and note body (flatMap index/array regression)', () => {
+  const S2 = S.resolveSessions(A.course);
+  assert.equal(S2.ok, true);
+  let multi = 0;
+  for (const d of codex.days) {
+    const { main } = A.lessonsByDay[d.number];
+    const heads = main.notes.map((n, i) => [n, i]).filter(([n]) => n.type === 'h' && n.text.startsWith('Topic packet · '));
+    const titles = heads.map(([h]) => h.text);
+    assert.equal(new Set(titles).size, titles.length, 'Day ' + d.number + ': packet headings are distinct');
+    const topicIds = main.topics.map(t => t.id);
+    for (const [h, i] of heads) {
+      assert.ok(!topicIds.every(id => h.text.includes(id)) || topicIds.length < 2, 'Day ' + d.number + ': heading is not the whole topic-ID array: ' + h.text);
+      const next = main.notes[i + 1];
+      assert.ok(next && next.type === 'p' && next.text.length > 40, 'Day ' + d.number + ': ' + h.text + ' has a note body');
+    }
+    if (heads.length >= 2) multi++;
+  }
+  assert.ok(multi >= 10, 'at least 10 days render two or more packets, got ' + multi);
+  const d56 = A.lessonsByDay[56].main.notes.filter(n => n.type === 'h' && n.text.startsWith('Topic packet · ')).map(n => n.text);
+  assert.ok(d56.length >= 2, 'Day 56 renders every packet: ' + d56.join(' | '));
+});

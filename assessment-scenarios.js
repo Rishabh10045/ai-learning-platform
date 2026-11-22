@@ -274,5 +274,10 @@ export const assessmentScenarios = {
     'There are four vertices and only edges 0–1 with weight 1, 1–2 with weight 2 and 0–2 with weight 3. What is the cheapest spanning forest?',
     ['Cost 3, with two edges and two components.', 'Cost 6, with three edges and one component.', 'Cost 4, with two edges and one component.'],
     'Accept the two edges of weight 1 and 2. The weight-3 edge closes a cycle, and vertex 3 remains isolated.'
+  ],
+  56: [
+    'A sieve is processing p = 5 and every composite with a smaller prime factor is already marked. Where should it start marking?',
+    ['At 25, because smaller positive multiples of 5 above 5 already have a smaller prime factor.', 'At 5, so 5 itself cannot appear in the results.', 'At 10, because that is the first composite with a factor of 5.'],
+    'Start at p². Earlier composite multiples of p have already been reached while processing smaller prime factors.'
   ]
 };

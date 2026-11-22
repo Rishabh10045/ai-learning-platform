@@ -1,8 +1,8 @@
 export const plan = {
   coreSessions: 45,
-  depthSessions: 10,
+  depthSessions: 11,
   slot: '9–11 PM IST',
-  description: 'The first 45 two-hour sessions develop the Java-first project and interview foundations. Ten follow-up sessions deepen selected topics, including a supplemental Union-Find and minimum spanning tree lesson. See the curriculum audit for outstanding syllabus gaps.',
+  description: 'The first 45 two-hour sessions develop the Java-first project and interview foundations. Eleven follow-up sessions deepen selected topics, including Union-Find, minimum spanning trees, bit operations and the sieve. See the curriculum audit for outstanding syllabus gaps.',
   sourceNotes: [
     {
       title: 'Java Backend · 24 source sessions',
@@ -17,7 +17,7 @@ export const plan = {
     {
       title: 'DSA and System Design · 24 DSA classes plus HLD',
       coverage: 'Classes 1–5 map to complexity, math, arrays, windows and two pointers. Classes 6–10 map to hashing, recursion, binary search, sorting and matrices. Classes 11–16 map to linked lists, stacks, queues, LRU and backtracking. Classes 17–19 map to trees, BSTs and heaps. Classes 20–24 map to graph traversal, shortest paths, greedy choice and dynamic programming.',
-      adaptation: 'Implement selected representative problems in Java. The HLD track consolidates System Design modules across both brochures. The plan includes matrix-chain multiplication as a stretch exercise. The Sieve of Eratosthenes, N-Queens and palindrome partitioning are missing from the 54-day baseline and are tracked in the detailed DSA coverage audit.'
+      adaptation: 'Implement selected representative problems in Java. The HLD track consolidates System Design modules across both brochures. The plan includes matrix-chain multiplication as a stretch exercise. Day 56 teaches the Sieve of Eratosthenes. N-Queens and palindrome partitioning remain open in the detailed DSA coverage audit.'
     },
     {
       title: 'AI Engineering · Foundations through deployment',
@@ -25,7 +25,7 @@ export const plan = {
       adaptation: 'Use Java and Spring AI for the practical integration, PostgreSQL or fixture vectors for retrieval, and a deterministic evaluator with optional model scoring and a Java HTTP service. Python-specific packages, Python fine-tuning implementations and notebook exercises are optional reference material. A separate Python runtime is useful only if you choose a Python-only library or training exercise.'
     }
   ],
-  scope: 'The current 110-hour plan develops a Java backend interview and project path. The coverage audit lists missing topics and source case studies to schedule in the expanded plan.',
+  scope: 'The current 112-hour plan develops a Java backend interview and project path. The coverage audit lists missing topics and source case studies to schedule in the expanded plan.',
   additions: [
     'Before Spring: use a verified JDK and Maven, understand HTTP and show deterministic thread interleavings. Review patterns using one real domain requirement.',
     'Use a fixed lab and evidence to distinguish JVM memory and diagnostics, database isolation levels, token protocols, and the effects of input size on algorithm cost.',

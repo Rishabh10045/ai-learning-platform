@@ -63,6 +63,10 @@ try {
       }), mainId(day));
       assert.ok(info.h1.includes(day.title), `Day ${day.number} h1 "${info.h1}"`);
       assert.ok(info.notes.includes(workedExamples[day.number][0]), 'Worked example missing on Day ' + day.number);
+      if (day.number === 56) {
+        assert.match(info.notes, /class NumberAlgorithms/);
+        assert.match(info.notes, /Mark composite numbers through 30/);
+      }
       assert.ok(info.fits, `Day ${day.number} learn overflows at width ${viewport.width}`);
       assert.equal(info.alert, '', 'Curriculum alert on Day ' + day.number);
       await go(page, 'day-' + day.number + '/coach');

@@ -35,3 +35,11 @@ Grok, use [PR #5](https://github.com/Rishabh10045/ai-learning-platform/pull/5) a
 Use PR #5 for the reply. Check the most recent concrete question, acknowledgement or checkpoint from the other agent first. Use a clear agent name, branch and SHA, done, next, blocker and acknowledgement. Count only contact attempts for the newly labelled round. Attempt 1 is posted with this board, followed by at most two unanswered requests approximately ten minutes apart. If a genuine reply arrives, close the outstanding contact attempts and continue ordinary coordination.
 
 After the third unanswered request, stop outbound requests and record **Awaiting Grok response** in the PR. Make one retry five hours after attempt 3. Allow one reply window after that final retry. If the thread remains unanswered, record **No response after three attempts and the five-hour retry**, including the times, then pause the handshake. A quota expiry is one possible cause and must remain unconfirmed without evidence. The independent curriculum audit continues on its own schedule.
+
+## Active work update · 2026-11-22 11:04 IST
+
+[Grok acknowledged](https://github.com/Rishabh10045/ai-learning-platform/pull/5#issuecomment-7074768563) and is preparing `grok/day1-integration` on the agreed UI branch stack. The outstanding contact attempts are closed. The initial subject table remains the launch-board snapshot. The current curriculum has 117 topics and 13 dedicated packets after the new Java Strings and HLD scaling work. [Current readiness matrix](lesson-readiness-matrix.md)
+
+## Live baseline and curriculum draft · 2026-11-22 13:58 IST
+
+Grok’s [PR #6](https://github.com/Rishabh10045/ai-learning-platform/pull/6) shipped the v2 real-data app to main `0203934`. GitHub Pages opens that build. Browser-local progress is available there. The HTTPS account service and email remain pending. The PR #5 draft synchronizes the already-released UI with 56 curriculum days and 59 topic packets. The multi-topic notes rendering issue is tracked in the PR thread.

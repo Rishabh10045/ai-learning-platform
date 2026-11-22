@@ -130,5 +130,20 @@ export const advancedNotes = {
     quick: ['Find before comparing component representatives.', 'Union changes counts only when roots are distinct.', 'Kruskal accepts light connecting edges and returns a forest for disconnected input.'],
     variation: 'Two spanning trees have equal total weight. What should a good test assert?',
     check: 'Run the Java example, then test union invariants, equal weights and disconnected input on your own cases.'
+  },
+  56: {
+    sections: [
+      ['Reason about bits and number bases',
+        'Integers store a bit pattern. The mask n & 1 reads the rightmost bit. A zero result means even and a one means odd. Java’s signed representation preserves that property for negative values. XOR cancels equal bits and can exchange two values at distinct positions. Using XOR on one position clears it, so a temporary variable is the clear default.',
+        'The symbols in a radix represent place values. Hexadecimal 2A means 2 × 16 + 10 = 42. The corresponding unsigned-looking octal digits are 52 and binary digits are 101010. Java’s Integer.parseInt accepts a specified radix and checks digits and signed int range. In a literal, 0b101010 and 0x2A have explicit bases and 052 is octal. In input text, choose the radix directly.'],
+      ['Choose one primality test or a sieve',
+        'An integer is prime if it is at least two and has no proper divisor. In a factor pair at least one factor is at most the square root. For one candidate, handle 2 and try odd divisors while d <= n / d, which avoids overflowing d*d. For many queries over a dense bounded range, a sieve marks composite values ahead of time.',
+        'Each unmarked p at or below the square root is prime at the moment you process it. Mark p², p²+p and so on. Every smaller composite multiple of p had a smaller factor and was already visited. A boolean-array sieve uses O(N) extra space and O(N log log N) marking work including table initialization.'],
+      ['Fold the least common multiple with a checked boundary',
+        'Euclid replaces (a,b) with (b,a mod b) until b is zero. For nonnegative integers, lcm(a,b) is zero if either value is zero. Otherwise divide a by gcd(a,b) before multiplying by b. Test the result type independently of the safer order. Treat an empty array as folding from 1 and check for any zero first so the mathematical zero case does not depend on element order.']
+    ],
+    quick: ['Read parity from one bit and treat radix as part of the input contract.', 'Try factors through sqrt(n), or reuse a bounded sieve for many queries.', 'Compute LCM with Euclid, zero handling and checked multiplication.'],
+    variation: 'You need to decide primality for five values close to two billion rather than list every prime through 30. Which strategy and boundary checks make sense?',
+    check: 'Run the Java fixtures for signed parity, radix validation, prime squares, inclusive sieve bounds, LCM zero and overflow.'
   }
 };
