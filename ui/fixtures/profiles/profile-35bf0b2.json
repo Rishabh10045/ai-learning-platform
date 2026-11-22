@@ -1,0 +1,57 @@
+{
+ "note": "Profile written by the Study Desk host at main 35bf0b2 (Day 1 complete, Day 2 started, notes, takeaway, interview marks, reminder prefs, 28 Nov unavailable). Generated for Phase 7 QA by /tmp/gen-profile.mjs; used by ui/checks/upgrade.test.mjs.",
+ "sha": "35bf0b2",
+ "storage": {
+  "ai-learning-platform.study-desk.v1": "{\"sessions\":{\"1\":{\"startedOn\":\"2026-11-22\",\"completedOn\":\"2026-11-22\",\"checked\":[\"foundations\",\"lab\",\"http\",\"ai\",\"dsa\",\"review\"],\"evidence\":\"https://github.com/me/j-oop-01.review\",\"notes\":\"\"},\"2\":{\"startedOn\":\"2026-11-23\",\"completedOn\":\"\",\"checked\":[\"revision\",\"learn\"],\"evidence\":\"\",\"notes\":\"\"}},\"unavailable\":[\"2026-11-22\"],\"videoProgress\":{},\"personalNotes\":{\"1\":\"UPGRADE-NOTE 35bf0b2\",\"2\":\"Day 2 in progress 35bf0b2\"},\"udemyLectures\":{},\"assessments\":{\"1\":{\"score\":5,\"attempts\":1,\"lastAttempt\":\"2026-11-22\",\"stale\":false,\"correct\":[true,true,true,true,true],\"bankVersion\":4}},\"planned\":{},\"topicTakeaways\":{\"j-oop-01\":\"UPGRADE-TAKEAWAY 35bf0b2\"},\"preferences\":{\"weekdayMinutes\":120,\"saturdayMinutes\":390,\"sundayMinutes\":390,\"emailReminders\":true}}",
+  "ai-learning-platform.study-desk.ui-sidecar.v1": "{\"v\":1,\"interview\":{\"j-oop-01-iq1\":{\"lessonId\":\"j-oop-01\",\"answeredOn\":\"2026-11-22\"},\"j-oop-01-iq2\":{\"lessonId\":\"j-oop-01\",\"answeredOn\":\"2026-11-22\"}},\"challenges\":{},\"notifications\":{\"email\":true,\"address\":\"deepak@example.com\",\"intervalHours\":3},\"practice\":{\"j-foundations-01.foundations\":{\"evidence\":\"https://github.com/me/j-foundations-01.foundations\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.lab\":{\"evidence\":\"https://github.com/me/j-oop-01.lab\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.http\":{\"evidence\":\"https://github.com/me/j-oop-01.http\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.ai\":{\"evidence\":\"https://github.com/me/j-oop-01.ai\",\"completedOn\":\"2026-11-22\"},\"j-oop-01.review\":{\"completedOn\":\"2026-11-22\"},\"d-hashing-01.dsa\":{\"evidence\":\"https://github.com/me/d-hashing-01.dsa\",\"completedOn\":\"2026-11-22\"},\"j-concurrency-01.learn\":{\"evidence\":\"x\",\"completedOn\":\"2026-11-23\"}},\"watchLog\":{},\"revisions\":{\"S02\":{\"doneOn\":\"2026-11-23\"}},\"activity\":[{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-foundations-01.foundations\",\"xp\":85,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.lab\",\"xp\":35,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.http\",\"xp\":35,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.ai\",\"xp\":35,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"j-oop-01.review\",\"xp\":35,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"practice\",\"id\":\"d-hashing-01.dsa\",\"xp\":85,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"quiz\",\"id\":\"j-oop-01\",\"xp\":30},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"lesson\",\"id\":\"d-hashing-01\",\"xp\":0,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"lesson\",\"id\":\"j-oop-01\",\"xp\":90,\"status\":\"complete\"},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"interview\",\"id\":\"j-oop-01-iq1\",\"xp\":5},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"interview\",\"id\":\"j-oop-01-iq2\",\"xp\":5},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"note\",\"id\":\"S01\",\"xp\":0},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"takeaway\",\"id\":null,\"xp\":0},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"prefs\",\"id\":null,\"xp\":0},{\"at\":\"2026-11-22T16:00:00.000Z\",\"date\":\"2026-11-22\",\"type\":\"unavailable\",\"id\":null,\"xp\":0},{\"at\":\"2026-11-23T16:00:00.000Z\",\"date\":\"2026-11-23\",\"type\":\"revision\",\"id\":\"S02\",\"xp\":15},{\"at\":\"2026-11-23T16:00:00.000Z\",\"date\":\"2026-11-23\",\"type\":\"practice\",\"id\":\"j-concurrency-01.learn\",\"xp\":35,\"status\":\"complete\"},{\"at\":\"2026-11-23T16:00:00.000Z\",\"date\":\"2026-11-23\",\"type\":\"note\",\"id\":\"S02\",\"xp\":0}],\"lastActiveAt\":\"2026-11-23T16:00:00.000Z\"}"
+ },
+ "log": [
+  "ok practice j-foundations-01.foundations",
+  "ok practice j-oop-01.lab",
+  "ok practice j-oop-01.http",
+  "ok practice j-oop-01.ai",
+  "ok practice j-oop-01.review",
+  "ok practice d-hashing-01.dsa",
+  "ok quiz j-oop-01",
+  "ok lesson d-hashing-01",
+  "ok lesson j-oop-01",
+  "ok interview j-oop-01-iq1",
+  "ok interview j-oop-01-iq2",
+  "ok note S01",
+  "ok takeaway ",
+  "ok prefs ",
+  "ok unavailable 2026-11-28",
+  "ok revision S02",
+  "ok practice j-concurrency-01.learn",
+  "ok note S02"
+ ],
+ "lessonIds": [
+  {
+   "main": [
+    "j-oop-01"
+   ],
+   "dsa": [
+    "d-hashing-01"
+   ],
+   "warmup": "j-foundations-01"
+  },
+  {
+   "main": [
+    "j-concurrency-01"
+   ],
+   "dsa": [
+    "j-concurrency-01.dsa"
+   ],
+   "warmup": null
+  },
+  {
+   "main": [
+    "j-concurrency-02"
+   ],
+   "dsa": [
+    "j-concurrency-02.dsa"
+   ],
+   "warmup": null
+  }
+ ]
+}
