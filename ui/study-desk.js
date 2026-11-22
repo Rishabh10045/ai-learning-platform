@@ -561,6 +561,11 @@
           h("div", { class: "sd-meta" }, h("code", { text: l.id }), sourceChip(l.source), l.estMinutes ? h("span", { class: "sd-chip", text: "~" + fmtMin(l.estMinutes) }) : null));
         // Videos first.
         (l.videos || []).forEach(function (v) {
+          if (v.kind === "article") {   // a reading: link only, nothing to log
+            art.appendChild(h("div", { class: "sd-video sd-reading" }, h("div", { class: "sd-video-h" }, h("span", { class: "sd-source", text: "Reading" + (v.source && v.source !== "Reading" ? " · " + v.source : "") })),
+              h("a", { href: v.url, target: "_blank", rel: "noopener", class: "sd-video-t", text: v.title + " ↗" })));
+            return;
+          }
           var w = data.progress.watch[v.id] || { minutes: 0, log: [] };
           var inp = h("input", { type: "number", min: "1", max: "600", class: "sd-num", "aria-label": "Minutes watched of " + v.title, placeholder: "min" });
           art.appendChild(h("div", { class: "sd-video" },
@@ -573,7 +578,8 @@
         if (l.diagram) art.appendChild(diagram(l.diagram));
         var notes = h("div", { class: "sd-notes" }); renderBlocks(notes, l.notes || []);
         art.appendChild(notes);
-        if (l.quiz) art.appendChild(quizForm(l.quiz, "Lesson check", S.quizGate(l, data.progress), function (answers) { emit({ type: "quiz", id: l.id, answers: answers }); }, "q-" + l.id));
+        if (l.quiz) art.appendChild(quizForm(l.quiz, "Lesson check", S.quizGate(l, data.progress), function (answers) { emit({ type: "quiz", id: l.id, answers: answers }); }, "q-" + l.id,
+          opts.quizLock ? opts.quizLock(l.id) : null, data.progress.quizzes[l.id]));
         art.appendChild(lessonActions(l));
         panel.appendChild(art);
       });
@@ -589,6 +595,9 @@
         if (typeof b === "string") b = { type: "p", text: b };
         switch (b.type) {
           case "h": c.appendChild(h("h3", { text: b.text })); break;
+          case "h4": c.appendChild(h("h4", { text: b.text })); break;
+          case "details": c.appendChild(h("details", { class: "sd-reveal" }, h("summary", { text: b.summary || "Show" }), notesText(b.text || ""))); break;
+          case "links": c.appendChild(h("ul", { class: "sd-links" }, (b.items || []).map(function (it) { return h("li", null, h("a", { href: it.url, target: "_blank", rel: "noopener", text: it.title + " ↗" })); }))); break;
           case "ul": case "ol": c.appendChild(h(b.type, null, (b.items || []).map(function (it) { return h("li", { text: it }); }))); break;
           case "code": c.appendChild(h("pre", { class: "sd-code" }, h("code", { text: b.text }))); break;
           case "callout": c.appendChild(h("p", { class: "sd-callout sd-callout-" + (b.tone || "info"), text: b.text })); break;
@@ -596,8 +605,9 @@
         }
       });
     }
-    function quizForm(quiz, label, gate, onSubmit, key) {
-      var form = h("form", { class: "sd-quiz" + (gate.passed ? " is-complete" : "") });
+    function quizForm(quiz, label, gate, onSubmit, key, locked, record) {
+      var marks = record && Array.isArray(record.correct) && record.correct.length === quiz.questions.length ? record.correct : null;
+      var form = h("form", { class: "sd-quiz" + (gate.passed ? " is-complete" : "") + (locked ? " is-locked" : ""), "data-quiz": key });
       form.appendChild(h("h3", null, label + " ", gate.passed ? h("span", { class: "sd-badge is-complete", text: "✓ Passed" + (gate.best != null ? " (best " + gate.best + "%" + (gate.score != null && gate.score !== gate.best ? ", last " + gate.score + "%" : "") + ")" : gate.score != null ? " (" + gate.score + "%)" : "") }) : gate.score != null ? h("span", { class: "sd-badge is-progress", text: "↻ " + gate.score + "% · retry" }) : h("span", { class: "sd-badge is-pending", text: "Needed to complete" })));
       quiz.questions.forEach(function (q, qi) {
         var fs = h("fieldset", null, h("legend", { text: (qi + 1) + ". " + q.q }));
@@ -605,9 +615,11 @@
           var id = key + "-" + qi + "-" + oi;
           fs.appendChild(h("label", { class: "sd-opt", for: id }, h("input", { type: "radio", name: key + "-" + qi, id: id, value: String(oi) }), " " + o));
         });
+        if (marks && q.explanation) fs.appendChild(h("p", { class: "sd-callout sd-explain " + (marks[qi] ? "sd-callout-tip" : "sd-callout-warn"), text: (marks[qi] ? "✓ Last attempt correct. " : "✗ Last attempt wrong. ") + q.explanation }));
         form.appendChild(fs);
       });
-      form.appendChild(h("button", { type: "submit", class: "sd-btn" }, gate.passed ? "Retake" : "Check answers"));
+      if (locked) form.appendChild(h("p", { class: "sd-gate" }, h("span", { "aria-hidden": "true", text: "🔒 " }), locked));
+      form.appendChild(h("button", { type: "submit", class: "sd-btn", disabled: !!locked }, gate.passed ? "Retake" : "Check answers"));
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var answers = {};
@@ -637,6 +649,7 @@
             h("p", { class: "sd-meta" }, [p.platform, p.difficulty, p.minutes ? fmtMin(p.minutes) : null].filter(Boolean).join(" · "), p.url ? h("a", { href: p.url, target: "_blank", rel: "noopener", text: " Open ↗" }) : null),
             p.prompt ? h("p", { text: p.prompt }) : null,
             (p.acceptance || []).length ? h("ul", { class: "sd-checklist" }, p.acceptance.map(function (a) { return h("li", { text: a }); })) : null,
+            p.required === false ? h("p", { class: "sd-muted", text: "Optional · does not block completing the lesson." }) : null,
             h("label", { class: "sd-ev-label", for: "ev-" + p.id }, "Assignment evidence" + (p.evidenceRequired ? " (needed to mark complete)" : "")), ev,
             h("div", { class: "sd-ev-actions" }, btns, h("button", { type: "button", class: "sd-btn sd-btn-ghost", onclick: function () { set(ps.status === "pending" ? "in-progress" : ps.status); } }, "Save evidence"))));
         });
@@ -689,6 +702,29 @@
       ta.addEventListener("blur", flushNotes);
       panel.appendChild(h("section", { class: "sd-card" }, h("label", { for: "sd-notes-ta", class: "sd-h2label", text: "My notes · session " + rs.n }), ta, status,
         h("p", { class: "sd-muted", text: "These show first in the next session’s quick revision." })));
+      // Per-topic key takeaways (host-provided lesson.topics; saved by the host, e.g. Codex topicTakeaways).
+      var topics = [], coachTk = [];
+      sessionLessons(rs).forEach(function (l) { (l.topics || []).forEach(function (t) { topics.push(t); }); (l.takeaways || []).forEach(function (t) { coachTk.push(t); }); });
+      if (topics.length) {
+        var tk = data.progress.takeaways || {};
+        var sec = h("section", { class: "sd-card sd-takeaways", "aria-labelledby": "sd-tk-h" }, h("h2", { id: "sd-tk-h", text: "My key takeaways · per topic" }),
+          h("p", { class: "sd-muted", text: "Your own rule, one mistake to avoid and an example, in your words. Saved with your progress." }));
+        topics.forEach(function (t) {
+          var saved = tk[t.id] || "", dk = "tk-" + t.id, tid = "sd-tk-" + t.id;
+          var area = h("textarea", { class: "sd-evidence sd-tk-ta", id: tid, rows: "3", "data-topic": t.id, maxlength: "3000" });
+          area.value = state.drafts[dk] != null ? state.drafts[dk] : saved;
+          area.addEventListener("input", function () { state.drafts[dk] = area.value; });
+          var msg = h("span", { class: "sd-muted", "aria-live": "polite" });
+          sec.appendChild(h("div", { class: "sd-tk" }, h("label", { for: tid, class: "sd-ev-label" }, t.title + " ", h("code", { text: t.id })), area,
+            h("div", { class: "sd-ev-actions" }, h("button", { type: "button", class: "sd-btn sd-btn-sm", "data-save-topic": t.id, onclick: function () {
+              var text = area.value; msg.textContent = "Saving…";
+              emit({ type: "takeaway", topicId: t.id, text: text, base: saved }).then(function (r) { if (!(r && r.ok === false)) delete state.drafts[dk]; msg.textContent = r && r.ok === false ? "Not saved: " + (r.reason || "error") : "Saved"; });
+            } }, "Save takeaway"), msg)));
+        });
+        panel.appendChild(sec);
+      }
+      if (coachTk.length) panel.appendChild(h("details", { class: "sd-card sd-reveal sd-coach-tk" }, h("summary", { text: "Coach takeaways (" + coachTk.length + ") · open after writing yours" }),
+        h("ul", null, coachTk.map(function (t) { return h("li", null, h("code", { text: t.topicId }), " " + t.text); }))));
     }
 
     function vCoach(panel, rs) {
@@ -699,7 +735,8 @@
         var q = item.q, answered = !!(data.progress.interview && data.progress.interview[q.id]);
         var ans = h("textarea", { rows: "3", class: "sd-evidence", "aria-label": "Your answer to: " + q.prompt, placeholder: "Answer as you would in an interview" });
         var msg = h("p", { class: "sd-muted", "aria-live": "polite" });
-        panel.appendChild(h("article", { class: "sd-card" }, h("h3", { text: q.prompt }), ans,
+        panel.appendChild(h("article", { class: "sd-card sd-iq", "data-iq": q.id }, h("h3", { text: q.prompt }), ans,
+          q.answer ? h("details", { class: "sd-reveal sd-model" }, h("summary", { text: "Model answer (open after you answer)" }), notesText(q.answer)) : h("p", { class: "sd-muted sd-noanswer", text: "No model answer yet." }),
           h("div", { class: "sd-ev-actions" },
             h("button", { type: "button", class: "sd-btn", onclick: function () {
               var txt = "Interview question: " + q.prompt + "\nMy answer: " + ans.value + "\nPlease review my answer and ask one follow-up.";
@@ -803,7 +840,7 @@
       var d = new Date(ms + 330 * 60000), H = d.getUTCHours(), M = d.getUTCMinutes();
       return fmtDate(d.toISOString().slice(0, 10)) + ", " + ((H + 11) % 12 + 1) + ":" + String(M).padStart(2, "0") + " " + (H < 12 ? "AM" : "PM") + " IST";
     }
-    var ACT_LABEL = { lesson: "Lesson", practice: "Practice", quiz: "Lesson check", test: "Module test", watch: "Video", note: "Notes", revision: "Revision", interview: "Interview answer", challenge: "Challenge", prefs: "Reminder settings", unavailable: "Day off", minutes: "Study minutes" };
+    var ACT_LABEL = { lesson: "Lesson", practice: "Practice", quiz: "Lesson check", test: "Module test", watch: "Video", note: "Notes", revision: "Revision", interview: "Interview answer", takeaway: "Key takeaway", challenge: "Challenge", prefs: "Reminder settings", unavailable: "Day off", minutes: "Study minutes" };
     // First 10 rows visible, the rest behind a native <details> (keyboard accessible, no JS state).
     function moreList(cls, items, row, noun) {
       var first = items.slice(0, 10), rest = items.slice(10), wrap = h("div", null, h("ul", { class: cls }, first.map(row)));

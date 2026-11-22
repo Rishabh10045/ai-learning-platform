@@ -116,8 +116,10 @@
   /* ---------- sessions ---------- */
   function resolveSessions(course, idx) {
     idx = idx || indexCourse(course);
-    var errors = idx.errors.slice(), out = [];
-    var s = settingsOf(course, null);
+    var errors = idx.errors.slice(), out = [], warnings = [];
+    var s = settingsOf(course, null), sch = (course && course.schedule) || {};
+    // Hosts whose real curriculum is ordered by study day, not subject-first (Codex), can relax two rules to warnings.
+    var dsaOptional = sch.dsaRequired === false, freeOrder = sch.subjectOrder === "free";
     (course.sessions || []).forEach(function (sess, i) {
       var n = i + 1, r = { n: n, id: sess.id || ("S" + String(n).padStart(2, "0")), title: sess.title || "", subjectId: sess.subject,
         lessons: [], dsa: [], test: null, warmup: null, revisionOf: n > 1 ? n - 1 : null, raw: sess };
@@ -133,7 +135,7 @@
         else { if (!e.subject.dsa) errors.push("Session " + n + ": " + id + " is not in the DSA subject"); r.dsa.push(e.lesson); }
       });
       if (!r.lessons.length) errors.push("Session " + n + ": no main lesson");
-      if (!r.dsa.length) errors.push("Session " + n + ": no DSA practice");
+      if (!r.dsa.length) (dsaOptional ? warnings : errors).push("Session " + n + ": no DSA practice");
       if (sess.test) { if (!idx.moduleById[sess.test] || !idx.moduleById[sess.test].module.test) errors.push("Session " + n + ": test " + sess.test + " not found"); else r.test = sess.test; }
       if (n === 1) {
         var w = sess.warmup || s.day1WarmupLessonId;
@@ -145,7 +147,7 @@
     var scheduled = {};
     out.forEach(function (r) { r.lessons.concat(r.dsa, r.warmup ? [r.warmup] : []).forEach(function (l) { (scheduled[l.id] = scheduled[l.id] || []).push(r.n); }); });
     var unscheduled = idx.order.filter(function (id) { return !scheduled[id]; });
-    var warnings = [];
+    // warnings declared above (may already hold relaxed-rule notes)
     // A lesson scheduled in more than one session (QA M12).
     Object.keys(scheduled).forEach(function (id) { if (scheduled[id].length > 1) warnings.push("Lesson " + id + " is scheduled in sessions " + scheduled[id].join(", ")); });
     // A module test must sit in (or after) the session that schedules the module's last lesson,
@@ -168,7 +170,7 @@
     var last = -1;
     out.forEach(function (r) {
       var si = idx.subjects.indexOf(idx.subjectById[r.subjectId]);
-      if (si >= 0 && !idx.subjectById[r.subjectId].dsa) { if (si < last) errors.push("Session " + r.n + ": subject " + r.subjectId + " goes back in the learning order"); last = Math.max(last, si); }
+      if (si >= 0 && !idx.subjectById[r.subjectId].dsa) { if (si < last) (freeOrder ? warnings : errors).push("Session " + r.n + ": subject " + r.subjectId + " goes back in the learning order"); last = Math.max(last, si); }
     });
     return { sessions: out, errors: errors, warnings: warnings, ok: errors.length === 0, scheduled: scheduled, unscheduled: unscheduled, count: out.length };
   }

@@ -375,3 +375,15 @@
   .sd-badges { grid-template-columns: minmax(0, 1fr); }
 }
 .sd-more > summary { cursor: pointer; color: var(--sd-accent); font-size: 14px; font-weight: 600; padding: 8px 0; border-top: 1px solid var(--sd-line); }
+
+/* Integrated (real data) additions: readings, reveal blocks, links, per-topic takeaways */
+.sd-root .sd-reveal { margin: 10px 0; }
+.sd-root .sd-reveal > summary { cursor: pointer; font-weight: 600; }
+.sd-root .sd-reveal[open] > summary { margin-bottom: 6px; }
+.sd-root .sd-links { padding-left: 1.2em; }
+.sd-root .sd-links a { overflow-wrap: anywhere; }
+.sd-root .sd-reading .sd-video-t { overflow-wrap: anywhere; }
+.sd-root .sd-notes h4 { margin: 12px 0 4px; font-size: 1rem; }
+.sd-root .sd-tk { margin: 12px 0; }
+.sd-root .sd-tk-ta { width: 100%; box-sizing: border-box; }
+.sd-root .sd-quiz.is-locked fieldset { opacity: .75; }

@@ -24,6 +24,10 @@ Concurrency → SQL & JDBC → Spring Boot → LLD → HLD → GenAI, one main l
 | `fixtures/legacy-progress.fixture.js` | Example progress in the old day-based (v1) shape, for migration |
 | `fixtures/engagement.fixture.js` | **Example data**: builds a made-up 22–27 Nov history through the real reducer for `?engagement=example` |
 | `checks/engine.test.mjs`, `checks/coverage.test.mjs` | `node --test ui/checks/engine.test.mjs ui/checks/coverage.test.mjs` (includes QA 2026-11-21 regressions) |
+| `adapters/codex-adapter.js` | **Real data.** `createCodexAdapter({S,E,codex})` builds course v2 from Codex's modules (`curriculum.js`, `course-outline.js`, `study-data.js`, `session-qa.js`, `topic-lessons.js`, `lesson-videos.js`, `lesson-diagrams.js`); `toProgress(codexState, sidecar)` derives progress v2; `translate(change)` turns every UI change into Codex study actions. `createCodexHost()` persists through Codex only: `applyStudyAction` + the existing key `ai-learning-platform.study-desk.v1`, or `StudySync.save()` when signed in. Engagement extras Codex has no field for live in the per-browser sidecar `ai-learning-platform.study-desk.ui-sidecar.v1` (adapter questions in PR #5) |
+| `preview.html`, `preview.js` | **Integrated preview**: the real 55-session course + Codex persistence + account sign-in (Codex `accountCard`). `?today=YYYY-MM-DD` pins the date |
+| `checks/adapter.test.mjs`, `checks/codex-load.mjs` | `node --test ui/checks/adapter.test.mjs`: real course resolves, Day 1 content, complete → reload → reopen, refused actions, upgrade from a Codex-written profile |
+| `checks/day1-integration.mjs` | Headless Chrome on `preview.html`: Day 1 content, full completion, reload, reopen, upgrade, two browsers on one account via Codex's `backend/server.mjs` on a temp DB with an API restart, 320 px screenshots |
 | `checks/run-checks.mjs` | Headless Chrome: desktop 1366×900, mobile 390×844 and 320×640, keyboard, flows, QA regressions, axe colour contrast (needs `puppeteer-core` and `axe-core` on `NODE_PATH`) |
 
 ## Course contract v2
@@ -118,6 +122,16 @@ engagement UI). Points: lesson 50 · check 20 (+10 for 100%) · practice 25 (+10
 revision 15 · interview answer 5 · module test 100 (+25 for ≥90%) · session finished 40 · videos
 1/10 min (max 12/day) · daily challenge 30 · weekly challenge 150. Streaks count study days:
 unavailable / 0-minute dates never break them. Full rules: `collab/engagement-contract.md`.
+
+Hosts whose curriculum is ordered by study day can set `schedule.subjectOrder: "free"` and
+`schedule.dsaRequired: false`; the two rules then report warnings instead of errors (the
+real Codex course uses both). Lessons may also carry `interview: [{id, prompt, answer}]`
+(answers render collapsed), `takeaways: [{topicId, text}]` (coach takeaways, shown apart
+from the learner's), `topics: [{id, title}]` (per-topic "My key takeaways" editors; the UI
+emits `{type:"takeaway", topicId, text, base}`), videos with `kind: "article"` (readings,
+no watch log), practice with `required: false`, quiz questions with `explanation`, and notes
+blocks `h4`, `details {summary, text}` and `links {items:[{title,url}]}`. `mount()` accepts
+`quizLock(lessonId) -> reason|null` to lock a lesson check with a visible reason.
 
 ## Rules the engine implements
 
