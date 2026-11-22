@@ -193,7 +193,9 @@ test('the first interview question is the main lesson recall, never the DSA lane
     if (!lane?.recall) continue;
     assert.notEqual(codex.sessionQA[d.number].questions[0], lane.recall, 'Day ' + d.number);
     const review = d.blocks.find(b => b.id === 'review');
-    if (d.number > 1 && review?.recall) assert.equal(codex.sessionQA[d.number].questions[0], review.recall, 'Day ' + d.number); // Day 1 starts with the warm-up recall
+    if (d.number > 1 && review?.recall) assert.equal(codex.sessionQA[d.number].questions[0], review.recall, 'Day ' + d.number); // Day 1 starts with the booking-lab recall
+    const warmUp = d.blocks.find(b => b.id === 'foundations');
+    if (warmUp?.recall) assert.notEqual(codex.sessionQA[d.number].questions[0], warmUp.recall, 'Day ' + d.number + ': the warm-up recall has no model answer'); // Day 1 regression
   }
 });
 
