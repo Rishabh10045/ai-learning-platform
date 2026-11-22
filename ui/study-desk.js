@@ -616,7 +616,7 @@
           case "details": c.appendChild(h("details", { class: "sd-reveal" }, h("summary", { text: b.summary || "Show" }), notesText(b.text || ""))); break;
           case "links": c.appendChild(h("ul", { class: "sd-links" }, (b.items || []).map(function (it) { return h("li", null, h("a", { href: it.url, target: "_blank", rel: "noopener", text: it.title + " ↗" })); }))); break;
           case "ul": case "ol": c.appendChild(h(b.type, null, (b.items || []).map(function (it) { return h("li", { text: it }); }))); break;
-          case "code": c.appendChild(h("pre", { class: "sd-code" }, h("code", { text: b.text }))); break;
+          case "code": c.appendChild(h("pre", { class: "sd-code", tabindex: "0", role: "region", "aria-label": "Code example" }, h("code", { text: b.text }))); break;
           case "callout": c.appendChild(h("p", { class: "sd-callout sd-callout-" + (b.tone || "info"), text: b.text })); break;
           default: c.appendChild(h("p", { text: b.text }));
         }
