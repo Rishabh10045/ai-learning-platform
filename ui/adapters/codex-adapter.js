@@ -22,7 +22,7 @@ export const SIDECAR_KEY = 'ai-learning-platform.study-desk.ui-sidecar.v1';
 export const SIDECAR_VERSION = 1;
 
 export function emptySidecar() {
-  return { v: SIDECAR_VERSION, interview: {}, challenges: {}, notifications: null, practice: {}, watchLog: {}, revisions: {}, activity: [], lastActiveAt: null };
+  return { v: SIDECAR_VERSION, interview: {}, challenges: {}, notifications: null, practice: {}, watchLog: {}, revisions: {}, spaced: {}, activity: [], lastActiveAt: null };
 }
 export function readSidecar(storage) {
   try {
@@ -265,6 +265,7 @@ export function createCodexAdapter({ S, E, codex }) {
     p.takeaways = { ...(state.topicTakeaways || {}) };
     p.interview = clone(side.interview || {});
     p.challenges = clone(side.challenges || {});
+    p.spaced = clone(side.spaced || {});
     p.prefs = { notifications: { ...(side.notifications || {}), email: prefs.emailReminders === true } };
     p.activity = clone(side.activity || []);
     if (side.lastActiveAt) p.lastActiveAt = side.lastActiveAt;
@@ -355,6 +356,11 @@ export function createCodexAdapter({ S, E, codex }) {
         if (change.answered === false) delete side.interview[change.id]; else side.interview[change.id] = { lessonId: change.lessonId, answeredOn: date };
         return { actions: [], side };
       }
+      case 'spaced': // {id: 'S03+7', done}: +1/+3/+7-day spaced revision (sidecar only; due checks in engagement-engine.js)
+        if (!/^S\d{2}\+(1|3|7)$/.test(change.id || '')) return fail('Unknown spaced revision ' + change.id);
+        side.spaced = side.spaced || {};
+        if (change.done === false) delete side.spaced[change.id]; else side.spaced[change.id] = { doneOn: date };
+        return { actions: [], side };
       case 'challenge':
         if (change.done === false) delete side.challenges[change.id]; else side.challenges[change.id] = { doneOn: date, kind: change.kind || null, title: change.title || null };
         return { actions: [], side };
@@ -403,9 +409,11 @@ export function createCodexHost({ S, E, adapter, codex, storage, sync = null, to
 
   function change(ch) {
     const run = async () => {
-      ch = { ...ch, date: today() };
+      // `date` is the IST day the change happens, except for 'unavailable', where it is the day being marked (the
+      // calendar can mark a future date). Overwriting it marked TODAY instead (found by engagement-real.test.mjs).
+      ch = { ...ch, date: ch.type === 'unavailable' && /^\d{4}-\d{2}-\d{2}$/.test(ch.date || '') ? ch.date : today() };
       const before = adapter.toProgress(state, side);
-      if (ch.type === 'challenge' || ch.type === 'prefs') {
+      if (ch.type === 'challenge' || ch.type === 'prefs' || ch.type === 'spaced') {
         const v = E.applyChange(adapter.course, before, ch, ch.at);
         if (!v.ok) return v;
         if (ch.type === 'challenge') ch = { ...ch, kind: v.progress.challenges[ch.id]?.kind, title: v.progress.challenges[ch.id]?.title };
