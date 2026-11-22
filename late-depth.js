@@ -165,6 +165,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/')],
     recall: 'What is lost if you set cur.next = prev before saving cur.next?'
   },
+  29: {
+    title: 'Queues: two-stack queue and a sliding time window',
+    concept: 'A queue is FIFO. Two stacks make a queue with amortized O(1) operations, and a queue of timestamps counts requests in a time window by expiring old entries from the front.',
+    example: 'Offering 1, 2, 3, polling, then offering 4 yields 1 2 3 4 with 4 moves between stacks. Pings at 1, 100, 3001, 3002 and 7000 return 1, 2, 3, 3, 1.',
+    practice: 'Implement TwoStackQueue and RecentCounter, then a fixed-capacity circular queue.',
+    checks: ['poll on an empty queue returns null.', 'Each item moves between stacks at most once.', 'Explain amortized O(1).'],
+    readings: [reading('Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html')],
+    recall: 'Why is a two-stack queue amortized O(1) even though one poll can take O(n)?'
+  },
   // @@lanes
 };
 
@@ -3673,6 +3682,216 @@ merge         : A→B→C→D→F→G`
       ['Recursive and iterative reversal give the same result.', 'reverseFirstK(A→B→C→D, 2) gives B→A→C→D.', 'Removing the 1st from the end of A→B→C gives A→B.', 'Empty and one-node lists work.']],
     references: [['Princeton Algorithms · Stacks and queues (linked lists)', 'https://algs4.cs.princeton.edu/13stacks/']]
   },
+  'd-lru-02': {
+    notes: [
+      'A least-recently-used (LRU) cache keeps at most capacity entries and, when full, evicts the entry that was used longest ago. Both get and put must be O(1). Two structures together give that: a HashMap from key to node finds an entry in O(1), and a doubly linked list keeps the nodes in recency order, most recent at the front. Because the map stores the node itself, not just the value, you can unlink that node in O(1) using its prev and next pointers, with no scan.',
+      'LruNodes.java uses two sentinel nodes, head and tail, so unlinking and adding never need null checks. get moves the node to the front: a read changes recency, which matters for concurrency later. put updates and moves an existing key, or, when the cache is full, removes the node before tail from both the list and the map, then adds the new node at the front. With capacity 2, put(A), put(B), get(A), put(C) evicts B and leaves the order C, A.',
+      'The invariant is that the map and the list contain exactly the same keys and the size never exceeds capacity. The program checks it after every step, which catches the classic bug of removing an evicted node from the list but not from the map. Test a miss, an update of an existing key, capacity 1, and the eviction order. In production Java, LinkedHashMap with access order and removeEldestEntry gives the same behaviour in a few lines.'
+    ],
+    code: {
+      title: 'LruNodes.java · HashMap of nodes plus a doubly linked list with sentinels, and an invariant check after every operation · java LruNodes.java',
+      text: String.raw`import java.util.*;
+
+// LRU cache from a HashMap of node references plus a doubly linked list, with an invariant check after every step.
+public class LruNodes {
+    static final class Node { final String key; int value; Node prev, next; Node(String k, int v) { key = k; value = v; } }
+    private final int capacity;
+    private final Map<String, Node> map = new HashMap<>();
+    private final Node head = new Node("HEAD", 0), tail = new Node("TAIL", 0);   // sentinels: head.next = most recent
+
+    LruNodes(int capacity) { if (capacity < 1) throw new IllegalArgumentException("capacity >= 1"); this.capacity = capacity; head.next = tail; tail.prev = head; }
+
+    private void unlink(Node n) { n.prev.next = n.next; n.next.prev = n.prev; }
+    private void addFront(Node n) { n.next = head.next; n.prev = head; head.next.prev = n; head.next = n; }
+
+    Integer get(String key) {
+        Node n = map.get(key);                 // O(1): the map hands us the node itself
+        if (n == null) return null;
+        unlink(n); addFront(n);                // a read CHANGES recency
+        return n.value;
+    }
+
+    void put(String key, int value) {
+        Node n = map.get(key);
+        if (n != null) { n.value = value; unlink(n); addFront(n); return; }
+        if (map.size() == capacity) { Node lru = tail.prev; unlink(lru); map.remove(lru.key); }   // remove from BOTH
+        n = new Node(key, value); map.put(key, n); addFront(n);
+    }
+
+    List<String> order() { List<String> o = new ArrayList<>(); for (Node n = head.next; n != tail; n = n.next) o.add(n.key); return o; }
+
+    void checkInvariant() {
+        List<String> o = order();
+        if (o.size() != map.size() || !new HashSet<>(o).equals(map.keySet()) || o.size() > capacity)
+            throw new IllegalStateException("map " + map.keySet() + " vs list " + o);
+    }
+
+    public static void main(String[] args) {
+        LruNodes c = new LruNodes(2);
+        c.put("A", 1); c.checkInvariant();
+        c.put("B", 2); c.checkInvariant();
+        System.out.println("get(A) = " + c.get("A") + ", order " + c.order()); c.checkInvariant();
+        c.put("C", 3); c.checkInvariant();
+        System.out.println("after put(C): order " + c.order() + ", get(B) = " + c.get("B"));
+        c.put("A", 10); c.checkInvariant();
+        System.out.println("update A: order " + c.order() + ", get(A) = " + c.get("A"));
+        LruNodes one = new LruNodes(1);
+        one.put("X", 1); one.put("Y", 2); one.checkInvariant();
+        System.out.println("capacity 1: order " + one.order() + ", get(X) = " + one.get("X"));
+    }
+}
+`,
+      output: String.raw`get(A) = 1, order [A, B]
+after put(C): order [C, A], get(B) = null
+update A: order [A, C], get(A) = 10
+capacity 1: order [Y], get(X) = null`
+    },
+    takeaways: ['HashMap finds the node; the linked list keeps recency.', 'get moves the node to the front.', 'Evict from both the list and the map.', 'Check that map keys and list keys always match.'],
+    interview: [
+      ['How do you implement an LRU cache with O(1) get and put?', 'I combine a HashMap from key to node with a doubly linked list ordered by recency, most recent at the front, and use sentinel head and tail nodes to avoid edge cases. get looks up the node in the map; on a hit it unlinks the node using its prev and next pointers and adds it at the front, then returns the value. put updates and moves an existing node, or, when the cache is full, removes the node just before the tail from both the list and the map, then inserts the new node at the front and into the map. Every step is a constant number of pointer changes, so both operations are O(1).'],
+      ['Why does the map store the node rather than just the value?', 'Moving or removing an entry in the list requires access to its neighbours. If the map stored only the value, I would have to walk the list to find the node for that key, which is O(n) and defeats the purpose. Storing the node gives me its prev and next pointers immediately, so I can unlink it in O(1). The node also stores its key, which I need during eviction: the least recent node is found at the tail of the list, and its key tells me which map entry to remove. Without the key in the node, eviction could not clean up the map in O(1).'],
+      ['Two threads call get on the same LRU cache at the same time. What needs coordination?', 'Even get mutates the cache, because a hit moves the node to the front of the recency list. Two concurrent moves, or a move racing with an eviction, can corrupt the prev and next pointers, losing nodes or creating cycles, and the map and list can disagree. So the map lookup and the list change must happen as one atomic operation, for example inside a single lock around get and put. A ConcurrentHashMap alone does not help, because the separate list is still unsynchronized. For high contention, libraries such as Caffeine use striped buffers and approximate recency to avoid one global lock.']
+    ],
+    check: ['With capacity 2, after put(A), put(B), get(A), put(C), what is the order from most to least recent?',
+      ['B, C', 'C, A', 'A, C', 'C, B'], 1,
+      'get(A) makes A most recent, so B is least recent and is evicted when C is added.'],
+    practice: ['Copy LruNodes.java. Add remove(key), a hit/miss counter, and a test that runs 1,000 random operations against a simple reference implementation, checking the invariant each time.',
+      ['remove deletes the key from both structures.', 'Random operations always match the reference.', 'Capacity 1 and a miss on an empty cache work.', 'The invariant check never fails.']],
+    references: [['Java 21 API · LinkedHashMap (access order, removeEldestEntry)', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html']]
+  },
+  'l-machine-01': {
+    notes: [
+      'Machine-coding rounds ask you to build a small, working component in 60–90 minutes, such as a thread-safe cache. Start with the interface, not the data structure: Cache<K, V> with get, put and size. State the invariants out loud: size never exceeds capacity, the least recently used entry is evicted first, and get counts as a use. Then pick the simplest correct implementation and leave extension points, such as a different eviction policy behind the same interface.',
+      'SafeLru.java implements the interface with LinkedHashMap in access order, so get moves an entry, and overrides removeEldestEntry to evict when size() > capacity. That is the whole LRU logic. Thread safety comes from one ReentrantLock around every operation, including get, because get changes the order. The lock is released in finally, so an exception cannot leave it held. A ConcurrentHashMap would not be enough, because the recency order is separate state.',
+      'Prove it with tests the interviewer can watch: the capacity-2 eviction case, and a stress test where 8 threads run 20,000 random gets and puts each, after which the size equals the capacity and the order list agrees with the map. Mention the trade-off: one lock serializes all access, which is fine for a booking service with modest traffic. For heavy contention you would use a library such as Caffeine rather than writing your own concurrent cache.'
+    ],
+    code: {
+      title: 'SafeLru.java · interface first, LinkedHashMap in access order with removeEldestEntry, one lock for every operation, and an 8-thread stress test · java SafeLru.java',
+      text: String.raw`import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.*;
+
+// Machine-coding style: interface first, LinkedHashMap in access order, one lock around every operation
+// (get mutates recency too), and a concurrent stress test that checks the size invariant.
+public class SafeLru {
+    interface Cache<K, V> { V get(K key); void put(K key, V value); int size(); }
+
+    static final class LockedLru<K, V> implements Cache<K, V> {
+        private final Lock lock = new ReentrantLock();
+        private final LinkedHashMap<K, V> map;
+        LockedLru(int capacity) {
+            map = new LinkedHashMap<>(16, 0.75f, true) {              // true = access order: get moves the entry
+                @Override protected boolean removeEldestEntry(Map.Entry<K, V> eldest) { return size() > capacity; }
+            };
+        }
+        public V get(K key) { lock.lock(); try { return map.get(key); } finally { lock.unlock(); } }
+        public void put(K key, V value) { lock.lock(); try { map.put(key, value); } finally { lock.unlock(); } }
+        public int size() { lock.lock(); try { return map.size(); } finally { lock.unlock(); } }
+        List<K> order() { lock.lock(); try { return new ArrayList<>(map.keySet()); } finally { lock.unlock(); } }
+    }
+
+    public static void main(String[] args) throws Exception {
+        LockedLru<String, Integer> c = new LockedLru<>(2);
+        c.put("A", 1); c.put("B", 2); c.get("A"); c.put("C", 3);
+        System.out.println("least -> most recent: " + c.order() + " (B evicted)");
+
+        LockedLru<Integer, Integer> shared = new LockedLru<>(100);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        List<Future<?>> fs = new ArrayList<>();
+        for (int t = 0; t < 8; t++) {
+            final int seed = t;
+            fs.add(pool.submit(() -> {
+                Random r = new Random(seed);
+                for (int i = 0; i < 20_000; i++) { int k = r.nextInt(500); if (r.nextBoolean()) shared.put(k, i); else shared.get(k); }
+            }));
+        }
+        for (Future<?> f : fs) f.get();
+        pool.shutdown();
+        System.out.println("8 threads x 20,000 ops: final size " + shared.size() + " (capacity 100), order list size " + shared.order().size());
+    }
+}
+`,
+      output: String.raw`least -> most recent: [A, C] (B evicted)
+8 threads x 20,000 ops: final size 100 (capacity 100), order list size 100`
+    },
+    takeaways: ['Define the interface and invariants first.', 'LinkedHashMap(access order) + removeEldestEntry is an LRU.', 'Lock get as well as put.', 'Show a correctness test and a stress test.'],
+    interview: [
+      ['How would you approach a machine-coding round for a thread-safe cache?', 'I clarify requirements first: capacity, eviction policy, whether reads count as use, expected concurrency, and whether values can be null. Then I write the interface, Cache<K, V> with get, put and size, and state the invariants: size never exceeds capacity, the least recently used entry is evicted, and get updates recency. I implement the simplest correct version, LinkedHashMap in access order with removeEldestEntry, wrapped in one ReentrantLock. Then I show tests: the eviction order case, a miss, an update, and a concurrent stress test. Finally I discuss extensions, such as time-based expiry or a pluggable policy, and the trade-offs of the single lock.'],
+      ['Why is a ConcurrentHashMap not enough to make an LRU cache thread-safe?', 'ConcurrentHashMap makes each map operation thread-safe, but an LRU cache has a second piece of state, the recency order, that must change together with the map. A get on a hit moves the entry in the order, and a put may evict the eldest entry from both. If those steps are not atomic as a group, two threads can interleave: one evicts a key while another moves it, leaving the list pointing at an entry the map no longer has, or the size above capacity. So the map lookup and the order change need one lock, or a design built for concurrency, such as Caffeine’s buffered approach.'],
+      ['How does LinkedHashMap implement LRU behaviour?', 'LinkedHashMap keeps a doubly linked list through its entries in addition to the hash table. With the constructor flag accessOrder set to true, every get or put of an existing key moves that entry to the end of the list, so iteration goes from least to most recently accessed. After each insertion it calls removeEldestEntry with the first entry in that order; if you override it to return true when size() exceeds the capacity, the eldest, least recently used entry is removed. So an LRU cache is a few lines of code. It is not thread-safe, so it needs external locking, and get must be locked too because it reorders entries.']
+    ],
+    check: ['In SafeLru.java, why is get inside the lock?',
+      ['Because reading a HashMap is never safe', 'Because in access order, get moves the entry, which changes shared state', 'Because removeEldestEntry runs on get', 'It does not need to be'], 1,
+      'With accessOrder = true, get reorders the internal list, so it must be synchronized like put.'],
+    practice: ['Copy SafeLru.java. Add time-based expiry (an entry older than ttlMillis is treated as a miss, using an injected clock), hit and miss counters, and a test with a fake clock.',
+      ['Expired entries return null and are removed.', 'The fake clock makes tests deterministic.', 'Counters are correct after the stress test.', 'The capacity invariant still holds.']],
+    references: [['Java 21 API · LinkedHashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html'], ['Java 21 API · ReentrantLock', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/locks/ReentrantLock.html']]
+  },
+  'd-queues-01': {
+    notes: [
+      'A queue is first in, first out: offer adds at the back and poll removes from the front. In Java, ArrayDeque is the usual queue: offer, poll and peek are amortized O(1), and poll returns null on an empty queue instead of throwing. Queues model waiting lines, such as booking requests processed in arrival order, and they drive breadth-first search.',
+      'A queue can be built from two stacks. QueueOps.java pushes new items onto an in stack. To poll, if the out stack is empty, it moves every item from in to out, which reverses their order so the oldest is on top. Each item is moved at most once in its lifetime, so although one poll can take O(n), the average cost per operation is O(1). That is amortized analysis: 4 items cause exactly 4 moves.',
+      'A queue of timestamps answers "how many requests in the last 3,000 ms?". On each new request, add its time at the back, then remove times from the front while they are older than t − 3000. The queue size is the answer. Each timestamp is added and removed once, so this is amortized O(1) too. The same pattern implements a sliding-window rate limiter.'
+    ],
+    code: {
+      title: 'QueueOps.java · FIFO with ArrayDeque, a queue from two stacks (amortized O(1)) and a recent-hits counter · java QueueOps.java',
+      text: String.raw`import java.util.*;
+
+// Queues: FIFO with ArrayDeque, a queue built from two stacks (amortized O(1)), and a recent-hits counter.
+public class QueueOps {
+    static final class TwoStackQueue<T> {
+        private final Deque<T> in = new ArrayDeque<>(), out = new ArrayDeque<>();
+        int moves = 0;
+        void offer(T x) { in.push(x); }
+        T poll() {
+            if (out.isEmpty()) while (!in.isEmpty()) { out.push(in.pop()); moves++; }   // each item moves at most once
+            return out.poll();
+        }
+    }
+
+    // Count requests in the last 3,000 ms: drop timestamps from the front as they expire.
+    static final class RecentCounter {
+        private final Deque<Long> times = new ArrayDeque<>();
+        int ping(long t) { times.offerLast(t); while (times.peekFirst() < t - 3000) times.pollFirst(); return times.size(); }
+    }
+
+    public static void main(String[] args) {
+        Deque<String> fifo = new ArrayDeque<>();
+        fifo.offer("req-1"); fifo.offer("req-2"); fifo.offer("req-3");
+        System.out.println("FIFO poll: " + fifo.poll() + ", then peek: " + fifo.peek());
+
+        TwoStackQueue<Integer> q = new TwoStackQueue<>();
+        for (int i = 1; i <= 3; i++) q.offer(i);
+        StringBuilder sb = new StringBuilder("two-stack queue: " + q.poll());
+        q.offer(4);
+        Integer x; while ((x = q.poll()) != null) sb.append(' ').append(x);
+        System.out.println(sb + " (moves between stacks: " + q.moves + " for 4 items)");
+
+        RecentCounter rc = new RecentCounter();
+        long[] ts = {1, 100, 3001, 3002, 7000};
+        StringBuilder hits = new StringBuilder("recent hits:");
+        for (long t : ts) hits.append(" t=").append(t).append("->").append(rc.ping(t));
+        System.out.println(hits);
+    }
+}
+`,
+      output: String.raw`FIFO poll: req-1, then peek: req-2
+two-stack queue: 1 2 3 4 (moves between stacks: 4 for 4 items)
+recent hits: t=1->1 t=100->2 t=3001->3 t=3002->3 t=7000->1`
+    },
+    takeaways: ['ArrayDeque is Java’s everyday queue.', 'Two stacks make a queue with amortized O(1).', 'Expire old timestamps from the front.', 'Each item is moved or removed at most once.'],
+    interview: [
+      ['How do you implement a queue with two stacks, and what is its complexity?', 'I keep an in stack and an out stack. offer always pushes onto in. poll pops from out; if out is empty, I first pop everything from in and push it onto out, which reverses the order so the oldest item is on top. Each element is pushed onto in once, moved to out once and popped from out once, so over any sequence of n operations the total work is O(n). A single poll can cost O(n) when it triggers the transfer, but the amortized cost per operation is O(1). It is a classic interview question about amortized analysis.'],
+      ['How would you count requests in the last three seconds efficiently?', 'I keep a queue of request timestamps in arrival order. For each new request at time t, I add t at the back, then remove timestamps from the front while they are older than t − 3000 milliseconds. The size of the queue is the number of requests in the window. Because timestamps arrive in order, expired ones are always at the front. Each timestamp is added once and removed once, so the amortized cost is O(1) per request, and memory is proportional to the requests in the window. For very high rates I would switch to fixed time buckets, which use constant memory at the cost of precision.'],
+      ['Why use ArrayDeque instead of LinkedList for a queue in Java?', 'ArrayDeque stores elements in a resizable circular array, so offer and poll are amortized O(1) with no per-element node objects. That means less memory, less garbage collection and better cache locality than LinkedList, which allocates a node with two extra references for every element. Both implement Deque, so the code using them is the same. ArrayDeque rejects null, which also avoids confusing a null element with poll’s empty-queue result. LinkedList is only useful when you need its List methods. Neither is thread-safe; for a queue shared between threads I use a BlockingQueue such as ArrayBlockingQueue.']
+    ],
+    check: ['In QueueOps.java, the recent counter receives pings at 1, 100, 3001, 3002 and 7000. What does the ping at 3002 return?',
+      ['4', '3', '2', '1'], 1,
+      'At 3002 the window starts at 2, so 1 expires and 100, 3001 and 3002 remain.'],
+    practice: ['Copy QueueOps.java. Add a fixed-capacity circular queue with isFull, a stack built from two queues, and a test of the recent counter with equal timestamps.',
+      ['The circular queue wraps around correctly.', 'The two-queue stack returns items in LIFO order.', 'Equal timestamps are all counted.', 'State the amortized complexity of each.']],
+    references: [['Java 21 API · ArrayDeque', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ArrayDeque.html'], ['Princeton Algorithms · Stacks and queues', 'https://algs4.cs.princeton.edu/13stacks/']]
+  },
   // @@packets
 };
 
@@ -3749,6 +3968,10 @@ export const lateDistractors = {
     ['Pick a random side on ties.', 'Sort each half with a different algorithm.'],
     ['Only the head of the original list.', 'The value stored in the current node.']
   ],
+  29: [
+    ['Only the hit counter, not the order.', 'The value is copied into a new node.'],
+    ['From the map only; the list cleans itself up.', 'From the list only; the map entry expires later.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -3788,6 +4011,8 @@ export const lateExplanations = {
     'Every composite n has a divisor d with d × d ≤ n. Once d > n / d, no unchecked divisor can exist, so n is prime.'],
   28: ['Taking the left item on equal keys keeps the earlier record first, which is what makes merge sort stable. Random or right-side choices can swap equal keys.',
     'Reversal needs the next unprocessed node, so the rest of the list is not lost, and the reversed prefix, so the current node can point back to it.'],
+  29: ['A hit makes the entry the most recently used, so get moves its node to the front. That is why even reads need coordination.',
+    'The map and the list must always hold the same keys. Removing from only one leaves a dangling entry that breaks later operations.'],
   // @@explanations
 };
 
@@ -3921,6 +4146,14 @@ export const lateAssessment = {
       choices: ['"()"', '"(()"', '"())"', '"([)]"'], answer: 1,
       explanation: '"(()" ends with "(" still on the stack. "())" has an unexpected closer and "([)]" a mismatch.' }
   ],
+  29: [
+    { question: 'Why must get on an LRU cache be inside the same lock as put?',
+      choices: ['Because HashMap.get is slow', 'Because a hit moves the entry in the recency order, which is shared state', 'Because get can throw', 'It does not need to be'], answer: 1,
+      explanation: 'A hit mutates the recency list, so concurrent gets can corrupt it without coordination.' },
+    { question: 'Which Java setup gives LRU eviction in a few lines?',
+      choices: ['TreeMap with a comparator', 'LinkedHashMap with accessOrder = true and removeEldestEntry returning size() > capacity', 'HashMap with a counter', 'ConcurrentHashMap alone'], answer: 1,
+      explanation: 'Access order moves used entries to the end, and removeEldestEntry evicts the least recently used one.' }
+  ],
   // @@assessment
 };
 
@@ -4004,6 +4237,20 @@ export const lateStretchPlans = {
         acceptance: ['"3 4 + 2 *" evaluates to 14.', '1→2→2→1 is a palindrome and 1→2→3 is not.', 'Heights 2 1 5 6 2 3 give a largest rectangle of 10.', 'Time and space written for all three.'] },
       { id: 'd-sort-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · sorting, stacks and lists',
         prompt: 'Answer aloud in 2 minutes each, without notes: how merge sort works and what it costs; what stability means and when it matters; how you validate brackets; how a min-stack works; which reference you save when reversing a list. Then compare with the model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  29: {
+    assign: { 'd-lru-02.packet': 45, 'l-machine-01.packet': 45, 'd-lru-02.stretch': 40, 'd-queues-01.packet': 30 },
+    extra: [
+      { id: 'l-machine-01.stretch-lab', minutes: 50, title: 'Stretch lab · 60-minute machine-coding mock: a seat-hold cache',
+        prompt: 'In 60 minutes, build a SeatHoldCache: put(seat, holder) holds a seat for 10 minutes using an injected clock, get returns the holder or null after expiry, capacity is 500 with LRU eviction of expired holds first, and every method is thread-safe. Write the interface first, then tests, then the implementation.',
+        acceptance: ['A hold expires exactly at 10 minutes with the fake clock.', 'Expired holds are evicted before live ones.', 'An 8-thread stress test keeps size ≤ 500 and the map and order consistent.', 'A short README states the invariants and one trade-off.'] },
+      { id: 'd-lru-02.stretch-set', minutes: 35, title: 'Stretch DSA · three more cache and queue problems',
+        prompt: 'In one Java file solve: (1) an LFU cache with O(1) get and put using a frequency map of linked lists; (2) the first non-repeating character in a stream using a queue; (3) a design for a hit counter over the last 5 minutes using 300 one-second buckets.',
+        acceptance: ['LFU evicts the least frequently used key, and the least recent among ties.', 'Stream "aabc" gives a, -, b, b as first non-repeating characters.', 'The hit counter uses O(300) memory.', 'Time and space written for all three.'] },
+      { id: 'd-lru-02.stretch-interview', minutes: 25, title: 'Stretch interview drill · LRU, machine coding and queues',
+        prompt: 'Answer aloud in 2 minutes each, without notes: how an O(1) LRU works; why the map stores nodes; why get needs a lock; how LinkedHashMap gives LRU; why a two-stack queue is amortized O(1). Then compare with the model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
     ]
   },
@@ -4097,6 +4344,11 @@ export const lateInterviewGuides = {
     'Space depends on the implementation, so I name it first. Array merge sort needs an O(n) buffer for merging, plus O(log n) call-stack depth from the recursion. Iterative linked-list reversal keeps only three references, prev, cur and next, so it uses O(1) extra space whatever the length. Delimiter validation uses a stack that can hold up to n openers in the worst case, such as "((((", so O(n). Merging two sorted linked lists relinks existing nodes and needs only a dummy node and a tail pointer, O(1). I state the peak working memory and do not count the input or the output list.',
     'The merge step must take the left-half item when the keys compare equal, because the left half holds the records that arrived first. If the merge takes the right item on ties, for example by using < instead of <= on the left side, records with the same key swap places, so arrival order is lost even though the keys still look sorted. I test it with records that share a key but have distinct arrival IDs, such as 10B and 10E, and assert both the order and that every record survives. In Java, List.sort on objects is already stable, which is the safer choice in production.',
     'Before setting current.next = previous, I must save the original current.next, because it is the only reference to the unprocessed part of the list. On A→B→C with current = B and previous = A, assigning B.next = A first loses the only pointer to C, so the loop stops and C is dropped from the result. The correct order is: save next, point current back to previous, move previous to current, then move current to the saved next. At the end previous is the new head, C→B→A, and I assert that the new tail A has next == null and that zero- and one-node lists work.'
+  ],
+  29: [
+    'The map stores, for each key, a reference to its node in the doubly linked list, not just the value. On get(A), the map returns A’s node in O(1). Because the node knows its prev and next neighbours, I can unlink it by pointing prev.next to next and next.prev to prev, then insert it after the head sentinel as most recent, all in constant time with no scan. On eviction I take the node before the tail sentinel, unlink it, and use the key stored in it to remove the map entry. After every step I check that the map keys and the list keys are exactly the same set.',
+    'Even get mutates the cache, because a hit moves the node to the most-recent end of the list. Two threads moving nodes at once, or one moving a node while another evicts it, can corrupt the prev and next pointers and make the map and the list disagree. So the lookup and the list change must be one atomic operation, for example by taking a single lock around the whole of get and put. A thread-safe map on its own is not enough, because the list is separate, unsynchronized state. With LinkedHashMap in access order the same applies: get reorders entries, so it must be locked too.',
+    'Moving an entry needs its neighbours. If the map held only the value, finding the node for a key would mean walking the list, which is O(n) and defeats the purpose of the cache. Holding the node gives immediate access to its prev and next pointers, so unlinking is O(1). I trace it at capacity 2: put(A), put(B), then get(A) unlinks A’s node from behind B and moves it to the front, giving A, B. Then put(C) evicts the tail-side node, B, from both structures, leaving C, A. A check that get(B) returns null confirms the right key was evicted.'
   ],
   // @@guides
 };
