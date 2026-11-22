@@ -52,7 +52,7 @@ Facts were checked on 2026-11-23:
    - The workflow reads one JSON file from a **private** repo with a **read-only**, single-repo token.
    - It runs the real engine (`tasksFor`, `streak`, notification prefs), so "session done" means exactly what the Today page shows.
 2. **Getting progress into the private repo** has two choices, in increasing safety:
-   - **C1 (manual, zero risk):** Deepak downloads the progress file, using the existing "Export progress" or a one-click button we add, and commits it to the private repo. Simple, but reminders only see the last export, so the "stop after session done" rule needs an export after studying.
+   - **C1 (manual, zero risk):** Deepak downloads the progress file, using the **Download progress file** button that is now in Study Desk → Reminders (built and tested), and commits it to the private repo. Simple, but reminders only see the last export, so the "stop after session done" rule needs an export after studying.
    - **C2 (automatic):** Study Desk gets a "Back up to GitHub" setting. Deepak pastes a fine-grained token (only the data repo, `Contents: read and write`, 90-day expiry) into his own browser. After each study action, the site writes the snapshot with `PUT /repos/{owner}/{repo}/contents/{path}`. The token is kept in that browser's storage only. It is never in the code, never committed, and never sent anywhere except `api.github.com`.
 3. **If Deepak doesn't want any token in the browser: option B** (Cloudflare Worker). It is the safest of the three, but it needs one more account and about a day of work. It also replaces Codex's Node server with something that runs free.
 
@@ -78,6 +78,8 @@ Facts were checked on 2026-11-23:
   - Even then it exits without sending while the data-repo settings are missing. It prints a dry run while the email secrets are missing.
   - A manual run defaults to dry run. Permissions: `contents: read`.
 - `checks/reminders.test.mjs`: tests for the slot spacing (it reads the workflow cron), the templates, sending a reminder that names the topic, and every skip rule (off, quiet hours, recent study, session done, day off, daily cap).
+
+- `ui/study-desk.js`: a **Download progress file** button in Reminders settings, for option C1. It downloads every `ai-learning-platform.*` storage key as `progress.json`; nothing is uploaded. Checked end to end in Chrome: export, then `reminder.mjs --snapshot progress.json --dry-run`, which picked the Day 1 topic and slot 4.
 
 Not built yet, because each one depends on Deepak's choice:
 - the C2 "Back up to GitHub" setting;
