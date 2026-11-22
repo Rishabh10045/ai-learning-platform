@@ -14,10 +14,14 @@ test('storage keys are unchanged since 0203934', () => {
   assert.equal(codex.storageKey, 'ai-learning-platform.study-desk.v1');
 });
 
-test('every lesson ID scheduled at 0203934 is still scheduled on the same day', () => {
+test('every lesson ID scheduled at 0203934 is still scheduled on the same day (new DSA lanes may be added)', () => {
   const now = S.resolveSessions(A.course).sessions.map(s => ({ main: s.lessons.map(l => l.id), dsa: s.dsa.map(l => l.id), warmup: s.warmup?.id || null }));
   assert.ok(now.length >= fixture.lessonIds.length);
-  fixture.lessonIds.forEach((old, i) => assert.deepEqual(now[i], old, 'Day ' + (i + 1)));
+  fixture.lessonIds.forEach((old, i) => {
+    assert.deepEqual(now[i].main, old.main, 'Day ' + (i + 1) + ' main lesson');
+    assert.equal(now[i].warmup, old.warmup, 'Day ' + (i + 1) + ' warm-up');
+    for (const id of old.dsa) assert.ok(now[i].dsa.includes(id), 'Day ' + (i + 1) + ' keeps DSA lesson ' + id);
+  });
 });
 
 test('0203934 profile loads with Day 1 complete, score, notes, takeaway and interview marks; blob not rewritten', async () => {

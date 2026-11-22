@@ -1,3 +1,5 @@
+import { lateLanes } from './late-depth.js';
+
 export const START_DATE = '2026-11-22';
 
 export const tracks = {
@@ -268,7 +270,7 @@ export const days = [
       { id: 'review', title: 'Review and capture evidence', kind: 'Review', minutes: 15,
         practice: 'Save your output or reasoning. Discuss one changed scenario and one limitation after practice.', recall }
     ];
-    const lane = dsaLanes[number];
+    const lane = dsaLanes[number] || lateLanes[number]; // Days 41–56: late-depth.js (Grok)
     if (lane) {
       // Weekday shape: 12 revision + 78 main (30 learn + 36 practice + 12 review) + 30 DSA.
       blocks[1].minutes = 30; blocks[2].minutes = 36; blocks[3].minutes = 12;

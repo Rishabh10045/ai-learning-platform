@@ -4,6 +4,8 @@
 // Consumers: topic-lessons.js (packets), session-qa.js (choices, extra questions), curriculum.js (blocks),
 // lesson-videos.js (videos) and ui/adapters/codex-adapter.js (warm-up + code blocks).
 
+import { lateAssessment, lateDepthPackets, lateDistractors, lateExplanations, lateStretchPlans } from './late-depth.js';
+
 const oracle = 'https://docs.oracle.com/javase/tutorial/';
 
 // Java foundations warm-up: the 12-minute revision slot of Day 1 (there is no previous day to revise).
@@ -221,3 +223,10 @@ export const stretchPlans = {
     ]
   }
 };
+
+// Days 41–56 (Grok, late-depth.js): merged here so every consumer keeps importing day-depth.js only.
+Object.assign(depthPackets, lateDepthPackets);
+Object.assign(extraDistractors, lateDistractors);
+Object.assign(extraExplanations, lateExplanations);
+Object.assign(stretchPlans, lateStretchPlans);
+Object.assign(extraAssessment, lateAssessment);
