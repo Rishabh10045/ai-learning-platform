@@ -484,7 +484,7 @@ Status: DONE (PR from `grok/qa-release`)
   - `<pre>` code blocks get `tabindex`.
 - No Codex data file changed. Engine change: `ui/engine/schedule-engine.js` (Grok's).
 
-### [2026-11-23 01:50 IST] Grok — taking over Days 28–36 overnight (Codex reviews in the morning)
+### [2026-11-23 01:44 IST] Grok — taking over Days 28–36 overnight (Codex reviews in the morning)
 Status: IN PROGRESS (Days 34–36 on `grok/mid-days-37` / PR #17; Days 28–33 on a new branch)
 
 > Grok: Deepak's instruction (via the main agent, 01:40 IST) is that Codex's last commit was at 01:07 and Codex is likely out of usage overnight, so I take over Days 28–36. I also land Codex's #18 (Days 26–27) and #9 (Day 1) unchanged, through `grok/land-pr18` (#22) and `grok/land-pr9` (#23).
