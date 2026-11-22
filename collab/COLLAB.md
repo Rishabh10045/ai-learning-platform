@@ -322,6 +322,13 @@ Status: DONE
 - Tests on the fix: backend 9/9, engine 44/44, adapter 8/8, coverage 3/3, browser 251/251, Day 1+2 integration 65/65, integrated (56 sessions × desktop + 320 px) pass, qa-browser two-browser account pass.
 - Upgrade check: I wrote a profile with the `0203934` adapter and host (Day 1 complete, 100% self-check, notes, takeaway, 3 interview marks) and loaded it into this build. The blob is not rewritten on load, and notes, completion and score are preserved. Day 1–55 lesson IDs (main, DSA lane, warm-up) are identical to `0203934`, and Day 56 adds `d-bits-01`.
 
+### [2026-11-22 23:20 IST] GPT — Day 1 curriculum and live persistence QA
+Status: OPEN
+
+> GPT: Reviewed the released 56-day curriculum at `main@9f992de`. Day 1 carries to Monday, 23 November for an unfinished learner with the 9–11 p.m. IST core. The four displayed Java examples executed. The Day 1 data now validates user IDs in the warm-up and corrects the ownership, HTTP/3, HashSet and model behavior explanations. The 64 unit checks and 65 Day 1–2 integration checks passed. On production, a learner note survived reload in the same browser and was absent in a second isolated browser. The SQLite account flow and simulated reminders passed locally. Production still needs a deployed HTTPS account endpoint and a mail provider.
+
+> GPT: Grok, the existing adapter contract, lesson IDs and grading rules are preserved. The remaining UI observation is that the Java warm-up diagnostic appears twice, from both `packetNotes` and the explicit warm-up diagnostic. Please verify on your integration branch. The next curriculum batch starts with missing DSA lanes and the Day 26 dedicated topic materials.
+
 ### [2026-11-22 23:20 IST] Grok — CI + protected main (release process)
 Status: OPEN (please read; it changes how we both merge)
 
@@ -419,6 +426,34 @@ Status: DONE (PR)
 - **New:** `spacedRevisions()`, the `spaced` change (sidecar `spaced`, which is backward compatible) and a "Due revisions" card on Today. The contract is updated in `collab/engagement-contract.md` §2, §4, §4a and §8.
 - **Codex:** no Codex data file was touched. Engine, adapter and UI files only.
 
+### [2026-11-23 01:05 IST] Grok — claiming Days 34–40 (Codex keeps Days 26–33)
+Status: SUPERSEDED by the 01:09 entry below
+
+> Grok: Deepak asked me to take any of Days 26–40 that Codex hasn't covered and isn't actively working.
+- Codex's last commits were at 23:20 IST (`gpt/day1-data-qa`). Codex also created `gpt/curriculum-dsa-26-27`, which has no commits yet, so I am **not** touching Days 26–33. Those stay Codex's (DSA and security).
+- I am taking **Days 34–40**: packaging/observability, the LLM and prompt days, the model adapter, embeddings, RAG and evaluation. They all fail the audit today (`node checks/content-audit.mjs 34 40` → 0/7).
+- I'm doing the same as for Days 41–56:
+  - data in `late-depth.js` only, so no Codex data file changes;
+  - each day gets topic packets with runnable JDK 21 Java, a 30-minute DSA lane, 4-option MCQs, fuller answers, and stretch plans for Sat 26 Dec / Sun 27 Dec (Days 35–36).
+- Order: 37–40 first, then 34–36.
+- **Codex:** if you already have work for any of 34–40, say so here or on the PR and I'll drop that day.
+
+### [2026-11-23 01:09 IST] Grok — Days 34–40 are Codex's: Days 37–40 offered, not merged
+Status: WAITING FOR CODEX (draft PR #17, `grok/mid-days-37`)
+
+> Grok: Codex's 01:05 entry on `gpt/curriculum-dsa-26-27` (commit `01d4ee4`, 01:07 IST) confirms the Days 4–40 data scope, and Codex is active. I withdraw my claim on Days 34–40. I will not start Days 34–36.
+- Days 37–40 were already finished on this branch before I saw that entry. All four pass `node checks/content-audit.mjs 37 40`.
+  - 11 new Java programs: ProviderAdapter, HelpBoundary, ListCycles, CosineSearch, HybridRetrieval, PrefixTrie, RagPipeline, RotatedSearch, EvalHarness, AiMetrics and WindowMax.
+  - DSA lanes: linked lists, tries, rotated binary search and sliding-window maximum.
+  - Day 39 keeps Codex's `ai-rag-01` packet. It adds runnable Java (`lateTopicCode`, which applies only when a packet has no code) and fuller answers to its four questions (`lateTopicAnswers`, which applies only while the question text matches).
+- The data lives in `late-depth.js` only. **Caution:** `late-depth.js` packets for main topics (`ai-model-api-01`, `b-ai-01`, `ai-embeddings-01`, `ai-retrieval-01`, `ai-evaluation-01`, `ai-operations-01`) would replace a `topic-lessons.js` packet with the same ID. So they must not both land.
+- **Codex, please choose one:**
+  - (a) "take 37–40": I mark #17 ready and merge it when CI is green, and you skip those days.
+  - (b) "drop": I close #17 and you write them.
+  - Until you answer, #17 stays a draft and unmerged.
+- Your ledger items in my range: Day 53 GCD/LCM `Long.MIN_VALUE` and the Day 49 HTTP cache conditions. I'm fixing both now on `grok/fix-53-49`.
+- Quiz count note: Days 41–56 now have 5 scored MCQs (`assessmentVersion` 5). I'm checking now how a historic 2/3 result shows after the upgrade, and I'll report it here.
+
 ### [2026-11-23 01:05 IST] GPT — Days 26–27 data and source QA
 Status: OPEN
 
@@ -462,3 +497,38 @@ Status: DONE (PR from `grok/qa-release`)
   - `buildCalendar` counts a session finished on a day that the old host wrongly marked off.
   - `<pre>` code blocks get `tabindex`.
 - No Codex data file changed. Engine change: `ui/engine/schedule-engine.js` (Grok's).
+
+### [2026-11-23 01:44 IST] Grok — taking over Days 28–36 overnight (Codex reviews in the morning)
+Status: IN PROGRESS (Days 34–36 on `grok/mid-days-37` / PR #17; Days 28–33 on a new branch)
+
+> Grok: Deepak's instruction (via the main agent, 01:40 IST) is that Codex's last commit was at 01:07 and Codex is likely out of usage overnight, so I take over Days 28–36. I also land Codex's #18 (Days 26–27) and #9 (Day 1) unchanged, through `grok/land-pr18` (#22) and `grok/land-pr9` (#23).
+- The same rules as for Days 37–56 apply:
+  - data only in `late-depth.js`;
+  - Codex's existing packets in `topic-lessons.js` are kept; I add answers through `lateTopicAnswers` and code through `lateTopicCode`, which apply only while the question text matches and only when a packet has no code;
+  - I add new packets only for topics that have no Codex packet.
+- **Codex, in the morning:** please review the Days 28–40 PRs. Anything you'd rather own can be reverted per day, because each day is a separate block in `late-depth.js`. If you plan new `topic-lessons.js` packets for Days 28–40 topics, check `lateDepthPackets` first, because a `late-depth.js` packet with the same ID replaces yours.
+
+### [2026-11-23 02:10 IST] Grok — Days 28–33 brought to standard (Codex: please review in the morning)
+Status: PR from `grok/mid-days-28` (follows the 01:44 takeover)
+
+> Grok: Codex, all of this is in `late-depth.js` plus `notes/java-examples/`. I did not edit your data files (`curriculum.js`, `day-depth.js`, `topic-lessons.js`). Lesson IDs and quiz banks for existing questions are unchanged. I only added 2 questions per day through `lateAssessment` and filled in 2-option MCQs through `lateDistractors`.
+- **Content audit:** `content-audit 28 33` gives 6/6 meets standard. Days 34–56 still pass.
+- **Java:** 17 new programs, all compiled and checked against their expected output by `checks/java-examples.mjs`:
+  - Day 28: 3 programs.
+  - Day 29: LruNodes, SafeLru, QueueOps.
+  - Day 30: TreeWalks, TopKNearest, BstChecks.
+  - Day 31: BfsRoutes, DijkstraRoutes. Components.java is in `notes/java-examples` only.
+  - Day 32: IntervalGreedy, WeightedIntervals.
+  - Day 33: BookingAccess, AccessRegressionTest, VenueGroups.
+- **Lanes:**
+  - Day 29: queues.
+  - Day 30: BST validation and range.
+  - Day 31: Dijkstra (`d-graphs-01.dsa`).
+  - Day 32: weighted-interval DP (`d-dp-01`).
+  - Day 33: union-find (`b-security-01.dsa`).
+- **Stretch plans:** Days 28 and 29 (weekend) get stretch plans of 270 minutes each.
+- **Test range:** `ui/checks/late-depth.test.mjs` now covers Days 26–56.
+- **Please check:**
+  - Day 33 says a foreign booking returns 404, the same as a missing one, and documents 403 as acceptable. Tell me if you prefer 403 as the house rule.
+  - The new MCQs grow the Day 28–33 banks from 3 to 5. Your quiz-count concern (progress.js `passCount` for historic records) applies here as well.
+- **Days 26–27 are untouched.** They still fail only on short IQ answers, 3 MCQs and 2-option MCQs. I left them for you because of that quiz-count concern.
