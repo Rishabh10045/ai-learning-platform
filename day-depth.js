@@ -154,11 +154,36 @@ export const depthPackets = {
   }
 };
 
+// Day 3 (Grok, 2026-11-22): runnable fix for the Day 2 race, attached to Codex's existing j-concurrency-02 packet.
+export const packetCode = {
+  'j-concurrency-02': { title: 'SafeSeat.java · synchronized vs compare-and-set, 1000 forced races · java SafeSeat.java', text: "import java.util.concurrent.*;\nimport java.util.concurrent.atomic.AtomicReference;\n\npublic class SafeSeat {\n    static final class LockedSeat {\n        private String owner;                               // guarded by this\n        synchronized boolean claim(String user) {           // check + write under ONE monitor\n            if (owner != null) return false;\n            owner = user;\n            return true;\n        }\n        synchronized String owner() { return owner; }\n    }\n    static final class CasSeat {\n        private final AtomicReference<String> owner = new AtomicReference<>();\n        boolean claim(String user) { return owner.compareAndSet(null, user); } // atomic check-and-set\n        String owner() { return owner.get(); }\n    }\n\n    public static void main(String[] args) throws Exception {\n        ExecutorService pool = Executors.newFixedThreadPool(2);\n        int lockedDouble = 0, casDouble = 0;\n        for (int run = 0; run < 1000; run++) {\n            LockedSeat a = new LockedSeat(); CasSeat b = new CasSeat();\n            CyclicBarrier start = new CyclicBarrier(2);\n            Callable<Integer> race = () -> { start.await(); return (a.claim(Thread.currentThread().getName()) ? 1 : 0) + (b.claim(Thread.currentThread().getName()) ? 10 : 0); };\n            Future<Integer> f1 = pool.submit(race), f2 = pool.submit(race);\n            int r = f1.get(5, TimeUnit.SECONDS) + f2.get(5, TimeUnit.SECONDS);\n            if (r % 10 != 1) lockedDouble++;\n            if (r / 10 != 1) casDouble++;\n        }\n        pool.shutdown();\n        System.out.println(\"runs=1000 lockedSeatWrongWinners=\" + lockedDouble + \" casSeatWrongWinners=\" + casDouble);\n    }\n}\n", output: 'runs=1000 lockedSeatWrongWinners=0 casSeatWrongWinners=0' }
+};
+depthPackets['j-concurrency-02.dsa'] = {
+  notes: [
+    'Contains Duplicate II: is there a value that appears twice within k positions? Day 1 only asked "seen before?"; now you also need "seen where?". Keep a map from value to its last index. When you meet the value again at j, the closest earlier occurrence is the last one stored, so checking j − last ≤ k is enough.',
+    'Map.put returns the previous value for the key (or null), so one call both reads the last index and stores the new one. Expected O(n) time; O(min(n, distinct)) space. A sliding-window HashSet of the last k values is an alternative with O(k) space.'
+  ],
+  code: { title: 'DuplicateWithinK.java · java DuplicateWithinK.java', text: "import java.util.HashMap;\nimport java.util.Map;\n\npublic class DuplicateWithinK {\n    // true if some value appears at indices i < j with j - i <= k\n    static boolean nearbyDuplicate(int[] nums, int k) {\n        Map<Integer, Integer> lastIndex = new HashMap<>();\n        for (int j = 0; j < nums.length; j++) {\n            Integer i = lastIndex.put(nums[j], j);       // put returns the previous index (or null)\n            if (i != null && j - i <= k) return true;\n        }\n        return false;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(nearbyDuplicate(new int[] {1, 2, 3, 1}, 3));       // true  (distance 3)\n        System.out.println(nearbyDuplicate(new int[] {1, 0, 1, 1}, 1));       // true  (last two)\n        System.out.println(nearbyDuplicate(new int[] {1, 2, 3, 1, 2, 3}, 2)); // false (all distances 3)\n    }\n}\n", output: 'true\ntrue\nfalse' },
+  takeaways: ['Store the last index, not just membership.', 'Map.put returns the previous value: read and update in one call.', 'Window set gives O(k) space.'],
+  interview: [
+    ['Solve "duplicate within distance k" in O(n).', 'Map value → last index; on a repeat check j − last ≤ k, then update. Or keep a HashSet of the last k elements, removing nums[j − k − 1] as the window slides.'],
+    ['Why is the last index enough, not all indices?', 'Indices increase as you scan, so the most recent earlier occurrence is always the closest one to j; older ones are farther away.'],
+    ['How does the window-set version bound memory?', 'It never holds more than k values because it removes the element that falls out of the window before adding the next one.']
+  ],
+  check: ['nums = [1, 2, 3, 1], k = 2. Result?', ['true, 1 appears twice', 'false, the two 1s are 3 apart', 'true, because k ≥ 2', 'It throws for k < length'], 1, 'Distance 3 − 0 = 3 > 2.'],
+  practice: ['Implement nearbyDuplicate with the map, then the sliding-window HashSet version. Test [1,2,3,1]/3 → true, [1,0,1,1]/1 → true, [1,2,3,1,2,3]/2 → false.', ['Both versions print true, true, false.', 'State time and space for each.']],
+  references: [['Java 21 API · Map.put', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html#put(K,V)']]
+};
+
 // Extra wrong options for two-choice self-check questions (answer stays the first, "right", option in session-qa.js).
 export const extraDistractors = {
   1: [
     ['U2 becomes a co-owner of A1.', 'The seat resets to available so both users can retry.'],
     ['In a database row updated after the scan finishes.', 'Nowhere; compare each ID only with the first ID.']
+  ],
+  3: [
+    ['Mutual exclusion for every method that reads the field.', 'Nothing: volatile only affects performance.'],
+    ['Each request runs on its own thread pool.', 'The JIT compiler merges the two calls into one.']
   ],
   2: [
     ['No, the JVM runs one thread at a time on each object.', 'Only if the two threads use different Seat objects.'],
@@ -166,6 +191,7 @@ export const extraDistractors = {
   ]
 };
 export const extraExplanations = {
+  3: ['volatile makes each read see the latest write and orders it, but check-then-act is still two steps, so two threads can still both see null.', 'Only callers that lock the same monitor exclude each other; the whole check-and-write must sit inside that one lock.'],
   1: ['A failed claim must not change the owner: the call returns false and the original owner stays.', 'Duplicates can be far apart, so keep every ID seen so far in a set; the previous ID alone misses [U1, U2, U1].'],
   2: ['Each read is atomic, but read-then-write is not: two threads can both read null before either writes.', 'A latch or barrier forces both threads to the read/write boundary every time; sleeps and loops only make the race likely.']
 };

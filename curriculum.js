@@ -232,6 +232,15 @@ const outline = [
 
 // Daily 30-minute DSA lane for weekday sessions (added by Grok on 2026-11-22; Day 3+ still to be filled).
 const dsaLanes = {
+  3: {
+    title: 'Duplicate within k positions',
+    concept: 'Extend the seen-set again: remember the last index of each value. A repeat at j is close enough when j − lastIndex ≤ k.',
+    example: '[1, 0, 1, 1], k = 1: the 1s at indices 2 and 3 are 1 apart, so the answer is true.',
+    practice: 'Implement boolean nearbyDuplicate(int[] nums, int k) with a HashMap of last indices, then with a sliding-window HashSet of size k. Compare their space use.',
+    checks: ['[1,2,3,1]/3 → true, [1,0,1,1]/1 → true, [1,2,3,1,2,3]/2 → false.', 'Explain why the last index is the only one you need.', 'State time and space for both versions.'],
+    readings: [reading('Dev.java · The Map interface', java + 'api/collections-and-streams/collections-framework/maps/')],
+    recall: 'What extra information does "duplicate within k" need compared with "any duplicate"?'
+  },
   2: {
     title: 'Two Sum with a HashMap',
     concept: 'Extend Day 1’s seen-set: remember where each value was seen. For each number, look up target − number in a value → index map before inserting the current number.',
