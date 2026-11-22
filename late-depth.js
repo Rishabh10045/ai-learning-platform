@@ -129,6 +129,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
     recall: 'Where does cell (i, j) of an r × c grid go after a clockwise rotation, and why can a square grid rotate in place but a rectangle cannot?'
   },
+  54: {
+    title: 'Running median with two heaps',
+    concept: 'A max-heap holds the smaller half and a min-heap the larger half, and their sizes differ by at most one. The median is the larger heap’s top, or the average of both tops. Insert is O(log n) and reading the median is O(1).',
+    example: 'Latencies 120, 95, 400, 110, 105, 2600, 98 give medians 120, 107.5, 120, 115, 110, 115, 110. The 2,600 ms outlier barely moves the median, but it pulls the mean to 504.',
+    practice: 'Implement add and median with two PriorityQueues. Then add slidingMedian for window k with two TreeMaps that keep counts.',
+    checks: ['The running medians match the example exactly.', 'For k = 3 the window medians are 120, 110, 110, 110, 105.', 'State O(log n) per insert and O(n log k) for the sliding window.'],
+    readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
+    recall: 'Which invariant links the two heaps, and when is the median the average of both tops?'
+  },
   // @@lanes
 };
 
@@ -3048,6 +3057,287 @@ matrix chain 10x30, 30x5, 5x60: 4500 multiplications`
       ['Coin change ways(5, [1,2,5]) = 4.', 'A subset summing to 9 is printed, such as [4, 5] or [4, 3, 2].', 'The parenthesization is ((A1 A2) A3) with cost 4,500.', 'State the state, transition, order and complexity for each.']],
     references: [['Princeton IntroCS · Recursion and dynamic programming', 'https://introcs.cs.princeton.edu/java/23recursion/']]
   },
+  'ai-operations-03': {
+    notes: [
+      'One Java interface, several adapters. The help feature calls a ModelClient (or Spring AI’s ChatModel), never a vendor SDK directly. Behind it sit three implementations: a deterministic fixture, a local model served by Ollama, and a hosted provider. Retrieval, prompt building, the grounding check, authorization and the timeout belong to your code and stay identical across adapters, so a comparison measures the model rather than three different pipelines.',
+      'Each option proves something different. The fixture proves control flow: parsing, citation checks, timeouts and the fallback path, all reproducibly in CI. It proves nothing about answer quality. A local model keeps policy text inside your network and has no per-call fee, but you own the hardware, capacity and upgrades, and on a CPU the tail latency can be several seconds. A hosted model usually gives better quality and latency, but the request leaves your network, so the data policy and cost decide whether it is allowed at all.',
+      'Decide with measurements on the same evaluation set. Run the identical questions through every adapter and record the grounded-correct rate, correct refusals, p95 latency under your timeout, and fallback count. Then apply the hard rules first: an option that breaks the data policy or the latency budget is out, however fluent it is. ModelChoice.java encodes this. With a 2,500 ms p95 budget and no permission to send policy text outside, only the GPU-backed local model is eligible. When the policy allows external calls, the hosted model becomes eligible too.',
+      'With Spring AI, switching to Ollama is configuration rather than code: add spring-ai-starter-model-ollama, point spring.ai.ollama.base-url at the server (http://localhost:11434 by default) and name the model with spring.ai.ollama.chat.model. Keep model-specific setup in the README, and report the environment you actually tested, for example "8B model on a CPU laptop", next to every number.'
+    ],
+    code: {
+      title: 'ModelChoice.java · one adapter interface, a deterministic fixture, and a rule-based eligibility check over measured numbers · java ModelChoice.java',
+      text: String.raw`import java.util.*;
+
+public class ModelChoice {
+    // One interface, three adapters. The booking path never depends on any of them.
+    interface ModelClient { String name(); Optional<String> answer(String question, List<String> passages, long deadlineMs); }
+
+    // Deterministic fixture: proves parsing, citation checks and the fallback path in CI. Says nothing about quality.
+    static final class FixtureClient implements ModelClient {
+        public String name() { return "fixture"; }
+        public Optional<String> answer(String q, List<String> p, long d) { return Optional.of("Refunds up to 24h before the show [POL-1]"); }
+    }
+
+    // Measured characteristics of the real adapters on the same 40-question evaluation set (recorded earlier).
+    record Measured(String name, double groundedPct, int p95Ms, boolean dataMayLeaveNetwork) {}
+
+    static String verdict(Measured m, int p95BudgetMs, boolean policyAllowsExternal) {
+        List<String> fails = new ArrayList<>();
+        if (m.groundedPct() < 90) fails.add("grounded " + m.groundedPct() + "% < 90%");
+        if (m.p95Ms() > p95BudgetMs) fails.add("p95 " + m.p95Ms() + " ms > " + p95BudgetMs + " ms");
+        if (m.dataMayLeaveNetwork() && !policyAllowsExternal) fails.add("data policy forbids external calls");
+        return fails.isEmpty() ? "eligible" : "rejected: " + String.join(", ", fails);
+    }
+
+    public static void main(String[] args) {
+        ModelClient fixture = new FixtureClient();
+        System.out.println(fixture.name() + " -> " + fixture.answer("Can I get a refund?", List.of("[POL-1] Refunds up to 24h before the show."), 2000).orElse("fallback"));
+
+        List<Measured> options = List.of(
+                new Measured("local 8B model (Ollama, CPU)", 91.0, 6200, false),
+                new Measured("local 8B model (Ollama, GPU)", 91.0, 1700, false),
+                new Measured("hosted model", 96.5, 1300, true));
+        for (boolean external : new boolean[] {false, true}) {
+            System.out.println("policy allows sending policy text to an external provider: " + external);
+            for (Measured m : options) System.out.println("  " + m.name() + ": " + verdict(m, 2500, external));
+        }
+    }
+}
+`,
+      output: String.raw`fixture -> Refunds up to 24h before the show [POL-1]
+policy allows sending policy text to an external provider: false
+  local 8B model (Ollama, CPU): rejected: p95 6200 ms > 2500 ms
+  local 8B model (Ollama, GPU): eligible
+  hosted model: rejected: data policy forbids external calls
+policy allows sending policy text to an external provider: true
+  local 8B model (Ollama, CPU): rejected: p95 6200 ms > 2500 ms
+  local 8B model (Ollama, GPU): eligible
+  hosted model: eligible`
+    },
+    takeaways: ['Call one interface; keep retrieval, grounding and timeouts in your code.', 'Fixtures prove control flow, not answer quality.', 'Apply hard rules (data policy, p95 budget) before comparing quality.', 'Report the tested environment next to every measurement.'],
+    interview: [
+      ['How would you structure a Java application so it can switch between a fixture, a local model and a hosted model?', 'I define one port, such as a ModelClient interface or Spring AI’s ChatModel, that takes the question, the retrieved passages and a deadline, and returns an optional answer. Each provider is an adapter behind that port, selected by configuration or a Spring profile. Everything that must not vary lives outside the adapters: retrieval, prompt templates, the grounding validator, authorization, the timeout and the fallback message. The fixture adapter returns canned answers, including malformed and slow ones, so CI can test parsing, citation checks and the outage path deterministically. Because the pipeline is shared, an evaluation run compares the models fairly and a provider switch never touches booking code.'],
+      ['The local model is too slow on a CPU, and the hosted model is fast but sends data outside. How do you decide?', 'I start from the hard constraints, not preferences. First, the data policy: if policy text or user questions may not leave the network, the hosted option is out regardless of speed, unless legal approves a contract that changes that. Second, the latency budget at p95, measured on representative questions under the real timeout. If the local model misses it, I look at cheaper fixes: shorter retrieved context, a smaller qualified model, a GPU host, or caching frequent answers. Only options that pass both rules are compared on grounded correctness and correct refusals. If none pass, the feature ships with the documented fallback and booking is unaffected.'],
+      ['What exactly does a passing fixture test suite tell you, and what does it not?', 'It tells me the control flow is right. Requests are built correctly, responses are parsed, citations are validated, a timeout triggers the fallback within the deadline, and a provider outage leaves booking and conflict handling working. Because the fixture is deterministic, those tests are reliable in CI. It tells me nothing about a real model’s quality, refusals or latency, because the fixture never generates anything. For that I need an evaluation set run against each real adapter, with grounded-correct rate, refusal accuracy and p95 latency recorded together with the environment. Treating green fixture tests as evidence of quality is a common mistake in demos.']
+    ],
+    check: ['With a 2,500 ms p95 budget and no permission to send data outside, which option in ModelChoice.java is eligible?',
+      ['The hosted model, because it has the best grounded rate', 'Only the local model on a GPU', 'The local model on a CPU, because it is free', 'None of them'], 1,
+      'The CPU model misses the latency budget and the hosted model breaks the data rule. Hard rules come before quality.'],
+    practice: ['Copy ModelChoice.java. Add a SlowFixture whose answer arrives after the deadline and make the caller return the fallback. Add correct-refusal rate as a third rule.',
+      ['A slow fixture produces the fallback within the deadline.', 'An option with a refusal rate below your threshold is rejected with a clear reason.', 'The output lists every rule each option failed, not only the first.', 'Write two sentences naming the environment the numbers came from.']],
+    references: [['Spring AI · Ollama Chat', 'https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.html'], ['Spring AI · ChatClient API', 'https://docs.spring.io/spring-ai/reference/api/chatclient.html']]
+  },
+  'ai-review-02': {
+    notes: [
+      'A model answer is a claim, not a fact. Before showing it, check it against the evidence you supplied for this request. GroundingGate.java runs four cheap checks in order. Reject any answer that claims a booking outcome. Require at least one citation. Every cited ID must be one of the passages retrieved for this request. Every number in the answer must appear in a cited passage. In the example, "48 hours" is rejected because the refund policy says 24.',
+      'The booking check is the most important rule. Whether seat A2 is yours is decided by the booking service and the database constraint, never by generated text. The help feature may explain the policy, but it must not say "confirmed", "booked" or "reserved for you". The UI shows booking state only from the booking API response. That is why the gate rejects "Seat A2 is confirmed" even though it cites a real passage.',
+      'These checks are deliberately simple and deterministic, so they can run in unit tests and on every response. They catch fabricated sources, changed numbers and outcome claims. They do not prove that a sentence is entailed by the passage. A paraphrase can still distort meaning. So combine them with an evaluation set reviewed by a person, and when a check fails, show a safe fallback with links to the policy pages rather than the rejected text.'
+    ],
+    code: {
+      title: 'GroundingGate.java · reject booking claims, missing or unknown citations and numbers not found in the cited passage · java GroundingGate.java',
+      text: String.raw`import java.util.*;
+import java.util.regex.*;
+
+public class GroundingGate {
+    record Passage(String id, String text) {}
+
+    // Accept an answer only if (0) it does not claim a booking outcome (booking state comes from the booking service,
+    // never from the model), (1) it cites at least one passage, (2) every cited ID was supplied for THIS request,
+    // (3) every number in the answer appears in a cited passage.
+    static String check(String answer, List<Passage> supplied) {
+        Map<String, String> byId = new HashMap<>();
+        for (Passage p : supplied) byId.put(p.id(), p.text());
+        Matcher cite = Pattern.compile("\\[(POL-\\d+)]").matcher(answer);
+        List<String> cited = new ArrayList<>();
+        while (cite.find()) cited.add(cite.group(1));
+        if (answer.toLowerCase().matches(".*\\b(confirmed|booked|reserved for you)\\b.*")) return "REJECT claims a booking outcome";
+        if (cited.isEmpty()) return "REJECT no citation";
+        for (String id : cited) if (!byId.containsKey(id)) return "REJECT cites " + id + ", which was not supplied";
+        String evidence = String.join(" ", cited.stream().map(byId::get).toList());
+        Matcher num = Pattern.compile("\\d+").matcher(answer.replaceAll("\\[POL-\\d+]", ""));
+        while (num.find()) if (!evidence.contains(num.group())) return "REJECT number " + num.group() + " not in cited text";
+        return "ACCEPT";
+    }
+
+    public static void main(String[] args) {
+        List<Passage> supplied = List.of(new Passage("POL-1", "Refunds are allowed up to 24 hours before the show."),
+                new Passage("POL-4", "Wheelchair seats are in row A."));
+        Map<String, String> answers = new LinkedHashMap<>();
+        answers.put("grounded", "You can get a refund up to 24 hours before the show [POL-1].");
+        answers.put("no citation", "Refunds are allowed up to 24 hours before.");
+        answers.put("unknown source", "Refunds are allowed up to 48 hours before [POL-9].");
+        answers.put("wrong number", "Refunds are allowed up to 48 hours before the show [POL-1].");
+        answers.put("booking claim", "Seat A2 is confirmed for you in row A [POL-4].");
+        answers.forEach((k, a) -> System.out.println(k + ": " + check(a, supplied)));
+    }
+}
+`,
+      output: String.raw`grounded: ACCEPT
+no citation: REJECT no citation
+unknown source: REJECT cites POL-9, which was not supplied
+wrong number: REJECT number 48 not in cited text
+booking claim: REJECT claims a booking outcome`
+    },
+    takeaways: ['Treat the answer as a claim to verify.', 'Booking state comes only from the booking service.', 'Cited IDs must belong to this request’s retrieved passages.', 'Numbers must appear in the cited text; fall back on failure.'],
+    interview: [
+      ['How do you check that a RAG answer is grounded before showing it to a user?', 'I make the model cite passage IDs and then verify mechanically. Each cited ID must belong to the set retrieved for this request, which catches invented sources. Facts that are easy to check, such as numbers, dates and durations, must appear in the cited passages, which catches "48 hours" when the policy says 24. Answers with no citation are rejected. These checks are deterministic, cheap and testable, so they run on every response. They cannot prove entailment for paraphrased sentences, so I complement them with a human-reviewed evaluation set and track the rejection rate. On failure the user gets a safe fallback with links to the policy pages.'],
+      ['Why must the help assistant never confirm a booking, even when it is right?', 'Because the assistant has no authority over booking state. The seat belongs to whoever won the conditional write in the database, and the booking API is the only component that knows that. A model that says "confirmed" might be repeating stale context, guessing, or describing another user’s seat, and the user would act on it. So the rule is structural: the help path can explain policy, while booking outcomes are shown only from the booking API response, with its idempotency key and status code. The grounding gate also rejects outcome words as defence in depth, and a model outage cannot change booking behaviour.'],
+      ['A grounded answer passes your checks but still misleads users. How do you find and fix that?', 'Simple checks prove that sources exist and numbers match. They do not prove the sentence means what the passage means, so a paraphrase can drop an exception such as "except premium shows". I would find these cases through an evaluation set that includes questions about exceptions, a sample of production answers reviewed by a person, and user feedback such as "this was wrong". To fix it, I would add those questions as regression cases, retrieve passages that keep the exception text together, tighten the prompt to quote the conditions, and add a check that refuses when a retrieved passage contains a condition the answer omits. Then I would re-run the whole evaluation before release.']
+    ],
+    check: ['Which answer does GroundingGate reject because of the number rule?',
+      ['"You can get a refund up to 24 hours before the show [POL-1]."', '"Refunds are allowed up to 48 hours before the show [POL-1]."', '"Seat A2 is confirmed for you in row A [POL-4]."', '"Refunds are allowed up to 24 hours before."'], 1,
+      'POL-1 says 24, so 48 is not in the cited text. The seat answer fails the booking rule, and the last one has no citation.'],
+    practice: ['Copy GroundingGate.java. Add a date check (dates in the answer must appear in cited text) and a rule that rejects an answer citing more than three passages.',
+      ['A new fixture with a changed date is rejected with a clear reason.', 'Every existing case keeps the same verdict.', 'Write a JUnit test per rule with one passing and one failing answer.', 'List one misleading answer these checks would still accept.']],
+    references: [['Spring AI · Retrieval Augmented Generation', 'https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html'], ['Java 21 API · Pattern', jdk + 'java/util/regex/Pattern.html']]
+  },
+  'b-deployment-02': {
+    notes: [
+      'A reproducible demonstration is a script, not a story. Start the packaged app from a clean state, run a fixed list of checks over HTTP, compare each result with an expected value, and exit with a pass or fail summary. SmokeRun.java does this end to end with only the JDK. It starts a tiny stand-in app, then checks health, a first claim (201), a competing claim on the same seat (409), a grounded help answer, help during a provider outage (fallback), and a booking during that outage (still 201).',
+      'In the real project the same checks run against the Spring Boot jar with a fresh PostgreSQL container. Build with mvn -q package or ./gradlew build, start with java -jar, wait for /actuator/health to report UP, then run the checks. Spring Boot’s health endpoint also offers liveness and readiness groups for orchestrators. Keep the commands in the README or a script so anyone can repeat them, and record the versions you used: JDK, database and model.',
+      'Each check should state its expected value. "It looked fine" is not evidence. The outage checks matter most: switch the model provider off and show that help degrades to a fallback while booking still succeeds. Add a replay check too: resend the same idempotency key after a simulated lost response and expect the original result, not a second booking. Save the output with a timestamp as the evidence for the final review.'
+    ],
+    code: {
+      title: 'SmokeRun.java · start an app, run six expected-value checks over HTTP including a provider outage, print PASS/FAIL · java SmokeRun.java',
+      text: String.raw`import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class SmokeRun {
+    // A tiny stand-in for the packaged app: health, claim (conditional write) and help with a provider switch.
+    static final Map<String, String> owners = new ConcurrentHashMap<>();
+    static volatile boolean providerUp = true;
+
+    static HttpServer start() throws Exception {
+        HttpServer s = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        s.createContext("/actuator/health", ex -> reply(ex, 200, "{\"status\":\"UP\"}"));
+        s.createContext("/bookings", ex -> {
+            String[] kv = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8).split("&");
+            String seat = kv[0].split("=")[1], user = kv[1].split("=")[1];
+            boolean won = owners.putIfAbsent(seat, user) == null;
+            reply(ex, won ? 201 : 409, won ? seat + " -> " + user : seat + " taken");
+        });
+        s.createContext("/help", ex -> reply(ex, 200, providerUp ? "Refunds up to 24h [POL-1]" : "fallback: see /policies/refunds"));
+        s.start();
+        return s;
+    }
+
+    static void reply(com.sun.net.httpserver.HttpExchange ex, int status, String body) throws java.io.IOException {
+        byte[] b = body.getBytes(StandardCharsets.UTF_8);
+        ex.sendResponseHeaders(status, b.length);
+        try (var out = ex.getResponseBody()) { out.write(b); }
+    }
+
+    public static void main(String[] args) throws Exception {
+        HttpServer app = start();
+        String base = "http://127.0.0.1:" + app.getAddress().getPort();
+        HttpClient http = HttpClient.newHttpClient();
+        List<String[]> results = new ArrayList<>();   // {check, expected, actual}
+
+        results.add(new String[] {"health", "200", String.valueOf(get(http, base + "/actuator/health").statusCode())});
+        results.add(new String[] {"first claim A1", "201", String.valueOf(post(http, base + "/bookings", "seat=A1&user=ana").statusCode())});
+        results.add(new String[] {"competing claim A1", "409", String.valueOf(post(http, base + "/bookings", "seat=A1&user=ben").statusCode())});
+        results.add(new String[] {"help cites a policy", "true", String.valueOf(get(http, base + "/help").body().contains("[POL-1]"))});
+        providerUp = false;                                      // simulate a provider outage
+        results.add(new String[] {"help falls back", "true", String.valueOf(get(http, base + "/help").body().startsWith("fallback"))});
+        results.add(new String[] {"booking during outage", "201", String.valueOf(post(http, base + "/bookings", "seat=A2&user=cy").statusCode())});
+        app.stop(0);
+
+        int failed = 0;
+        for (String[] r : results) {
+            boolean ok = r[1].equals(r[2]);
+            if (!ok) failed++;
+            System.out.printf("%-4s %-22s expected %-5s got %s%n", ok ? "PASS" : "FAIL", r[0], r[1], r[2]);
+        }
+        System.out.println(failed == 0 ? "smoke run passed: 6/6" : "smoke run FAILED: " + failed + " checks");
+    }
+
+    static HttpResponse<String> get(HttpClient c, String url) throws Exception {
+        return c.send(HttpRequest.newBuilder(URI.create(url)).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    static HttpResponse<String> post(HttpClient c, String url, String form) throws Exception {
+        return c.send(HttpRequest.newBuilder(URI.create(url)).POST(HttpRequest.BodyPublishers.ofString(form)).build(), HttpResponse.BodyHandlers.ofString());
+    }
+}
+`,
+      output: String.raw`PASS health                 expected 200   got 200
+PASS first claim A1         expected 201   got 201
+PASS competing claim A1     expected 409   got 409
+PASS help cites a policy    expected true  got true
+PASS help falls back        expected true  got true
+PASS booking during outage  expected 201   got 201
+smoke run passed: 6/6`
+    },
+    takeaways: ['A demo is a script with expected values.', 'Start clean, wait for health UP, then check.', 'Prove booking works while the model is down.', 'Record versions and save the timestamped output.'],
+    interview: [
+      ['Walk me through how you would demonstrate your booking system end to end.', 'I run one script from a clean state, so anyone can repeat it. It builds the jar, starts PostgreSQL in a container, launches the app and waits until /actuator/health reports UP. Then it runs fixed checks with expected values: a valid booking returns 201, a competing claim on the same seat returns 409, and resending the same idempotency key after a simulated lost response returns the original booking instead of creating a second one. A help question returns an answer that cites a policy. Finally it switches the model provider off and shows that help falls back while a new booking still succeeds. The script prints PASS or FAIL per check and saves the output with versions and a timestamp.'],
+      ['What is the difference between liveness and readiness, and which should gate traffic?', 'Liveness answers "is this process broken beyond recovery?" If it fails, the orchestrator restarts the container. It should depend only on the application’s internal state, not on the database or the model provider, otherwise a provider outage would cause restarts that fix nothing. Readiness answers "can this instance serve requests right now?" If it fails, the instance is removed from load balancing but not restarted. That is the right signal to gate traffic, for example while the app warms up or loses its database. Spring Boot exposes both as health groups. For this app, losing the model provider should affect neither, because booking must keep working without it.'],
+      ['Your demo passed yesterday and fails today without code changes. How do you investigate?', 'First I compare the recorded environment with today’s: JDK, database image tag, model version and configuration. Unpinned versions such as a latest image tag are the usual cause. Then I look at the first failing check and its actual value, not just the summary. A 409 where 201 was expected suggests leftover state, meaning the run did not start clean. A help failure suggests a provider or model change. A timeout points to the network or capacity. I rerun from a truly fresh container to separate state problems from environment problems. Finally I pin whatever changed and add the missing assumption, such as "database is empty", as an explicit check at the start of the script.']
+    ],
+    check: ['In SmokeRun.java, what proves that booking does not depend on the model provider?',
+      ['The health check returns 200', 'A booking made after providerUp = false still returns 201', 'The help answer cites [POL-1]', 'The competing claim returns 409'], 1,
+      'Only the check that books during the simulated outage shows the two paths are independent.'],
+    practice: ['Copy SmokeRun.java. Add an idempotency key to /bookings so a replayed request returns the original result, and add that replay as a seventh check.',
+      ['Replaying the same key returns the first response, not a 409 or a second booking.', 'The summary prints 7/7 and exits with a non-zero status on failure.', 'The script prints the JDK version at the start.', 'Write the three commands you would use to run it against the real jar.']],
+    references: [['Spring Boot · Actuator endpoints (health, liveness, readiness)', 'https://docs.spring.io/spring-boot/reference/actuator/endpoints.html'], ['Java 21 API · HttpClient', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.net.http/java/net/http/HttpClient.html']]
+  },
+  'ai-operations-03.dsa': {
+    notes: [
+      'Latency reports use medians and percentiles because averages hide outliers. To keep the median of a stream up to date, use two heaps: a max-heap "low" for the smaller half and a min-heap "high" for the larger half. Insert into low if the value is at most low’s top, otherwise into high, then move one element across if the sizes differ by more than one. The median is low’s top when the sizes differ, or the average of both tops when they are equal.',
+      'Each insert costs O(log n) and each median read costs O(1). StreamMedian.java feeds model-call latencies 120, 95, 400, 110, 105, 2600 and 98 ms. The medians are 120, 107.5, 120, 115, 110, 115 and finally 110. The 2,600 ms outlier moves the median by just 5 ms, while it would pull the average up to about 504 ms.',
+      'In Java, a max-heap is new PriorityQueue<>(Comparator.reverseOrder()). Watch for integer overflow when averaging two large tops: use (a + b) / 2.0 with long or double. For a sliding-window median you also need deletions, which a PriorityQueue does in O(n). Use lazy deletion or two TreeMaps with counts instead. For p95 rather than the median, production systems use histograms or sketches (such as HdrHistogram or t-digest) instead of keeping every value.'
+    ],
+    code: {
+      title: 'StreamMedian.java · running median of model latencies with a max-heap and a min-heap · java StreamMedian.java',
+      text: String.raw`import java.util.*;
+
+public class StreamMedian {
+    // Two heaps: "low" (max-heap) holds the smaller half, "high" (min-heap) the larger half; low may hold one extra.
+    private final PriorityQueue<Integer> low = new PriorityQueue<>(Comparator.reverseOrder());
+    private final PriorityQueue<Integer> high = new PriorityQueue<>();
+
+    void add(int x) {
+        if (low.isEmpty() || x <= low.peek()) low.add(x); else high.add(x);
+        if (low.size() > high.size() + 1) high.add(low.poll());     // rebalance so sizes differ by at most one
+        else if (high.size() > low.size()) low.add(high.poll());
+    }
+
+    double median() {
+        if (low.isEmpty()) throw new IllegalStateException("no values yet");
+        return low.size() > high.size() ? low.peek() : (low.peek() + high.peek()) / 2.0;
+    }
+
+    public static void main(String[] args) {
+        StreamMedian m = new StreamMedian();
+        int[] latenciesMs = {120, 95, 400, 110, 105, 2600, 98};      // model call latencies as they arrive
+        StringBuilder out = new StringBuilder();
+        for (int x : latenciesMs) { m.add(x); out.append(x).append("->").append(m.median()).append("  "); }
+        System.out.println(out.toString().trim());
+        System.out.println("median after 7 calls: " + m.median() + " ms (the 2600 ms outlier barely moves it)");
+    }
+}
+`,
+      output: String.raw`120->120.0  95->107.5  400->120.0  110->115.0  105->110.0  2600->115.0  98->110.0
+median after 7 calls: 110.0 ms (the 2600 ms outlier barely moves it)`
+    },
+    takeaways: ['low = max-heap of the smaller half; high = min-heap of the larger half.', 'Rebalance so sizes differ by at most one.', 'O(log n) insert, O(1) median.', 'Medians resist outliers; averages do not.'],
+    interview: [
+      ['Design a data structure that returns the median of a stream at any time.', 'I keep two heaps. The max-heap holds the smaller half and the min-heap holds the larger half, and I maintain the invariant that every value in the max-heap is at most every value in the min-heap, with sizes differing by at most one. To add x, I push it into the max-heap if it is at most that heap’s top, otherwise into the min-heap. Then I rebalance by moving one top across if needed. The median is the max-heap’s top when it is larger, or the average of the two tops when the sizes are equal. Adds are O(log n), the median is O(1), and the space is O(n).'],
+      ['How would you change the design for the median of the last k values only?', 'Now values must leave the window, and PriorityQueue.remove(Object) is O(k), so the two-heap design needs lazy deletion. I record outgoing values in a hash map of pending deletions and discard them only when they reach a heap top, while tracking the logical sizes separately for rebalancing. A simpler alternative in Java is two TreeMaps with counts, a multiset for each half, which support insert and delete in O(log k). Each slide then costs O(log k), so n values take O(n log k). For approximate percentiles over large windows in production, I would use a histogram per time bucket instead of storing values.'],
+      ['Why report p50 and p95 latency instead of the mean for a model call?', 'Latency distributions for remote calls are skewed. Most requests are quick, and a few are very slow because of queueing, cold starts or retries. The mean mixes both, so one 2,600 ms call can double it while users mostly saw about 110 ms. The median describes the typical experience and the p95 or p99 describes the slow tail that users actually complain about and that timeouts must cover. That is why latency budgets and SLOs are stated as percentiles. Computing exact percentiles needs all values, so production systems use bucketed histograms, and two heaps are the interview-sized version for the median.']
+    ],
+    check: ['After adding 120, 95, 400 and 110 to the two-heap structure, what is the median?',
+      ['107.5', '115.0', '120.0', '181.25'], 1,
+      'Sorted, the values are 95, 110, 120 and 400. The two middle values average to 115.'],
+    practice: ['Copy StreamMedian.java. Add slidingMedian(int[] values, int k) using two TreeMaps with counts, and test it against a brute-force sort of each window.',
+      ['For k = 3 over the latency array, the medians are 120, 110, 110, 110, 105.', 'It matches brute force on 100 random arrays.', 'Averaging two values near Integer.MAX_VALUE does not overflow.', 'State O(n log k) time and O(k) space.']],
+    references: [['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html'], ['Google SRE book · Monitoring distributed systems (worry about your tail)', 'https://sre.google/sre-book/monitoring-distributed-systems/']]
+  },
   // @@packets
 };
 
@@ -3106,6 +3396,10 @@ export const lateDistractors = {
     ['Running out of memory when the target is large.', 'Visiting items in a different order from the input.'],
     ['The longest interval first, because it holds the answer.', 'Intervals in random order, since each is independent.']
   ],
+  54: [
+    ['Replace the evaluation set, because fixtures already measure quality.', 'Show that the hosted provider is used for every request.'],
+    ['Yes. Booking should pause until the provider recovers.', 'Only if the outage lasts longer than the request timeout.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -3135,6 +3429,8 @@ export const lateExplanations = {
     'Dijkstra treats the nearest unfinished vertex as final. That is safe only if no edge can make a later path shorter, which requires nonnegative weights.'],
   53: ['Going downward keeps reach[s − w] equal to its value before the current item, so an item cannot feed a later sum in the same pass and is used at most once.',
     'A larger interval combines answers for smaller intervals inside it, so shorter intervals must be solved first: fill by increasing length.'],
+  54: ['A fixture is deterministic, so it reliably tests parsing, timeouts and fallbacks. It says nothing about the quality of a real model.',
+    'Booking state is owned by the booking service and database. The model only powers help, so its outage must leave booking working.'],
   // @@explanations
 };
 
@@ -3243,6 +3539,14 @@ export const lateAssessment = {
     { question: 'What is the time complexity of compressed 0/1 subset sum with n items and target T?',
       choices: ['O(n + T)', 'O(n · T), which is pseudo-polynomial in the input size', 'O(2ⁿ) always', 'O(T log n)'], answer: 1,
       explanation: 'Each item updates up to T sums. The cost depends on the numeric value of T, which makes it pseudo-polynomial.' }
+  ],
+  54: [
+    { question: 'A model answer cites [POL-1] correctly but says "Seat A2 is confirmed for you". What should the grounding gate do?',
+      choices: ['Accept it, because the citation is valid', 'Reject it: booking outcomes come only from the booking API, never from generated text', 'Accept it if the seat exists in row A', 'Retry the model until it stops saying confirmed'], answer: 1,
+      explanation: 'The assistant has no authority over booking state. Only the booking API response, backed by the database write, can say a seat is yours.' },
+    { question: 'Which health signal should remove an instance from load balancing without restarting it?',
+      choices: ['Liveness', 'Readiness', 'The model provider’s status page', 'The JVM uptime'], answer: 1,
+      explanation: 'A failing readiness check takes the instance out of rotation. A failing liveness check triggers a restart, so it should not depend on external services.' }
   ],
   // @@assessment
 };
@@ -3375,6 +3679,11 @@ export const lateInterviewGuides = {
     'The state is reach[s]: can some subset of the items processed so far add up to exactly s? It starts with reach[0] = true and everything else false. For each item of weight w, I iterate s from the target down to w and set reach[s] = reach[s] || reach[s − w]. The downward order matters because reach[s − w] must still describe the previous items. Otherwise the current item could be counted twice. That is the difference from unbounded reuse, such as coin change with unlimited coins, where I iterate upward on purpose so an item can feed later sums in the same pass. Both versions take O(n · target) time and O(target) space.',
     'Almost certainly an ascending inner loop in the compressed one-dimensional table. Going upward, the code sets reach[3] from reach[0] and then, in the same pass for the same item, sets reach[6] from the freshly updated reach[3], so the single item was used twice. That is the unbounded recurrence, not 0/1. The fix is to iterate s from the target down to the item’s weight, so every read of reach[s − w] sees the state before this item. Afterwards the reachable sums for one item of weight 3 are exactly 0 and 3. I would add exactly that fixture as a regression test, together with one where reuse is legitimately allowed.',
     'Matrix i has shape dims[i] × dims[i+1]. The state cost[i][j] is the minimum number of scalar multiplications needed to multiply matrices i through j, with cost[i][i] = 0. The transition tries every split point k from i to j − 1: cost[i][k] + cost[k+1][j] + dims[i] · dims[k+1] · dims[j+1], where the last term multiplies the two partial products. Because every interval depends only on strictly shorter intervals inside it, I fill the table by increasing interval length, from length 2 up to n, and the answer is cost[0][n−1]. Storing the best k in each cell lets me reconstruct the parenthesization. The time is O(n³) and the space O(n²).'
+  ],
+  54: [
+    'The trade-off is data custody and operating effort against quality, latency and cost. A local Ollama model keeps policy text in our network but needs hardware we run. A hosted model is usually faster and better, but requests leave the network. I measure, not argue. The same evaluation questions run through every adapter behind one Java interface, and I record the grounded-correct rate, correct refusals and p95 latency for the environment I actually used. The outage evidence is a script: switch the provider off, ask a help question and get the fallback, then make a new booking (201) and a competing claim on the same seat (409). Those status codes come from the booking API and PostgreSQL, so the two paths are independent.',
+    'I measure first, then apply the hard rules in order. The data rule comes first: if policy text or questions may not leave our network, the hosted model is out, unless an approved contract changes that. Then latency: p95 on representative questions under the real timeout, not a single fast demo call. If the local model is too slow, I try the cheap fixes before giving up on it: shorter retrieved context, a smaller model that still passes the evaluation, a GPU host, or caching common answers. I compare grounded quality only among options that pass both rules. If none pass, help ships with its fallback message, and booking is unaffected either way.',
+    'A fixture is justified when I need deterministic tests of control flow. The evidence is that parsing, citation checks, the timeout and the outage fallback all pass repeatably in CI. Local inference is justified when the data must stay inside our network and the measured p95 on our hardware fits the budget at the expected load. Hosted inference is justified when it passes the data policy and cost limits and clearly beats local on grounded-correct rate or tail latency on the same evaluation set. In every case I state the environment, the model version and the numbers, and confirm that booking still succeeds when that adapter is down.'
   ],
   // @@guides
 };
