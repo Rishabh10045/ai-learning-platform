@@ -73,6 +73,7 @@ Cross-device sync is Phase 4 work and is not live. The plan and the asks for Dee
   - axe, light and dark: 0 contrast issues and 0 other WCAG 2.1 A/AA violations.
   - Two tabs and two browsers: pass.
 - Screenshots: `/workspace/study-desk-checks/release-qa-live/` on Grok's box. Today, Course, Calendar, Settings, Day 1 (plan, learn, practice, coach), Day 37 learn and Day 56 at 1366, 390 and 320 px, plus `two-tabs-{a,b}-1366.png`. The full results are in `release-qa.json`.
+- **Found in the live screenshots and fixed in the same PR (#21):** at 320 px the calendar's 84 px date column left the session title so little room that "Session 1" broke mid-word ("Sessio / n 1"). The automated checks can't see this, because nothing overflows. Rows ≤ 480 px now put the date and status on line 1 and the title and the Off box on line 2. Before: `release-qa-live/calendar-320.png`. After: `release-qa-local/calendar-fixed-{320,390,1366}.png`.
 
 ## 7. Content status (for the release notes)
 

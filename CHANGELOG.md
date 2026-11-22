@@ -12,6 +12,7 @@ Newest release first. Times are IST. Every release keeps the progress key `ai-le
 - Release QA (Phase 7): every view passes at 1366, 390 and 320 px; profiles saved by all 9 earlier releases load with nothing lost; two tabs stay in step; axe WCAG 2.1 AA finds no contrast issues in light or dark mode. Report: `collab/qa/release-qa-2026-11-23.md`.
 - Fix: a session finished on a date that an older build wrongly marked as a day off now counts for that date in the calendar.
 - Accessibility: wide Java code blocks can be focused and scrolled with the keyboard.
+- Fix: on phones (≤ 480 px) the calendar showed "Sessio n 1" broken mid-word. Each row now shows the date and status on one line and the session title at full width below.
 - Today now shows **Due revisions**. Each finished session comes back 1, 3 and 7 days later, with a different recall question each time and +10 XP for each one done. The +1 review also counts when the next session’s quick-revision block is ticked.
 - Today’s tasks: optional topic packets and stretch work are listed separately, under "Optional". Finishing tonight’s core session now completes the ring and stops reminders.
 - Badges match the real course. The one-lesson warm-up no longer counts as "Subject cleared". The module-test badge is hidden because the course has no module tests. New badges: First week done (7 sessions), Halfway there, Course complete and Memory keeper (10 spaced revisions).
