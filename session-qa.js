@@ -298,7 +298,7 @@ const dayOneExtra = [
   'Give the expected time and extra space of duplicate detection. State your assumptions and one adversarial input.'
 ];
 
-export const assessmentVersion = 4; // 3: Day 1–2 four-option questions + two Day 2 questions; 4: Days 41–56 depth (late-depth.js) (Grok, 2026-11-22)
+export const assessmentVersion = 5; // 3: Day 1–2 four-option questions + two Day 2 questions; 4: Days 41–43 depth (late-depth.js); 5: Days 44+ depth (Grok, 2026-11-22)
 
 function compile(question, options, explanation) {
   // A stable option order lets the browser and account API grade the same version.

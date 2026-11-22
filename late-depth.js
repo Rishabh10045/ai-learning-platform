@@ -39,6 +39,69 @@ export const lateLanes = {
     readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
     recall: 'Why does keeping the k largest values need a min-heap, and what does the heap’s head represent?'
   },
+  44: {
+    title: 'Merge overlapping hold intervals',
+    concept: 'Sort intervals by start. Keep the last merged interval, and extend it while the next interval starts at or before its end. Otherwise start a new one. For half-open intervals, [a,b) and [c,d) overlap exactly when a < d and c < b.',
+    example: '[30,40), [0,10), [5,15), [15,20), [50,55) sort and merge to [0,20), [30,40), [50,55). A new hold [20,30) fits between them, and [18,25) conflicts.',
+    practice: 'Implement List<Hold> merge(List<Hold> holds) and boolean conflicts(List<Hold> busy, Hold wanted) with a record Hold(int start, int end). Then add minRooms() with a PriorityQueue of end times.',
+    checks: ['merge gives [0,20), [30,40), [50,55) for the example, and [] for no holds.', 'conflicts returns false for [20,30) and true for [18,25).', 'minRooms([0,30),[5,10),[15,20)) = 2, and the time is O(n log n).'],
+    readings: [reading('Java 21 API · Comparator.comparingInt', jdk + 'java/util/Comparator.html')],
+    recall: 'Why must intervals be sorted by start before merging, and what are the two comparisons that detect overlap of half-open intervals?'
+  },
+  45: {
+    title: 'LRU cache with a HashMap and a doubly linked list',
+    concept: 'Keep a HashMap from key to node, and a doubly linked list ordered from least to most recently used. get moves the node to the most-recent end. put on a new key evicts the least-recent node first when the cache is full. Both are O(1).',
+    example: 'Capacity 2: put A1, put A2, get A1 (order A2, A1), put A3 evicts A2. Updating A1 then putting A4 evicts A3.',
+    practice: 'Implement LruCache<K, V> with get and put, sentinel head and tail nodes, and a toString that prints least recent first. Then rebuild it with LinkedHashMap(accessOrder = true) and removeEldestEntry.',
+    checks: ['The example sequence prints [A2=held, A1=free], then [A1=free, A3=free], then [A1=sold, A4=free].', 'get of a missing key returns null and does not change the order.', 'Explain why each node stores its key and why the list is doubly linked.'],
+    readings: [reading('Java 21 API · LinkedHashMap', jdk + 'java/util/LinkedHashMap.html')],
+    recall: 'Which two data structures make an LRU cache O(1) for both get and put, and what does each one contribute?'
+  },
+  46: {
+    title: 'Deadlock detection: cycle in a wait-for graph',
+    concept: 'A deadlock is a cycle in the wait-for graph (T1 → T2 means T1 waits for a lock T2 holds). Find it with three-colour DFS: grey nodes are on the current path, and reaching a grey node closes a cycle. Black nodes are finished and safe.',
+    example: 'booking → refund → audit → booking is a cycle, so those three threads are deadlocked. If booking and refund both wait for pool and pool waits for nothing, there is no cycle.',
+    practice: 'Implement List<String> findCycle(Map<String, List<String>> waitsFor) with DFS, colours and a path stack. Then write a Kahn’s-algorithm version that only answers whether a cycle exists.',
+    checks: ['The stuck graph prints audit -> booking -> refund -> audit, and the healthy graph prints [].', 'A cross edge to a finished node is not reported as a cycle.', 'State O(V + E) time and O(V) space.'],
+    readings: [reading('Java 21 API · ThreadMXBean.findDeadlockedThreads', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/ThreadMXBean.html')],
+    recall: 'Why does cycle detection in a directed graph need a third "on the current path" colour, and what does an edge to such a node mean?'
+  },
+  47: {
+    title: 'Topological sort: bean creation order (Kahn’s algorithm)',
+    concept: 'Order nodes so each comes after its dependencies. Count unmet dependencies per node, start with the zero-count nodes, and each time you output a node, decrement the counts of nodes that depend on it. If some nodes never reach zero, there is a cycle.',
+    example: 'controller → service → (repository, clock, audit), and repository and audit → dataSource, gives clock, dataSource, auditService, seatRepository, bookingService, bookingController. a → b → c → a reports a circular dependency.',
+    practice: 'Implement List<String> creationOrder(Map<String, List<String>> dependsOn) with in-degree counts and a PriorityQueue for a stable order. Then solve course schedule for prerequisites [[1,0],[2,0],[3,1],[3,2]].',
+    checks: ['The example prints the order above, and the cycle case throws listing [a, b, c].', 'Course schedule returns a valid order such as 0, 1, 2, 3.', 'State O(V + E) time and space.'],
+    readings: [reading('Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html')],
+    recall: 'In Kahn’s algorithm, what does it mean when the queue empties before every node has been output?'
+  },
+  48: {
+    title: 'Floor binary search: which signing key was active at time t',
+    concept: 'Binary search halves a sorted range each step. For the floor (the last element ≤ t), record mid whenever a[mid] ≤ t and continue to the right. Otherwise go left. Compute mid as lo + (hi − lo) / 2.',
+    example: 'Key starts [1000, 2000, 3500, 5000] map to k1–k4. t = 999 has no key, 1000 → k1, 2999 → k2, 3500 → k3, 9999 → k4.',
+    practice: 'Implement int floorIndex(long[] starts, long t) with lo <= hi. Then add ceilingIndex and compare both with TreeMap.floorKey and ceilingKey.',
+    checks: ['Outputs match the example, including −1 before the first key.', 'Floor and ceiling agree with TreeMap on 10 values.', 'State O(log n) time and explain why mid = lo + (hi − lo) / 2.'],
+    readings: [reading('Java 21 API · TreeMap (floorEntry, ceilingEntry)', jdk + 'java/util/TreeMap.html')],
+    recall: 'In a floor binary search, what do you do when a[mid] ≤ t, and why must the range always shrink past mid?'
+  },
+  49: {
+    title: 'Ring buffer for event replay',
+    concept: 'Keep the last N events in a fixed array. Event s goes into slot s mod N, so a new event overwrites the oldest. The oldest retained sequence is max(1, next − N). A client asking for older events has a gap and must resync.',
+    example: 'Capacity 4 with events 1–6 retains 3–6. since(2) returns 3, 4, 5, 6. since(1) is a gap because event 2 was overwritten.',
+    practice: 'Implement EventRing with append(String) returning the sequence, oldestRetained() and since(long after), which returns null on a gap. Then write a generic CircularQueue<T> with a head index and a count.',
+    checks: ['since(1) after 3 events → [2:A2 sold, 3:A1 sold], and since(3) → [].', 'After 6 events, oldest retained = 3 and since(1) reports a gap.', 'The circular queue handles full, empty and wrap-around cases.'],
+    readings: [reading('Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html')],
+    recall: 'How does a ring buffer decide which slot an event goes into, and how do you detect that a reconnecting client is too far behind?'
+  },
+  50: {
+    title: 'Union-find: group events into sagas',
+    concept: 'Union-find keeps items in disjoint groups. find(x) walks to the group’s root, and union(a, b) links two roots. Path compression and union by size make both nearly O(1) amortized. union returns false when a and b are already connected.',
+    example: 'Seven events with "caused by" links {0,1}, {1,2}, {3,3}, {1,4}, {4,5} form 3 groups: one saga of five events and two lone holds. union(2, 5) returns false.',
+    practice: 'Implement DisjointSet with find (path halving) and union (by size). Then count connected components for n = 5 and edges [[0,1],[1,2],[3,4]], and find the redundant edge in [[1,2],[1,3],[2,3]].',
+    checks: ['Groups match the example, and union(2, 5) = false.', 'Components = 2, and the redundant edge = [2,3].', 'Explain why union by size keeps trees shallow.'],
+    readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
+    recall: 'What do find and union do in a disjoint set, and what does it mean when union returns false?'
+  },
   // @@lanes
 };
 
@@ -657,6 +720,1752 @@ public class TopKFrequent {
       ['Both versions return [refund, parking] for k=2 and [] for an empty input.', 'The tie rule is identical in both (alphabetical).', 'State the time and space of both versions.']],
     references: [['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html']]
   },
+  'h-case-up-01': {
+    notes: [
+      'A capstone demo is an argument, and every claim in it needs evidence you can rerun. The Seat Booking system has one invariant: a seat has at most one confirmed owner. The architecture is simple on purpose. Two or more stateless application instances sit behind a load balancer, and one PostgreSQL database is the single authority for ownership. A read cache and the optional AI help feature sit beside the booking path, never inside it. If the cache is stale or the model is down, users may see slower or less helpful pages, but they can never be sold the same seat twice.',
+      'The authoritative operation is one conditional write: UPDATE seat SET owner = ? WHERE id = ? AND owner IS NULL, and the application checks that exactly one row changed. One row means this request won. Zero rows means 409 Conflict. The same transaction stores the reply under the client’s idempotency key, so a retry after a timeout replays the stored reply instead of booking again. CapstoneSim.java models this with a synchronized store shared by two instances. The race has exactly one winner, a retry through the other instance replays the original reply, and booking still works while the help provider is down.',
+      'Structure the demo as a fixed script: reset the fixture (A1 free, A2 free), start two instances against one database, race two claims for A1 through different instances, retry the winning request with its key, ask a policy question that has a cited answer, then force a provider timeout and book A2. For each step, write the expected result before running it, and keep the commands in a README so a clean checkout reproduces it. A screenshot is weaker evidence than a command and its output.',
+      'Be honest about the scope of the evidence. A two-instance race shows the invariant holds for the tested paths, and it says nothing about throughput or behavior during a regional failover. When a requirement changes, for example "confirm across two regions", name the part that must change first, which is where the single authority lives, and the trade-off you accept. A typical trade-off is rejecting or queueing claims when the regions cannot agree, which keeps the invariant and gives up some availability.'
+    ],
+    code: {
+      title: 'CapstoneSim.java · one authority, two instances, idempotent retry and a help fallback · java CapstoneSim.java',
+      text: String.raw`import java.util.*;
+import java.util.concurrent.*;
+
+public class CapstoneSim {
+    // The "database": the single authority for seat ownership and for idempotency records.
+    static final class Store {
+        private final Map<String, String> owner = new HashMap<>();     // seat -> user
+        private final Map<String, String> replies = new HashMap<>();   // idempotency key -> stored reply
+
+        // Plays the role of one transaction:
+        //   UPDATE seat SET owner = ? WHERE id = ? AND owner IS NULL   -- 1 row means we won, 0 rows means conflict
+        //   INSERT INTO idempotency_key (key, reply) VALUES (?, ?)
+        synchronized String claim(String key, String seat, String user) {
+            String previous = replies.get(key);
+            if (previous != null) return previous;                   // same logical request: replay, do not re-run
+            String reply = owner.putIfAbsent(seat, user) == null
+                    ? "201 " + seat + " -> " + user
+                    : "409 " + seat + " is taken";
+            replies.put(key, reply);
+            return reply;
+        }
+
+        synchronized String ownerOf(String seat) { return owner.get(seat); }
+    }
+
+    // An application instance holds no booking state of its own; every decision goes to the store.
+    record Instance(String name, Store db) {
+        String book(String key, String seat, String user) { return db.claim(key, seat, user); }
+
+        String help(boolean providerUp) {
+            if (!providerUp) return "help unavailable, showing the refund policy page instead";
+            return "Refunds are allowed up to 24h before the show [POL-REFUND-1]";
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Store db = new Store();
+        Instance app1 = new Instance("app-1", db), app2 = new Instance("app-2", db);
+
+        // 1. Two users race for seat A1 through different instances, released at the same moment.
+        CountDownLatch go = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        Future<String> ana = pool.submit(() -> { go.await(); return app1.book("key-ana", "A1", "ana"); });
+        Future<String> ben = pool.submit(() -> { go.await(); return app2.book("key-ben", "A1", "ben"); });
+        go.countDown();
+        String anaReply = ana.get(), benReply = ben.get();
+        pool.shutdown();
+        int winners = (anaReply.startsWith("201") ? 1 : 0) + (benReply.startsWith("201") ? 1 : 0);
+        System.out.println("winners for A1: " + winners);
+
+        // 2. The client timed out and retries with the same key, this time through the other instance.
+        String winnerKey = anaReply.startsWith("201") ? "key-ana" : "key-ben";
+        String original = anaReply.startsWith("201") ? anaReply : benReply;
+        String retry = app2.book(winnerKey, "A1", "whoever");
+        System.out.println("retry replays the original reply: " + retry.equals(original));
+        System.out.println("owner unchanged after retry: " + original.endsWith(db.ownerOf("A1")));
+
+        // 3. The model provider is down: help falls back, booking still works.
+        System.out.println("help: " + app1.help(false));
+        System.out.println("book A2 while the provider is down: " + app2.book("key-cy", "A2", "cy"));
+    }
+}
+`,
+      output: String.raw`winners for A1: 1
+retry replays the original reply: true
+owner unchanged after retry: true
+help: help unavailable, showing the refund policy page instead
+book A2 while the provider is down: 201 A2 -> cy`
+    },
+    takeaways: ['One authority (the database) owns the seat transition. Instances, cache and AI help do not.', 'Conditional write plus rows-affected check gives one winner. The idempotency key makes retries replay.', 'Script the demo: fixture, commands, expected result written first, output.', 'A small race proves the invariant for the tested paths, not throughput or failover.'],
+    interview: [
+      ['Walk me through your booking architecture in two minutes.', 'Users hit a load balancer in front of two stateless Spring Boot instances. Every booking goes to one PostgreSQL database, which is the single authority: a conditional UPDATE sets the owner only if the seat is free, and the service checks that one row changed. The same transaction records the reply under the client’s idempotency key, so retries replay instead of double-booking. Reads can come from a short-lived cache, and an optional AI help feature answers policy questions with citations. Neither the cache nor the model can change ownership, so if they fail, booking keeps working. I show that with a race test, a retry test and a forced provider timeout.'],
+      ['Why is the cache never allowed to decide whether a seat is free?', 'A cache is a copy, and copies lag. Two instances could each read "free" from the cache within the same millisecond and both promise the seat. The cache can make the seat map fast to display, but the decision must be made where all writers serialize, which is the conditional write in the database. If the cache says free and the database says taken, the user gets a 409 and a refreshed map, which is an acceptable experience. If the cache were the authority, the failure would be a double booking, which is not acceptable. That asymmetry is why the cache is advisory.'],
+      ['The product team now wants cross-region confirmation. What changes first?', 'Ownership of the decision changes first. Today one database serializes all claims. With two regions I must choose between one primary authority for each seat, so remote users pay extra latency, a consensus-backed store that agrees across regions, or partitioning seats so each region exclusively owns some of them. I also need fencing so a region that lost its leadership cannot keep confirming, and a rule for partitions. The safest rule rejects or queues claims when agreement is impossible. I would prototype the partition case first, because that is where double bookings appear, and I would measure confirmation latency before promising it.']
+    ],
+    check: ['In CapstoneSim.java the winning client retries with the same idempotency key through the other instance. What happens?',
+      ['A second seat is booked for the same user', 'The stored original reply is returned and ownership does not change', 'The request fails with 409 because the seat is taken', 'The other instance has no record, so it books again'], 1,
+      'The idempotency record lives in the shared store, so any instance finds it and replays the reply without re-running the claim.'],
+    practice: ['Write the README demo script for your own lab: reset command, start two instances, the race, the retry with the same key, one cited help answer, a forced provider timeout and a second booking. Write the expected output under each command before running it, then run it from a clean checkout.',
+      ['Each step has a command and an expected result written before the run.', 'The race shows one 201 and one 409, and the database has one owner.', 'The retry returns the original reply byte for byte.', 'Booking succeeds while the provider is forced to time out.']],
+    references: [['PostgreSQL · UPDATE (rows affected and WHERE conditions)', 'https://www.postgresql.org/docs/current/sql-update.html'], ['Stripe API · Idempotent requests', 'https://docs.stripe.com/api/idempotent_requests']]
+  },
+  'l-machine-02': {
+    notes: [
+      'An invariant test states a rule that must hold for every interleaving and then tries hard to break it. For booking the rule is: after any number of concurrent claims for a seat, exactly one claim returned success and the stored owner is that claimant. Unit tests that call claim() once per thread in sequence cannot fail on a race, so they prove nothing about concurrency. The test must start many claims at the same moment and must check both the return values and the final stored state.',
+      'Use a start gate so the threads really compete. A CyclicBarrier or a CountDownLatch holds every client until all are ready, then releases them together. Repeat the round many times, with a fresh store each time, and count the rounds that broke the rule. InvariantRace.java runs 8 clients, split across two "instances", for 200 rounds against a conditional write and gets exactly one winner every time. A real cross-instance test uses two application processes and one database. Testcontainers can start a disposable PostgreSQL container from JUnit 5, so the test runs the same SQL as production.',
+      'Prove that the test can fail. A race test that has never gone red may simply not be racing. InvariantRace.java includes a broken check-then-act store and forces the bad interleaving with a barrier between the check and the write, so all 8 clients "win". Seeing 8 winners on the broken version and 1 on the fixed version shows that the test detects the bug. With real databases, you can force the same interleaving by pausing one transaction between its SELECT and its UPDATE.',
+      'Report results precisely: "200 of 200 rounds had exactly one winner with 8 clients on two instances" is a claim about those conditions. It is not a load test and it is not proof for every schedule. Keep a fixed seed or a fixed fixture so a failure can be reproduced, print the round number and the winners when a round fails, and run the test in CI so a later refactor that reintroduces check-then-act turns the build red.'
+    ],
+    code: {
+      title: 'InvariantRace.java · a race test that fails on check-then-act and passes on a conditional write · java InvariantRace.java',
+      text: String.raw`import java.util.*;
+import java.util.concurrent.*;
+
+public class InvariantRace {
+    interface SeatStore { boolean claim(String seat, String user) throws Exception; }
+
+    // Broken: check, then act, in two separate steps (like SELECT owner, then an UPDATE with no condition).
+    static final class CheckThenAct implements SeatStore {
+        private final Map<String, String> owners = new ConcurrentHashMap<>();
+        private final CyclicBarrier afterCheck;   // test hook: every client finishes its check before anyone writes
+
+        CheckThenAct(int clients) { afterCheck = new CyclicBarrier(clients); }
+
+        public boolean claim(String seat, String user) throws Exception {
+            boolean free = !owners.containsKey(seat);
+            afterCheck.await();                    // the "unlucky" interleaving, made certain
+            if (!free) return false;
+            owners.put(seat, user);
+            return true;
+        }
+    }
+
+    // Correct: one atomic conditional write (like UPDATE ... WHERE owner IS NULL and checking rows affected = 1).
+    static final class ConditionalWrite implements SeatStore {
+        private final Map<String, String> owners = new ConcurrentHashMap<>();
+
+        public boolean claim(String seat, String user) { return owners.putIfAbsent(seat, user) == null; }
+    }
+
+    // One round: clients split across two "instances" all try to claim seat A1 at the same moment.
+    static int winners(SeatStore store, int clients) throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(clients);
+        CyclicBarrier start = new CyclicBarrier(clients);
+        List<Future<Boolean>> results = new ArrayList<>();
+        for (int i = 0; i < clients; i++) {
+            String user = (i % 2 == 0 ? "app-1/" : "app-2/") + "user" + i;
+            results.add(pool.submit(() -> { start.await(); return store.claim("A1", user); }));
+        }
+        int won = 0;
+        for (Future<Boolean> r : results) if (r.get()) won++;
+        pool.shutdown();
+        return won;
+    }
+
+    public static void main(String[] args) throws Exception {
+        int clients = 8, rounds = 200;
+        System.out.println("check-then-act, forced interleaving: " + winners(new CheckThenAct(clients), clients) + " winners");
+
+        int exactlyOne = 0;
+        for (int r = 0; r < rounds; r++) if (winners(new ConditionalWrite(), clients) == 1) exactlyOne++;
+        System.out.println("conditional write: exactly one winner in " + exactlyOne + "/" + rounds + " rounds");
+    }
+}
+`,
+      output: String.raw`check-then-act, forced interleaving: 8 winners
+conditional write: exactly one winner in 200/200 rounds`
+    },
+    takeaways: ['State the invariant, then check both return values and final stored state.', 'Use a start gate (CyclicBarrier or CountDownLatch) and many fresh rounds.', 'Show the test going red on a deliberately broken version.', 'Testcontainers gives the cross-instance test a real database.'],
+    interview: [
+      ['How would you test that two instances never confirm the same seat?', 'I would start one PostgreSQL database, using Testcontainers in JUnit 5, and two application instances pointed at it. For each round I reset seat A1, create eight clients split across the two instances, and hold them at a CyclicBarrier so they send their claims at the same moment. After the round I assert that exactly one response was 201, the rest were 409, and the database row names the 201 client. I repeat for a few hundred rounds and print the failing round and responses if any assertion breaks. I also run the same test against a deliberately broken check-then-act version to prove the test can go red.'],
+      ['Your race test passed 1,000 times. Is the code correct?', 'It means the invariant held for the interleavings that happened in those runs, on that machine, with that timing. It does not prove all schedules are safe. Races depend on timing, so a test can pass for months and then fail under different CPU load. That is why I also argue correctness from the design: one atomic conditional write, where the database serializes competing updates, and not a read followed by a write. I strengthen the test by forcing the dangerous interleaving with a barrier or a paused transaction, and by confirming that it fails on a broken version. Passing tests plus a sound design argument is the honest claim.'],
+      ['Why does InvariantRace.java use a barrier inside the broken store?', 'Without it, the broken check-then-act version would usually pass, because one thread often finishes its check and write before another even starts. The test would then be flaky and could not show the bug on demand. The barrier makes every client complete its check, all seeing a free seat, before any of them writes, so all eight report success. That turns an unlikely interleaving into a certain one. It is a test hook, not production code. The same idea in a database test is pausing transaction one after its SELECT until transaction two has also read the row.']
+    ],
+    check: ['InvariantRace.java prints "8 winners" for check-then-act. Why is the result always 8, not a random number?',
+      ['Because ConcurrentHashMap is not thread-safe', 'Because the barrier makes every client finish its check before anyone writes, so all see a free seat', 'Because eight threads always run in parallel on any machine', 'Because putIfAbsent is used in the broken version'], 1,
+      'The barrier forces the worst interleaving, so every client passes the check and every client writes.'],
+    practice: ['Copy InvariantRace.java. Add a third store that uses synchronized on the whole claim method, and a fourth that uses compute() on the map. Run 200 rounds for each and print the counts. Then make the round print the winning users when a round fails.',
+      ['check-then-act shows more than one winner and the other three show 200/200.', 'A failing round prints its round number and winners.', 'One sentence on why synchronized works in one JVM but not across two processes.']],
+    references: [['Testcontainers for Java', 'https://java.testcontainers.org/'], ['Java 21 API · CyclicBarrier', jdk + 'java/util/concurrent/CyclicBarrier.html'], ['JUnit 5 User Guide', 'https://junit.org/junit5/docs/current/user-guide/']]
+  },
+  'l-machine-02.dsa': {
+    notes: [
+      'Merge intervals is the core pattern for holds, meetings and bookings that occupy time. Sort the intervals by start time. Walk through them, keeping the last merged interval. If the next interval starts at or before the end of the last one, they overlap or touch, so extend the last interval to the larger end. Otherwise start a new merged interval. Sorting costs O(n log n) and the walk costs O(n).',
+      'Choose and state the boundary convention. MergeHolds.java uses half-open intervals [start, end), so a hold ending at 20 and one starting at 20 do not overlap. The merge still joins touching intervals into one busy period ([0,10), [5,15) and [15,20) become [0,20)), which is a choice for display. The conflict check uses the overlap rule for half-open intervals: [a,b) and [c,d) overlap exactly when a < d and c < b. That is why a new hold [20,30) fits between [0,20) and [30,40), while [18,25) conflicts.',
+      'Related problems reuse the same sorted sweep. Insert interval puts a new interval into a sorted list and merges around it. Meeting rooms I asks whether any two meetings overlap: sort and compare neighbours. Meeting rooms II asks how many rooms you need: use a min-heap of end times, or sort the starts and ends separately. For booking, the database version of the conflict check is a WHERE clause with the same two comparisons, or a PostgreSQL exclusion constraint on a range column.'
+    ],
+    code: {
+      title: 'MergeHolds.java · merge overlapping holds and check a new hold for conflict · java MergeHolds.java',
+      text: String.raw`import java.util.*;
+
+public class MergeHolds {
+    // A hold on one seat from start (inclusive) to end (exclusive), in minutes after the doors open.
+    record Hold(int start, int end) {
+        public String toString() { return "[" + start + "," + end + ")"; }
+    }
+
+    // Sort by start, then extend the last merged interval while the next one overlaps or touches it.
+    static List<Hold> merge(List<Hold> holds) {
+        List<Hold> sorted = new ArrayList<>(holds);
+        sorted.sort(Comparator.comparingInt(Hold::start));
+        List<Hold> merged = new ArrayList<>();
+        for (Hold h : sorted) {
+            if (!merged.isEmpty() && h.start() <= merged.get(merged.size() - 1).end()) {
+                Hold last = merged.remove(merged.size() - 1);
+                merged.add(new Hold(last.start(), Math.max(last.end(), h.end())));
+            } else {
+                merged.add(h);
+            }
+        }
+        return merged;
+    }
+
+    // Half-open intervals [a,b) and [c,d) overlap exactly when a < d and c < b.
+    static boolean conflicts(List<Hold> busy, Hold wanted) {
+        for (Hold h : busy) if (wanted.start() < h.end() && h.start() < wanted.end()) return true;
+        return false;
+    }
+
+    public static void main(String[] args) {
+        List<Hold> holds = List.of(new Hold(30, 40), new Hold(0, 10), new Hold(5, 15), new Hold(15, 20), new Hold(50, 55));
+        List<Hold> busy = merge(holds);
+        System.out.println("busy: " + busy);
+        System.out.println("hold [20,30) conflicts: " + conflicts(busy, new Hold(20, 30)));
+        System.out.println("hold [18,25) conflicts: " + conflicts(busy, new Hold(18, 25)));
+        System.out.println("merge of no holds: " + merge(List.of()));
+    }
+}
+`,
+      output: String.raw`busy: [[0,20), [30,40), [50,55)]
+hold [20,30) conflicts: false
+hold [18,25) conflicts: true
+merge of no holds: []`
+    },
+    takeaways: ['Sort by start, then extend or start a new interval: O(n log n).', 'Half-open [a,b) and [c,d) overlap when a < d and c < b.', 'Decide whether touching intervals merge, and say so.', 'Meeting rooms II uses a min-heap of end times.'],
+    interview: [
+      ['Merge [[1,3],[2,6],[8,10],[15,18]]. Explain the algorithm and complexity.', 'First I sort by start, which this input already is. I keep [1,3] as the last merged interval. [2,6] starts at 2, which is not after 3, so it overlaps, and I extend the last interval to [1,6]. [8,10] starts after 6, so I add it as new. [15,18] starts after 10, so I add it too. The result is [[1,6],[8,10],[15,18]]. Sorting is O(n log n) and the single pass is O(n), so the total is O(n log n) time. The output list is O(n) space, and the sort may use O(log n) to O(n) extra space depending on the implementation.'],
+      ['How do you decide whether two holds conflict, and what bug do people make?', 'For half-open intervals [a,b) and [c,d), they overlap exactly when a < d and c < b. The common bugs are checking only one endpoint, for example asking whether c is between a and b, which misses a new interval that completely contains an old one, and mixing inclusive and exclusive ends, so back-to-back holds are wrongly reported as conflicts. I fix the convention first, usually half-open because back-to-back bookings then work naturally, and I test containment, touching ends, identical intervals and no overlap. The same two comparisons go into the SQL WHERE clause.'],
+      ['How many rooms are needed for meetings [[0,30],[5,10],[15,20]]?', 'Two rooms. I sort meetings by start and keep a min-heap of end times for rooms in use. At 0 the heap is empty, so I add end 30. At 5 the earliest end is 30, which is after 5, so I need a new room and add 10. At 15 the earliest end is 10, which is at or before 15, so I reuse that room by popping 10 and pushing 20. The heap size peaked at 2, which is the answer. Time is O(n log n) and space is O(n). An alternative sorts starts and ends separately and sweeps with two pointers.']
+    ],
+    check: ['Using half-open intervals, does a new hold [20,30) conflict with busy periods [0,20) and [30,40)?',
+      ['Yes, because 20 equals the end of [0,20)', 'No, because 20 < 20 is false and 30 < 30 is false', 'Yes, because 30 equals the start of [30,40)', 'It depends on the order of the busy list'], 1,
+      'Overlap needs a < d and c < b. Both comparisons fail at the touching ends, so the hold fits.'],
+    practice: ['Copy MergeHolds.java. Add insert(List<Hold> sortedMerged, Hold h) that returns a new merged list in O(n) without re-sorting, and minRooms(List<Hold> meetings) using a PriorityQueue of end times.',
+      ['insert([[0,20),[30,40)], [18,32)) returns [[0,40)].', 'minRooms([[0,30),[5,10),[15,20)]) returns 2.', 'Empty inputs return an empty list and 0.', 'State the time and space of both methods.']],
+    references: [['Java 21 API · List.sort and Comparator', jdk + 'java/util/Comparator.html'], ['PostgreSQL · Range types and exclusion constraints', 'https://www.postgresql.org/docs/current/rangetypes.html']]
+  },
+  'l-review-01': {
+    notes: [
+      'A machine-coding round gives you 60–90 minutes to build a small working system, such as a parking lot, an expense splitter or a booking service, and then asks you to explain and extend it. Interviewers look for four things: working code that runs, a clean model with the right types, correct handling of edge cases, and the ability to change it when the requirement changes. A half-finished "perfect" design scores worse than a small design that runs and is easy to extend.',
+      'Use a fixed routine. Spend 5–10 minutes clarifying scope: list the operations, the inputs, the invalid cases, and what you will leave out. Then name the types: records for values (Expense), a class for the stateful service (Ledger), and an interface only where a second implementation is likely. Write main() early with the happy path and one invalid input, and make it run before adding features. Keep money in integer paise or cents, never double. Validate in constructors so bad objects cannot exist.',
+      'ExpenseSplit.java is a typical round. An expense is split equally, and leftover paise go to the first sharers, so the balances always sum to zero. The program prints that sum as a check. Settle-up is greedy: the largest debtor pays the largest creditor until everyone is at zero, using two priority queues with a name tiebreak so the output is deterministic. The program also shows an invalid expense being rejected. That is enough to run, explain and extend.',
+      'Expect a change request, for example "split by percentage" or "add groups". If the split rule is in one method, you can add a SplitStrategy interface with Equal and Percent implementations in a few minutes. Narrate the trade-offs as you go: greedy settle-up is simple and gives at most n − 1 transfers, but it is not always the minimum number of transfers, which is a much harder problem. After the round, review your own work in four separate columns: correctness, design, edge cases and delivery. Write down which hints you needed.'
+    ],
+    code: {
+      title: 'ExpenseSplit.java · a machine-coding round: types, validation, equal split, greedy settle-up · java ExpenseSplit.java',
+      text: String.raw`import java.util.*;
+
+public class ExpenseSplit {
+    // Machine-coding style: small types, one service, a clear rule, and a main that exercises the edge cases.
+    record Expense(String paidBy, long amountPaise, List<String> sharedBy) {
+        Expense {
+            if (amountPaise <= 0) throw new IllegalArgumentException("amount must be positive");
+            if (sharedBy.isEmpty()) throw new IllegalArgumentException("nobody shares the expense");
+        }
+    }
+
+    static final class Ledger {
+        private final Map<String, Long> balance = new TreeMap<>();   // + means is owed money, - means owes money
+
+        void add(Expense e) {
+            long share = e.amountPaise() / e.sharedBy().size();
+            long remainder = e.amountPaise() % e.sharedBy().size();     // leftover paise go to the first sharers
+            balance.merge(e.paidBy(), e.amountPaise(), Long::sum);
+            for (int i = 0; i < e.sharedBy().size(); i++) {
+                long owed = share + (i < remainder ? 1 : 0);
+                balance.merge(e.sharedBy().get(i), -owed, Long::sum);
+            }
+        }
+
+        // Greedy settle-up: the biggest debtor pays the biggest creditor until everyone is at zero.
+        List<String> settle() {
+            Comparator<Map.Entry<String, Long>> byAmount = Map.Entry.comparingByValue();
+            PriorityQueue<Map.Entry<String, Long>> creditors = new PriorityQueue<>(byAmount.reversed().thenComparing(Map.Entry.comparingByKey()));
+            PriorityQueue<Map.Entry<String, Long>> debtors = new PriorityQueue<>(byAmount.thenComparing(Map.Entry.comparingByKey()));
+            for (var e : balance.entrySet()) {
+                if (e.getValue() > 0) creditors.add(new AbstractMap.SimpleEntry<>(e));
+                if (e.getValue() < 0) debtors.add(new AbstractMap.SimpleEntry<>(e));
+            }
+            List<String> transfers = new ArrayList<>();
+            while (!creditors.isEmpty()) {
+                var c = creditors.poll();
+                var d = debtors.poll();
+                long amount = Math.min(c.getValue(), -d.getValue());
+                transfers.add(d.getKey() + " pays " + c.getKey() + " " + rupees(amount));
+                if (c.getValue() - amount > 0) creditors.add(new AbstractMap.SimpleEntry<>(c.getKey(), c.getValue() - amount));
+                if (d.getValue() + amount < 0) debtors.add(new AbstractMap.SimpleEntry<>(d.getKey(), d.getValue() + amount));
+            }
+            return transfers;
+        }
+
+        Map<String, Long> balances() { return Collections.unmodifiableMap(balance); }
+    }
+
+    static String rupees(long paise) { return String.format("Rs %d.%02d", paise / 100, paise % 100); }
+
+    public static void main(String[] args) {
+        Ledger ledger = new Ledger();
+        ledger.add(new Expense("asha", 90000, List.of("asha", "ben", "chen")));   // dinner Rs 900, split three ways
+        ledger.add(new Expense("ben", 10000, List.of("asha", "ben", "chen")));    // taxi Rs 100: 3334 + 3333 + 3333
+        ledger.add(new Expense("chen", 30000, List.of("chen", "dev")));           // tickets Rs 300 for two
+        System.out.println("balances (paise): " + ledger.balances());
+        System.out.println("sum of balances: " + ledger.balances().values().stream().mapToLong(Long::longValue).sum());
+        ledger.settle().forEach(System.out::println);
+        try {
+            ledger.add(new Expense("dev", 0, List.of("dev")));
+        } catch (IllegalArgumentException ex) {
+            System.out.println("rejected: " + ex.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`balances (paise): {asha=56666, ben=-23333, chen=-18333, dev=-15000}
+sum of balances: 0
+ben pays asha Rs 233.33
+chen pays asha Rs 183.33
+dev pays asha Rs 150.00
+rejected: amount must be positive`
+    },
+    takeaways: ['Clarify scope, name types, make main() run early, then extend.', 'Money in integer paise; validate in constructors.', 'Print an invariant (balances sum to zero) as a self-check.', 'Keep the changeable rule in one place so a change request is quick.'],
+    interview: [
+      ['You have 75 minutes to build an expense splitter. How do you use the time?', 'For the first 8 minutes I ask questions and write the scope: add an expense, split equally, show balances, settle up, reject invalid input. Groups and currencies are out unless asked. The next 7 minutes go on the model: an Expense record validated in its constructor, a Ledger class holding a balance map, and integer paise for money. Then I spend 30 minutes making main() run end to end with real numbers and an invalid case, and 15 minutes on settle-up and tests for rounding. The last 15 minutes are for a change request and for explaining trade-offs. I keep the code runnable at every step, so I can stop at any point and still demonstrate something working.'],
+      ['Why store money as long paise instead of double rupees?', 'Binary floating point cannot represent most decimal fractions exactly, so 0.1 + 0.2 is not exactly 0.3, and errors accumulate when you add many expenses or split three ways. Balances that should be zero end up as tiny non-zero values, and comparisons with zero fail. Integer paise make addition exact, and the program decides explicitly where leftover paise go when an amount does not divide evenly. ExpenseSplit gives them to the first sharers, so the balances still sum to exactly zero. BigDecimal is the other correct option when you need different scales or rounding modes, at some cost in verbosity and speed.'],
+      ['The interviewer says "now support percentage splits". What do you change?', 'I move the split rule out of Ledger.add into a SplitStrategy interface with one method that turns an amount and the participants into a map of shares. EqualSplit holds today’s logic, including the leftover-paise rule. PercentSplit takes a map of percentages, validates that they add up to 100, computes each share, and assigns the rounding remainder deterministically. Expense then carries a strategy, or the shares are computed when the expense is created. Balances and settle-up do not change, because they only see shares. I add a test with 33.33/33.33/33.34 percent and check that balances still sum to zero.']
+    ],
+    check: ['In ExpenseSplit.java a Rs 100 taxi (10000 paise) is shared by three people. How is it split?',
+      ['3333 each, and 1 paisa is lost', '3334, 3333, 3333, with the extra paisa going to the first sharer', '3333.33 each as a double', 'The payer covers the remainder separately at settle-up'], 1,
+      'Integer division gives 3333 with remainder 1. The remainder goes to the first sharers, so the total is exact.'],
+    practice: ['Do a timed 60-minute round: build a parking-lot allocator (levels, spot sizes, park and leave, ticket with entry time, fee by hour) without notes. Use the routine: scope, types, runnable main, then features. Afterwards, score yourself in four columns and note hints used.',
+      ['main() runs with a happy path and at least two invalid cases.', 'Fees use integer money and a tested rounding rule.', 'A change request (an EV spot type) takes under 10 minutes.', 'The self-review has correctness, design, edge cases and delivery scored separately.']],
+    references: [['Java 21 API · record classes (java.lang.Record)', jdk + 'java/lang/Record.html'], ['Java 21 API · PriorityQueue', jdk + 'java/util/PriorityQueue.html']]
+  },
+  'h-review-01': {
+    notes: [
+      'An architecture walkthrough in an interview is a guided tour of one system you built, told so that each design choice is linked to a requirement and to evidence. Interviewers use it to judge depth: do you know why each part exists, what fails first, and what you would change? Prepare one system well, which for this course is the Seat Booking lab, rather than many systems superficially.',
+      'Use a fixed structure. Start with the requirement and its numbers: users book seats for events, one owner per seat, holds expire after 10 minutes, and expected peaks. Then draw the request path from the client through the load balancer and stateless instances to the database. Mark the single authority for the invariant and the advisory components, such as the cache and the AI help. Then walk one write path in detail, the conditional claim with its idempotency key, and one failure path, such as a timeout and retry or a provider outage.',
+      'Separate what you measured from what you expect. "Two instances, eight clients, 200 rounds, exactly one winner each round" is measured. "This would handle 10,000 requests per second" is a hypothesis unless you ran a load test. Say which experiment would test it: a hot-event load run that measures p95 latency, connection-pool waits and invariant checks afterwards. Interviewers trust candidates who draw this line clearly much more than candidates who claim everything.',
+      'Prepare for the changed constraint. Common ones are ten times the traffic on one hot event, a second region, a read replica that lags, or a database failover. For each one, name the first part that breaks and your first move. For a hot event, that is row contention on a few seats, and the first move is a queue or virtual waiting room in front of the claim. For replicas, the risk is stale seat maps, which is fine, but the claim must still go to the primary. For multi-region, the question is who owns the decision. Practise the whole walkthrough in 5 minutes, and a 90-second version.'
+    ],
+    takeaways: ['Requirement → request path → authority → one write path → one failure path.', 'Label every claim as measured or expected, and name the experiment for the expected ones.', 'For each changed constraint, name what breaks first and your first move.', 'Rehearse a 5-minute and a 90-second version.'],
+    interview: [
+      ['Give me a 90-second walkthrough of your project.', 'I built a seat booking service where the key rule is one confirmed owner per seat. Requests go through a load balancer to two stateless Spring Boot instances and one PostgreSQL database. The database is the single authority: a claim is a conditional UPDATE that only succeeds while the seat is unowned, and the reply is stored under an idempotency key so client retries replay instead of double-booking. A short-lived cache serves seat maps, and an optional AI help feature answers policy questions with citations. Neither can change ownership. I proved the rule with a race test across two instances and a forced provider timeout. I have not load-tested it, and that is the next experiment.'],
+      ['What fails first if one event gets ten times the traffic?', 'The hot seats themselves. Thousands of claims for a few rows serialize on row locks, so latency climbs, connection-pool waits grow, and timeouts can trigger retries that add more load. The invariant still holds because of the conditional write, but the experience degrades. My first move would be admission control in front of the claim: a virtual waiting room or a queue that lets a bounded number of users try to claim at once, plus a shorter hold time. I would measure before and after with a load test on one hot event: p95 claim latency, pool wait time, error rate and an invariant check at the end.'],
+      ['An interviewer asks which parts of your answer you actually measured. How do you respond?', 'I list them precisely. Measured: the two-instance race with eight clients produced exactly one winner in each of 200 rounds. A retry with the same key replayed the original reply. A forced provider timeout returned the help fallback while another booking committed. Not measured: throughput, tail latency under load, failover, and behavior with read replicas. For each of those I name the experiment I would run and the signal I would watch, for example p99 claim latency and pool wait during a hot-event load test. Being explicit about the boundary makes the measured claims more credible, and it shows I know how to close the gaps.']
+    ],
+    check: ['Which statement belongs in the "measured" column of a walkthrough?',
+      ['The service would handle 10,000 requests per second', 'Exactly one winner in 200 of 200 rounds with 8 clients on two instances', 'Read replicas would remove all database load', 'The design is correct for any schedule'], 1,
+      'Only the race result came from a run with stated conditions. The others are hypotheses that need their own experiments.'],
+    practice: ['Record yourself giving the 5-minute walkthrough of your booking lab with a drawn diagram, then the 90-second version. Then answer two changed constraints (a hot event and a second region) in 2 minutes each.',
+      ['The diagram marks the single authority and the advisory components.', 'Every numeric claim is labelled measured or expected.', 'Each changed constraint names what breaks first and a first move.', 'The 90-second version fits in 90 seconds.']],
+    references: [['PostgreSQL · Explicit locking (row-level locks)', 'https://www.postgresql.org/docs/current/explicit-locking.html']]
+  },
+  'ai-review-01': {
+    notes: [
+      'When you explain an AI feature in an interview, the interviewer wants to know why each decision was made and how you would know it is working. "We used RAG with GPT" is a description, not an explanation. A strong answer gives the user need, the failure you were preventing, the options you compared, the evidence that picked one, and the guardrail that protects the core system if the model is wrong.',
+      'Make decisions with a written rule and a fixed evaluation set. Before you run anything, write the acceptance bar: for example, at least 90% correct on 40 real policy questions, zero answers citing a source they were not given, and p95 latency under 2.5 seconds. Then run each variant on the same set and record accuracy, unsupported answers, latency and cost. VariantDecision.java applies such a rule. The prompt-only variant fails on accuracy and unsupported citations, and RAG top-10 fails the latency budget. Of the two passing variants, the program picks the cheaper small model, because 2.5 extra points of accuracy above the bar are not worth eight times the cost.',
+      'Show the guardrails as part of the design, not as an afterthought. The help feature is read-only, so its tools cannot change bookings. Retrieved policies are treated as untrusted data. Answers must cite supplied passages, or the feature shows a fallback. Calls have a timeout and a budget, so a provider outage gives a fast fallback while booking keeps working. Each guardrail should have a test you can show: an injected instruction in a policy, a missing policy that requires abstention, and a forced timeout.',
+      'Be clear about limits and next steps. Forty questions is a small evaluation set. It catches large regressions, but a 2-point difference between variants is within noise. Production needs monitoring: the fallback rate, the citation-check failure rate, user feedback, latency and cost per day. Say what you would add next, such as a larger evaluation set drawn from real traffic and a weekly regression run when policies or the model change.'
+    ],
+    code: {
+      title: 'VariantDecision.java · pick an AI variant with a rule written before the numbers · java VariantDecision.java',
+      text: String.raw`import java.util.*;
+
+public class VariantDecision {
+    // Results of running each variant on the same fixed 40-question evaluation set.
+    record Result(String variant, int correct, int total, int unsupported, int p95Millis, double costPer1kRequests) {
+        double accuracy() { return 100.0 * correct / total; }
+    }
+
+    // The decision rule is written down BEFORE looking at the numbers.
+    static final double MIN_ACCURACY = 90.0;
+    static final int MAX_UNSUPPORTED = 0;   // an answer citing a source it was not given fails the feature
+    static final int P95_BUDGET_MILLIS = 2500;
+
+    static String verdict(Result r) {
+        List<String> reasons = new ArrayList<>();
+        if (r.accuracy() < MIN_ACCURACY) reasons.add(String.format("accuracy %.1f%% < %.0f%%", r.accuracy(), MIN_ACCURACY));
+        if (r.unsupported() > MAX_UNSUPPORTED) reasons.add(r.unsupported() + " unsupported answers");
+        if (r.p95Millis() > P95_BUDGET_MILLIS) reasons.add("p95 " + r.p95Millis() + " ms > " + P95_BUDGET_MILLIS + " ms");
+        return reasons.isEmpty() ? "passes" : "fails: " + String.join(", ", reasons);
+    }
+
+    public static void main(String[] args) {
+        List<Result> results = List.of(
+                new Result("prompt only, large model", 31, 40, 4, 1900, 9.00),
+                new Result("RAG top-3, small model", 37, 40, 0, 1400, 1.20),
+                new Result("RAG top-3, large model", 38, 40, 0, 2300, 9.60),
+                new Result("RAG top-10, large model", 38, 40, 0, 3100, 14.10));
+        for (Result r : results) {
+            System.out.printf("%-26s %5.1f%%  unsupported=%d  p95=%dms  cost=$%.2f/1k  %s%n",
+                    r.variant(), r.accuracy(), r.unsupported(), r.p95Millis(), r.costPer1kRequests(), verdict(r));
+        }
+        // Among passing variants, pick the cheapest. Accuracy ties beyond the bar are not worth 8x the cost.
+        Result chosen = results.stream().filter(r -> verdict(r).equals("passes"))
+                .min(Comparator.comparingDouble(Result::costPer1kRequests)).orElseThrow();
+        System.out.println("chosen: " + chosen.variant());
+    }
+}
+`,
+      output: String.raw`prompt only, large model    77.5%  unsupported=4  p95=1900ms  cost=$9.00/1k  fails: accuracy 77.5% < 90%, 4 unsupported answers
+RAG top-3, small model      92.5%  unsupported=0  p95=1400ms  cost=$1.20/1k  passes
+RAG top-3, large model      95.0%  unsupported=0  p95=2300ms  cost=$9.60/1k  passes
+RAG top-10, large model     95.0%  unsupported=0  p95=3100ms  cost=$14.10/1k  fails: p95 3100 ms > 2500 ms
+chosen: RAG top-3, small model`
+    },
+    takeaways: ['Need → failure prevented → options → evidence → guardrail.', 'Write the acceptance rule before running variants on a fixed eval set.', 'Among variants that pass, prefer the cheapest and simplest.', 'Small eval sets catch big regressions; small differences are noise.'],
+    interview: [
+      ['Why did you choose RAG over prompting alone for the help feature?', 'The failure I was preventing was confident wrong answers about policies that change. With prompting alone the model answered from its training data, and on our 40-question evaluation set it scored 77.5% and produced four answers citing sources it had never been given. With retrieval of the top three policy passages, accuracy passed our 90% bar with zero unsupported citations, because the model saw the current text and had to cite it. Retrieval also lets us update a policy in minutes and respect per-venue access. I wrote the bar before running the variants, so the choice came from the rule, not from whichever number looked best.'],
+      ['Two variants both pass your bar. One is 2.5 points more accurate and eight times more expensive. Which do you ship?', 'I would ship the cheaper one, and I can justify it. The acceptance bar already encodes the accuracy the feature needs, and both meet it with zero unsupported answers and within the latency budget. On a 40-question set, 2.5 points is a single question, which is within the noise of a set that small. Paying eight times the cost per request for a difference I cannot distinguish from noise is a poor trade. I would keep the larger model as a measured fallback option, grow the evaluation set from real traffic, and revisit the decision if the bigger set shows a consistent gap on an important category.'],
+      ['How do you show an interviewer the AI feature cannot break bookings?', 'I show it at three levels. First the architecture: the help feature only has read-only tools for policies and availability, and every claim goes through the booking service’s conditional write, so the model has no path to change ownership. Second the tests: an injected instruction inside a policy document asking to book a seat produces no booking and a safe answer, a forced provider timeout returns the fallback within the deadline, and a booking for another seat still commits during the outage. Third the monitoring: fallback rate, citation-check failures and tool-call denials are counted, so a regression shows up quickly.']
+    ],
+    check: ['In VariantDecision.java, why is "RAG top-10, large model" rejected despite 95% accuracy?',
+      ['Its accuracy is below the bar', 'Its p95 latency of 3100 ms exceeds the 2500 ms budget', 'It produced unsupported answers', 'It is the most accurate, so it is chosen'], 1,
+      'The rule has three conditions. Top-10 passes accuracy and grounding but fails the latency budget.'],
+    practice: ['Write a one-page decision record for your help feature: the need, the failure prevented, three variants, the acceptance rule written first, a results table from your own small evaluation (at least 15 questions), the choice, and two guardrails with their tests.',
+      ['The acceptance rule is dated before the results.', 'All variants ran on the same question set.', 'The choice follows from the rule, and ties are broken by cost or simplicity.', 'Each guardrail names a test that demonstrates it.']],
+    references: [['OWASP Top 10 for LLM Applications', 'https://genai.owasp.org/llm-top-10/'], ['Spring AI reference', 'https://docs.spring.io/spring-ai/reference/']]
+  },
+  'l-review-01.dsa': {
+    notes: [
+      'An LRU (least recently used) cache keeps at most capacity entries and, when full, evicts the entry that was used longest ago. Both get and put must run in O(1). A HashMap alone gives O(1) lookup but no order. A list alone gives order but O(n) lookup. The standard design combines them: a HashMap from key to node, and a doubly linked list of nodes ordered from least to most recently used.',
+      'Every get of an existing key unlinks its node and appends it at the most-recent end. Every put of a new key appends a node, and if the cache is full it first removes the node at the least-recent end and its map entry. Sentinel head and tail nodes remove the special cases for an empty list. In LruCache.java, after get A1 the order is [A2, A1], so putting A3 evicts A2. Updating A1 moves it to the most-recent end, so putting A4 evicts A3.',
+      'In real Java code you would usually use LinkedHashMap with accessOrder = true and override removeEldestEntry, or a library cache such as Caffeine, which also handles concurrency and expiry. Interviewers ask for the hand-built version to see the two structures working together. Mention thread safety: this class is not thread-safe, and the simple fix is to synchronize get and put, at the cost of contention.'
+    ],
+    code: {
+      title: 'LruCache.java · HashMap plus doubly linked list, O(1) get and put · java LruCache.java',
+      text: String.raw`import java.util.*;
+
+public class LruCache<K, V> {
+    // HashMap for O(1) lookup + doubly linked list for O(1) "move to most recent" and "evict least recent".
+    private final class Node {
+        final K key; V value; Node prev, next;
+        Node(K key, V value) { this.key = key; this.value = value; }
+    }
+
+    private final int capacity;
+    private final Map<K, Node> index = new HashMap<>();
+    private final Node head = new Node(null, null), tail = new Node(null, null);   // sentinels: head.next is the LRU
+
+    LruCache(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException("capacity must be positive");
+        this.capacity = capacity;
+        head.next = tail; tail.prev = head;
+    }
+
+    V get(K key) {
+        Node n = index.get(key);
+        if (n == null) return null;
+        unlink(n); append(n);                 // now the most recently used
+        return n.value;
+    }
+
+    void put(K key, V value) {
+        Node n = index.get(key);
+        if (n != null) { n.value = value; unlink(n); append(n); return; }
+        if (index.size() == capacity) {       // evict the least recently used
+            Node lru = head.next;
+            unlink(lru); index.remove(lru.key);
+        }
+        n = new Node(key, value);
+        index.put(key, n); append(n);
+    }
+
+    private void unlink(Node n) { n.prev.next = n.next; n.next.prev = n.prev; }
+
+    private void append(Node n) { n.prev = tail.prev; n.next = tail; tail.prev.next = n; tail.prev = n; }
+
+    public String toString() {                // least recent first
+        StringJoiner j = new StringJoiner(", ", "[", "]");
+        for (Node n = head.next; n != tail; n = n.next) j.add(n.key + "=" + n.value);
+        return j.toString();
+    }
+
+    public static void main(String[] args) {
+        LruCache<String, String> cache = new LruCache<>(2);
+        cache.put("A1", "free");
+        cache.put("A2", "held");
+        System.out.println("get A1 -> " + cache.get("A1") + "   order " + cache);
+        cache.put("A3", "free");              // evicts A2, the least recently used
+        System.out.println("after put A3: " + cache + "   get A2 -> " + cache.get("A2"));
+        cache.put("A1", "sold");              // update moves A1 to most recent
+        cache.put("A4", "free");              // evicts A3
+        System.out.println("after update A1 and put A4: " + cache);
+    }
+}
+`,
+      output: String.raw`get A1 -> free   order [A2=held, A1=free]
+after put A3: [A1=free, A3=free]   get A2 -> null
+after update A1 and put A4: [A1=sold, A4=free]`
+    },
+    takeaways: ['HashMap for lookup, doubly linked list for recency order.', 'get moves the node to the most-recent end; put evicts from the least-recent end.', 'Sentinels remove empty-list special cases.', 'In production: LinkedHashMap(accessOrder) or a library cache.'],
+    interview: [
+      ['Design an LRU cache with O(1) get and put.', 'I use a HashMap from key to a node in a doubly linked list that is ordered from least to most recently used, with sentinel head and tail nodes. get looks up the node in the map. If it is missing I return null. Otherwise I unlink the node and append it before the tail, which is O(1) because each node knows its neighbours, and return the value. put on an existing key updates the value and moves the node. put on a new key first checks the size, and if it is at capacity I remove head.next from the list and its key from the map, then insert the new node. Both operations are O(1), and memory is O(capacity).'],
+      ['Why does the list need to be doubly linked?', 'To unlink an arbitrary node in O(1), I need to reach its predecessor and set predecessor.next to the node’s successor. In a singly linked list, finding the predecessor means walking from the head, which is O(n) and breaks the O(1) requirement for get. The node also stores its key, which seems redundant, but eviction needs it: when I remove head.next, I must also delete that key from the HashMap, and only the node can tell me which key it was. Those two details, prev pointers and keys in nodes, are the usual follow-up questions.'],
+      ['How would you build this in production Java?', 'For a simple single-threaded cache, LinkedHashMap already maintains a doubly linked list. Constructing it with accessOrder set to true and overriding removeEldestEntry to return size() > capacity gives an LRU cache in a few lines. For a shared cache under concurrency I would use a library such as Caffeine, which provides size-based eviction (its Window TinyLFU policy usually beats plain LRU on hit rate), time-based expiry and statistics without a global lock. Wrapping my hand-built class in synchronized methods also works, but every get then contends on one lock, because a get also writes the list. I would choose based on measured contention.']
+    ],
+    check: ['Capacity 2: put A1, put A2, get A1, put A3. Which key is evicted?',
+      ['A1, because it was inserted first', 'A2, because A1 was used more recently', 'A3, because it is the newest', 'None, because get does not change the order'], 1,
+      'get A1 moves A1 to the most-recent end, so A2 is the least recently used when A3 arrives.'],
+    practice: ['Implement the same cache with LinkedHashMap(capacity, 0.75f, true) and removeEldestEntry. Run both versions on the same operations and compare. Then add a hit/miss counter.',
+      ['Both versions print the same order after each step.', 'Capacity ≤ 0 is rejected.', 'Hit and miss counts are correct for the main() sequence.', 'One sentence on why get must be synchronized if the cache is shared.']],
+    references: [['Java 21 API · LinkedHashMap (accessOrder, removeEldestEntry)', jdk + 'java/util/LinkedHashMap.html']]
+  },
+  'j-jvm-02': {
+    notes: [
+      'When a Java service is slow or stuck, collect evidence before you change code. The JVM can show you where every thread is and what it is waiting for. A thread dump is a snapshot of every thread’s stack and state at one moment. The states to know are RUNNABLE (running, or ready to run, or inside native I/O), BLOCKED (waiting to enter a synchronized monitor that another thread holds), and WAITING or TIMED_WAITING (parked in wait(), join(), sleep(), a lock or a latch). One dump can mislead. Take two or three, a few seconds apart, and look for threads that stay in the same place.',
+      'On JDK 21, "jcmd <pid> Thread.print" prints platform-thread stacks, including which monitor each BLOCKED thread wants and which thread owns it, and it reports Java-level deadlocks at the end. Virtual threads are not listed there. Use "jcmd <pid> Thread.dump_to_file -format=json <file>" to include them. LockDiagnosis.java reads the same information inside the program through ThreadMXBean: worker-2 is BLOCKED on a lock held by worker-1, and findDeadlockedThreads() reports booking-thread and refund-thread, which took the same two locks in opposite order and are waiting for each other.',
+      'Know the JVM memory areas so you can read an OutOfMemoryError. Objects live on the heap, which the garbage collector divides into young and old regions. Class metadata lives in Metaspace, outside the heap. Each platform thread has its own native stack of frames holding local variables and references. The JIT’s compiled code lives in the code cache, and direct ByteBuffers use native memory. "OutOfMemoryError: Java heap space" means live objects exceed -Xmx. "Metaspace" usually points to a class-loader leak. "unable to create native thread" means too many platform threads or too little native memory, not a small heap.',
+      'Useful first commands: "jcmd <pid> GC.heap_info" for heap use, "jcmd <pid> GC.class_histogram" for which classes take the most memory, and "jcmd <pid> JFR.start duration=60s filename=rec.jfr" to record a Java Flight Recording of CPU, allocation, locks and I/O with low overhead. Read the evidence against a question: for example, "workers pile up BLOCKED on one monitor whose owner is in a network call" says the critical section is too wide. The fix is to move the network call outside the lock, not to add threads.'
+    ],
+    code: {
+      title: 'LockDiagnosis.java · read thread states, lock owners and a deadlock with ThreadMXBean · java LockDiagnosis.java',
+      text: String.raw`import java.lang.management.*;
+import java.util.*;
+import java.util.concurrent.*;
+
+public class LockDiagnosis {
+    static final Object seatMapLock = new Object();
+    static final Object lockA = new Object(), lockB = new Object();
+
+    // Wait until a thread reaches the expected state, so the "dump" below is not a matter of timing luck.
+    static void awaitState(Thread t, Thread.State s) throws InterruptedException {
+        while (t.getState() != s) Thread.sleep(5);
+    }
+
+    public static void main(String[] args) throws Exception {
+        ThreadMXBean mx = ManagementFactory.getThreadMXBean();
+
+        // 1. Contention: worker-1 holds the monitor while it "calls the network"; worker-2 is BLOCKED behind it.
+        CountDownLatch release = new CountDownLatch(1);
+        Thread w1 = new Thread(() -> { synchronized (seatMapLock) { awaitQuietly(release); } }, "worker-1");
+        Thread w2 = new Thread(() -> { synchronized (seatMapLock) { } }, "worker-2");
+        w1.start(); awaitState(w1, Thread.State.WAITING);    // inside the lock, waiting on the latch
+        w2.start(); awaitState(w2, Thread.State.BLOCKED);    // trying to enter the same monitor
+        ThreadInfo info = mx.getThreadInfo(w2.threadId());
+        System.out.println(info.getThreadName() + " " + info.getThreadState() + " on a lock held by " + info.getLockOwnerName());
+        release.countDown(); w1.join(); w2.join();
+        System.out.println("after release: worker-1 " + w1.getState() + ", worker-2 " + w2.getState());
+
+        // 2. Deadlock: two threads take the same two locks in opposite order.
+        CyclicBarrier bothHoldOne = new CyclicBarrier(2);
+        Thread t1 = new Thread(() -> lockInOrder(lockA, lockB, bothHoldOne), "booking-thread");
+        Thread t2 = new Thread(() -> lockInOrder(lockB, lockA, bothHoldOne), "refund-thread");
+        t1.setDaemon(true); t2.setDaemon(true);              // so the JVM can still exit after the demo
+        t1.start(); t2.start();
+        long[] ids;
+        while ((ids = mx.findDeadlockedThreads()) == null) Thread.sleep(5);
+        List<String> names = new ArrayList<>();
+        for (ThreadInfo ti : mx.getThreadInfo(ids)) names.add(ti.getThreadName() + " waits for " + ti.getLockOwnerName());
+        Collections.sort(names);
+        System.out.println("deadlocked: " + names);
+    }
+
+    static void lockInOrder(Object first, Object second, CyclicBarrier barrier) {
+        synchronized (first) {
+            try { barrier.await(); } catch (Exception e) { return; }   // both threads now hold their first lock
+            synchronized (second) { System.out.println("never printed"); }
+        }
+    }
+
+    static void awaitQuietly(CountDownLatch latch) {
+        try { latch.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+}
+`,
+      output: String.raw`worker-2 BLOCKED on a lock held by worker-1
+after release: worker-1 TERMINATED, worker-2 TERMINATED
+deadlocked: [booking-thread waits for refund-thread, refund-thread waits for booking-thread]`
+    },
+    takeaways: ['BLOCKED = waiting for a monitor; WAITING/TIMED_WAITING = parked; RUNNABLE may be in I/O.', 'Take two or three dumps a few seconds apart.', 'jcmd Thread.print for platform threads; Thread.dump_to_file -format=json includes virtual threads.', 'Map the OutOfMemoryError message to the memory area: heap, Metaspace, native threads.'],
+    interview: [
+      ['How do you diagnose a Java service whose requests hang?', 'I first check whether the CPU is busy or idle, because that splits the problem into "spinning or computing" versus "waiting". Then I take two or three thread dumps a few seconds apart with jcmd <pid> Thread.print, or with Thread.dump_to_file if virtual threads are in use. I look for many threads stuck at the same frame. Many BLOCKED threads on one monitor point to lock contention, and the dump names the owner. Threads WAITING inside a connection pool point to pool exhaustion. Threads in socket reads point to a slow dependency. The dump also reports deadlocks. I match the evidence with metrics such as pool waits and dependency latency before changing anything.'],
+      ['What is the difference between BLOCKED and WAITING in a thread dump?', 'BLOCKED means the thread is trying to enter a synchronized block or method, and another thread currently owns that monitor. The dump shows "waiting to lock <0x...>" and you can find the owner holding the same address. WAITING means the thread parked itself on purpose and will continue only when something signals it: Object.wait(), Thread.join(), LockSupport.park() as used by ReentrantLock and latches, or taking from an empty queue. TIMED_WAITING is the same with a timeout, such as sleep(10). So BLOCKED points to monitor contention, while WAITING needs context: it may be a healthy idle worker or a thread waiting for a connection that never comes.'],
+      ['A service throws "OutOfMemoryError: unable to create native thread". Do you raise -Xmx?', 'No. That error is not about the Java heap. It means the JVM asked the operating system for a new platform thread and the request failed, because of the process’s thread limit or because native memory for thread stacks ran out. Raising -Xmx can even make it worse by leaving less native memory. I would count threads with jcmd Thread.print or a metrics endpoint, find the code creating them, often an unbounded thread-per-request executor or a pool created per call, and bound it. Virtual threads can be an option for blocking I/O, but downstream resources still need limits. I would also check the ulimit for processes and threads.']
+    ],
+    check: ['A thread dump shows 40 threads BLOCKED on the same monitor, owned by one thread that is inside a socket read. What does this suggest?',
+      ['The JVM needs a bigger heap', 'A network call is made while holding the lock, so the critical section is too wide', 'The 40 threads are deadlocked with each other', 'The garbage collector is paused'], 1,
+      'Everyone waits for one owner who is waiting on the network. Move the I/O out of the synchronized block.'],
+    practice: ['Run a small program that holds a synchronized lock around a Thread.sleep(2000) "network call" with 10 worker threads. Capture two dumps with jcmd <pid> Thread.print five seconds apart and find the owner. Then move the sleep outside the lock and capture again.',
+      ['The first dumps show one owner and several BLOCKED threads on the same monitor address.', 'After the fix, no thread is BLOCKED on that monitor.', 'GC.heap_info output is saved and its heap use noted.', 'One paragraph explains the evidence and the fix.']],
+    references: [['Oracle JDK 21 · jcmd', 'https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html'], ['Java 21 API · ThreadMXBean', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/ThreadMXBean.html'], ['Oracle JDK 21 Troubleshooting · Diagnostic tools', 'https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html']]
+  },
+  'j-executors-02': {
+    notes: [
+      'Virtual threads (JEP 444, final in Java 21) are lightweight threads managed by the JVM. When a virtual thread blocks on I/O, sleep or a java.util.concurrent lock, the JVM unmounts it from its carrier platform thread, so that carrier can run another virtual thread. A service can therefore have a hundred thousand blocked tasks without a hundred thousand operating-system threads. Executors.newVirtualThreadPerTaskExecutor() creates one new virtual thread per task. Do not pool virtual threads, because they are cheap to create.',
+      'Virtual threads make waiting cheap. They do not make the thing you wait for bigger. A database pool with 8 connections can still serve only 8 queries at a time, and a model provider still has a rate limit. With unlimited virtual threads, 1,000 tasks hit the scarce resource together, and you get pool timeouts, queueing inside the driver or 429s. BoundedFanOut.java shows this: without a limit the peak number of concurrent "DB calls" is far above 8, and with a Semaphore(8) acquired before the call and released in finally, the peak is exactly 8 while all 1,000 tasks still complete.',
+      'Put limits at the resource, not on thread count. Use a Semaphore or a bounded pool around each scarce resource (database, provider, file handles), with a timeout on acquire so overload turns into a fast rejection instead of an endless queue. Keep CPU-heavy work on a bounded platform-thread pool sized near the number of cores, because virtual threads do not add CPU. Use timeouts on every remote call.',
+      'Know the JDK 21 pinning caveat. A virtual thread that blocks while inside a synchronized block, or a native method, stays pinned to its carrier, so the carrier cannot run others. Under load that can starve the small carrier pool. In JDK 21, prefer ReentrantLock for locks held across blocking I/O. Running with -Djdk.tracePinnedThreads=full prints a stack trace whenever a virtual thread blocks while pinned. JDK 24 (JEP 491) removed most synchronized pinning, but code that targets 21 should still follow this rule. ThreadLocal values are per virtual thread, so heavy ThreadLocal caches become costly with millions of threads.'
+    ],
+    code: {
+      title: 'BoundedFanOut.java · 1,000 virtual threads with and without a Semaphore in front of 8 "connections" · java BoundedFanOut.java',
+      text: String.raw`import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+
+public class BoundedFanOut {
+    // A pretend database call: it holds one of a limited number of connections for 10 ms.
+    static void dbCall(AtomicInteger inFlight, AtomicInteger peak) throws InterruptedException {
+        int now = inFlight.incrementAndGet();
+        peak.accumulateAndGet(now, Math::max);
+        try { Thread.sleep(10); } finally { inFlight.decrementAndGet(); }
+    }
+
+    static int run(int tasks, Semaphore permits) throws Exception {
+        AtomicInteger inFlight = new AtomicInteger(), peak = new AtomicInteger();
+        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {   // one cheap thread per task
+            for (int i = 0; i < tasks; i++) {
+                exec.submit(() -> {
+                    if (permits == null) { dbCall(inFlight, peak); return null; }
+                    permits.acquire();                       // admission control in front of the scarce resource
+                    try { dbCall(inFlight, peak); } finally { permits.release(); }
+                    return null;
+                });
+            }
+        }                                                    // close() waits for every task to finish
+        return peak.get();
+    }
+
+    public static void main(String[] args) throws Exception {
+        int tasks = 1000, poolSize = 8;
+        int unbounded = run(tasks, null);
+        int bounded = run(tasks, new Semaphore(poolSize));
+        System.out.println("1000 virtual threads, no limit: peak concurrent DB calls > 8: " + (unbounded > poolSize));
+        System.out.println("1000 virtual threads, Semaphore(8): peak concurrent DB calls = " + bounded);
+    }
+}
+`,
+      output: String.raw`1000 virtual threads, no limit: peak concurrent DB calls > 8: true
+1000 virtual threads, Semaphore(8): peak concurrent DB calls = 8`
+    },
+    takeaways: ['Virtual threads make blocking cheap; they do not add connections, CPU or provider quota.', 'Guard each scarce resource with a Semaphore or bounded pool, acquire with a timeout, release in finally.', 'Do not pool virtual threads; use newVirtualThreadPerTaskExecutor.', 'JDK 21: blocking inside synchronized pins the carrier; prefer ReentrantLock there.'],
+    interview: [
+      ['What do virtual threads change, and how do you still protect a database pool of 8 connections?', 'Virtual threads let me write simple blocking code, with one thread per request, without paying for an operating-system thread per request. When a virtual thread blocks on I/O, the JVM parks it and reuses its carrier. They do not change the capacity of anything downstream. The pool still has 8 connections, so if 1,000 virtual threads all ask for one, 992 wait inside the pool and many may time out. I put a Semaphore with 8 permits, or the pool’s own bounded wait with a short timeout, in front of the database call and release in finally. I measure acquire wait time and reject quickly when it exceeds the request deadline, instead of letting a backlog build.'],
+      ['How would you choose the semaphore limit for a slow downstream service?', 'I start from the downstream capacity: its documented concurrency or rate limit, or the connection pool size. Then I measure. I run the same load with several limits, for example 4, 8 and 16, and record throughput, p95 and p99 latency, the downstream error rate and the time spent waiting for a permit. Throughput usually rises with the limit until the downstream saturates, then latency and errors climb while throughput stays flat. I choose the smallest limit near the top of the throughput curve that keeps p99 within the budget. Thread dumps or JFR help confirm where tasks wait: at the semaphore, in the pool or on the socket.'],
+      ['What is pinning in JDK 21 and how do you avoid it?', 'A virtual thread normally unmounts from its carrier when it blocks. In JDK 21 it cannot unmount if it blocks while holding a monitor, meaning inside a synchronized block or method, or while inside a native frame. It stays pinned and occupies the carrier for the whole wait. The carrier pool is small, about one per core by default, so many pinned threads can stall every virtual thread in the application. To avoid it on JDK 21, I do not perform blocking I/O inside synchronized and use ReentrantLock where a lock must be held across a blocking call. I detect it with -Djdk.tracePinnedThreads or JFR’s VirtualThreadPinned event. JDK 24 removed most of this limitation for synchronized.']
+    ],
+    check: ['1,000 virtual threads each need one of 8 database connections. What does a Semaphore(8) acquired before the call achieve?',
+      ['It makes each query run 125 times faster', 'At most 8 calls hit the database at once while all 1,000 tasks still complete', 'It turns the virtual threads into platform threads', 'It removes the need for timeouts'], 1,
+      'The semaphore bounds concurrency at the scarce resource. Waiting tasks are cheap virtual threads, so they queue at the semaphore instead of overwhelming the pool.'],
+    practice: ['Copy BoundedFanOut.java. Add a tryAcquire(50, MILLISECONDS) version that rejects instead of waiting, and count rejections at limits 4, 8 and 16. Then put a synchronized block around the sleep, run with -Djdk.tracePinnedThreads=full, and observe the pinning report.',
+      ['Peak concurrency equals the limit in each bounded run.', 'Rejection counts fall as the limit rises, and a short table is recorded.', 'The pinning trace appears with synchronized and disappears with ReentrantLock.', 'One sentence on why the limit belongs at the resource, not on the thread count.']],
+    references: [['JEP 444 · Virtual Threads', 'https://openjdk.org/jeps/444'], ['Oracle JDK 21 · Virtual threads guide', 'https://docs.oracle.com/en/java/javase/21/core/virtual-threads.html'], ['Java 21 API · Semaphore', jdk + 'java/util/concurrent/Semaphore.html']]
+  },
+  'j-jvm-02.dsa': {
+    notes: [
+      'A deadlock is a cycle in the wait-for graph. Each node is a thread, and an edge T1 → T2 means "T1 waits for a lock that T2 holds". If following edges from a thread brings you back to it, those threads wait for each other forever. This is exactly what the JVM’s deadlock detector computes when jcmd Thread.print reports "Found one Java-level deadlock".',
+      'Detect a cycle in a directed graph with depth-first search and three colours. White means unvisited, grey means on the current DFS path, and black means finished. Reaching a grey node is a back edge, which means a cycle. Reaching a black node is safe, because its subtree was fully explored with no cycle. WaitForCycle.java keeps the current path on a stack so it can print the cycle itself: audit → booking → refund → audit. The healthy graph, where every thread waits for the pool, has no cycle.',
+      'The time is O(V + E), because each node and edge is processed once, and the space is O(V) for the colours and the recursion stack. The same algorithm detects circular dependencies in build systems and course prerequisites, and Kahn’s algorithm (topological sort by in-degree) is the alternative: if it cannot remove every node, a cycle exists. For deadlock prevention, the practical rule follows from the graph: always take locks in one global order, so no cycle can form.'
+    ],
+    code: {
+      title: 'WaitForCycle.java · find a deadlock cycle in a wait-for graph with three-colour DFS · java WaitForCycle.java',
+      text: String.raw`import java.util.*;
+
+public class WaitForCycle {
+    // Wait-for graph: an edge T1 -> T2 means "T1 waits for a lock that T2 holds". A cycle means deadlock.
+    static List<String> findCycle(Map<String, List<String>> waitsFor) {
+        Map<String, Integer> color = new HashMap<>();   // absent = unvisited, 1 = on the current path, 2 = done
+        Deque<String> path = new ArrayDeque<>();
+        for (String start : new TreeSet<>(waitsFor.keySet())) {
+            List<String> cycle = dfs(start, waitsFor, color, path);
+            if (cycle != null) return cycle;
+        }
+        return List.of();
+    }
+
+    static List<String> dfs(String node, Map<String, List<String>> g, Map<String, Integer> color, Deque<String> path) {
+        Integer c = color.get(node);
+        if (c != null && c == 2) return null;
+        if (c != null && c == 1) {                      // back edge: the cycle is the path from node to the top
+            List<String> cycle = new ArrayList<>();
+            boolean in = false;
+            for (Iterator<String> it = path.descendingIterator(); it.hasNext(); ) {
+                String p = it.next();
+                if (p.equals(node)) in = true;
+                if (in) cycle.add(p);
+            }
+            cycle.add(node);
+            return cycle;
+        }
+        color.put(node, 1);
+        path.push(node);
+        for (String next : g.getOrDefault(node, List.of())) {
+            List<String> cycle = dfs(next, g, color, path);
+            if (cycle != null) return cycle;
+        }
+        path.pop();
+        color.put(node, 2);
+        return null;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<String>> healthy = Map.of(
+                "booking", List.of("pool"), "refund", List.of("pool"), "pool", List.of());
+        Map<String, List<String>> stuck = Map.of(
+                "booking", List.of("refund"), "refund", List.of("audit"), "audit", List.of("booking"), "report", List.of("audit"));
+        System.out.println("healthy cycle: " + findCycle(healthy));
+        System.out.println("stuck cycle: " + String.join(" -> ", findCycle(stuck)));
+    }
+}
+`,
+      output: String.raw`healthy cycle: []
+stuck cycle: audit -> booking -> refund -> audit`
+    },
+    takeaways: ['Deadlock = cycle in the wait-for graph.', 'Three colours: grey on path (back edge = cycle), black finished.', 'O(V + E) time, O(V) space.', 'Prevent deadlock with one global lock order.'],
+    interview: [
+      ['How do you detect a cycle in a directed graph?', 'I run depth-first search from every unvisited node, with three states. A node becomes grey when I enter it and black when all its neighbours are finished. If, while exploring, I reach a grey node, I have found an edge back to a node on the current path, so there is a cycle. Reaching a black node is fine, because it was already fully explored without finding a cycle. To report the cycle, I keep the current path on a stack and slice it from the grey node to the top. Each node and edge is handled once, so the time is O(V + E), and the colours plus the recursion use O(V) space. For very deep graphs I would use an explicit stack to avoid stack overflow.'],
+      ['Why is a two-colour visited set not enough for directed graphs?', 'With only visited and unvisited, I cannot tell a back edge from a cross edge. Suppose A points to B and C, and C also points to B. After finishing B from A, I later reach B again from C. B is visited, but there is no cycle, because B is not on the current path. A visited-means-cycle rule would report a false deadlock. The grey state marks exactly the nodes on the current path, so only an edge to a grey node is a cycle. In an undirected graph the problem is different: two colours plus ignoring the parent edge are enough.'],
+      ['How do you prevent the deadlock in LockDiagnosis.java in production code?', 'The deadlock happens because one thread takes lock A and then B while the other takes B and then A, which creates a cycle in the wait-for graph. The simplest prevention is a global lock order: every code path takes locks in the same order, for example by seat ID or by a fixed ranking, so an edge can only point from lower to higher and no cycle is possible. Other options are tryLock with a timeout on ReentrantLock, backing off and retrying when the second lock is unavailable, or redesigning so one operation needs only one lock, such as a single database transaction with consistent row-lock order.']
+    ],
+    check: ['During DFS on a directed graph you reach a node that is black (finished). What does that mean?',
+      ['A cycle exists', 'Nothing: its subtree was fully explored without a cycle, so skip it', 'The graph is undirected', 'The DFS must restart from the beginning'], 1,
+      'Only an edge to a grey node, one on the current path, closes a cycle. Black nodes are done.'],
+    practice: ['Copy WaitForCycle.java. Add a Kahn’s-algorithm version that returns true if a cycle exists, and a test graph where a cross edge points to a black node, to show that the three-colour DFS does not report a false cycle.',
+      ['Both versions agree on the healthy, stuck and cross-edge graphs.', 'The cross-edge graph reports no cycle.', 'State the time and space of both versions.']],
+    references: [['Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html']]
+  },
+  'b-di-02': {
+    notes: [
+      'Spring adds cross-cutting behavior such as transactions, security checks, caching and metrics without changing your class, by wrapping your bean in a proxy. When another bean has your BookingService injected, it actually receives the proxy. Each call on the proxy runs the advice (for @Transactional: begin, then commit or roll back) around the call to your real object. Spring Boot creates class-based CGLIB proxies by default. Plain Spring uses JDK interface proxies when the bean implements an interface. The proxy is the boundary in both cases.',
+      'Advice runs only for calls that cross the proxy. If bookPair() calls this.bookOne() inside the same object, the call goes straight to the target, so bookOne’s own @Transactional settings, such as REQUIRES_NEW or a different rollback rule, are ignored. It simply runs inside whatever transaction bookPair already has, or with none if bookPair is not transactional. ProxyBoundary.java builds this with java.lang.reflect.Proxy: the external call to bookOne gets a transaction, the external call to bookPair gets one, and the inner bookOne gets no advice of its own, so only two transactions start.',
+      'Other proxy rules follow from the same idea. With class-based proxies, Spring can only override methods that are not final or private. In Spring 6, @Transactional also applies to protected and package-visible methods on class-based proxies, but the safe habit is to put it on public methods of the service. Constructor calls and calls made before the proxy exists, as in a @PostConstruct method, also get no transactional advice.',
+      'There are three common fixes for self-invocation. The best is to move the inner method to a separate bean, for example AuditService, and inject it, so the call crosses a proxy. You can use TransactionTemplate for programmatic control inside one method. Or you can inject the bean into itself (@Lazy self-reference), which works but hides the design problem. Test it with an external caller and a separate connection that checks the committed rows. A debugger breakpoint inside the method does not tell you whether a transaction was active. TransactionSynchronizationManager.isActualTransactionActive() does.'
+    ],
+    code: {
+      title: 'ProxyBoundary.java · a JDK dynamic proxy shows why self-invocation skips advice · java ProxyBoundary.java',
+      text: String.raw`import java.lang.reflect.*;
+import java.util.*;
+
+public class ProxyBoundary {
+    interface BookingService {
+        void bookPair(String a, String b);   // public entry point
+        void bookOne(String seat);           // also "transactional"
+    }
+
+    static final List<String> log = new ArrayList<>();
+
+    static final class BookingServiceImpl implements BookingService {
+        public void bookPair(String a, String b) {
+            log.add("  write " + a);
+            bookOne(b);                       // self-invocation: this.bookOne(), not the proxy
+        }
+        public void bookOne(String seat) { log.add("  write " + seat); }
+    }
+
+    // A JDK dynamic proxy playing the role of Spring's transactional proxy: advice runs around each call it receives.
+    static BookingService transactional(BookingService target) {
+        InvocationHandler advice = (proxy, method, args) -> {
+            log.add("BEGIN tx for " + method.getName());
+            try {
+                Object result = method.invoke(target, args);
+                log.add("COMMIT " + method.getName());
+                return result;
+            } catch (InvocationTargetException e) {
+                log.add("ROLLBACK " + method.getName());
+                throw e.getCause();
+            }
+        };
+        return (BookingService) Proxy.newProxyInstance(
+                BookingService.class.getClassLoader(), new Class<?>[] { BookingService.class }, advice);
+    }
+
+    public static void main(String[] args) {
+        BookingService bean = transactional(new BookingServiceImpl());   // what other beans get injected
+        System.out.println("bean is a proxy: " + Proxy.isProxyClass(bean.getClass()));
+
+        bean.bookOne("A1");                   // external call: crosses the proxy
+        bean.bookPair("B1", "B2");            // external call to bookPair; the inner bookOne does NOT cross it
+        log.forEach(System.out::println);
+        long begins = log.stream().filter(l -> l.startsWith("BEGIN")).count();
+        System.out.println("transactions started: " + begins + " (bookOne inside bookPair got no advice of its own)");
+    }
+}
+`,
+      output: String.raw`bean is a proxy: true
+BEGIN tx for bookOne
+  write A1
+COMMIT bookOne
+BEGIN tx for bookPair
+  write B1
+  write B2
+COMMIT bookPair
+transactions started: 2 (bookOne inside bookPair got no advice of its own)`
+    },
+    takeaways: ['Injected beans are proxies; advice runs only on calls that cross the proxy.', 'this.method() inside the same bean bypasses its @Transactional settings.', 'Fix by moving the method to another bean, or by using TransactionTemplate.', 'Verify with an external caller and committed rows, not a breakpoint.'],
+    interview: [
+      ['Why does @Transactional on a method sometimes have no effect?', 'Spring implements @Transactional with a proxy around the bean. Only calls that go through the proxy run the transaction advice. The common failure is self-invocation: a method in the same class calls this.otherMethod(), which goes directly to the target object and skips the proxy, so otherMethod’s propagation and rollback settings are ignored. Other causes are the annotation on a private or final method, which a class-based proxy cannot override, calling the method from a constructor or @PostConstruct, or the class not being a Spring bean at all because someone created it with new. I confirm by calling through the injected bean in a test and checking TransactionSynchronizationManager.isActualTransactionActive() or the committed rows.'],
+      ['How would you fix a self-invocation problem with REQUIRES_NEW on an audit method?', 'The audit write should commit even when the booking fails, so it needs its own transaction, and that only happens if the call crosses a proxy. I would move audit() into a separate AuditService bean annotated with @Transactional(propagation = REQUIRES_NEW), and inject AuditService into BookingService. Now booking calls auditService.audit(), which goes through AuditService’s proxy: Spring suspends the booking transaction, runs the audit in a new one, commits it and resumes the booking. If a new class feels heavy, TransactionTemplate with PROPAGATION_REQUIRES_NEW does the same programmatically. I would avoid self-injection because it hides the design issue.'],
+      ['What is the difference between JDK dynamic proxies and CGLIB proxies in Spring?', 'A JDK dynamic proxy implements the bean’s interfaces and forwards each call through an InvocationHandler, so callers must depend on the interface type, and only interface methods are advised. A CGLIB proxy is a generated subclass of the bean class that overrides its methods, so it works without an interface. It cannot advise final or private methods, and the class cannot be final. Spring Boot uses class-based proxies by default, so injecting the concrete class works. Both share the same limit: calls inside the object do not pass through the proxy, so self-invocation skips the advice either way.']
+    ],
+    check: ['In ProxyBoundary.java, bean.bookPair("B1", "B2") calls bookOne("B2") internally. How many transactions does that start?',
+      ['Two: one for bookPair and one for bookOne', 'One: bookOne runs inside bookPair’s transaction because the inner call never reaches the proxy', 'None, because bookPair has no annotation', 'It throws, because nested calls are not allowed'], 1,
+      'The internal call is this.bookOne(), which goes straight to the target. Only the external call crossed the proxy.'],
+    practice: ['Copy ProxyBoundary.java. Move bookOne into a second interface and implementation, wrap it in its own proxy, and inject it into BookingServiceImpl. Show that bookPair now starts two transactions. Then add a failure in bookOne and show which writes roll back.',
+      ['Before the change: 2 transactions for the two external calls. After: 3, with bookOne’s own BEGIN.', 'A failure inside the inner bean logs ROLLBACK for it.', 'One sentence explains how Spring’s REQUIRES_NEW would differ from this toy (suspend and resume).']],
+    references: [['Spring Framework · Understanding AOP proxies', 'https://docs.spring.io/spring-framework/reference/core/aop/proxying.html'], ['Spring Framework · Using @Transactional', 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html'], ['Java 21 API · java.lang.reflect.Proxy', jdk + 'java/lang/reflect/Proxy.html']]
+  },
+  'b-jdbc-02': {
+    notes: [
+      'JdbcTemplate removes JDBC boilerplate: getting a connection, preparing the statement, binding parameters, iterating the ResultSet, translating SQLException into Spring’s DataAccessException hierarchy and closing everything. You write the SQL and say how to turn a row into an object. A typical query is jdbc.query("SELECT id, seat, user_id FROM bookings WHERE user_id = ?", BOOKING_MAPPER, userId). For single values you use queryForObject("SELECT count(*) FROM bookings", Long.class), and for writes you use update("UPDATE seat SET owner = ? WHERE id = ? AND owner IS NULL", user, seat), which returns the number of rows changed.',
+      'A RowMapper<T> converts one row of the ResultSet into one T. JdbcTemplate calls mapRow(rs, rowNum) once per row, after it has moved the cursor, so the mapper must not call rs.next(). Keep mappers small and stateless and define them once as constants or lambdas, for example (rs, n) -> new Booking(rs.getLong("id"), rs.getString("seat"), rs.getString("user_id")). Always bind values with ? placeholders (or NamedParameterJdbcTemplate with :names) and never concatenate user input into the SQL string, because concatenation is how SQL injection happens.',
+      'Count queries, because the most common data-access performance bug is invisible in the code: the N+1 query. You load N bookings with one query, then call a method per booking that runs another query for its user. QueryCount.java simulates it with a fake database that counts calls. Listing 4 bookings with their user names takes 5 queries in the N+1 version and 1 query with a JOIN, with the same result. With 1,000 rows and 2 ms per round trip, that is about 2 seconds versus a few milliseconds.',
+      'In tests, assert on the number of queries, not only on the result. Options include a datasource proxy that counts statements, Hibernate statistics when you use JPA, or a logging assertion. Use a real database in integration tests, for example PostgreSQL via Testcontainers, because H2 can differ in SQL dialect, locking and isolation. Prefer an explicit column list over SELECT *, so a schema change does not silently break a mapper.'
+    ],
+    code: {
+      title: 'QueryCount.java · a RowMapper and an N+1 versus JOIN query count · java QueryCount.java',
+      text: String.raw`import java.util.*;
+import java.util.function.*;
+
+public class QueryCount {
+    // A stand-in for one result row. Spring's RowMapper<T> has the same job: (ResultSet rs, int rowNum) -> T.
+    record Row(Map<String, Object> columns) {
+        String getString(String c) { return (String) columns.get(c); }
+        long getLong(String c) { return ((Number) columns.get(c)).longValue(); }
+    }
+    interface RowMapper<T> { T mapRow(Row rs, int rowNum); }
+
+    record Booking(long id, String seat, String userId) {}
+    record User(String id, String name) {}
+    record BookingView(String seat, String userName) {}
+
+    // A tiny fake database that counts every query, like a datasource proxy or Hibernate statistics in a test.
+    static final class Db {
+        int queries = 0;
+        final List<Row> bookings = List.of(
+                row("id", 1L, "seat", "A1", "user_id", "u1"), row("id", 2L, "seat", "A2", "user_id", "u2"),
+                row("id", 3L, "seat", "A3", "user_id", "u1"), row("id", 4L, "seat", "A4", "user_id", "u3"));
+        final Map<String, String> users = Map.of("u1", "Asha", "u2", "Ben", "u3", "Chen");
+
+        <T> List<T> query(String sql, RowMapper<T> mapper, Predicate<Row> where) {
+            queries++;
+            List<T> out = new ArrayList<>();
+            int n = 0;
+            for (Row r : bookings) if (where.test(r)) out.add(mapper.mapRow(r, n++));
+            return out;
+        }
+        String userName(String id) { queries++; return users.get(id); }   // SELECT name FROM users WHERE id = ?
+        List<BookingView> joined() {                                       // SELECT b.seat, u.name FROM bookings b JOIN users u ...
+            queries++;
+            List<BookingView> out = new ArrayList<>();
+            for (Row r : bookings) out.add(new BookingView(r.getString("seat"), users.get(r.getString("user_id"))));
+            return out;
+        }
+        static Row row(Object... kv) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            for (int i = 0; i < kv.length; i += 2) m.put((String) kv[i], kv[i + 1]);
+            return new Row(m);
+        }
+    }
+
+    static final RowMapper<Booking> BOOKING = (rs, rowNum) ->
+            new Booking(rs.getLong("id"), rs.getString("seat"), rs.getString("user_id"));
+
+    public static void main(String[] args) {
+        Db db = new Db();
+        List<Booking> forU1 = db.query("SELECT id, seat, user_id FROM bookings WHERE user_id = ?", BOOKING,
+                r -> r.getString("user_id").equals("u1"));
+        System.out.println("bookings for u1: " + forU1);
+
+        db.queries = 0;
+        List<BookingView> nPlusOne = new ArrayList<>();
+        for (Booking b : db.query("SELECT id, seat, user_id FROM bookings", BOOKING, r -> true))
+            nPlusOne.add(new BookingView(b.seat(), db.userName(b.userId())));   // one extra query per row
+        System.out.println("N+1 version: " + db.queries + " queries");
+
+        db.queries = 0;
+        List<BookingView> joined = db.joined();
+        System.out.println("JOIN version: " + db.queries + " query, same result: " + joined.equals(nPlusOne));
+    }
+}
+`,
+      output: String.raw`bookings for u1: [Booking[id=1, seat=A1, userId=u1], Booking[id=3, seat=A3, userId=u1]]
+N+1 version: 5 queries
+JOIN version: 1 query, same result: true`
+    },
+    takeaways: ['JdbcTemplate handles connections, binding, iteration, exception translation and cleanup.', 'RowMapper maps one row; it never calls rs.next().', 'Always bind with ? or :name, never concatenate input.', 'Count queries in tests to catch N+1; fix with a JOIN or a batched IN query.'],
+    interview: [
+      ['What does JdbcTemplate do for you compared with plain JDBC?', 'With plain JDBC, every query needs a connection from the DataSource, a PreparedStatement, parameter binding, a loop over the ResultSet, try-with-resources or finally blocks to close three resources, and handling of checked SQLException with vendor error codes. JdbcTemplate does all of that, and it translates SQLException into Spring’s unchecked DataAccessException hierarchy, such as DuplicateKeyException. It also joins the current Spring-managed transaction automatically, because it gets the connection through DataSourceUtils. I supply the SQL, the parameters and a RowMapper or a result type. The SQL stays explicit, which I like for performance-sensitive paths such as the booking claim.'],
+      ['What is the N+1 query problem and how do you detect and fix it?', 'It happens when code loads a list with one query and then runs one more query per item, often hidden inside a getter or a lazy-loaded relationship. Listing 100 bookings with user names becomes 101 round trips. Each is fast alone, but together they dominate latency and load the database. I detect it by counting statements in an integration test, from a datasource proxy, Hibernate statistics or SQL logs, and by asserting the expected count, for example exactly 1. I fix it with a JOIN that fetches both in one query, a batched second query using WHERE id IN (...), or in JPA a fetch join or an entity graph.'],
+      ['Why should a RowMapper be stateless, and what must it not do?', 'JdbcTemplate may reuse the same mapper instance across many queries and threads, so any mutable field would be shared and racy. A stateless lambda or a constant is safe and cheap. The mapper is called once per row after JdbcTemplate has already advanced the cursor, so calling rs.next() inside it would skip rows. It also should not run other queries, because that is how N+1 problems hide, and it should not swallow exceptions. It should read columns by name, handle nullable columns explicitly (getLong returns 0 for NULL, so use getObject with Long.class or check wasNull), and build an immutable value such as a record.']
+    ],
+    check: ['Listing 4 bookings and looking up each user’s name separately takes how many queries in QueryCount.java?',
+      ['1', '4', '5: one for the bookings plus one per booking', '8'], 2,
+      'One query loads the bookings, then each of the 4 rows triggers its own user query. The JOIN version needs 1.'],
+    practice: ['Copy QueryCount.java and add a batched version: load bookings, collect the distinct user IDs, and fetch all names in one "WHERE id IN (...)" call. Assert the query count of each version with a check that fails if it changes.',
+      ['The batched version uses 2 queries and gives the same result.', 'An assertion fails if the N+1 version is used.', 'The mapper is a constant lambda with no state.', 'One sentence on when a JOIN is better than the batched IN.']],
+    references: [['Spring Framework · JDBC core classes (JdbcTemplate)', 'https://docs.spring.io/spring-framework/reference/data-access/jdbc/core.html'], ['Spring Framework API · RowMapper', 'https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/jdbc/core/RowMapper.html']]
+  },
+  'b-transactions-05': {
+    notes: [
+      'Propagation decides what happens when a transactional method is called while a transaction may already exist. REQUIRED, the default, joins the existing transaction or starts one if none exists. REQUIRES_NEW always starts a new, independent transaction and suspends the outer one until the inner one finishes. There are others (SUPPORTS, MANDATORY, NOT_SUPPORTED, NEVER, NESTED), but REQUIRED and REQUIRES_NEW cover most real decisions.',
+      'Spring’s default rollback rule: a RuntimeException or an Error thrown out of the method rolls the transaction back. A checked exception commits, unless you add rollbackFor = Exception.class or a specific type. The exception must reach the proxy. If you catch it inside the method and return normally, Spring sees success and commits.',
+      'The surprising case is a REQUIRED participant that fails. The inner method shares the outer transaction, so it cannot roll back alone. Instead Spring marks the whole transaction rollback-only. If the outer method catches the exception and carries on, its commit attempt fails: Spring rolls back everything and throws UnexpectedRollbackException. TxPropagation.java reproduces the three cases. When the audit succeeds, both rows commit. When the audit uses REQUIRED and fails, the booking catches it, but nothing commits and the caller sees UnexpectedRollback. When the audit uses REQUIRES_NEW and fails, only the audit rolls back and the booking row commits.',
+      'Choose deliberately. Use REQUIRED when writes must succeed or fail together, as with a booking and its payment record. Use REQUIRES_NEW for work that must survive the outer outcome, such as an audit log or an outbox entry of a failed attempt. Remember that it holds a second connection while the first is suspended, so heavy use can exhaust the pool. Never catch and ignore an exception from a REQUIRED participant and expect a commit. Verify outcomes from a separate connection after the outer call returns.'
+    ],
+    code: {
+      title: 'TxPropagation.java · REQUIRED vs REQUIRES_NEW and the rollback-only trap, modelled in plain Java · java TxPropagation.java',
+      text: String.raw`import java.util.*;
+
+public class TxPropagation {
+    enum Propagation { REQUIRED, REQUIRES_NEW }
+
+    // A toy transaction manager with the same rules Spring applies for REQUIRED and REQUIRES_NEW.
+    static final class Tx {
+        final int id; final List<String> pending = new ArrayList<>(); boolean rollbackOnly;
+        Tx(int id) { this.id = id; }
+    }
+    static final Deque<Tx> stack = new ArrayDeque<>();
+    static final List<String> committed = new ArrayList<>();
+    static int nextId = 1;
+
+    interface Work { void run() throws Exception; }
+
+    static void inTx(Propagation p, String name, Work work) throws Exception {
+        boolean joins = p == Propagation.REQUIRED && !stack.isEmpty();
+        Tx tx = joins ? stack.peek() : new Tx(nextId++);
+        if (!joins) stack.push(tx);              // REQUIRES_NEW suspends the outer tx by pushing a new one
+        try {
+            work.run();
+        } catch (RuntimeException e) {           // default rule: unchecked exceptions roll back
+            if (joins) tx.rollbackOnly = true;   // a participant cannot roll back alone: it marks the shared tx
+            else { stack.pop(); System.out.println("  " + name + ": tx" + tx.id + " rolled back"); }
+            throw e;
+        }
+        if (joins) return;                       // only the tx owner commits
+        stack.pop();
+        if (tx.rollbackOnly) {
+            System.out.println("  " + name + ": tx" + tx.id + " was marked rollback-only, nothing committed");
+            throw new IllegalStateException("UnexpectedRollback: transaction silently rolled back because it has been marked as rollback-only");
+        }
+        committed.addAll(tx.pending);
+        System.out.println("  " + name + ": tx" + tx.id + " committed " + tx.pending);
+    }
+
+    static void write(String row) { stack.peek().pending.add(row); }
+
+    static void audit(Propagation p, boolean fail) throws Exception {
+        inTx(p, "audit", () -> { write("audit-row"); if (fail) throw new RuntimeException("audit failed"); });
+    }
+
+    static void scenario(String title, Propagation auditPropagation, boolean auditFails) {
+        committed.clear(); stack.clear();
+        System.out.println(title);
+        try {
+            inTx(Propagation.REQUIRED, "booking", () -> {
+                write("booking-row");
+                try { audit(auditPropagation, auditFails); }
+                catch (RuntimeException e) { System.out.println("  booking caught: " + e.getMessage()); }
+            });
+        } catch (Exception e) {
+            System.out.println("  caller sees: " + e.getMessage().split(":")[0]);
+        }
+        System.out.println("  rows in database: " + committed);
+    }
+
+    public static void main(String[] args) {
+        scenario("1. audit REQUIRED, succeeds", Propagation.REQUIRED, false);
+        scenario("2. audit REQUIRED, fails, booking catches it", Propagation.REQUIRED, true);
+        scenario("3. audit REQUIRES_NEW, fails, booking catches it", Propagation.REQUIRES_NEW, true);
+    }
+}
+`,
+      output: String.raw`1. audit REQUIRED, succeeds
+  booking: tx1 committed [booking-row, audit-row]
+  rows in database: [booking-row, audit-row]
+2. audit REQUIRED, fails, booking catches it
+  booking caught: audit failed
+  booking: tx2 was marked rollback-only, nothing committed
+  caller sees: UnexpectedRollback
+  rows in database: []
+3. audit REQUIRES_NEW, fails, booking catches it
+  audit: tx4 rolled back
+  booking caught: audit failed
+  booking: tx3 committed [booking-row]
+  rows in database: [booking-row]`
+    },
+    takeaways: ['REQUIRED joins or starts; REQUIRES_NEW suspends the outer tx and runs independently.', 'Default rollback: RuntimeException and Error; checked exceptions need rollbackFor.', 'A failed REQUIRED participant marks the shared tx rollback-only, and the outer commit throws UnexpectedRollbackException.', 'REQUIRES_NEW holds a second connection, so watch the pool.'],
+    interview: [
+      ['Explain REQUIRED versus REQUIRES_NEW with an example.', 'Suppose BookingService.book() is @Transactional and calls AuditService.record() through its proxy. With REQUIRED, record() joins the booking transaction, so its audit row commits or rolls back together with the booking. That suits writes that must be atomic together. With REQUIRES_NEW, Spring suspends the booking transaction, opens a new one on a second connection for record(), commits or rolls it back, then resumes the booking. The audit row then survives even if the booking later fails, which suits audit logs of failed attempts. The cost is a second connection held during the inner call, so it must be used sparingly under load.'],
+      ['The inner method fails and the outer method catches the exception, yet nothing is saved and you get UnexpectedRollbackException. Why?', 'The inner method used REQUIRED, so it participated in the outer transaction. When its RuntimeException passed through its proxy, Spring could not roll back just the inner part, so it marked the shared transaction rollback-only. The outer method caught the exception and returned normally, so its proxy tried to commit, found the rollback-only flag, rolled back everything and threw UnexpectedRollbackException to tell the caller that the commit did not happen. The fixes are to let the exception propagate if the whole operation should fail, or to use REQUIRES_NEW, which may need to live in a separate bean, if the inner work is truly independent.'],
+      ['A service method throws a checked exception after its first write, and the row is still committed. What do you check?', 'Spring’s default rule rolls back only for RuntimeException and Error. A checked exception, such as an IOException from a payment client, leads to a commit of whatever was written. I check whether the annotation has rollbackFor = Exception.class or the specific checked type, and add it if the business rule says the write must not survive. Then I check that the exception actually leaves the method through the proxy and is not caught and logged inside, and that the call came from another bean rather than self-invocation. Finally I verify with an integration test that reads the table through a separate connection after the call.']
+    ],
+    check: ['In TxPropagation.java scenario 3, the audit uses REQUIRES_NEW and fails, and booking catches the error. What is in the database?',
+      ['Nothing, because the outer transaction is rollback-only', 'Only booking-row: the audit rolled back in its own transaction and the booking committed', 'Both rows', 'Only audit-row'], 1,
+      'REQUIRES_NEW isolates the audit. Its failure does not mark the booking transaction, so the booking commits.'],
+    practice: ['Extend TxPropagation.java with rollbackFor: add a checked exception type that commits by default, and an option that makes it roll back. Add a fourth scenario where the audit (REQUIRED) fails and booking does not catch it, and predict the output before running.',
+      ['A checked exception commits by default and rolls back when rollbackFor is set.', 'Scenario 4 rolls back both rows and the caller sees the original exception, not UnexpectedRollback.', 'Predictions are written before running.']],
+    references: [['Spring Framework · Transaction propagation', 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/tx-propagation.html'], ['Spring Framework · Rolling back a declarative transaction', 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/rolling-back.html'], ['Spring Framework API · UnexpectedRollbackException', 'https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/UnexpectedRollbackException.html']]
+  },
+  'b-di-02.dsa': {
+    notes: [
+      'Topological sort orders the nodes of a directed graph so that every node comes after all the nodes it depends on. A dependency-injection container faces this problem: it must create dataSource before seatRepository, and seatRepository before bookingService. Spring resolves this recursively, creating each dependency on demand when a bean needs it, which has the same effect. Kahn’s algorithm makes the order explicit.',
+      'Kahn’s algorithm counts, for each node, how many of its dependencies are not yet done (its in-degree). Every node with zero is ready. Repeatedly take a ready node, append it to the order, and decrement the count of every node waiting for it, adding any that reach zero to the ready set. BeanOrder.java uses a PriorityQueue for the ready set so ties come out alphabetically, which makes the order deterministic: clock, dataSource, auditService, seatRepository, bookingService, bookingController.',
+      'If the loop ends before every node is ordered, the remaining nodes form or wait on a cycle, which is a circular dependency. BeanOrder reports [a, b, c]. Spring reports a circular reference error for constructor injection for the same reason, and Spring Boot forbids circular references by default since 2.6. The algorithm runs in O(V + E) time with O(V + E) space. The same pattern schedules course prerequisites, build steps and database migrations.'
+    ],
+    code: {
+      title: 'BeanOrder.java · Kahn’s algorithm for bean creation order and circular-dependency detection · java BeanOrder.java',
+      text: String.raw`import java.util.*;
+
+public class BeanOrder {
+    // Kahn's algorithm: create a bean only after everything it depends on exists.
+    static List<String> creationOrder(Map<String, List<String>> dependsOn) {
+        Map<String, Integer> missing = new TreeMap<>();           // bean -> number of dependencies not yet created
+        Map<String, List<String>> neededBy = new HashMap<>();     // dependency -> beans waiting for it
+        for (var e : dependsOn.entrySet()) {
+            missing.putIfAbsent(e.getKey(), 0);
+            for (String dep : e.getValue()) {
+                missing.putIfAbsent(dep, 0);
+                missing.merge(e.getKey(), 1, Integer::sum);
+                neededBy.computeIfAbsent(dep, k -> new ArrayList<>()).add(e.getKey());
+            }
+        }
+        PriorityQueue<String> ready = new PriorityQueue<>();      // alphabetical among ready beans, for a stable order
+        missing.forEach((bean, n) -> { if (n == 0) ready.add(bean); });
+        List<String> order = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            String bean = ready.poll();
+            order.add(bean);
+            for (String waiting : neededBy.getOrDefault(bean, List.of()))
+                if (missing.merge(waiting, -1, Integer::sum) == 0) ready.add(waiting);
+        }
+        if (order.size() < missing.size()) {
+            List<String> stuck = new ArrayList<>();
+            missing.forEach((bean, n) -> { if (n > 0) stuck.add(bean); });
+            throw new IllegalStateException("circular dependency among " + stuck);
+        }
+        return order;
+    }
+
+    public static void main(String[] args) {
+        Map<String, List<String>> app = Map.of(
+                "bookingController", List.of("bookingService"),
+                "bookingService", List.of("seatRepository", "clock", "auditService"),
+                "auditService", List.of("dataSource"),
+                "seatRepository", List.of("dataSource"));
+        System.out.println("creation order: " + creationOrder(app));
+        try {
+            creationOrder(Map.of("a", List.of("b"), "b", List.of("c"), "c", List.of("a"), "d", List.of()));
+        } catch (IllegalStateException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
+`,
+      output: String.raw`creation order: [clock, dataSource, auditService, seatRepository, bookingService, bookingController]
+circular dependency among [a, b, c]`
+    },
+    takeaways: ['Topological order: every node after its dependencies.', 'Kahn: in-degree counts, a ready queue, decrement on completion.', 'Unordered leftovers mean a cycle.', 'O(V + E) time and space.'],
+    interview: [
+      ['Give an order to take courses given prerequisites, or say it is impossible.', 'I model courses as nodes and add an edge from each prerequisite to the course that needs it. I compute every node’s in-degree, the number of unmet prerequisites, and put all zero-in-degree courses in a queue. While the queue is not empty I remove a course, add it to the order, and decrement the in-degree of each course that depends on it, enqueueing those that reach zero. If the order contains every course, it is a valid schedule. If some courses never reach zero, they are on or behind a cycle and no schedule exists. The time is O(V + E) and the space is O(V + E) for the adjacency lists and counts.'],
+      ['Why does a cycle leave nodes with a non-zero count in Kahn’s algorithm?', 'A node’s count reaches zero only after all its dependencies have been output. In a cycle a → b → c → a, each node waits for another node of the same cycle, so none of them can be the first to reach zero, and none is ever enqueued. Nodes that depend on the cycle are stuck too, because one of their dependencies is never output. When the queue empties, the nodes with a count above zero are exactly the cycle plus everything downstream of it. That makes the check simple: compare the output size with the node count. For an exact cycle path, DFS with colours is the better tool.'],
+      ['How does this relate to circular dependencies in Spring?', 'With constructor injection, Spring must have every constructor argument ready before it can create a bean. If A needs B, B needs C and C needs A, no bean can be constructed first, which is the same as Kahn’s algorithm finding no zero-in-degree node in the cycle. Spring fails at startup with a BeanCurrentlyInCreationException, and Spring Boot 2.6 and later rejects circular references by default even for setter or field injection. The right fix is to break the cycle in the design, for example by extracting the shared logic into a fourth bean or by publishing an event instead of calling back.']
+    ],
+    check: ['Kahn’s algorithm finishes with 3 of 7 nodes still having a non-zero count. What does that mean?',
+      ['The graph has 3 separate components', 'Those 3 nodes are on a cycle or depend on one, so no full order exists', 'The algorithm must be rerun with a stack', 'The graph is a valid tree'], 1,
+      'Nodes on or behind a cycle never reach zero remaining dependencies.'],
+    practice: ['Copy BeanOrder.java. Change it to also return the "layers": beans that can be created in parallel at each step. Then solve course schedule for 4 courses with prerequisites [[1,0],[2,0],[3,1],[3,2]].',
+      ['Layers for the app are [clock, dataSource], [auditService, seatRepository], [bookingService], [bookingController].', 'The course order is valid, such as 0, 1, 2, 3.', 'The cycle case still throws with the stuck beans listed.']],
+    references: [['Spring Framework · Dependencies and circular dependencies', 'https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html']]
+  },
+  'b-security-02': {
+    notes: [
+      'Authentication answers "who is calling?" and authorization answers "may this caller do this action on this resource?" OAuth 2.0 is an authorization framework: a client gets an access token from an authorization server and presents it to a resource server, such as booking-api, as "Authorization: Bearer <token>". OpenID Connect (OIDC) adds authentication on top: the client also receives an ID token that tells the client who logged in. The ID token is for the client. APIs should accept access tokens, not ID tokens.',
+      'A resource server must check every access token on every request, in this order: the signature (with the issuer’s public keys from its JWKS endpoint, selected by the token’s kid header), the issuer (iss), the expiry (exp, with a small clock skew allowance), the audience (aud must include this API), and then the scopes or roles the endpoint needs. TokenCheck.java runs these checks on six fixtures. A missing token, a tampered signature, an expired token and a token minted for help-api all get 401. A valid booking-api token with only booking:read gets 403 insufficient_scope, and a valid write token gets 200.',
+      'The difference between 401 and 403 matters to clients. 401 Unauthorized means "no valid credentials": the client should obtain or refresh a token, and the response carries a WWW-Authenticate: Bearer header with error="invalid_token". 403 Forbidden means "I know who you are, and you may not do this": refreshing will not help. RFC 6750 uses error="insufficient_scope" for that case. Never return 200 with an error body, and never let a 403 reveal whether a resource exists that the caller is not allowed to see.',
+      'In Spring Boot, spring-boot-starter-oauth2-resource-server does the token work. Set spring.security.oauth2.resourceserver.jwt.issuer-uri, and Spring discovers the JWKS keys and validates the signature, exp and iss. The audience is not checked by default: set spring.security.oauth2.resourceserver.jwt.audiences=booking-api (Spring Boot 2.7 and later) or add an audience validator. Scopes become authorities named SCOPE_booking:write, so you can write .requestMatchers(POST, "/bookings").hasAuthority("SCOPE_booking:write"). TokenCheck uses HS256 with a demo key only to stay self-contained. Real deployments use asymmetric keys, so the API never holds a secret that can mint tokens.'
+    ],
+    code: {
+      title: 'TokenCheck.java · signature, issuer, expiry, audience and scope checks on six token fixtures · java TokenCheck.java',
+      text: String.raw`import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+
+public class TokenCheck {
+    // Teaching model of what a resource server checks on every request. Real services use Spring Security's
+    // resource server with RS256/ES256 keys from the issuer's JWKS endpoint; HS256 with a shared demo key keeps this short.
+    static final byte[] KEY = "demo-key-not-for-production-use!".getBytes(StandardCharsets.UTF_8);
+    static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
+    static final long NOW = 1_800_000_000L;   // fixed clock (seconds) so the output is repeatable
+
+    static String sign(String payloadJson) throws Exception {
+        String header = B64.encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+        String payload = B64.encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
+        return header + "." + payload + "." + B64.encodeToString(hmac(header + "." + payload));
+    }
+
+    static byte[] hmac(String data) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(KEY, "HmacSHA256"));
+        return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    // Tiny claim reader for this demo's flat JSON only (a real service uses a JSON library via Spring Security).
+    static String claim(String json, String name) {
+        int i = json.indexOf("\"" + name + "\":");
+        if (i < 0) return null;
+        int start = i + name.length() + 3;
+        if (json.charAt(start) == '"') return json.substring(start + 1, json.indexOf('"', start + 1));
+        int end = start;
+        while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+        return json.substring(start, end);
+    }
+
+    static String check(String authorization, String requiredScope) throws Exception {
+        if (authorization == null || !authorization.startsWith("Bearer ")) return "401 missing token";
+        String[] parts = authorization.substring(7).split("\\.");
+        if (parts.length != 3) return "401 malformed token";
+        byte[] expected = hmac(parts[0] + "." + parts[1]);
+        if (!MessageDigest.isEqual(expected, Base64.getUrlDecoder().decode(parts[2]))) return "401 bad signature";
+        String json = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+        if (!"https://id.example.com".equals(claim(json, "iss"))) return "401 wrong issuer";
+        if (Long.parseLong(claim(json, "exp")) <= NOW) return "401 expired";
+        if (!"booking-api".equals(claim(json, "aud"))) return "401 wrong audience";
+        List<String> scopes = Arrays.asList(Objects.requireNonNullElse(claim(json, "scope"), "").split(" "));
+        if (!scopes.contains(requiredScope)) return "403 insufficient_scope (needs " + requiredScope + ")";
+        return "200 ok for " + claim(json, "sub");
+    }
+
+    public static void main(String[] args) throws Exception {
+        String good = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u1\",\"aud\":\"booking-api\",\"scope\":\"booking:read booking:write\",\"exp\":1800000600}");
+        String readOnly = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u2\",\"aud\":\"booking-api\",\"scope\":\"booking:read\",\"exp\":1800000600}");
+        String forHelp = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u1\",\"aud\":\"help-api\",\"scope\":\"booking:write\",\"exp\":1800000600}");
+        String expired = sign("{\"iss\":\"https://id.example.com\",\"sub\":\"u1\",\"aud\":\"booking-api\",\"scope\":\"booking:write\",\"exp\":1799999999}");
+        String tampered = good.substring(0, good.lastIndexOf('.')) + "." + B64.encodeToString(new byte[32]);
+
+        Map<String, String> cases = new LinkedHashMap<>();
+        cases.put("no header", null);
+        cases.put("tampered signature", "Bearer " + tampered);
+        cases.put("expired", "Bearer " + expired);
+        cases.put("token for help-api", "Bearer " + forHelp);
+        cases.put("read-only token", "Bearer " + readOnly);
+        cases.put("valid token", "Bearer " + good);
+        for (var c : cases.entrySet()) System.out.println("POST /bookings, " + c.getKey() + " -> " + check(c.getValue(), "booking:write"));
+    }
+}
+`,
+      output: String.raw`POST /bookings, no header -> 401 missing token
+POST /bookings, tampered signature -> 401 bad signature
+POST /bookings, expired -> 401 expired
+POST /bookings, token for help-api -> 401 wrong audience
+POST /bookings, read-only token -> 403 insufficient_scope (needs booking:write)
+POST /bookings, valid token -> 200 ok for u1`
+    },
+    takeaways: ['Access tokens are for APIs; ID tokens are for the client.', 'Check signature, iss, exp, aud, then scope, on every request.', '401 = no valid credentials; 403 = valid but not allowed (insufficient_scope).', 'Spring Boot: set issuer-uri and audiences; scopes become SCOPE_ authorities.'],
+    interview: [
+      ['What must an API check on a JWT access token before trusting it?', 'First the signature, using the issuer’s public key from its JWKS endpoint, chosen by the kid header, and only with an algorithm I expect, never alg none or a switch from RS256 to HS256. Then the issuer must be the authorization server I trust, the token must not be expired (with a small clock-skew allowance) and must be past nbf if present, and the audience must include my API. A valid token minted for another service must be rejected here. Only then do I check the scopes or roles for this endpoint, and finally the object-level rule that the caller owns the booking. Signature, issuer, expiry or audience failures return 401. A missing scope returns 403.'],
+      ['When do you return 401 and when 403?', '401 means the request lacks valid authentication: no token, a malformed or expired token, a bad signature, or the wrong issuer or audience. The response includes WWW-Authenticate: Bearer with error="invalid_token", which tells the client to get a new token. 403 means the token is valid and identifies the caller, but the caller is not allowed to perform this action, for example a booking:read token calling POST /bookings. RFC 6750 calls that insufficient_scope, and getting a new token of the same kind will not help. For objects the caller must not even know about, I often return 404 instead of 403, so the API does not confirm that another user’s booking exists.'],
+      ['How do you configure a Spring Boot API as an OAuth 2.0 resource server?', 'I add spring-boot-starter-oauth2-resource-server and set spring.security.oauth2.resourceserver.jwt.issuer-uri to the authorization server. Spring fetches its metadata and JWKS keys, and validates the signature, issuer and expiry of each bearer token. I add the audience check, either with the jwt.audiences property (Spring Boot 2.7 and later) or with a custom OAuth2TokenValidator, because it is not on by default. In the SecurityFilterChain I require authentication everywhere and map endpoints to authorities, for example hasAuthority("SCOPE_booking:write") for POST /bookings. Inside the service I enforce ownership using the jwt.getSubject() value, and I write tests for missing, expired, wrong-audience and insufficient-scope tokens.']
+    ],
+    check: ['A correctly signed, unexpired token from your issuer has aud = help-api and scope booking:write. What should booking-api return for POST /bookings?',
+      ['200, because the signature and scope are valid', '401, because the token was not issued for booking-api', '403, because the scope is wrong', '500, because the token is malformed'], 1,
+      'The audience check fails, so the credentials are not valid for this API. That is a 401, before scopes are even considered.'],
+    practice: ['Copy TokenCheck.java. Add a not-before (nbf) check, a 60-second clock-skew allowance for exp, and support for aud as a JSON array. Add fixtures for each and predict the status codes before running.',
+      ['A token expiring 30 seconds ago is accepted with the 60-second skew; one expiring 2 minutes ago is not.', 'A token with nbf in the future gets 401.', 'aud ["help-api","booking-api"] is accepted.', 'Every fixture’s expected status is written before running.']],
+    references: [['Spring Boot · OAuth2 resource server (audiences property)', 'https://docs.spring.io/spring-boot/reference/security/oauth2.html'], ['Spring Security · OAuth 2.0 Resource Server JWT', 'https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html'], ['RFC 6750 · Bearer token usage (invalid_token, insufficient_scope)', 'https://datatracker.ietf.org/doc/html/rfc6750'], ['RFC 9068 · JWT profile for OAuth 2.0 access tokens', 'https://datatracker.ietf.org/doc/html/rfc9068']]
+  },
+  'h-security-01': {
+    notes: [
+      'A token answers "who is this and what kinds of actions were granted?" It does not answer "is this booking theirs?" That last check, object-level authorization, is the API’s job on every request, and missing it is the top API security risk in the OWASP API Security Top 10 (API1:2023, Broken Object Level Authorization). If DELETE /bookings/b-200 only checks for a booking:write scope, any logged-in user can cancel anyone’s booking by changing the ID.',
+      'Design permissions in three layers. Audience: the token was issued for this API. Scope: the client was granted this kind of action, such as booking:write. Ownership or policy: this subject may act on this specific object, for example booking.owner == token.sub, or the user is staff for this venue. Load the object, compare it with the authenticated subject from the token, never with a user ID taken from the request body, and return 404 when the caller may not see it. PkceOwnership.java shows u1 cancelling its own booking (204) and getting 404 for u2’s booking even with a valid write scope.',
+      'Use the right OAuth flow for browser and mobile apps: Authorization Code with PKCE. The app creates a random code_verifier, sends only its SHA-256 hash, the code_challenge, with the login redirect, and later sends the verifier with the authorization code to the token endpoint. The server recomputes the hash, so an attacker who intercepts the code cannot exchange it without the verifier. PkceOwnership.java reproduces the RFC 7636 example: the verifier dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk gives the challenge E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM. The implicit flow and the password grant are deprecated by the OAuth 2.0 Security Best Current Practice (RFC 9700).',
+      'Keep tokens narrow and short-lived. Request only the scopes a feature needs. The AI help service, for example, gets a token for help-api with booking:read and never booking:write. Keep access tokens to minutes and use refresh tokens with rotation. When one service calls another on behalf of a user, get a token whose audience is the downstream service, rather than forwarding the user’s token everywhere. Test the four failure classes separately: missing, invalid, wrong audience and insufficient scope or ownership.'
+    ],
+    code: {
+      title: 'PkceOwnership.java · PKCE S256 challenge (RFC 7636 example) and an object-level ownership check · java PkceOwnership.java',
+      text: String.raw`import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+
+public class PkceOwnership {
+    // PKCE (RFC 7636): the client keeps a random verifier and sends only its SHA-256 challenge with the login redirect.
+    static String challenge(String verifier) throws Exception {
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(verifier.getBytes(StandardCharsets.US_ASCII));
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+    }
+
+    // Object-level authorization: a valid token with the right scope still may only touch its own bookings.
+    record Booking(String id, String ownerSub) {}
+    static final Map<String, Booking> bookings = Map.of("b-100", new Booking("b-100", "u1"), "b-200", new Booking("b-200", "u2"));
+
+    static String cancel(String sub, Set<String> scopes, String bookingId) {
+        if (!scopes.contains("booking:write")) return "403 insufficient_scope";
+        Booking b = bookings.get(bookingId);
+        if (b == null || !b.ownerSub().equals(sub)) return "404 not found";   // do not reveal other users' bookings
+        return "204 cancelled " + bookingId;
+    }
+
+    public static void main(String[] args) throws Exception {
+        String verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";            // example verifier from RFC 7636 Appendix B
+        String sentWithLogin = challenge(verifier);
+        System.out.println("code_challenge (S256): " + sentWithLogin);
+        System.out.println("matches RFC 7636 example: " + sentWithLogin.equals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+        // At the token exchange the server recomputes the challenge from the verifier the client now reveals.
+        System.out.println("token exchange with right verifier: " + challenge(verifier).equals(sentWithLogin));
+        System.out.println("token exchange with stolen code, guessed verifier: " + challenge("attacker-guess").equals(sentWithLogin));
+
+        Set<String> write = Set.of("booking:read", "booking:write");
+        System.out.println("u1 cancels b-100: " + cancel("u1", write, "b-100"));
+        System.out.println("u1 cancels b-200: " + cancel("u1", write, "b-200"));
+        System.out.println("u2 cancels b-200 with read-only scope: " + cancel("u2", Set.of("booking:read"), "b-200"));
+    }
+}
+`,
+      output: String.raw`code_challenge (S256): E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+matches RFC 7636 example: true
+token exchange with right verifier: true
+token exchange with stolen code, guessed verifier: false
+u1 cancels b-100: 204 cancelled b-100
+u1 cancels b-200: 404 not found
+u2 cancels b-200 with read-only scope: 403 insufficient_scope`
+    },
+    takeaways: ['Scopes grant kinds of action; ownership must be checked per object.', 'Compare the object owner with token.sub, never with a client-supplied user ID.', 'Browser and mobile apps: Authorization Code with PKCE (S256).', 'Narrow audience and scopes, short-lived access tokens.'],
+    interview: [
+      ['What is broken object-level authorization and how do you prevent it?', 'It happens when an API checks that the caller is authenticated, and maybe has the right scope, but does not check that the caller may access the specific object named in the request. Changing /bookings/b-100 to /bookings/b-200 then exposes or modifies another user’s booking. OWASP lists it first in the API Security Top 10. I prevent it by loading the object and checking a policy against the authenticated subject from the validated token, such as owner equals sub or a staff role for that venue, in the service layer for every operation, including reads. I return 404 for objects the caller may not see, and I write tests where a second valid user tries every ID-based endpoint on the first user’s data.'],
+      ['Explain Authorization Code with PKCE. What attack does PKCE stop?', 'The client generates a random code_verifier and sends its SHA-256 hash, the code_challenge, with method S256 in the authorization request. The user logs in at the authorization server, which redirects back with a short-lived authorization code. The client then calls the token endpoint with the code and the original verifier. The server hashes the verifier and compares it with the stored challenge before issuing tokens. This stops authorization-code interception: a malicious app or a leaked redirect can capture the code, but without the verifier, which never left the legitimate client, it cannot exchange the code. PKCE is now recommended for all clients, including confidential ones.'],
+      ['A token valid for the help service arrives at the booking API. Which check rejects it?', 'The audience check. The token’s signature, issuer and expiry are all valid, because the same authorization server minted it, and it might even carry a booking-like scope. But its aud claim names help-api, so booking-api must reject it with 401. Without the audience check, any service that receives a user’s token, including a compromised or less trusted one like an AI help service, could replay it against the booking API. In Spring Boot I enable it with the jwt.audiences property or a custom validator, because it is not checked by default. When help-api needs booking data it should obtain its own token for booking-api with read-only scope.']
+    ],
+    check: ['u1 has a valid booking-api token with booking:write and calls DELETE /bookings/b-200, which belongs to u2. What should happen?',
+      ['204, because the scope allows writes', '404 (or 403): the object-level check fails because the owner is not the token subject', '401, because the token is invalid', '200 with an error message in the body'], 1,
+      'Scopes are not enough. The service compares the booking owner with the token subject, and returning 404 avoids revealing that b-200 exists.'],
+    practice: ['Copy PkceOwnership.java. Generate a random 43-character verifier with SecureRandom and base64url, compute its challenge, and verify the round trip. Then add a staff role that may cancel any booking at its own venue, and test four users against three bookings.',
+      ['The RFC 7636 example still matches.', 'A random verifier is 43–128 characters from the unreserved set.', 'Staff can cancel only bookings at their venue; others get 404.', 'Each test names the expected status before running.']],
+    references: [['RFC 7636 · PKCE', 'https://datatracker.ietf.org/doc/html/rfc7636'], ['OWASP API Security 2023 · API1 Broken Object Level Authorization', 'https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/'], ['RFC 9700 · OAuth 2.0 Security Best Current Practice', 'https://datatracker.ietf.org/doc/html/rfc9700'], ['OpenID Connect Core 1.0', 'https://openid.net/specs/openid-connect-core-1_0.html']]
+  },
+  'b-security-02.dsa': {
+    notes: [
+      'Binary search finds a target in a sorted array in O(log n) by halving the search range each step. A useful variant is the floor search: find the last element less than or equal to t. Signing keys that rotate are a natural example. Keys start at 1000, 2000, 3500 and 5000, each valid until the next starts. To answer "which key was active at time t?" you need the floor of t.',
+      'KeyAtTime.java keeps a candidate answer. When starts[mid] <= t, mid is a valid floor, so record it and search to the right for a later one. Otherwise search to the left. The loop ends when lo passes hi, and the answer is the last recorded candidate, or −1 if t is before the first key. Computing mid as lo + (hi − lo) / 2 avoids integer overflow on very large arrays. In practice a JWT names its key directly with the kid header. The floor lookup answers schedule and audit questions, and TreeMap.floorEntry gives the same answer in one call.',
+      'Most binary-search bugs come from the loop condition and the updates. Pick one template and stick to it: with lo <= hi, always move to mid + 1 or mid − 1, never to mid, so the range shrinks every step. Test the edges: a target before the first element, exactly equal to an element, between two elements, after the last element, and an empty array. The same "last index where a condition is true" template solves first bad version, search insert position and binary search on the answer, such as the smallest capacity that ships packages within D days.'
+    ],
+    code: {
+      title: 'KeyAtTime.java · floor binary search: which rotating key was active at time t · java KeyAtTime.java',
+      text: String.raw`import java.util.*;
+
+public class KeyAtTime {
+    // Signing keys rotate. Each key is valid from its start time until the next key starts.
+    // To verify a token issued at time t, find the last key whose start is <= t: a "floor" binary search.
+    static int floorIndex(long[] starts, long t) {
+        int lo = 0, hi = starts.length - 1, ans = -1;
+        while (lo <= hi) {
+            int mid = lo + (hi - lo) / 2;           // avoids int overflow of (lo + hi)
+            if (starts[mid] <= t) { ans = mid; lo = mid + 1; }
+            else hi = mid - 1;
+        }
+        return ans;
+    }
+
+    public static void main(String[] args) {
+        long[] starts = {1000, 2000, 3500, 5000};
+        String[] kids = {"k1", "k2", "k3", "k4"};
+        for (long t : new long[] {999, 1000, 2999, 3500, 9999}) {
+            int i = floorIndex(starts, t);
+            System.out.println("issued at " + t + " -> " + (i < 0 ? "no key (reject)" : kids[i]));
+        }
+        TreeMap<Long, String> byStart = new TreeMap<>(Map.of(1000L, "k1", 2000L, "k2", 3500L, "k3", 5000L, "k4"));
+        System.out.println("TreeMap.floorEntry(2999) -> " + byStart.floorEntry(2999L).getValue());
+    }
+}
+`,
+      output: String.raw`issued at 999 -> no key (reject)
+issued at 1000 -> k1
+issued at 2999 -> k2
+issued at 3500 -> k3
+issued at 9999 -> k4
+TreeMap.floorEntry(2999) -> k2`
+    },
+    takeaways: ['Floor search: record mid when it qualifies, then go right.', 'mid = lo + (hi − lo) / 2 avoids overflow.', 'With lo <= hi, always move past mid.', 'TreeMap.floorEntry is the library version.'],
+    interview: [
+      ['Find the last element less than or equal to t in a sorted array.', 'I use binary search with lo = 0, hi = n − 1 and ans = −1. While lo <= hi, I compute mid = lo + (hi − lo) / 2. If a[mid] <= t, mid is a candidate, so I set ans = mid and continue to the right with lo = mid + 1, looking for a later candidate. Otherwise a[mid] is too big, so I set hi = mid − 1. When the loop ends, ans is the floor index, or −1 if every element is greater than t. Each step halves the range, so it is O(log n) time and O(1) space. I test values before the first element, equal to an element, between elements and after the last.'],
+      ['Why write lo + (hi − lo) / 2 instead of (lo + hi) / 2?', 'With int indices, lo + hi can exceed Integer.MAX_VALUE when both are large, for arrays above about a billion elements or when the search is over a numeric answer range rather than indices. The sum then overflows to a negative number and mid becomes invalid, which can cause an exception or an infinite loop. This was a real bug in the JDK’s Arrays.binarySearch for years. lo + (hi − lo) / 2 computes the same midpoint without overflow because hi − lo is never larger than the range. Another option is (lo + hi) >>> 1, the unsigned shift that the JDK uses now.'],
+      ['How would you find the minimum ship capacity to deliver packages within D days?', 'I binary search on the answer instead of on an index. The capacity must be at least the heaviest package and at most the sum of all weights. For a candidate capacity, a greedy check walks the packages in order, filling a day until the next package would exceed the capacity, and counts days. If it needs D days or fewer, the capacity works, and so does anything larger, so the condition is monotonic, which is what binary search needs. I search for the smallest capacity that works: when feasible, record it and go left. Otherwise go right. The time is O(n log(sum)).']
+    ],
+    check: ['Key starts are [1000, 2000, 3500, 5000]. Which key is active at t = 3499?',
+      ['k1', 'k2: the floor of 3499 is 2000', 'k3', 'No key'], 1,
+      'The last start ≤ 3499 is 2000, so k2 is active until k3 starts at 3500.'],
+    practice: ['Copy KeyAtTime.java. Add ceilingIndex (first start ≥ t) and searchInsert. Then solve minimum ship capacity for weights [1..10] and D = 5.',
+      ['Floor and ceiling agree with TreeMap.floorKey and ceilingKey on 10 random values.', 'searchInsert([1,3,5,6], 2) = 1.', 'Ship capacity for [1..10], D = 5 is 15.', 'State the time of each method.']],
+    references: [['Java 21 API · TreeMap.floorEntry', jdk + 'java/util/TreeMap.html']]
+  },
+  'h-api-01': {
+    notes: [
+      'An API gateway is the single entry point between clients and your services. It handles edge concerns that every request shares: TLS termination, routing by path or host, checking that a token is present and well-formed, rate limiting per client, request IDs for tracing, CORS, request size limits and timeouts. It should not contain business rules such as "a seat can have one owner". Those belong in the service that owns the data, otherwise the gateway becomes a fragile monolith that every team must change.',
+      'GatewayChain.java models a gateway as an ordered chain of filters, each of which either stops the request with a response or lets it continue: request ID, authentication, rate limit, route. Order matters. Unauthenticated requests are rejected before they spend rate-limit budget, and the request ID is attached first so even rejections can be traced. Routing uses the longest matching prefix, so /api/bookings/b-100 goes to booking-service, and an unknown path returns 404 at the edge. Spring Cloud Gateway, Envoy, NGINX and cloud API gateways implement the same ideas with configuration.',
+      'Choose the API style by client and contract. REST over HTTP with JSON fits public and browser clients: it is cacheable, easy to debug and supported everywhere. GraphQL lets clients ask for exactly the fields they need from one endpoint, which helps when many different screens combine data. The costs are harder HTTP caching, query-cost limits and N+1 risks in resolvers. gRPC uses HTTP/2 and Protocol Buffers with a generated, strongly typed contract and streaming. It is efficient for service-to-service calls inside your system, but browsers need gRPC-Web and a proxy.',
+      'For the booking system, a sensible split is: public REST for browsers and partners (GET /events/42/seats, POST /bookings with an Idempotency-Key header), gRPC between internal services where low latency and typed contracts help, and SSE for live seat updates to browsers. Whatever the style, keep the contract versioned and backward compatible, put a timeout and a retry policy on every internal call, and make the gateway pass through the authenticated subject so services can do their own authorization.'
+    ],
+    code: {
+      title: 'GatewayChain.java · a gateway as an ordered filter chain: request ID, auth, rate limit, routing · java GatewayChain.java',
+      text: String.raw`import java.util.*;
+
+public class GatewayChain {
+    record Request(String method, String path, String token, String client) {}
+    record Response(int status, String body) {}
+
+    interface Filter { Optional<Response> apply(Request r, Map<String, String> headers); }   // empty = continue
+
+    // Edge concerns live in the gateway: auth presence, rate limits, request IDs, routing. Business rules do not.
+    static final Map<String, String> routes = new LinkedHashMap<>(Map.of(
+            "/api/bookings", "booking-service", "/api/help", "help-service", "/api/events", "catalog-service"));
+    static final Map<String, Integer> usedThisMinute = new HashMap<>();
+    static int nextRequestId = 1;
+
+    static final Filter requestId = (r, h) -> { h.put("X-Request-Id", "req-" + nextRequestId++); return Optional.empty(); };
+    static final Filter authenticated = (r, h) ->
+            r.path().startsWith("/api/events") || r.token() != null ? Optional.empty()
+                    : Optional.of(new Response(401, "missing bearer token"));
+    static final Filter rateLimit = (r, h) -> {
+        int used = usedThisMinute.merge(r.client(), 1, Integer::sum);
+        return used <= 3 ? Optional.empty() : Optional.of(new Response(429, "Retry-After: 60"));
+    };
+    static final Filter route = (r, h) -> {
+        String best = null;   // longest matching prefix wins
+        for (String prefix : routes.keySet())
+            if ((r.path().equals(prefix) || r.path().startsWith(prefix + "/")) && (best == null || prefix.length() > best.length())) best = prefix;
+        if (best == null) return Optional.of(new Response(404, "no route"));
+        return Optional.of(new Response(200, "forwarded to " + routes.get(best) + " with " + h.get("X-Request-Id")));
+    };
+
+    static Response handle(Request r) {
+        Map<String, String> headers = new HashMap<>();
+        for (Filter f : List.of(requestId, authenticated, rateLimit, route)) {
+            Optional<Response> stop = f.apply(r, headers);
+            if (stop.isPresent()) return stop.get();
+        }
+        throw new IllegalStateException("route filter always answers");
+    }
+
+    public static void main(String[] args) {
+        List<Request> requests = List.of(
+                new Request("GET", "/api/events/42", null, "web-1"),
+                new Request("POST", "/api/bookings", null, "web-1"),
+                new Request("POST", "/api/bookings", "t1", "web-1"),
+                new Request("GET", "/api/help/refunds", "t1", "web-1"),
+                new Request("GET", "/api/bookings/b-100", "t1", "web-1"),
+                new Request("GET", "/api/admin", "t2", "app-2"));
+        for (Request r : requests) {
+            Response res = handle(r);
+            System.out.println(r.method() + " " + r.path() + " -> " + res.status() + " " + res.body());
+        }
+    }
+}
+`,
+      output: String.raw`GET /api/events/42 -> 200 forwarded to catalog-service with req-1
+POST /api/bookings -> 401 missing bearer token
+POST /api/bookings -> 200 forwarded to booking-service with req-3
+GET /api/help/refunds -> 200 forwarded to help-service with req-4
+GET /api/bookings/b-100 -> 429 Retry-After: 60
+GET /api/admin -> 404 no route`
+    },
+    takeaways: ['The gateway owns edge concerns; services own business rules and authorization.', 'Filter order matters: trace ID first, reject unauthenticated traffic before rate limiting.', 'REST for public and browser APIs, GraphQL for flexible client queries, gRPC for typed internal calls.', 'Version contracts and keep them backward compatible.'],
+    interview: [
+      ['What belongs in an API gateway and what does not?', 'Edge concerns that apply to every request belong in the gateway: TLS termination, routing, rejecting requests without a valid token format, per-client rate limits and quotas, request IDs, CORS, request size limits, timeouts and basic metrics. Business logic does not belong there. Neither does fine-grained authorization such as "may this user cancel this booking?", because that needs the service’s data, and keeping it in the gateway couples every team to one shared component. Services still validate the token audience and enforce ownership themselves, so a request that bypasses the gateway, or a bug in it, cannot break the rules. A gateway is also a single point of failure, so it must be replicated.'],
+      ['When would you choose gRPC over REST, and when GraphQL?', 'I choose gRPC for internal service-to-service calls where I control both sides. It gives a generated, typed contract from .proto files, compact binary encoding, HTTP/2 multiplexing, deadlines and streaming, which matters for chatty, latency-sensitive paths. Its downsides are weaker browser support, which needs gRPC-Web, and harder debugging. I choose REST for public and browser APIs, because it works with every client, caches with standard HTTP semantics, and is easy to inspect. GraphQL fits when many clients need different shapes of the same data and over-fetching hurts, for example mobile screens. It needs query-depth and cost limits, per-field authorization and batching to avoid N+1 resolvers.'],
+      ['How would you rate-limit at the gateway without hurting legitimate users?', 'I limit per client identity, such as an API key or token subject, rather than per IP address, which can be shared by many users behind one NAT. I use a token bucket so short bursts are allowed while the average stays bounded, and return 429 with a Retry-After header. Limits are stored in a shared store such as Redis so all gateway replicas agree. I apply cheaper checks first, so unauthenticated junk is rejected before it consumes a real client’s budget, and I set separate limits for expensive endpoints such as POST /bookings or AI help. I monitor the 429 rate per client to tune limits instead of guessing.']
+    ],
+    check: ['In GatewayChain.java, why does the unauthenticated POST /api/bookings not count against web-1’s rate limit?',
+      ['Because POST requests are never rate-limited', 'Because the authentication filter rejects it before the rate-limit filter runs', 'Because the request ID filter resets the counter', 'Because 401 responses are free in HTTP'], 1,
+      'Filters run in order and stop at the first response. The 401 is returned before the rate limiter is reached.'],
+    practice: ['Copy GatewayChain.java. Replace the per-minute counter with a token bucket (capacity 3, refill 1 token per 20 seconds, using a fake clock), add a request-size filter returning 413 above 10 KB, and route /api/bookings/admin to a different service using the longest-prefix rule.',
+      ['The token bucket allows a burst of 3, then about 1 request per 20 seconds.', 'Oversized requests get 413 before routing.', '/api/bookings/admin/x goes to the admin service and /api/bookings/b-1 still goes to booking-service.', 'The filter order is explained in one sentence.']],
+    references: [['Spring Cloud Gateway reference', 'https://docs.spring.io/spring-cloud-gateway/reference/'], ['gRPC · Introduction', 'https://grpc.io/docs/what-is-grpc/introduction/'], ['GraphQL · Learn', 'https://graphql.org/learn/']]
+  },
+  'h-realtime-01': {
+    notes: [
+      'Live seat availability flows almost entirely one way, from server to browser. Server-sent events (SSE) fit that: the browser opens one long-lived HTTP response with Content-Type text/event-stream, and the server writes events as lines such as "id: 7" and "data: A1 sold" followed by a blank line. The browser’s EventSource API reconnects automatically after a drop and sends the last ID it saw in a Last-Event-ID header, so the server can resume from there. SSE works through ordinary HTTP infrastructure and needs no special protocol.',
+      'WebSockets (RFC 6455) upgrade an HTTP connection to a full-duplex channel where both sides send messages at any time. Use them when the client also sends frequent messages, as in chat, collaborative editing or games. They need more work: your own reconnection, heartbeats, message IDs and replay, and proxies or load balancers configured for long-lived upgraded connections. For booking updates, SSE is simpler. The booking write itself remains an ordinary POST to the authoritative API, never a message on the stream.',
+      'Design for reconnection and gaps from the start. The server keeps a bounded history of recent events with increasing IDs. On reconnect it replays events after Last-Event-ID if they are still retained. If they are not, it must say so instead of silently skipping. SseReplay.java runs a real SSE endpoint on the JDK’s built-in HttpServer, keeping 3 events. The first connect receives events 1–2, and a resume after ID 2 receives 3. Later, after three more events, a resume after ID 2 gets a reset event telling the client to reload the seat snapshot, because event 3 is gone.',
+      'The client’s recovery rule: on reset, or on any detected gap, fetch a fresh snapshot (GET /events/42/seats) that includes the stream position it reflects, replace the local view, then resume the stream from that position. A live update is an observation, not a promise. "A1 free" on the stream does not guarantee that a booking will succeed, because someone may claim it a millisecond later. The POST still decides, and the UI must handle 409. At scale, each open SSE connection holds a socket, so plan connection limits per instance and use a pub/sub layer, such as Redis or Kafka, to fan events out to every instance.'
+    ],
+    code: {
+      title: 'SseReplay.java · a real SSE endpoint with event IDs, Last-Event-ID resume and a reset on gaps · java SseReplay.java',
+      text: String.raw`import com.sun.net.httpserver.HttpServer;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+public class SseReplay {
+    // Server keeps the last 3 seat events. Each SSE event has an id so a reconnecting browser can send Last-Event-ID.
+    static final List<String[]> history = Collections.synchronizedList(new ArrayList<>());   // {id, data}
+    static final int RETAINED = 3;
+    static int nextId = 1;
+
+    static synchronized void publish(String data) {
+        history.add(new String[] { String.valueOf(nextId++), data });
+        if (history.size() > RETAINED) history.remove(0);
+    }
+
+    public static void main(String[] args) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/seats/stream", exchange -> {
+            String last = exchange.getRequestHeaders().getFirst("Last-Event-ID");
+            exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            try (Writer out = new OutputStreamWriter(exchange.getResponseBody(), StandardCharsets.UTF_8)) {
+                long after = last == null ? 0 : Long.parseLong(last);
+                long oldest = Long.parseLong(history.get(0)[0]);
+                if (last != null && after < oldest - 1) {
+                    // The gap is no longer retained: tell the client to reload a snapshot instead of pretending.
+                    out.write("event: reset\ndata: reload snapshot from GET /seats\n\n");
+                    return;
+                }
+                for (String[] e : List.copyOf(history))
+                    if (Long.parseLong(e[0]) > after) out.write("id: " + e[0] + "\ndata: " + e[1] + "\n\n");
+            }   // a real stream stays open; this demo closes after sending what it has
+        });
+        server.start();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/seats/stream";
+        HttpClient client = HttpClient.newHttpClient();
+
+        publish("A1 held"); publish("A2 sold");
+        System.out.println("first connect:      " + read(client, url, null));
+        publish("A1 sold");
+        System.out.println("resume after id 2:  " + read(client, url, "2"));
+        publish("A3 held"); publish("A4 held"); publish("A5 held");
+        System.out.println("resume after id 2:  " + read(client, url, "2"));
+        server.stop(0);
+    }
+
+    // Returns the events as "id:data" items, or the reset instruction.
+    static String read(HttpClient client, String url, String lastEventId) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url));
+        if (lastEventId != null) b.header("Last-Event-ID", lastEventId);
+        List<String> lines = client.send(b.build(), HttpResponse.BodyHandlers.ofLines()).body().toList();
+        List<String> events = new ArrayList<>();
+        String id = null, type = "message";
+        for (String line : lines) {
+            if (line.startsWith("id: ")) id = line.substring(4);
+            else if (line.startsWith("event: ")) type = line.substring(7);
+            else if (line.startsWith("data: ")) events.add(type.equals("reset") ? "RESET (" + line.substring(6) + ")" : id + ":" + line.substring(6));
+        }
+        return String.join(", ", events);
+    }
+}
+`,
+      output: String.raw`first connect:      1:A1 held, 2:A2 sold
+resume after id 2:  3:A1 sold
+resume after id 2:  RESET (reload snapshot from GET /seats)`
+    },
+    takeaways: ['SSE for server-to-browser streams; WebSockets when both sides send often.', 'Event IDs plus Last-Event-ID give resumable streams.', 'If the gap is not retained, send a reset and reload a snapshot with its position.', 'Live updates are observations; the POST to the authoritative API decides.'],
+    interview: [
+      ['Choose a transport for live seat availability in the browser and explain reconnection.', 'I would use server-sent events. The flow is server-to-browser, SSE runs over plain HTTP, and the browser’s EventSource reconnects automatically. Each event carries an increasing id, and on reconnect the browser sends Last-Event-ID, so the server replays retained events after it. The server keeps a bounded history per event, for example the last few minutes. If the requested ID is older than that, it sends a reset, and the client fetches a fresh seat snapshot that includes its stream position, then resumes from there. Booking itself stays a normal POST, and the UI handles 409 because a seat shown as free may already be taken.'],
+      ['When would you choose WebSockets over SSE?', 'When the client needs to send frequent messages over the same connection, with low latency in both directions: chat, multiplayer games, collaborative editing or live cursors. WebSockets give a full-duplex channel after an HTTP upgrade. The trade-off is more work. There is no built-in reconnection or resume, so I add heartbeats, message IDs, acknowledgements and replay myself, and I make sure load balancers and proxies allow long-lived upgraded connections. SSE also has limits: it is text only, and over HTTP/1.1 browsers allow only about six connections per domain, which HTTP/2 removes. For one-way updates, SSE is usually the simpler and more robust choice.'],
+      ['How do you deliver live updates when the service runs on many instances?', 'Each browser keeps an SSE connection to whichever instance the load balancer chose, but the booking that changed a seat may have committed on another instance. So committed changes are published to a shared channel, ideally from the transactional outbox so nothing is lost, through Redis pub/sub, Kafka or a similar broker. Every instance subscribes and forwards relevant events to its connected clients. Event IDs come from the source of truth, such as a per-event sequence, so they mean the same thing on every instance and a client can resume on a different instance after reconnecting. I also cap connections per instance and monitor open connections, because each one holds a socket.']
+    ],
+    check: ['A client reconnects with Last-Event-ID 2, but the server only retains events 4–6. What should happen?',
+      ['Send events 4–6 and continue as if nothing was missed', 'Send a reset so the client reloads a fresh snapshot and resumes from its position', 'Close the connection permanently', 'Send event 2 again'], 1,
+      'Event 3 is gone, so replaying 4–6 would leave a silent gap. The client must resynchronize from a snapshot.'],
+    practice: ['Copy SseReplay.java. Keep the connection open and push new events every second for five seconds. Add a "retry: 2000" field, and write a small client loop that reconnects with Last-Event-ID after the server closes. Then add a snapshot endpoint GET /seats that returns the state and the latest event ID.',
+      ['The client receives every event exactly once across one forced reconnect.', 'After a gap larger than the history, the client reloads the snapshot and resumes from its ID.', 'The snapshot ID and the first resumed event ID are consecutive.', 'One sentence on why a live "A1 free" event does not guarantee a successful booking.']],
+    references: [['HTML Living Standard · Server-sent events', 'https://html.spec.whatwg.org/multipage/server-sent-events.html'], ['MDN · Using server-sent events', 'https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events'], ['RFC 6455 · The WebSocket Protocol', 'https://datatracker.ietf.org/doc/html/rfc6455'], ['JDK 21 API · com.sun.net.httpserver.HttpServer', 'https://docs.oracle.com/en/java/javase/21/docs/api/jdk.httpserver/com/sun/net/httpserver/HttpServer.html']]
+  },
+  'h-api-01.dsa': {
+    notes: [
+      'A ring buffer (circular buffer) stores the most recent N items in a fixed array. A write index wraps around with modulo, so the newest item overwrites the oldest when the buffer is full. Appending is O(1), memory is fixed at N, and nothing is ever shifted. This is exactly the structure behind "replay the last few events to a reconnecting client" and behind many logging and metrics buffers.',
+      'EventRing.java addresses events by an ever-increasing sequence number and stores event s in slot s mod capacity. The oldest retained sequence is max(1, next − capacity). since(after) returns every event after a given sequence if all of them are still retained, an empty list if the client is up to date, and null to signal a gap when the client is further behind than the buffer reaches. With capacity 4 and six events written, since(2) returns events 3–6, and since(1) reports a gap because event 2 was overwritten.',
+      'The edge cases are what interviewers check: an empty buffer, exactly full, wrapped around more than once, a request for exactly the oldest retained item, and a client that is up to date. A related classic is "design a circular queue" with enqueue, dequeue, front and rear, using a head index and a count. Track the count explicitly, or keep one slot empty, because head == tail alone cannot tell a full buffer from an empty one.'
+    ],
+    code: {
+      title: 'EventRing.java · a ring buffer of recent events with gap detection for replay · java EventRing.java',
+      text: String.raw`import java.util.*;
+
+public class EventRing {
+    // Fixed-capacity ring buffer of the most recent events, addressed by an ever-increasing sequence number.
+    private final String[] slots;
+    private long nextSeq = 1;                        // sequence number the next event will get
+
+    EventRing(int capacity) { slots = new String[capacity]; }
+
+    long append(String event) {
+        slots[(int) (nextSeq % slots.length)] = event;   // overwrite the oldest slot when full
+        return nextSeq++;
+    }
+
+    long oldestRetained() { return Math.max(1, nextSeq - slots.length); }
+
+    // Events with seq > after, or empty if the client is up to date; null signals a gap (client must resync).
+    List<String> since(long after) {
+        if (after + 1 < oldestRetained()) return null;
+        List<String> out = new ArrayList<>();
+        for (long s = after + 1; s < nextSeq; s++) out.add(s + ":" + slots[(int) (s % slots.length)]);
+        return out;
+    }
+
+    public static void main(String[] args) {
+        EventRing ring = new EventRing(4);
+        for (String e : List.of("A1 held", "A2 sold", "A1 sold")) ring.append(e);
+        System.out.println("since 1: " + ring.since(1));
+        System.out.println("since 3: " + ring.since(3));
+        for (String e : List.of("A3 held", "A4 held", "A5 held")) ring.append(e);
+        System.out.println("oldest retained: " + ring.oldestRetained());
+        System.out.println("since 2: " + ring.since(2));
+        System.out.println("since 1: " + (ring.since(1) == null ? "gap, resync from snapshot" : ring.since(1)));
+    }
+}
+`,
+      output: String.raw`since 1: [2:A2 sold, 3:A1 sold]
+since 3: []
+oldest retained: 3
+since 2: [3:A1 sold, 4:A3 held, 5:A4 held, 6:A5 held]
+since 1: gap, resync from snapshot`
+    },
+    takeaways: ['Fixed array plus modulo index: O(1) append, O(N) memory.', 'Sequence s lives in slot s mod capacity.', 'Oldest retained = max(1, next − capacity); older requests are gaps.', 'head == tail is ambiguous without a count.'],
+    interview: [
+      ['Design a circular queue with enqueue, dequeue, front and isFull in O(1).', 'I use a fixed array of size k, a head index pointing at the front element, and a count. enqueue fails if count equals k. Otherwise it writes at (head + count) mod k and increments count. dequeue fails if count is zero. Otherwise it clears the slot at head, sets head to (head + 1) mod k and decrements count. front returns the element at head, and rear returns the one at (head + count − 1) mod k. isEmpty and isFull compare count with 0 and k. Every operation is O(1) and memory is O(k). Keeping the count avoids the classic ambiguity where head equals tail both when empty and when full.'],
+      ['How would you keep the last 1,000 events per stream for replay, and what happens when a client is too far behind?', 'Per stream I keep a ring buffer of 1,000 slots and a next-sequence counter. Event s goes into slot s mod 1000, so appends are O(1) and memory is fixed. When a client reconnects with its last sequence, I check whether last + 1 is at least the oldest retained sequence, next − 1000. If it is, I replay from there to the newest. If it is not, the events in between are gone, so I return a reset signal and the client reloads a snapshot that carries its own sequence number, then resumes. For many streams, I evict idle buffers and size retention by time rather than count if traffic is bursty.'],
+      ['Why not just use an ArrayList and remove the first element when it is full?', 'Removing index 0 from an ArrayList shifts every remaining element left, which is O(n) per append once the list is full. At high event rates that work adds up, and it also creates garbage and cache churn. An ArrayDeque with pollFirst would be O(1) and is a fine choice in Java. The explicit ring buffer has extra advantages for replay: fixed memory allocated once, and direct O(1) access to any retained sequence number by computing its slot, which a deque does not give without walking. For a bounded cache of recent events with lookups by sequence, the ring is the natural structure.']
+    ],
+    check: ['A ring of capacity 4 has received events 1–6. Which events are retained?',
+      ['1–4', '3–6', '1–6', '5–6'], 1,
+      'Events 5 and 6 overwrote the slots of 1 and 2, so the oldest retained is 6 − 4 + 1 = 3.'],
+    practice: ['Copy EventRing.java. Implement a generic CircularQueue<T> with enqueue, dequeue, front, rear, isEmpty and isFull, and test the full and empty edge cases. Then make EventRing thread-safe and explain the lock you chose.',
+      ['Enqueue on a full queue returns false, and dequeue on an empty one returns null.', 'After wrapping three times, front and rear are correct.', 'since() and append() are safe under concurrent use.', 'State the time and space of each operation.']],
+    references: [['Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html']]
+  },
+  'h-queues-02': {
+    notes: [
+      'After a booking commits, other parts of the system need to know: email, analytics, the live seat stream. The naive code commits the booking and then publishes a message to the broker. If the process crashes between those two steps, the booking exists but no event is ever sent. If you publish first and the commit then fails, consumers act on a booking that does not exist. A database and a broker cannot commit atomically together without a distributed transaction, which most systems avoid.',
+      'The transactional outbox fixes the producer side. In the same local database transaction as the booking row, insert an outbox row containing the event: its ID, type and payload. Either both commit or neither does. A separate relay then reads unsent outbox rows, publishes them to the broker and marks them sent. The relay can poll the table, or use change data capture: Debezium reads the database log and its Outbox Event Router routes the rows to topics.',
+      'The relay can still crash after publishing and before marking the row sent. On restart it publishes the same event again, so delivery is at least once and consumers must expect duplicates. OutboxRelay.java shows exactly this: the event reaches the broker twice. The consumer is idempotent: in one local transaction it inserts the event ID into a processed_events table, which has a unique key, and performs its effect. A duplicate fails the insert, or finds the ID, and is ignored, so only one confirmation email is queued.',
+      'Practical details: give every event a stable unique ID created with the outbox row, not at publish time. Keep events ordered per aggregate by using the booking or seat ID as the partition key. Delete or archive sent outbox rows on a schedule. Keep the processed-events table long enough to cover the broker’s maximum redelivery window. Kafka’s idempotent producer and transactions help inside Kafka, but they do not make your database write and an external side effect, such as sending an email, atomic. The idempotent consumer pattern still applies.'
+    ],
+    code: {
+      title: 'OutboxRelay.java · booking + outbox in one transaction, a relay crash, and an idempotent consumer · java OutboxRelay.java',
+      text: String.raw`import java.util.*;
+
+public class OutboxRelay {
+    // Producer database: the booking row and its outbox row are written in ONE local transaction.
+    record OutboxRow(String eventId, String payload) {}
+    static final Map<String, String> bookings = new LinkedHashMap<>();
+    static final List<OutboxRow> outbox = new ArrayList<>();
+    static final Set<String> sentIds = new HashSet<>();
+
+    static synchronized void bookSeat(String seat, String user) {      // BEGIN ... COMMIT
+        bookings.put(seat, user);
+        outbox.add(new OutboxRow("evt-" + seat, "SeatBooked " + seat + " " + user));
+    }
+
+    // Broker: delivers at least once, so duplicates are possible.
+    static final List<OutboxRow> broker = new ArrayList<>();
+
+    // Relay: reads unsent rows, publishes, then marks them sent. It may crash between the two steps.
+    static void relay(boolean crashBeforeMarking) {
+        for (OutboxRow row : outbox) {
+            if (sentIds.contains(row.eventId())) continue;
+            broker.add(row);                                              // publish succeeded
+            if (crashBeforeMarking) { System.out.println("relay crashed after publishing " + row.eventId()); return; }
+            sentIds.add(row.eventId());
+        }
+    }
+
+    // Consumer database: the side effect and the "processed" marker commit together.
+    static final Set<String> processed = new HashSet<>();
+    static final List<String> emailsQueued = new ArrayList<>();
+
+    static synchronized void consume(OutboxRow event) {                 // BEGIN ... COMMIT
+        if (!processed.add(event.eventId())) { System.out.println("duplicate " + event.eventId() + " ignored"); return; }
+        emailsQueued.add("confirmation for " + event.payload());
+    }
+
+    public static void main(String[] args) {
+        bookSeat("A1", "ana");
+        relay(true);       // publishes evt-A1, crashes before marking it sent
+        relay(false);      // restarts, sees evt-A1 still unsent, publishes it again
+        System.out.println("events on the broker: " + broker.size());
+        for (OutboxRow e : broker) consume(e);
+        System.out.println("confirmation emails queued: " + emailsQueued.size());
+        System.out.println("booking and event agree: " + (bookings.containsKey("A1") && sentIds.contains("evt-A1")));
+    }
+}
+`,
+      output: String.raw`relay crashed after publishing evt-A1
+events on the broker: 2
+duplicate evt-A1 ignored
+confirmation emails queued: 1
+booking and event agree: true`
+    },
+    takeaways: ['Write the state change and its outbox row in one local transaction.', 'A relay publishes unsent rows; a crash before marking sent causes a duplicate.', 'Delivery is at least once, so consumers deduplicate by event ID in the same transaction as their effect.', 'Partition by aggregate ID to keep per-booking order.'],
+    interview: [
+      ['Why use a transactional outbox instead of publishing to Kafka right after the commit?', 'Because the database commit and the publish are two separate systems, and the process can crash between them. Commit-then-publish can lose the event forever: the booking exists, but nobody is told. Publish-then-commit can announce a booking that rolled back. With an outbox, the booking and an outbox row containing the event commit in one local transaction, so the event exists exactly when the booking does. A relay, either a poller or change data capture such as Debezium, then publishes outbox rows and marks them sent. The remaining failure is a duplicate when the relay crashes after publishing, which consumers handle by deduplicating on the event ID.'],
+      ['How does a consumer stay correct when the same event arrives twice?', 'It makes the effect idempotent by recording the event ID and performing the effect in the same local transaction. For example, it inserts into processed_events(event_id) with a unique constraint and inserts the email job in the same commit. If the event arrives again, the insert hits the constraint, or a lookup finds the ID, and the consumer skips the effect and acknowledges the message. If the consumer crashes before committing, neither the marker nor the effect exists, so a redelivery processes it correctly. For effects outside the database, such as calling a payment API, I pass the event ID as that API’s idempotency key.'],
+      ['Publishing succeeded but marking the outbox row sent failed. What happens next?', 'The row still looks unsent, so after the relay restarts, or on its next poll, it publishes the same event again with the same event ID. The broker now holds two copies, and both may be delivered. That is expected with an outbox: it guarantees at-least-once delivery, not exactly-once. The consumer protects its effect by checking and recording the event ID in the same transaction as the effect, so the second copy changes nothing. I would also monitor the outbox for rows that stay unsent for too long, which signals a stuck relay, and make sure the relay processes rows in order for each aggregate key.']
+    ],
+    check: ['In OutboxRelay.java the relay crashes after publishing evt-A1 and before marking it sent. After restart, how many confirmation emails are queued?',
+      ['Two, one per delivered copy', 'One: the consumer records evt-A1 as processed and ignores the duplicate', 'Zero, because the crash lost the event', 'It depends on the broker'], 1,
+      'The event is delivered twice, but the consumer’s processed-ID check in the same transaction as its effect keeps the effect single.'],
+    practice: ['Copy OutboxRelay.java. Add a second booking, make the consumer crash after recording the ID but before queueing the email, and fix it so the marker and the effect commit together. Then add a cleanup job that deletes sent outbox rows older than a cutoff.',
+      ['A consumer crash before commit leads to correct reprocessing, with one email per booking.', 'Duplicates of both events are ignored.', 'The cleanup never deletes unsent rows.', 'One sentence on why the event ID is created with the outbox row.']],
+    references: [['microservices.io · Transactional outbox', 'https://microservices.io/patterns/data/transactional-outbox.html'], ['microservices.io · Idempotent consumer', 'https://microservices.io/patterns/communication-style/idempotent-consumer.html'], ['Debezium · Outbox Event Router', 'https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html'], ['Apache Kafka · Message delivery semantics', 'https://kafka.apache.org/documentation/#semantics']]
+  },
+  'h-reliability-03': {
+    notes: [
+      'A booking that spans services, such as holding a seat in inventory, charging a card in payments and issuing a ticket, cannot use one database transaction. A saga splits the business transaction into local transactions, one per service. Each step commits on its own and has a compensating action that semantically undoes it: release the hold, refund the charge, void the ticket. If a later step fails permanently, the saga runs the compensations for the completed steps in reverse order.',
+      'Compensation is not rollback. A rollback makes it as if nothing happened. A compensation is a new, visible business action: the customer may see a charge and then a refund, and the seat was briefly unavailable to others. Design steps so compensation is possible and acceptable. Put steps that cannot be undone, such as sending a ticket email, last, and put the step most likely to fail early. Holds with expiry are a good first step, because even a lost compensation is corrected by the timeout.',
+      'Separate transient failures from permanent ones. A timeout or a 503 may succeed on retry, so retry a bounded number of times with backoff, using an idempotency key so a retry cannot charge twice. A declined card is permanent, so compensate immediately. SagaRun.java shows both. In the first run the payment times out once, succeeds on retry and the saga confirms. In the second the card is declined, the hold is released and the saga cancels. A duplicated compensation message is skipped, because compensations must be idempotent too.',
+      'Choose orchestration or choreography. In orchestration, one coordinator, such as a booking saga service or a workflow engine like Temporal, tells each service what to do and records the saga’s state durably, which makes the flow easy to see and test. In choreography, each service reacts to the previous service’s events, which has fewer central parts but makes the overall flow hard to follow as it grows. Either way, persist the saga state, emit steps through an outbox, make every step and compensation idempotent, and alert on sagas stuck in a non-final state.'
+    ],
+    code: {
+      title: 'SagaRun.java · an orchestrated saga with retries, reverse-order compensation and idempotent compensations · java SagaRun.java',
+      text: String.raw`import java.util.*;
+
+public class SagaRun {
+    // An orchestrated saga: each step has an action and a compensation. On a permanent failure, completed steps
+    // are compensated in reverse order. Each step commits locally; there is no global rollback.
+    record Step(String name, String action, String compensation) {}
+
+    static final List<String> log = new ArrayList<>();
+    static final Set<String> compensated = new HashSet<>();   // makes compensation idempotent
+
+    static boolean perform(Step s, Map<String, Integer> transientFailures, Set<String> permanentFailures) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            int left = transientFailures.getOrDefault(s.name(), 0);
+            if (permanentFailures.contains(s.name())) { log.add(s.name() + ": permanent failure (card declined)"); return false; }
+            if (left > 0) { transientFailures.put(s.name(), left - 1); log.add(s.name() + ": attempt " + attempt + " timed out, retrying"); continue; }
+            log.add(s.name() + ": " + s.action());
+            return true;
+        }
+        log.add(s.name() + ": gave up after 3 attempts");
+        return false;
+    }
+
+    static void compensate(Step s) {
+        if (!compensated.add(s.name())) { log.add(s.name() + ": compensation already done, skipped"); return; }
+        log.add(s.name() + ": COMPENSATE " + s.compensation());
+    }
+
+    static String run(String title, Map<String, Integer> transientFailures, Set<String> permanentFailures) {
+        log.clear(); compensated.clear();
+        List<Step> steps = List.of(
+                new Step("hold", "seat A1 held for 10 min", "release hold on A1"),
+                new Step("payment", "card charged Rs 500", "refund Rs 500"),
+                new Step("ticket", "ticket T-1 issued", "void ticket T-1"));
+        Deque<Step> done = new ArrayDeque<>();
+        String outcome = "CONFIRMED";
+        for (Step s : steps) {
+            if (perform(s, new HashMap<>(transientFailures), permanentFailures)) { done.push(s); continue; }
+            outcome = "CANCELLED";
+            while (!done.isEmpty()) compensate(done.pop());   // reverse order
+            break;
+        }
+        System.out.println(title);
+        log.forEach(l -> System.out.println("  " + l));
+        return outcome;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("  => " + run("1. payment times out once, then succeeds", Map.of("payment", 1), Set.of()));
+        System.out.println("  => " + run("2. payment is declined", Map.of(), Set.of("payment")));
+        compensate(new Step("hold", "", "release hold on A1"));   // a duplicated compensation message arrives
+        System.out.println("  " + log.get(log.size() - 1));
+    }
+}
+`,
+      output: String.raw`1. payment times out once, then succeeds
+  hold: seat A1 held for 10 min
+  payment: attempt 1 timed out, retrying
+  payment: card charged Rs 500
+  ticket: ticket T-1 issued
+  => CONFIRMED
+2. payment is declined
+  hold: seat A1 held for 10 min
+  payment: permanent failure (card declined)
+  hold: COMPENSATE release hold on A1
+  => CANCELLED
+  hold: compensation already done, skipped`
+    },
+    takeaways: ['A saga is a sequence of local transactions, each with a compensation.', 'Compensation is a visible business action, not a rollback.', 'Retry transient failures with idempotency keys; compensate on permanent ones.', 'Orchestration is easier to observe; persist saga state and alert on stuck sagas.'],
+    interview: [
+      ['A payment permanently fails after the seat hold committed. What should the saga do, and how is that different from a rollback?', 'The saga records the payment failure and runs the compensations of the completed steps in reverse order. Here that is only the hold, so it releases the hold on the seat and marks the booking saga as cancelled. It then tells the user the payment was declined. This is different from a database rollback, because the hold really committed and other users may have seen the seat as unavailable for a while. The release is a new committed action, recorded and auditable. If compensation itself fails, it is retried, because it must be idempotent, and the hold’s expiry acts as a safety net. Nothing is undone invisibly.'],
+      ['How do you decide the order of saga steps?', 'I put the steps that are cheap and easy to compensate first, and the steps that cannot be undone last. A seat hold with an expiry goes first, because releasing it is simple and it expires on its own if a compensation is lost. Payment comes next, because it is the step most likely to fail permanently, and its compensation, a refund, is well defined. Issuing the ticket and sending the confirmation email come last, because an email cannot be unsent. I also check which step should be the pivot, the point after which the saga only moves forward with retries. Once payment succeeds, issuing the ticket should be retried until it works rather than compensated.'],
+      ['Orchestration or choreography for the booking saga?', 'I would choose orchestration for booking. One saga orchestrator holds the saga state in its database: hold done, payment pending, and so on. It sends commands to inventory, payment and ticketing through an outbox, and decides on retries or compensation. That keeps the whole flow in one place, so it is easy to test, to see where a stuck booking is, and to change the order of steps. Choreography, where each service reacts to the previous event, works well for two or three loosely coupled steps, but the flow becomes implicit and hard to debug as it grows. In both styles every message carries the saga ID and every handler is idempotent.']
+    ],
+    check: ['In SagaRun.java the card is declined after the hold succeeded. What happens?',
+      ['The saga retries the payment forever', 'The hold is compensated (released) and the saga ends CANCELLED', 'The ticket is issued anyway', 'A database rollback removes the hold as if it never happened'], 1,
+      'A permanent failure triggers compensation of completed steps in reverse order. The release is a new, visible action.'],
+    practice: ['Copy SagaRun.java. Make the ticket step fail permanently after payment succeeded, and compensate payment and then the hold. Persist the saga state in a map after every step, and show that a restarted orchestrator resumes a saga stuck in "payment done".',
+      ['Compensations run as: refund, then release hold.', 'A duplicated refund message is skipped.', 'A restarted orchestrator continues from the persisted state without repeating completed actions.', 'One paragraph explains the pivot step for this saga.']],
+    references: [['microservices.io · Saga pattern', 'https://microservices.io/patterns/data/saga.html'], ['Azure Architecture Center · Compensating Transaction pattern', 'https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction'], ['Garcia-Molina and Salem · Sagas (1987, PDF)', 'https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf']]
+  },
+  'h-queues-02.dsa': {
+    notes: [
+      'Union-find (disjoint set union) maintains a partition of items into groups and answers two questions quickly: which group does x belong to (find), and merge the groups of a and b (union). Each group is a tree, and the root identifies the group. find walks up to the root, and union attaches one root under the other.',
+      'Two optimizations make every operation almost O(1), in amortized inverse-Ackermann time. Path compression, or the path halving used in DisjointSet.java, makes nodes on a find path point closer to the root, so later finds are short. Union by size attaches the smaller tree under the larger one, so trees stay shallow. In DisjointSet.java, seven saga events linked by "caused by" pairs fall into 3 groups: one saga with five events (hold, charge, ticket, refund, release) and two lone holds. union(2, 5) returns false, because both events are already in the same saga.',
+      'Union-find appears in many interview problems: number of connected components, redundant connection (the first edge whose union returns false closes a cycle in an undirected graph), accounts merge by shared email, and Kruskal’s minimum spanning tree. It only merges, never splits, so if groups must be divided later you need a different structure or a rebuild. For a directed relationship, such as a dependency order, use DFS or topological sort instead.'
+    ],
+    code: {
+      title: 'DisjointSet.java · union-find with path halving and union by size, grouping saga events · java DisjointSet.java',
+      text: String.raw`import java.util.*;
+
+public class DisjointSet {
+    // Union-find with path compression and union by size: near-constant time per operation.
+    private final int[] parent, size;
+
+    DisjointSet(int n) {
+        parent = new int[n]; size = new int[n];
+        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+    }
+
+    int find(int x) {
+        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }   // path halving
+        return x;
+    }
+
+    boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;                      // already connected
+        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra; size[ra] += size[rb];
+        return true;
+    }
+
+    public static void main(String[] args) {
+        // Events 0..6. A pair (a, b) means "event b was caused by event a" (same saga / correlation).
+        String[] events = {"hold A1", "charge ana", "ticket A1", "hold B2", "refund ana", "release A1", "hold C3"};
+        int[][] causedBy = {{0, 1}, {1, 2}, {3, 3}, {1, 4}, {4, 5}};
+        DisjointSet ds = new DisjointSet(events.length);
+        for (int[] p : causedBy) ds.union(p[0], p[1]);
+
+        Map<Integer, List<String>> groups = new TreeMap<>();
+        for (int i = 0; i < events.length; i++) groups.computeIfAbsent(ds.find(i), k -> new ArrayList<>()).add(events[i]);
+        System.out.println("sagas: " + groups.size());
+        groups.values().forEach(g -> System.out.println("  " + g));
+        System.out.println("union(2, 5) adds a link: " + ds.union(2, 5));
+    }
+}
+`,
+      output: String.raw`sagas: 3
+  [hold A1, charge ana, ticket A1, refund ana, release A1]
+  [hold B2]
+  [hold C3]
+union(2, 5) adds a link: false`
+    },
+    takeaways: ['find returns the root; union links roots.', 'Path compression plus union by size gives near-constant amortized time.', 'union returning false means already connected (a cycle edge).', 'Merges only; no splits.'],
+    interview: [
+      ['Count the connected components of an undirected graph with n nodes and a list of edges.', 'I create a union-find with n singleton sets and a counter starting at n. For each edge (a, b), I call union. If it returns true, two different components merged, so I decrement the counter. If it returns false, the nodes were already connected. At the end the counter is the number of components. With path compression and union by size, each operation is effectively constant time, so the total is about O(n + e) time and O(n) space. A DFS or BFS from each unvisited node gives the same answer in O(n + e), but union-find also works when edges arrive one at a time.'],
+      ['Find the edge that, when removed, leaves a tree (redundant connection).', 'I process the edges in the given order with a union-find. For each edge (a, b), if find(a) equals find(b), then a and b are already connected through earlier edges, so this edge closes a cycle and is the redundant one. I return it. Otherwise I union them and continue. Because a tree with n nodes has n − 1 edges and the input has exactly one extra, the first edge that fails to union is the answer the problem asks for, the last one in input order that can be removed. The time is near O(n) and the space O(n). This works for undirected graphs. The directed version needs extra handling for nodes with two parents.'],
+      ['Why do path compression and union by size matter?', 'Without them, unions can build a long chain, for example by always attaching the bigger tree under a single node, and find becomes O(n) per call, so n operations cost O(n²). Union by size, or by rank, always hangs the smaller tree under the root of the larger one, which keeps every tree’s height O(log n). Path compression goes further: during find, it points nodes on the path at or closer to the root, flattening the tree for future queries. Together they give an amortized cost of O(α(n)) per operation, where α is the inverse Ackermann function, which is at most 4 for any practical n.']
+    ],
+    check: ['After union(0,1), union(1,2) and union(3,4), what does union(2, 0) return?',
+      ['true, because 2 and 0 were not directly linked', 'false: 0 and 2 already share a root through 1', 'It throws, because the edge was not given', 'true, and it creates a cycle'], 1,
+      'find(2) and find(0) return the same root, so nothing is merged and union returns false.'],
+    practice: ['Copy DisjointSet.java. Solve number of provinces from an adjacency matrix, and accounts merge for 4 accounts sharing emails. Add a count() method that tracks the number of groups.',
+      ['Provinces for [[1,1,0],[1,1,0],[0,0,1]] = 2.', 'Accounts sharing any email are merged, and emails are sorted.', 'count() equals the number of groups after every union.', 'State the amortized time per operation.']],
+    references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
+  },
   // @@packets
 };
 
@@ -675,6 +2484,34 @@ export const lateDistractors = {
     ['Hard-coded in the system prompt and edited by redeploying the app.', 'In the model’s weights through a nightly fine-tune of all policies.'],
     ['Nothing new, because the provider handles all evaluation.', 'Only a one-time training cost; no further maintenance is needed.']
   ],
+  44: [
+    ['A screenshot of the seat map after one successful booking.', 'A load-balancer health check that returns 200 OK.'],
+    ['Whichever application instance received the request first.', 'The help assistant, because it reads the current policy.']
+  ],
+  45: [
+    ['That the code is correct for every possible schedule and input.', 'Only that the program compiled without errors.'],
+    ['The number of lines of code written.', 'A list of buzzwords that match the job description.']
+  ],
+  46: [
+    ['A full record of every object on the heap.', 'A continuous recording of CPU use over the last hour.'],
+    ['The number of tasks that can wait cheaply at once.', 'The memory cost of a blocked thread.']
+  ],
+  47: [
+    ['Any method with @Transactional, however it is called.', 'A database trigger that Spring installs at startup.'],
+    ['Open and close a database connection for each column.', 'Generate the SQL for a query from the entity class.']
+  ],
+  48: [
+    ['How long the token may be cached by the browser.', 'Which scopes the user selected on the consent screen.'],
+    ['The client secret sent in the authorization redirect URL.', 'A nonce stored in the user’s ID token by the API.']
+  ],
+  49: [
+    ['Browser-to-server file uploads only.', 'Server-to-server RPC with generated stubs.'],
+    ['That the server has reserved the seat for this browser.', 'That every other client has already seen the same event.']
+  ],
+  50: [
+    ['The broker’s acknowledgement and the consumer’s offset commit.', 'Every service’s database write in one distributed transaction.'],
+    ['Each event is delivered exactly once, so no check is needed.', 'Events always arrive in global timestamp order across partitions.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -684,6 +2521,20 @@ export const lateExplanations = {
     'Retry only transient failures, within the remaining deadline and cost budget, with backoff and jitter. Parallel fan-out multiplies cost, and a 400 will fail the same way again.'],
   43: ['Frequently changing facts belong in a maintained source read at request time, so edits apply at once and answers can cite them. Prompts and weights both freeze a copy that goes stale.',
     'Fine-tuning creates a model lifecycle. You curate data, train, deploy a new version, and rerun regression evaluations whenever the data or base model changes.'],
+  44: ['A defensible demo starts from a known fixture, runs written commands and compares observable results with expectations written beforehand. Anyone can rerun it from a clean checkout.',
+    'Only the database’s conditional write serializes competing claims across instances. Instance order, caches and the model are advisory and can be stale or wrong.'],
+  45: ['One controlled run is evidence about its stated scenario only. Throughput, resilience and other schedules need their own experiments.',
+    'A strong trade-off answer says what constraint changed, what you decided, what evidence supported it and what the decision costs or leaves unproven.'],
+  46: ['A thread dump is a point-in-time snapshot of stacks and states. Take several and compare them, because one sample cannot prove a thread is stuck.',
+    'Virtual threads make waiting cheap, which changes how many tasks can wait. The connection pool still has the same number of connections.'],
+  47: ['Advice lives in the proxy, so only calls that pass through it are intercepted. Self-invocation, private methods and constructor calls never reach the proxy.',
+    'JdbcTemplate moves the cursor and calls mapRow once per row. The mapper only turns that row into a value. It does not manage transactions, connections or SQL.'],
+  48: ['aud names the intended recipients. An API must reject a token whose audience does not include it, even when the signature and expiry are valid.',
+    'PKCE binds the code to the client: the authorization request carries a hash (challenge), and the token exchange must present the matching verifier, which only the real client knows.'],
+  49: ['SSE is a one-way stream from server to browser over ordinary HTTP. Bidirectional or upload-heavy flows need WebSockets or normal requests.',
+    'A live update reports something that happened at the source. It reserves nothing and guarantees nothing about future requests or other clients.'],
+  50: ['The outbox makes one database’s state change and its event record commit together. Publication and remote side effects stay separate, and they are at least once.',
+    'Relays retry, and brokers redeliver after failures. Consumers must treat a repeated event ID as already handled.'],
   // @@explanations
 };
 
@@ -712,6 +2563,62 @@ export const lateAssessment = {
     { question: 'Which statement about LoRA is correct?',
       choices: ['It retrains every weight of the base model', 'It trains small low-rank adapter weights while the base weights stay frozen', 'It is a retrieval method for long documents', 'It removes the need for an evaluation set'], answer: 1,
       explanation: 'LoRA freezes the base model and learns small low-rank updates. It lowers training cost but does not change the need to evaluate and deploy carefully.' }
+  ],
+  44: [
+    { question: 'Two instances each run "SELECT owner FROM seat WHERE id = \'A1\'", see NULL, and then run "UPDATE seat SET owner = ? WHERE id = \'A1\'". What can happen?',
+      choices: ['Nothing bad, because each instance has its own connection', 'Both updates succeed and the last writer silently replaces the first owner', 'The second UPDATE always fails with a constraint error', 'PostgreSQL merges the two owners into one row'], answer: 1,
+      explanation: 'Check-then-act across two statements lets both callers pass the check. Without "AND owner IS NULL" in the UPDATE and a rows-affected check, both report success.' },
+    { question: 'Your race test has passed 500 rounds. What is the most accurate claim?',
+      choices: ['The booking service handles any production load', 'The invariant held for 500 rounds of the tested interleavings and fixture', 'Concurrency bugs are impossible in this code', 'The database no longer needs a conditional write'], answer: 1,
+      explanation: 'A passing race test is evidence for the tested conditions only. Combine it with the design argument and a test shown to fail on a broken version.' }
+  ],
+  45: [
+    { question: 'In ExpenseSplit.java, why is money stored as long paise rather than double rupees?',
+      choices: ['Because long is faster to print', 'Because integer arithmetic is exact, so balances sum to exactly zero after splits', 'Because double cannot hold values above Rs 1,000', 'Because Java has no decimal type'], answer: 1,
+      explanation: 'Binary floating point cannot represent most decimal fractions exactly, so errors accumulate. Integer paise plus an explicit remainder rule keeps every total exact.' },
+    { question: 'Two AI variants both pass a written acceptance bar on a 40-question set. One scores 2.5 points higher and costs eight times as much. What is the best default?',
+      choices: ['Ship the more accurate one, because higher is always better', 'Ship the cheaper one and grow the eval set before revisiting', 'Ship both and let users choose', 'Discard the bar and pick by intuition'], answer: 1,
+      explanation: 'Both meet the bar, and 2.5 points is one question on a 40-question set, which is within noise. Choose the cheaper variant and collect more evidence.' }
+  ],
+  46: [
+    { question: 'Which command includes virtual threads in a JDK 21 thread dump?',
+      choices: ['jcmd <pid> Thread.print', 'jcmd <pid> Thread.dump_to_file -format=json <file>', 'jcmd <pid> GC.heap_info', 'java -Xss1m'], answer: 1,
+      explanation: 'On JDK 21, Thread.print lists platform threads. Thread.dump_to_file writes a dump that includes virtual threads, in plain text or JSON.' },
+    { question: 'On JDK 21, a virtual thread performs a slow socket read inside a synchronized block. What is the risk?',
+      choices: ['None, because virtual threads always unmount when blocking', 'The virtual thread is pinned to its carrier, so under load the small carrier pool can be starved', 'The JVM converts it to a platform thread permanently', 'The socket read is cancelled'], answer: 1,
+      explanation: 'Blocking while holding a monitor pins the virtual thread in JDK 21. Prefer ReentrantLock or move the I/O outside the lock.' }
+  ],
+  47: [
+    { question: 'A REQUIRED inner method throws a RuntimeException. The outer @Transactional method catches it and returns normally. What happens at commit?',
+      choices: ['The outer writes commit and the inner writes roll back', 'Everything rolls back and the caller gets UnexpectedRollbackException', 'Everything commits, because the exception was caught', 'Spring retries the inner method'], answer: 1,
+      explanation: 'The inner failure marked the shared transaction rollback-only. The outer commit attempt therefore rolls back everything and reports UnexpectedRollbackException.' },
+    { question: 'A page lists 50 bookings and runs one extra query per booking to load the user name. How many queries is that, and what is a fix?',
+      choices: ['1, which is already optimal', '51, so use a JOIN or one batched IN query', '50, so add an index', '2, so cache the page'], answer: 1,
+      explanation: 'One query for the list plus one per row is the N+1 pattern. A JOIN, or a second query with WHERE id IN (...), loads the names in one round trip.' }
+  ],
+  48: [
+    { question: 'A booking:read token calls POST /bookings, which needs booking:write. The token is otherwise valid. Which response is correct?',
+      choices: ['401 with error="invalid_token"', '403 with error="insufficient_scope"', '200 with an error message in the body', '500, because the scope is unknown'], answer: 1,
+      explanation: 'The credentials are valid but lack the needed scope. RFC 6750 uses 403 insufficient_scope. Getting a new token of the same kind will not help.' },
+    { question: 'u1’s token has a valid booking:write scope. u1 calls DELETE /bookings/b-200, owned by u2. What prevents the cancellation?',
+      choices: ['The signature check', 'An object-level check that the booking owner equals the token subject', 'The audience check', 'Nothing; scope is sufficient'], answer: 1,
+      explanation: 'Scopes grant kinds of action, not access to every object. Broken object-level authorization is OWASP API1:2023, so the service must compare the owner with token.sub.' }
+  ],
+  49: [
+    { question: 'Which concern belongs in the service rather than the API gateway?',
+      choices: ['Per-client rate limiting', 'Checking that a booking belongs to the token’s subject', 'Attaching a request ID', 'Routing /api/bookings to booking-service'], answer: 1,
+      explanation: 'Ownership needs the service’s data and must hold even if a request bypasses the gateway. Rate limits, request IDs and routing are edge concerns.' },
+    { question: 'After a network drop, the browser’s EventSource reconnects. What lets the server resume without losing events?',
+      choices: ['The browser resends every event it received', 'The Last-Event-ID header with the id of the last event the browser saw', 'A WebSocket upgrade', 'A new login'], answer: 1,
+      explanation: 'Each SSE event carries an id. On reconnect EventSource sends Last-Event-ID, and the server replays retained events after it, or signals a reset.' }
+  ],
+  50: [
+    { question: 'A booking commits, then the process crashes before calling producer.send(). Without an outbox, what is lost?',
+      choices: ['Nothing, because Kafka replays it', 'The event: the booking exists but no one is ever notified', 'The booking row', 'Only the consumer offset'], answer: 1,
+      explanation: 'Commit-then-publish has a gap. The outbox closes it by storing the event in the same local transaction as the booking.' },
+    { question: 'Which statement about saga compensation is correct?',
+      choices: ['It restores the database to its exact earlier state, invisibly', 'It is a new, visible business action, such as a refund or a hold release, that must be idempotent', 'It is only needed when the database supports two-phase commit', 'It runs in the same order as the original steps'], answer: 1,
+      explanation: 'Each saga step commits locally. Undoing it means a new compensating action, run in reverse order and safe to repeat.' }
   ],
   // @@assessment
 };
@@ -746,6 +2653,34 @@ export const lateStretchPlans = {
         acceptance: ['Four paragraphs written before opening notes.', 'At least one missed point marked per paragraph.'] }
     ]
   },
+  49: {
+    assign: { 'h-api-01.packet': 45, 'h-realtime-01.packet': 45, 'h-api-01.stretch': 40, 'h-api-01.dsa.packet': 30 },
+    extra: [
+      { id: 'h-realtime-01.stretch-lab', minutes: 50, title: 'Stretch lab · a resumable live seat stream',
+        prompt: 'Extend SseReplay.java into a stream that stays open: publish one seat event per second, kill the client connection at event 4, reconnect with Last-Event-ID, and then force a gap larger than the history. Add GET /seats returning the state plus its latest event ID, and make the client recover from the reset with it.',
+        acceptance: ['Every event is received exactly once across the forced reconnect.', 'After a gap the client reloads the snapshot and resumes from its ID with no missing or duplicate event.', 'Booking still happens through a POST, and the stream is never used to claim a seat.', 'One paragraph comparing this with a WebSocket design for the same feature.'] },
+      { id: 'h-api-01.stretch-set', minutes: 35, title: 'Stretch DSA · three more circular-buffer and queue problems',
+        prompt: 'In one Java file solve: (1) design a circular queue with enqueue, dequeue, front, rear, isEmpty and isFull; (2) moving average of the last k numbers from a stream using a ring; (3) a hit counter that returns hits in the last 300 seconds using 300 buckets. Write the time and space of each before coding.',
+        acceptance: ['The circular queue passes full, empty and wrap-around tests.', 'Moving average of 1, 10, 3, 5 with k = 3 gives 1.0, 5.5, 4.67, 6.0.', 'The hit counter ignores hits older than 300 s, using O(300) memory.', 'Time and space written for all three.'] },
+      { id: 'h-api-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · API style and real-time choices',
+        prompt: 'Answer aloud in 2 minutes each, without notes: when to use gRPC over REST; what belongs in a gateway; SSE versus WebSockets for live seats; how a client recovers from a stream gap; how live updates reach clients on many instances. Then compare with today’s model answers.',
+        acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  50: {
+    assign: { 'h-queues-02.packet': 45, 'h-reliability-03.packet': 45, 'h-queues-02.stretch': 40, 'h-queues-02.dsa.packet': 30 },
+    extra: [
+      { id: 'h-reliability-03.stretch-lab', minutes: 50, title: 'Stretch lab · outbox plus saga, end to end',
+        prompt: 'Combine OutboxRelay.java and SagaRun.java: every saga command is written to an outbox in the same transaction as the saga state, a relay delivers commands at least once, and each service handler deduplicates by command ID. Run three scenarios: success, payment declined, and a relay crash that duplicates the payment command.',
+        acceptance: ['Success confirms with one charge and one ticket.', 'A declined payment releases the hold exactly once.', 'A duplicated payment command does not charge twice.', 'One table lists each failure, the mechanism that handles it and the observed result.'] },
+      { id: 'h-queues-02.stretch-set', minutes: 35, title: 'Stretch DSA · three more union-find problems',
+        prompt: 'In one Java file solve: (1) number of provinces from an adjacency matrix; (2) accounts merge by shared email; (3) the earliest time everyone becomes friends, given time-stamped friendships. Write the time and space of each before coding.',
+        acceptance: ['Provinces for [[1,1,0],[1,1,0],[0,0,1]] = 2.', 'Accounts with any shared email are merged, with emails sorted.', 'The earliest-friends time is the first log time where the group count becomes 1, or −1 if never.', 'Time and space written for all three.'] },
+      { id: 'h-reliability-03.stretch-review', minutes: 25, title: 'Stretch review · weekend recap without notes',
+        prompt: 'Without opening notes, write one paragraph each on: the gateway’s job, SSE recovery after a gap, why the outbox exists, why consumers must be idempotent, and compensation versus rollback. Then open the notes and mark what you missed.',
+        acceptance: ['Five paragraphs written before opening notes.', 'At least one missed point marked per paragraph.'] }
+    ]
+  },
   // @@stretch
 };
 
@@ -766,5 +2701,41 @@ export const lateInterviewGuides = {
     'Consider customization only for a reproducible behavior gap: the same kind of input keeps producing the wrong style, format or classification, even with an adequate prompt, the right evidence and simpler fixes already tried. First I define the metric for that behavior, for example "answers ≤ 60 words that end with a citation", and keep a held-out test set so I can see real improvement rather than memorization. Knowledge problems are different. A missing or frequently changing policy belongs in retrieval with controlled provenance, so edits take effect immediately and answers can cite them. Fine-tuning facts into weights would freeze them and remove the ability to check permissions per user.',
     'Keep the evidence and the labeled inputs fixed, and change only the instructions. I would test a more explicit style rubric (length, tone, structure), add two or three strong examples (few-shot), and require a structured output shape such as JSON with an answer and a citations field. Then I measure style compliance alongside readability, groundedness and cost per request on held-out tasks, so a style gain that hurts accuracy is visible. If one of these variants closes the gap, no training is needed. Fine-tuning becomes a candidate only when a stable, measured style gap survives the comparison and the task is stable enough to justify a model lifecycle.',
     'When the real problem is knowledge, not behavior. If a policy is missing, unavailable or outdated, training on labeled examples teaches the model yesterday’s answer and makes it sound confident about it. Fine-tuning also cannot cite a source or respect per-user access. The fix is a reliable, authorized evidence path: retrieval from the maintained policy store, with checks that the answer matches the cited passage, plus an evaluation of freshness and of correct abstention when evidence is missing. Factual authority should stay where the organization can update it in minutes. A further sign that fine-tuning is a poor fix is training data full of outdated answers or personal information.'
-  ]
+  ],
+  44: [
+    'One changed requirement is that booking must keep working when the AI provider is down. I first state the invariant: one confirmed owner per seat, decided by the database’s conditional write. Then I trace the paths: the help feature reads policies and calls the model, and booking never waits on either. The trade-off I make is that help degrades to a static policy page with a link instead of retrying for a long time, because a slow help answer is worse than an honest fallback. My demo shows a normal cited answer, then a forced provider timeout that returns the fallback within the deadline, and a booking for another seat that still commits.',
+    'The single claim authority must change first. Today one PostgreSQL primary serializes every claim. With cross-region confirmation I need either one primary authority for each seat that every region calls, which costs latency for remote users, a store that agrees across regions using a consensus protocol, or exclusive seat ownership per region, so a region never confirms a seat it does not own. Whichever I choose, I add fencing so an old leader cannot keep confirming after a failover, and I define partition behavior. The safe default is to reject or queue claims when agreement is impossible, so availability drops but the one-owner rule holds. Browsing holds can stay local.',
+    'A two-instance contention test supports one claim: for the tested fixture and code paths, exactly one claim commits and the losers get 409. It shows the decision lives in the shared database rather than in instance memory. It does not support claims about throughput, tail latency, connection-pool limits, hot-seat contention at scale or failover behavior. Those need a load run with a representative mix of reads and claims, many concurrent writers on one hot event, injected failures, and measurements of p95/p99 latency, error rates and an invariant check after the run. In an interview I link each claim to the command and output that produced it, and I say plainly which claims I have not measured.'
+  ],
+  45: [
+    'My feature is seat booking with one confirmed owner per seat. I enforced it with a conditional UPDATE in PostgreSQL that succeeds only while the seat is unowned, and I store each reply under an idempotency key so retries replay. Under a two-instance race with eight clients, exactly one claim returned 201 in every round, and the others returned 409. One limitation is that I have not measured hot-event throughput. All claims for a popular seat serialize on one row, so latency will rise. For ten times the traffic, I would put a waiting room or a bounded queue in front of the claim, then run a hot-event load test and watch p95 claim latency, pool waits and an invariant check.',
+    'I would answer precisely and not overclaim. The test shows that under the stated fixture, eight concurrent clients across two instances with one database, exactly one claim committed and the other clients received 409, repeated over 200 rounds. That is evidence for the ownership invariant on those code paths. It is not evidence of resilience under production load. That claim would need a representative load mix of reads and claims, many concurrent writers on a hot event, injected failures such as database timeouts and instance restarts, and measurements of p95/p99 latency, error rates and an invariant check after the run. I would describe the experiment I would run next and the result that would change my design.',
+    'Evidence that adds an independent, production-like constraint changes the strength of the claim. Examples are a hot-key load run with p95 and p99 latency, a test with a lagging read replica showing the claim still goes to the primary, a forced database timeout showing retries replay rather than double-book, or an outbox retry that delivers each event exactly once to consumers that deduplicate. For each one I record the baseline, the configuration, the expected invariant and the observed metrics. Evidence that only repeats the same happy path many times does not strengthen the claim much. In the interview, I tie each sentence to a result I actually reproduced and label the rest as next steps.'
+  ],
+  46: [
+    'Virtual threads make each waiting task cheap. When a virtual thread blocks on I/O, the JVM parks it and frees the carrier thread, so one service can hold many thousands of in-flight requests with simple blocking code. They do not add database connections, CPU cores or provider quota. If 1,000 tasks reach a pool of 10 connections at once, 990 still wait, and many may time out. I protect the pool by bounding admission in front of it with a Semaphore of 10 permits, or the pool’s own bounded wait, acquired with a timeout and released in finally. I measure permit wait time, pool wait and completion rate, and I reject early when the wait would exceed the request deadline.',
+    'I need to see where the tasks are waiting and how the downstream behaves at different concurrency levels. A thread dump that includes virtual threads, from jcmd Thread.dump_to_file, or a JFR recording, shows whether tasks wait at my semaphore, inside the connection pool, or on the socket to the downstream service. From downstream metrics I need latency, error rate and any documented concurrency limit. Then I run the same load at several limits, for example 4, 8 and 16, and plot throughput, p95/p99 latency and timeout rate. I choose the smallest limit where throughput is near its peak and tail latency stays within the budget. A huge backlog with rising timeouts means the current limit is above what the downstream can serve.',
+    'Every resource that does not get cheaper still needs an explicit limit: database connections, concurrent calls to each downstream service or model provider, sockets and file descriptors, request queues, heap for in-flight request data, and CPU-heavy work. CPU-bound tasks belong on a bounded platform pool sized near the number of cores. Deadlines also need to be explicit: a timeout on acquiring a permit, on getting a connection and on each remote call, plus a defined rejection response such as 503 with Retry-After. Cheap threads make it easy to accept far more work than the system can finish, so admission control becomes more important, not less. On JDK 21, avoid blocking inside synchronized to prevent pinning carriers.'
+  ],
+  47: [
+    'An external call through the Spring bean crosses the proxy, for example a controller calling bookingService.book() on the injected bean. That proxy begins the transaction, calls the real method, and commits or rolls back. A call from one method to another inside the same object, this.save(), goes straight to the target and gets no advice. For a rollback, the exception must leave the method through the proxy. By default only RuntimeException and Error roll back, and checked exceptions commit unless rollbackFor names them. The writes must also go through the transaction’s connection, which JdbcTemplate and JPA do automatically. I verify by reading the table from a separate connection after the call, not from the same session.',
+    'First, the proxy boundary: is the method called from another bean through the injected proxy, or through self-invocation, a constructor or a non-Spring object, which would bypass the advice entirely? I check this with TransactionSynchronizationManager.isActualTransactionActive() inside the method, or with transaction debug logging. Second, the rollback rule and exception path. A checked exception commits by default, so the annotation needs rollbackFor = Exception.class or the specific type, and the exception must not be caught and logged inside the method. I would also confirm that both writes use the same transactional DataSource, because a second DataSource or a manually opened connection would commit on its own. Then I compare rows through a separate connection.',
+    'With REQUIRED, the outer transaction’s owner controls the final commit or rollback. The inner method joins the existing transaction and does not commit by itself. If the inner method throws a RuntimeException through its proxy, Spring marks the shared transaction rollback-only. Even if the outer method catches the exception, its commit becomes a rollback, and Spring throws UnexpectedRollbackException so the caller knows. With REQUIRES_NEW, the inner method owns its own independent transaction: the outer one is suspended, the inner commits or rolls back by itself on a second connection, and then the outer resumes. I state which propagation each method uses and test the failure path from an external caller.'
+  ],
+  48: [
+    'Authentication establishes who the caller is, for example by validating a signed token from a trusted issuer. Authorization decides whether that caller may perform this action on this resource. The audience check makes sure the token was issued for this API: aud must include booking-api, so a token minted for help-api cannot be replayed against the booking API, even though its signature is valid. The scope check makes sure the client was granted this kind of action, such as booking:write for POST /bookings. Neither proves ownership, so the service still compares the booking owner with the token subject. Signature, issuer, expiry or audience failures return 401. A missing scope returns 403.',
+    'The audience check distinguishes it. The token’s signature, issuer and expiry are valid, because the same authorization server issued it, but its aud claim names help-api rather than booking-api. The booking API must require its own identifier in aud and reject the token with 401 invalid_token before looking at scopes. Otherwise any service that receives a user’s token, including a less trusted one such as an AI help feature, could use it to act on bookings. In Spring Boot I set spring.security.oauth2.resourceserver.jwt.audiences, or add a custom audience validator, because it is not checked by default. If help-api needs booking data, it gets its own read-only token whose audience is booking-api.',
+    'I would build signed token fixtures with a test key and a fixed clock, and send the same request with each one. No Authorization header, a malformed token, a bad signature, an expired token, the wrong issuer and the wrong audience must all return 401 with WWW-Authenticate: Bearer error="invalid_token" where a token was presented. A correctly signed, in-date token for booking-api with only booking:read must return 403 insufficient_scope on POST /bookings. A valid booking:write token for another user’s booking must return 404. A valid write token for the caller’s own booking must succeed. I also assert that no booking row changed for any rejected case, by checking the database, not just the status.'
+  ],
+  49: [
+    'For a mostly server-to-browser flow such as live seat availability, I would choose server-sent events. SSE uses an ordinary long-lived HTTP response, works through standard proxies and load balancers, and the browser’s EventSource reconnects automatically. Each event carries an increasing id. On reconnect the browser sends Last-Event-ID, and the server replays retained events after it. If the requested ID is older than the retained history, the server sends a reset, and the client reloads a snapshot with its stream position, then resumes. Writes stay ordinary POST requests to the booking API. WebSockets would only be worth their extra reconnection and heartbeat work if the browser also sent frequent messages.',
+    'The client should reconnect with the ID of the last event it applied, which EventSource does automatically through Last-Event-ID, using a backoff with jitter so thousands of clients do not reconnect in the same second. The server replays every retained event after that ID, and the client applies them in order, ignoring any ID it has already applied. If the server says the history no longer covers the gap, or the client detects a jump in IDs, the client fetches a fresh snapshot of seat availability that includes the stream position it reflects, replaces its local view, and resumes from that position. Throughout, the displayed state is advisory. A booking attempt still goes to the authoritative API and may return 409.',
+    'gRPC is preferable for internal service-to-service calls that I control on both ends, where a strongly typed contract generated from .proto files, compact Protocol Buffers encoding, HTTP/2 multiplexing, deadlines and streaming matter. An example is booking-service calling pricing-service or seat-inventory many times per request with tight latency budgets. Public browser-oriented REST is better for external clients and browsers. It works everywhere without a proxy, uses standard HTTP caching and status codes, and is easy to inspect with common tools. gRPC in browsers needs gRPC-Web and a translating proxy, and its binary payloads are harder to debug. Many systems use both: REST at the edge and gRPC behind the gateway.'
+  ],
+  50: [
+    'The outbox makes the local state change and the event record atomic, so an event exists exactly when its booking committed. Delivery after that is still at least once. The relay can publish an event and then crash before marking the row sent, so it publishes again after restart, and the broker can also redeliver after consumer failures. Consumers therefore deduplicate by event ID in the same transaction as their effect. A saga handles a failed step differently from a transaction. Each step has already committed locally, so when a later step fails permanently, the orchestrator runs compensating actions, such as refund or release hold, for the completed steps in reverse order. Those actions are visible, recorded and idempotent.',
+    'The relay will publish the same event again, with the same event ID, because the row still looks unsent. The consumer protects its effect by making the deduplication record and the effect part of one local transaction. It inserts the event ID into a processed_events table with a unique key and performs its write, for example queueing the confirmation email, in the same commit. On replay the insert fails, or a lookup finds the ID, so the consumer skips the effect and acknowledges the message. If the consumer crashed before its commit, neither the marker nor the effect exists, so reprocessing is correct. For external calls, the event ID becomes the idempotency key of that call.',
+    'The saga should mark the payment step as failed and run the compensation for every step that already committed, in reverse order. Here it releases the seat hold, then marks the booking saga as cancelled and informs the user. This differs from rolling back a transaction. A rollback discards uncommitted changes, so it is as if they never happened, and nobody else could have seen them. The hold did commit, so other users may have seen the seat as unavailable. Releasing it is a new, committed business action that is logged, may be retried, and must be idempotent in case the release message is delivered twice. The hold’s expiry is a safety net if compensation is delayed.'
+  ],
+  // @@guides
 };

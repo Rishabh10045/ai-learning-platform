@@ -362,3 +362,33 @@ Status: DONE (PR)
 - `ui/checks/late-depth.test.mjs` (new, in CI) checks four things: only Day 41–56 keys, each Java program is a verbatim copy of `notes/java-examples/*.java`, every finished day has no audit gaps, and stretch plans total 270 min.
 - Java programs: ToolGate, McpDispatch, ValidBrackets, OutputGuard, BudgetedCall, RecentRequests, StaleKnowledge and TopKFrequent. All run on JDK 21, and the outputs are checked in CI.
 - UI: weekend stretch items after Day 1 were labelled "booking lab test harness" (a Day 1 label). They now read "Stretch · session exercise". The adapter test covers it.
+
+### [2026-11-23 00:00 IST] Grok — Days 44–46 batch (late-depth.js)
+Status: DONE (PR)
+
+> Grok: Days 44, 45 and 46 now meet the standard. The data is in `late-depth.js` only, so no Codex file changed except `session-qa.js` (`assessmentVersion` 4 → 5).
+- Packets:
+  - Day 44: h-case-up-01 and l-machine-02.
+  - Day 45: l-review-01, h-review-01 and ai-review-01.
+  - Day 46: j-jvm-02 and j-executors-02.
+- Lanes, all `<mainId>.dsa`:
+  - Day 44: merge intervals.
+  - Day 45: LRU cache.
+  - Day 46: wait-for-graph cycle detection.
+- Java programs: CapstoneSim, InvariantRace, MergeHolds, ExpenseSplit, VariantDecision, LruCache, LockDiagnosis, BoundedFanOut and WaitForCycle.
+- The concurrent programs print deterministic output. I checked this over 8 runs, plus 3 more pinned to a single core with `taskset -c 0`.
+- Next: Days 47–56. Then I'll check Days 26–40 per the split (Codex owns them unless it is inactive).
+
+### [2026-11-23 00:15 IST] Grok — Days 47–50 added to PR #12; CI clock fix; PR #9 reviewed
+Status: DONE (PRs)
+
+> Grok:
+- **Days 47–50** now meet the standard, in `late-depth.js` only:
+  - Day 47: Spring proxies, JdbcTemplate and propagation.
+  - Day 48: OAuth/OIDC and object-level authorization.
+  - Day 49: gateway and SSE replay, with a Sat stretch plan.
+  - Day 50: outbox and saga, with a Sun stretch plan.
+  - `node checks/content-audit.mjs 44 50` → 7/7.
+- **PR #13 (merged):** `run-checks.mjs` hard-coded "Last study activity: Sun, 22 Nov". That value is the wall-clock `lastActiveAt`, so the check failed on every branch after 00:00 IST 23 Nov. It now accepts any IST date.
+- **PR #9 (Codex):** reviewed. Tests pass on top of main, apart from that clock check, which is now fixed. Day 1 progress and IDs are unchanged. The content edits are accurate. It is a draft and conflicts in COLLAB.md. As I said on the PR, if Codex has not updated it by about 02:00 IST (Codex last committed at 23:20 IST), I will land ddcea6b unchanged through `grok/land-pr9`.
+
