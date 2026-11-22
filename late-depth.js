@@ -93,6 +93,15 @@ export const lateLanes = {
     readings: [reading('Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html')],
     recall: 'How does a ring buffer decide which slot an event goes into, and how do you detect that a reconnecting client is too far behind?'
   },
+  50: {
+    title: 'Union-find: group events into sagas',
+    concept: 'Union-find keeps items in disjoint groups. find(x) walks to the group’s root, and union(a, b) links two roots. Path compression and union by size make both nearly O(1) amortized. union returns false when a and b are already connected.',
+    example: 'Seven events with "caused by" links {0,1}, {1,2}, {3,3}, {1,4}, {4,5} form 3 groups: one saga of five events and two lone holds. union(2, 5) returns false.',
+    practice: 'Implement DisjointSet with find (path halving) and union (by size). Then count connected components for n = 5 and edges [[0,1],[1,2],[3,4]], and find the redundant edge in [[1,2],[1,3],[2,3]].',
+    checks: ['Groups match the example, and union(2, 5) = false.', 'Components = 2, and the redundant edge = [2,3].', 'Explain why union by size keeps trees shallow.'],
+    readings: [reading('Java 21 API · Arrays', jdk + 'java/util/Arrays.html')],
+    recall: 'What do find and union do in a disjoint set, and what does it mean when union returns false?'
+  },
   // @@lanes
 };
 
@@ -2227,6 +2236,236 @@ since 1: gap, resync from snapshot`
       ['Enqueue on a full queue returns false, and dequeue on an empty one returns null.', 'After wrapping three times, front and rear are correct.', 'since() and append() are safe under concurrent use.', 'State the time and space of each operation.']],
     references: [['Java 21 API · ArrayDeque', jdk + 'java/util/ArrayDeque.html']]
   },
+  'h-queues-02': {
+    notes: [
+      'After a booking commits, other parts of the system need to know: email, analytics, the live seat stream. The naive code commits the booking and then publishes a message to the broker. If the process crashes between those two steps, the booking exists but no event is ever sent. If you publish first and the commit then fails, consumers act on a booking that does not exist. A database and a broker cannot commit atomically together without a distributed transaction, which most systems avoid.',
+      'The transactional outbox fixes the producer side. In the same local database transaction as the booking row, insert an outbox row containing the event: its ID, type and payload. Either both commit or neither does. A separate relay then reads unsent outbox rows, publishes them to the broker and marks them sent. The relay can poll the table, or use change data capture: Debezium reads the database log and its Outbox Event Router routes the rows to topics.',
+      'The relay can still crash after publishing and before marking the row sent. On restart it publishes the same event again, so delivery is at least once and consumers must expect duplicates. OutboxRelay.java shows exactly this: the event reaches the broker twice. The consumer is idempotent: in one local transaction it inserts the event ID into a processed_events table, which has a unique key, and performs its effect. A duplicate fails the insert, or finds the ID, and is ignored, so only one confirmation email is queued.',
+      'Practical details: give every event a stable unique ID created with the outbox row, not at publish time. Keep events ordered per aggregate by using the booking or seat ID as the partition key. Delete or archive sent outbox rows on a schedule. Keep the processed-events table long enough to cover the broker’s maximum redelivery window. Kafka’s idempotent producer and transactions help inside Kafka, but they do not make your database write and an external side effect, such as sending an email, atomic. The idempotent consumer pattern still applies.'
+    ],
+    code: {
+      title: 'OutboxRelay.java · booking + outbox in one transaction, a relay crash, and an idempotent consumer · java OutboxRelay.java',
+      text: String.raw`import java.util.*;
+
+public class OutboxRelay {
+    // Producer database: the booking row and its outbox row are written in ONE local transaction.
+    record OutboxRow(String eventId, String payload) {}
+    static final Map<String, String> bookings = new LinkedHashMap<>();
+    static final List<OutboxRow> outbox = new ArrayList<>();
+    static final Set<String> sentIds = new HashSet<>();
+
+    static synchronized void bookSeat(String seat, String user) {      // BEGIN ... COMMIT
+        bookings.put(seat, user);
+        outbox.add(new OutboxRow("evt-" + seat, "SeatBooked " + seat + " " + user));
+    }
+
+    // Broker: delivers at least once, so duplicates are possible.
+    static final List<OutboxRow> broker = new ArrayList<>();
+
+    // Relay: reads unsent rows, publishes, then marks them sent. It may crash between the two steps.
+    static void relay(boolean crashBeforeMarking) {
+        for (OutboxRow row : outbox) {
+            if (sentIds.contains(row.eventId())) continue;
+            broker.add(row);                                              // publish succeeded
+            if (crashBeforeMarking) { System.out.println("relay crashed after publishing " + row.eventId()); return; }
+            sentIds.add(row.eventId());
+        }
+    }
+
+    // Consumer database: the side effect and the "processed" marker commit together.
+    static final Set<String> processed = new HashSet<>();
+    static final List<String> emailsQueued = new ArrayList<>();
+
+    static synchronized void consume(OutboxRow event) {                 // BEGIN ... COMMIT
+        if (!processed.add(event.eventId())) { System.out.println("duplicate " + event.eventId() + " ignored"); return; }
+        emailsQueued.add("confirmation for " + event.payload());
+    }
+
+    public static void main(String[] args) {
+        bookSeat("A1", "ana");
+        relay(true);       // publishes evt-A1, crashes before marking it sent
+        relay(false);      // restarts, sees evt-A1 still unsent, publishes it again
+        System.out.println("events on the broker: " + broker.size());
+        for (OutboxRow e : broker) consume(e);
+        System.out.println("confirmation emails queued: " + emailsQueued.size());
+        System.out.println("booking and event agree: " + (bookings.containsKey("A1") && sentIds.contains("evt-A1")));
+    }
+}
+`,
+      output: String.raw`relay crashed after publishing evt-A1
+events on the broker: 2
+duplicate evt-A1 ignored
+confirmation emails queued: 1
+booking and event agree: true`
+    },
+    takeaways: ['Write the state change and its outbox row in one local transaction.', 'A relay publishes unsent rows; a crash before marking sent causes a duplicate.', 'Delivery is at least once, so consumers deduplicate by event ID in the same transaction as their effect.', 'Partition by aggregate ID to keep per-booking order.'],
+    interview: [
+      ['Why use a transactional outbox instead of publishing to Kafka right after the commit?', 'Because the database commit and the publish are two separate systems, and the process can crash between them. Commit-then-publish can lose the event forever: the booking exists, but nobody is told. Publish-then-commit can announce a booking that rolled back. With an outbox, the booking and an outbox row containing the event commit in one local transaction, so the event exists exactly when the booking does. A relay, either a poller or change data capture such as Debezium, then publishes outbox rows and marks them sent. The remaining failure is a duplicate when the relay crashes after publishing, which consumers handle by deduplicating on the event ID.'],
+      ['How does a consumer stay correct when the same event arrives twice?', 'It makes the effect idempotent by recording the event ID and performing the effect in the same local transaction. For example, it inserts into processed_events(event_id) with a unique constraint and inserts the email job in the same commit. If the event arrives again, the insert hits the constraint, or a lookup finds the ID, and the consumer skips the effect and acknowledges the message. If the consumer crashes before committing, neither the marker nor the effect exists, so a redelivery processes it correctly. For effects outside the database, such as calling a payment API, I pass the event ID as that API’s idempotency key.'],
+      ['Publishing succeeded but marking the outbox row sent failed. What happens next?', 'The row still looks unsent, so after the relay restarts, or on its next poll, it publishes the same event again with the same event ID. The broker now holds two copies, and both may be delivered. That is expected with an outbox: it guarantees at-least-once delivery, not exactly-once. The consumer protects its effect by checking and recording the event ID in the same transaction as the effect, so the second copy changes nothing. I would also monitor the outbox for rows that stay unsent for too long, which signals a stuck relay, and make sure the relay processes rows in order for each aggregate key.']
+    ],
+    check: ['In OutboxRelay.java the relay crashes after publishing evt-A1 and before marking it sent. After restart, how many confirmation emails are queued?',
+      ['Two, one per delivered copy', 'One: the consumer records evt-A1 as processed and ignores the duplicate', 'Zero, because the crash lost the event', 'It depends on the broker'], 1,
+      'The event is delivered twice, but the consumer’s processed-ID check in the same transaction as its effect keeps the effect single.'],
+    practice: ['Copy OutboxRelay.java. Add a second booking, make the consumer crash after recording the ID but before queueing the email, and fix it so the marker and the effect commit together. Then add a cleanup job that deletes sent outbox rows older than a cutoff.',
+      ['A consumer crash before commit leads to correct reprocessing, with one email per booking.', 'Duplicates of both events are ignored.', 'The cleanup never deletes unsent rows.', 'One sentence on why the event ID is created with the outbox row.']],
+    references: [['microservices.io · Transactional outbox', 'https://microservices.io/patterns/data/transactional-outbox.html'], ['microservices.io · Idempotent consumer', 'https://microservices.io/patterns/communication-style/idempotent-consumer.html'], ['Debezium · Outbox Event Router', 'https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html'], ['Apache Kafka · Message delivery semantics', 'https://kafka.apache.org/documentation/#semantics']]
+  },
+  'h-reliability-03': {
+    notes: [
+      'A booking that spans services, such as holding a seat in inventory, charging a card in payments and issuing a ticket, cannot use one database transaction. A saga splits the business transaction into local transactions, one per service. Each step commits on its own and has a compensating action that semantically undoes it: release the hold, refund the charge, void the ticket. If a later step fails permanently, the saga runs the compensations for the completed steps in reverse order.',
+      'Compensation is not rollback. A rollback makes it as if nothing happened. A compensation is a new, visible business action: the customer may see a charge and then a refund, and the seat was briefly unavailable to others. Design steps so compensation is possible and acceptable. Put steps that cannot be undone, such as sending a ticket email, last, and put the step most likely to fail early. Holds with expiry are a good first step, because even a lost compensation is corrected by the timeout.',
+      'Separate transient failures from permanent ones. A timeout or a 503 may succeed on retry, so retry a bounded number of times with backoff, using an idempotency key so a retry cannot charge twice. A declined card is permanent, so compensate immediately. SagaRun.java shows both. In the first run the payment times out once, succeeds on retry and the saga confirms. In the second the card is declined, the hold is released and the saga cancels. A duplicated compensation message is skipped, because compensations must be idempotent too.',
+      'Choose orchestration or choreography. In orchestration, one coordinator, such as a booking saga service or a workflow engine like Temporal, tells each service what to do and records the saga’s state durably, which makes the flow easy to see and test. In choreography, each service reacts to the previous service’s events, which has fewer central parts but makes the overall flow hard to follow as it grows. Either way, persist the saga state, emit steps through an outbox, make every step and compensation idempotent, and alert on sagas stuck in a non-final state.'
+    ],
+    code: {
+      title: 'SagaRun.java · an orchestrated saga with retries, reverse-order compensation and idempotent compensations · java SagaRun.java',
+      text: String.raw`import java.util.*;
+
+public class SagaRun {
+    // An orchestrated saga: each step has an action and a compensation. On a permanent failure, completed steps
+    // are compensated in reverse order. Each step commits locally; there is no global rollback.
+    record Step(String name, String action, String compensation) {}
+
+    static final List<String> log = new ArrayList<>();
+    static final Set<String> compensated = new HashSet<>();   // makes compensation idempotent
+
+    static boolean perform(Step s, Map<String, Integer> transientFailures, Set<String> permanentFailures) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            int left = transientFailures.getOrDefault(s.name(), 0);
+            if (permanentFailures.contains(s.name())) { log.add(s.name() + ": permanent failure (card declined)"); return false; }
+            if (left > 0) { transientFailures.put(s.name(), left - 1); log.add(s.name() + ": attempt " + attempt + " timed out, retrying"); continue; }
+            log.add(s.name() + ": " + s.action());
+            return true;
+        }
+        log.add(s.name() + ": gave up after 3 attempts");
+        return false;
+    }
+
+    static void compensate(Step s) {
+        if (!compensated.add(s.name())) { log.add(s.name() + ": compensation already done, skipped"); return; }
+        log.add(s.name() + ": COMPENSATE " + s.compensation());
+    }
+
+    static String run(String title, Map<String, Integer> transientFailures, Set<String> permanentFailures) {
+        log.clear(); compensated.clear();
+        List<Step> steps = List.of(
+                new Step("hold", "seat A1 held for 10 min", "release hold on A1"),
+                new Step("payment", "card charged Rs 500", "refund Rs 500"),
+                new Step("ticket", "ticket T-1 issued", "void ticket T-1"));
+        Deque<Step> done = new ArrayDeque<>();
+        String outcome = "CONFIRMED";
+        for (Step s : steps) {
+            if (perform(s, new HashMap<>(transientFailures), permanentFailures)) { done.push(s); continue; }
+            outcome = "CANCELLED";
+            while (!done.isEmpty()) compensate(done.pop());   // reverse order
+            break;
+        }
+        System.out.println(title);
+        log.forEach(l -> System.out.println("  " + l));
+        return outcome;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("  => " + run("1. payment times out once, then succeeds", Map.of("payment", 1), Set.of()));
+        System.out.println("  => " + run("2. payment is declined", Map.of(), Set.of("payment")));
+        compensate(new Step("hold", "", "release hold on A1"));   // a duplicated compensation message arrives
+        System.out.println("  " + log.get(log.size() - 1));
+    }
+}
+`,
+      output: String.raw`1. payment times out once, then succeeds
+  hold: seat A1 held for 10 min
+  payment: attempt 1 timed out, retrying
+  payment: card charged Rs 500
+  ticket: ticket T-1 issued
+  => CONFIRMED
+2. payment is declined
+  hold: seat A1 held for 10 min
+  payment: permanent failure (card declined)
+  hold: COMPENSATE release hold on A1
+  => CANCELLED
+  hold: compensation already done, skipped`
+    },
+    takeaways: ['A saga is a sequence of local transactions, each with a compensation.', 'Compensation is a visible business action, not a rollback.', 'Retry transient failures with idempotency keys; compensate on permanent ones.', 'Orchestration is easier to observe; persist saga state and alert on stuck sagas.'],
+    interview: [
+      ['A payment permanently fails after the seat hold committed. What should the saga do, and how is that different from a rollback?', 'The saga records the payment failure and runs the compensations of the completed steps in reverse order. Here that is only the hold, so it releases the hold on the seat and marks the booking saga as cancelled. It then tells the user the payment was declined. This is different from a database rollback, because the hold really committed and other users may have seen the seat as unavailable for a while. The release is a new committed action, recorded and auditable. If compensation itself fails, it is retried, because it must be idempotent, and the hold’s expiry acts as a safety net. Nothing is undone invisibly.'],
+      ['How do you decide the order of saga steps?', 'I put the steps that are cheap and easy to compensate first, and the steps that cannot be undone last. A seat hold with an expiry goes first, because releasing it is simple and it expires on its own if a compensation is lost. Payment comes next, because it is the step most likely to fail permanently, and its compensation, a refund, is well defined. Issuing the ticket and sending the confirmation email come last, because an email cannot be unsent. I also check which step should be the pivot, the point after which the saga only moves forward with retries. Once payment succeeds, issuing the ticket should be retried until it works rather than compensated.'],
+      ['Orchestration or choreography for the booking saga?', 'I would choose orchestration for booking. One saga orchestrator holds the saga state in its database: hold done, payment pending, and so on. It sends commands to inventory, payment and ticketing through an outbox, and decides on retries or compensation. That keeps the whole flow in one place, so it is easy to test, to see where a stuck booking is, and to change the order of steps. Choreography, where each service reacts to the previous event, works well for two or three loosely coupled steps, but the flow becomes implicit and hard to debug as it grows. In both styles every message carries the saga ID and every handler is idempotent.']
+    ],
+    check: ['In SagaRun.java the card is declined after the hold succeeded. What happens?',
+      ['The saga retries the payment forever', 'The hold is compensated (released) and the saga ends CANCELLED', 'The ticket is issued anyway', 'A database rollback removes the hold as if it never happened'], 1,
+      'A permanent failure triggers compensation of completed steps in reverse order. The release is a new, visible action.'],
+    practice: ['Copy SagaRun.java. Make the ticket step fail permanently after payment succeeded, and compensate payment and then the hold. Persist the saga state in a map after every step, and show that a restarted orchestrator resumes a saga stuck in "payment done".',
+      ['Compensations run as: refund, then release hold.', 'A duplicated refund message is skipped.', 'A restarted orchestrator continues from the persisted state without repeating completed actions.', 'One paragraph explains the pivot step for this saga.']],
+    references: [['microservices.io · Saga pattern', 'https://microservices.io/patterns/data/saga.html'], ['Azure Architecture Center · Compensating Transaction pattern', 'https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction'], ['Garcia-Molina and Salem · Sagas (1987, PDF)', 'https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf']]
+  },
+  'h-queues-02.dsa': {
+    notes: [
+      'Union-find (disjoint set union) maintains a partition of items into groups and answers two questions quickly: which group does x belong to (find), and merge the groups of a and b (union). Each group is a tree, and the root identifies the group. find walks up to the root, and union attaches one root under the other.',
+      'Two optimizations make every operation almost O(1), in amortized inverse-Ackermann time. Path compression, or the path halving used in DisjointSet.java, makes nodes on a find path point closer to the root, so later finds are short. Union by size attaches the smaller tree under the larger one, so trees stay shallow. In DisjointSet.java, seven saga events linked by "caused by" pairs fall into 3 groups: one saga with five events (hold, charge, ticket, refund, release) and two lone holds. union(2, 5) returns false, because both events are already in the same saga.',
+      'Union-find appears in many interview problems: number of connected components, redundant connection (the first edge whose union returns false closes a cycle in an undirected graph), accounts merge by shared email, and Kruskal’s minimum spanning tree. It only merges, never splits, so if groups must be divided later you need a different structure or a rebuild. For a directed relationship, such as a dependency order, use DFS or topological sort instead.'
+    ],
+    code: {
+      title: 'DisjointSet.java · union-find with path halving and union by size, grouping saga events · java DisjointSet.java',
+      text: String.raw`import java.util.*;
+
+public class DisjointSet {
+    // Union-find with path compression and union by size: near-constant time per operation.
+    private final int[] parent, size;
+
+    DisjointSet(int n) {
+        parent = new int[n]; size = new int[n];
+        for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+    }
+
+    int find(int x) {
+        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }   // path halving
+        return x;
+    }
+
+    boolean union(int a, int b) {
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;                      // already connected
+        if (size[ra] < size[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra; size[ra] += size[rb];
+        return true;
+    }
+
+    public static void main(String[] args) {
+        // Events 0..6. A pair (a, b) means "event b was caused by event a" (same saga / correlation).
+        String[] events = {"hold A1", "charge ana", "ticket A1", "hold B2", "refund ana", "release A1", "hold C3"};
+        int[][] causedBy = {{0, 1}, {1, 2}, {3, 3}, {1, 4}, {4, 5}};
+        DisjointSet ds = new DisjointSet(events.length);
+        for (int[] p : causedBy) ds.union(p[0], p[1]);
+
+        Map<Integer, List<String>> groups = new TreeMap<>();
+        for (int i = 0; i < events.length; i++) groups.computeIfAbsent(ds.find(i), k -> new ArrayList<>()).add(events[i]);
+        System.out.println("sagas: " + groups.size());
+        groups.values().forEach(g -> System.out.println("  " + g));
+        System.out.println("union(2, 5) adds a link: " + ds.union(2, 5));
+    }
+}
+`,
+      output: String.raw`sagas: 3
+  [hold A1, charge ana, ticket A1, refund ana, release A1]
+  [hold B2]
+  [hold C3]
+union(2, 5) adds a link: false`
+    },
+    takeaways: ['find returns the root; union links roots.', 'Path compression plus union by size gives near-constant amortized time.', 'union returning false means already connected (a cycle edge).', 'Merges only; no splits.'],
+    interview: [
+      ['Count the connected components of an undirected graph with n nodes and a list of edges.', 'I create a union-find with n singleton sets and a counter starting at n. For each edge (a, b), I call union. If it returns true, two different components merged, so I decrement the counter. If it returns false, the nodes were already connected. At the end the counter is the number of components. With path compression and union by size, each operation is effectively constant time, so the total is about O(n + e) time and O(n) space. A DFS or BFS from each unvisited node gives the same answer in O(n + e), but union-find also works when edges arrive one at a time.'],
+      ['Find the edge that, when removed, leaves a tree (redundant connection).', 'I process the edges in the given order with a union-find. For each edge (a, b), if find(a) equals find(b), then a and b are already connected through earlier edges, so this edge closes a cycle and is the redundant one. I return it. Otherwise I union them and continue. Because a tree with n nodes has n − 1 edges and the input has exactly one extra, the first edge that fails to union is the answer the problem asks for, the last one in input order that can be removed. The time is near O(n) and the space O(n). This works for undirected graphs. The directed version needs extra handling for nodes with two parents.'],
+      ['Why do path compression and union by size matter?', 'Without them, unions can build a long chain, for example by always attaching the bigger tree under a single node, and find becomes O(n) per call, so n operations cost O(n²). Union by size, or by rank, always hangs the smaller tree under the root of the larger one, which keeps every tree’s height O(log n). Path compression goes further: during find, it points nodes on the path at or closer to the root, flattening the tree for future queries. Together they give an amortized cost of O(α(n)) per operation, where α is the inverse Ackermann function, which is at most 4 for any practical n.']
+    ],
+    check: ['After union(0,1), union(1,2) and union(3,4), what does union(2, 0) return?',
+      ['true, because 2 and 0 were not directly linked', 'false: 0 and 2 already share a root through 1', 'It throws, because the edge was not given', 'true, and it creates a cycle'], 1,
+      'find(2) and find(0) return the same root, so nothing is merged and union returns false.'],
+    practice: ['Copy DisjointSet.java. Solve number of provinces from an adjacency matrix, and accounts merge for 4 accounts sharing emails. Add a count() method that tracks the number of groups.',
+      ['Provinces for [[1,1,0],[1,1,0],[0,0,1]] = 2.', 'Accounts sharing any email are merged, and emails are sorted.', 'count() equals the number of groups after every union.', 'State the amortized time per operation.']],
+    references: [['Java 21 API · Arrays', jdk + 'java/util/Arrays.html']]
+  },
   // @@packets
 };
 
@@ -2269,6 +2508,10 @@ export const lateDistractors = {
     ['Browser-to-server file uploads only.', 'Server-to-server RPC with generated stubs.'],
     ['That the server has reserved the seat for this browser.', 'That every other client has already seen the same event.']
   ],
+  50: [
+    ['The broker’s acknowledgement and the consumer’s offset commit.', 'Every service’s database write in one distributed transaction.'],
+    ['Each event is delivered exactly once, so no check is needed.', 'Events always arrive in global timestamp order across partitions.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -2290,6 +2533,8 @@ export const lateExplanations = {
     'PKCE binds the code to the client: the authorization request carries a hash (challenge), and the token exchange must present the matching verifier, which only the real client knows.'],
   49: ['SSE is a one-way stream from server to browser over ordinary HTTP. Bidirectional or upload-heavy flows need WebSockets or normal requests.',
     'A live update reports something that happened at the source. It reserves nothing and guarantees nothing about future requests or other clients.'],
+  50: ['The outbox makes one database’s state change and its event record commit together. Publication and remote side effects stay separate, and they are at least once.',
+    'Relays retry, and brokers redeliver after failures. Consumers must treat a repeated event ID as already handled.'],
   // @@explanations
 };
 
@@ -2367,6 +2612,14 @@ export const lateAssessment = {
       choices: ['The browser resends every event it received', 'The Last-Event-ID header with the id of the last event the browser saw', 'A WebSocket upgrade', 'A new login'], answer: 1,
       explanation: 'Each SSE event carries an id. On reconnect EventSource sends Last-Event-ID, and the server replays retained events after it, or signals a reset.' }
   ],
+  50: [
+    { question: 'A booking commits, then the process crashes before calling producer.send(). Without an outbox, what is lost?',
+      choices: ['Nothing, because Kafka replays it', 'The event: the booking exists but no one is ever notified', 'The booking row', 'Only the consumer offset'], answer: 1,
+      explanation: 'Commit-then-publish has a gap. The outbox closes it by storing the event in the same local transaction as the booking.' },
+    { question: 'Which statement about saga compensation is correct?',
+      choices: ['It restores the database to its exact earlier state, invisibly', 'It is a new, visible business action, such as a refund or a hold release, that must be idempotent', 'It is only needed when the database supports two-phase commit', 'It runs in the same order as the original steps'], answer: 1,
+      explanation: 'Each saga step commits locally. Undoing it means a new compensating action, run in reverse order and safe to repeat.' }
+  ],
   // @@assessment
 };
 
@@ -2412,6 +2665,20 @@ export const lateStretchPlans = {
       { id: 'h-api-01.stretch-interview', minutes: 25, title: 'Stretch interview drill · API style and real-time choices',
         prompt: 'Answer aloud in 2 minutes each, without notes: when to use gRPC over REST; what belongs in a gateway; SSE versus WebSockets for live seats; how a client recovers from a stream gap; how live updates reach clients on many instances. Then compare with today’s model answers.',
         acceptance: ['Five answers recorded or written.', 'One missed point noted for each.'] }
+    ]
+  },
+  50: {
+    assign: { 'h-queues-02.packet': 45, 'h-reliability-03.packet': 45, 'h-queues-02.stretch': 40, 'h-queues-02.dsa.packet': 30 },
+    extra: [
+      { id: 'h-reliability-03.stretch-lab', minutes: 50, title: 'Stretch lab · outbox plus saga, end to end',
+        prompt: 'Combine OutboxRelay.java and SagaRun.java: every saga command is written to an outbox in the same transaction as the saga state, a relay delivers commands at least once, and each service handler deduplicates by command ID. Run three scenarios: success, payment declined, and a relay crash that duplicates the payment command.',
+        acceptance: ['Success confirms with one charge and one ticket.', 'A declined payment releases the hold exactly once.', 'A duplicated payment command does not charge twice.', 'One table lists each failure, the mechanism that handles it and the observed result.'] },
+      { id: 'h-queues-02.stretch-set', minutes: 35, title: 'Stretch DSA · three more union-find problems',
+        prompt: 'In one Java file solve: (1) number of provinces from an adjacency matrix; (2) accounts merge by shared email; (3) the earliest time everyone becomes friends, given time-stamped friendships. Write the time and space of each before coding.',
+        acceptance: ['Provinces for [[1,1,0],[1,1,0],[0,0,1]] = 2.', 'Accounts with any shared email are merged, with emails sorted.', 'The earliest-friends time is the first log time where the group count becomes 1, or −1 if never.', 'Time and space written for all three.'] },
+      { id: 'h-reliability-03.stretch-review', minutes: 25, title: 'Stretch review · weekend recap without notes',
+        prompt: 'Without opening notes, write one paragraph each on: the gateway’s job, SSE recovery after a gap, why the outbox exists, why consumers must be idempotent, and compensation versus rollback. Then open the notes and mark what you missed.',
+        acceptance: ['Five paragraphs written before opening notes.', 'At least one missed point marked per paragraph.'] }
     ]
   },
   // @@stretch
@@ -2464,6 +2731,11 @@ export const lateInterviewGuides = {
     'For a mostly server-to-browser flow such as live seat availability, I would choose server-sent events. SSE uses an ordinary long-lived HTTP response, works through standard proxies and load balancers, and the browser’s EventSource reconnects automatically. Each event carries an increasing id. On reconnect the browser sends Last-Event-ID, and the server replays retained events after it. If the requested ID is older than the retained history, the server sends a reset, and the client reloads a snapshot with its stream position, then resumes. Writes stay ordinary POST requests to the booking API. WebSockets would only be worth their extra reconnection and heartbeat work if the browser also sent frequent messages.',
     'The client should reconnect with the ID of the last event it applied, which EventSource does automatically through Last-Event-ID, using a backoff with jitter so thousands of clients do not reconnect in the same second. The server replays every retained event after that ID, and the client applies them in order, ignoring any ID it has already applied. If the server says the history no longer covers the gap, or the client detects a jump in IDs, the client fetches a fresh snapshot of seat availability that includes the stream position it reflects, replaces its local view, and resumes from that position. Throughout, the displayed state is advisory. A booking attempt still goes to the authoritative API and may return 409.',
     'gRPC is preferable for internal service-to-service calls that I control on both ends, where a strongly typed contract generated from .proto files, compact Protocol Buffers encoding, HTTP/2 multiplexing, deadlines and streaming matter. An example is booking-service calling pricing-service or seat-inventory many times per request with tight latency budgets. Public browser-oriented REST is better for external clients and browsers. It works everywhere without a proxy, uses standard HTTP caching and status codes, and is easy to inspect with common tools. gRPC in browsers needs gRPC-Web and a translating proxy, and its binary payloads are harder to debug. Many systems use both: REST at the edge and gRPC behind the gateway.'
+  ],
+  50: [
+    'The outbox makes the local state change and the event record atomic, so an event exists exactly when its booking committed. Delivery after that is still at least once. The relay can publish an event and then crash before marking the row sent, so it publishes again after restart, and the broker can also redeliver after consumer failures. Consumers therefore deduplicate by event ID in the same transaction as their effect. A saga handles a failed step differently from a transaction. Each step has already committed locally, so when a later step fails permanently, the orchestrator runs compensating actions, such as refund or release hold, for the completed steps in reverse order. Those actions are visible, recorded and idempotent.',
+    'The relay will publish the same event again, with the same event ID, because the row still looks unsent. The consumer protects its effect by making the deduplication record and the effect part of one local transaction. It inserts the event ID into a processed_events table with a unique key and performs its write, for example queueing the confirmation email, in the same commit. On replay the insert fails, or a lookup finds the ID, so the consumer skips the effect and acknowledges the message. If the consumer crashed before its commit, neither the marker nor the effect exists, so reprocessing is correct. For external calls, the event ID becomes the idempotency key of that call.',
+    'The saga should mark the payment step as failed and run the compensation for every step that already committed, in reverse order. Here it releases the seat hold, then marks the booking saga as cancelled and informs the user. This differs from rolling back a transaction. A rollback discards uncommitted changes, so it is as if they never happened, and nobody else could have seen them. The hold did commit, so other users may have seen the seat as unavailable. Releasing it is a new, committed business action that is logged, may be retried, and must be idempotent in case the release message is delivered twice. The hold’s expiry is a safety net if compensation is delayed.'
   ],
   // @@guides
 };

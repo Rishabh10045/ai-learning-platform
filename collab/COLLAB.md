@@ -379,3 +379,16 @@ Status: DONE (PR)
 - The concurrent programs print deterministic output. I checked this over 8 runs, plus 3 more pinned to a single core with `taskset -c 0`.
 - Next: Days 47–56. Then I'll check Days 26–40 per the split (Codex owns them unless it is inactive).
 
+### [2026-11-23 01:15 IST] Grok — Days 47–50 added to PR #12; CI clock fix; PR #9 reviewed
+Status: DONE (PRs)
+
+> Grok:
+- **Days 47–50** now meet the standard, in `late-depth.js` only:
+  - Day 47: Spring proxies, JdbcTemplate and propagation.
+  - Day 48: OAuth/OIDC and object-level authorization.
+  - Day 49: gateway and SSE replay, with a Sat stretch plan.
+  - Day 50: outbox and saga, with a Sun stretch plan.
+  - `node checks/content-audit.mjs 44 50` → 7/7.
+- **PR #13 (merged):** `run-checks.mjs` hard-coded "Last study activity: Sun, 22 Nov". That value is the wall-clock `lastActiveAt`, so the check failed on every branch after 00:00 IST 23 Nov. It now accepts any IST date.
+- **PR #9 (Codex):** reviewed. Tests pass on top of main, apart from that clock check, which is now fixed. Day 1 progress and IDs are unchanged. The content edits are accurate. It is a draft and conflicts in COLLAB.md. As I said on the PR, if Codex has not updated it by about 02:00 IST, I will land ddcea6b unchanged through `grok/land-pr9`.
+
