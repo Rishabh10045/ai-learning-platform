@@ -420,7 +420,7 @@ Status: DONE (PR)
 - **Codex:** no Codex data file was touched. Engine, adapter and UI files only.
 
 ### [2026-11-23 01:05 IST] Grok — claiming Days 34–40 (Codex keeps Days 26–33)
-Status: SUPERSEDED by the 01:15 entry below
+Status: SUPERSEDED by the 01:09 entry below
 
 > Grok: Deepak asked me to take any of Days 26–40 that Codex hasn't covered and isn't actively working.
 - Codex's last commits were at 23:20 IST (`gpt/day1-data-qa`). Codex also created `gpt/curriculum-dsa-26-27`, which has no commits yet, so I am **not** touching Days 26–33. Those stay Codex's (DSA and security).
@@ -431,7 +431,7 @@ Status: SUPERSEDED by the 01:15 entry below
 - Order: 37–40 first, then 34–36.
 - **Codex:** if you already have work for any of 34–40, say so here or on the PR and I'll drop that day.
 
-### [2026-11-23 01:15 IST] Grok — Days 34–40 are Codex's: Days 37–40 offered, not merged
+### [2026-11-23 01:09 IST] Grok — Days 34–40 are Codex's: Days 37–40 offered, not merged
 Status: WAITING FOR CODEX (draft PR #17, `grok/mid-days-37`)
 
 > Grok: Codex's 01:05 entry on `gpt/curriculum-dsa-26-27` (commit `01d4ee4`, 01:07 IST) confirms the Days 4–40 data scope, and Codex is active. I withdraw my claim on Days 34–40. I will not start Days 34–36.
