@@ -6328,6 +6328,14 @@ export const lateDistractors = {
     ['That the request body is well formed.', 'Which bookings the caller may read.'],
     ['Return the booking because scope is checked first.', 'Return 401 so the client signs in again.']
   ],
+  26: [
+    ['The number of seconds the scan takes.', 'The largest value stored in the array.'],
+    ['Binary search the array for each endpoint.', 'Cache the last query’s answer only.']
+  ],
+  27: [
+    ['The array is always sorted first.', 'The inner loop restarts at the beginning each time.'],
+    ['It moves to the current index.', 'It moves to one past the old duplicate, even if that is further left.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -6391,6 +6399,10 @@ export const lateExplanations = {
     'Taking interval i means nothing that overlaps it can be used, so its value is added to the best total of the jobs that end before it starts, best[p(i)].'],
   33: ['Authentication only proves who the caller is. What they may do, and to which resources, is authorization; input shape is validation.',
     'A scope grants a category of action, but the resource rule decides access to this booking. The caller is authenticated, so 401 is wrong; refuse with 403 or 404.'],
+  26: ['Complexity is stated in terms of the input size under a model, here the number of array elements, not a time or a value.',
+    'After one O(n) pass, prefix[r] − prefix[l] gives the sum of [l, r) with two lookups, so each query is O(1).'],
+  27: ['Each pointer only moves forward, so together they make at most 2n moves, which is O(n).',
+    'An occurrence before left is already outside the window. Moving left back to it would re-admit elements that were removed because of an earlier duplicate.'],
   // @@explanations
 };
 
@@ -6619,6 +6631,22 @@ export const lateAssessment = {
     { question: 'Which test would catch a handler that checks login but not ownership?',
       choices: ['The owner reads their own booking', 'An anonymous caller gets 401', 'A second signed-in user requests the owner’s booking and is refused', 'The response time is under 200 ms'], answer: 2,
       explanation: 'Only a different authenticated user exercises the ownership rule.' }
+  ],
+  26: [
+    { question: 'A method makes n HashSet insertions, and each ID is a string of up to m characters. What is a fair expected time bound?',
+      choices: ['O(1)', 'O(n)', 'O(n·m)', 'O(n²·m)'], answer: 2,
+      explanation: 'Hashing and comparing a string reads its characters, so each insertion is expected O(m).' },
+    { question: 'What is the peak stack depth of naive recursive Fibonacci F(n)?',
+      choices: ['O(1)', 'O(log n)', 'O(n)', 'O(2ⁿ)'], answer: 2,
+      explanation: 'The call tree is exponential, but Java explores one path at a time, and the deepest path has about n frames.' }
+  ],
+  27: [
+    { question: 'Why does a shrink-when-too-large sliding window fail when the array contains negative numbers?',
+      choices: ['Negative numbers cannot be summed in Java', 'The window sum is no longer monotone, so a discarded window might have led to a valid answer', 'Two pointers require a sorted array', 'The window becomes O(n²) memory'], answer: 1,
+      explanation: 'With all values non-negative, growing never decreases the sum. Negatives break that, so use prefix sums instead.' },
+    { question: 'In a sorted array, a[left] + a[right] is smaller than the target. Which move is safe?',
+      choices: ['right--', 'left++', 'Both pointers move', 'Restart from the middle'], answer: 1,
+      explanation: 'a[right] is the largest partner left, so a[left] cannot reach the target with anything; discard it.' }
   ],
   // @@assessment
 };
@@ -6899,6 +6927,16 @@ export const lateInterviewGuides = {
     'Besides the SUPPORT role, the service must check the booking’s venue against the venues assigned to that staff member. The assignment must come from trusted server-side data loaded for the authenticated user, not from a venue field in the request, because a caller could simply claim a different venue. For a single booking I compare the booking’s venue with the assigned set; for list endpoints I put the venue filter into the query so other venues’ bookings are never loaded. I test the same staff role against bookings in two venues: venue A succeeds and venue B is refused with the same response as a missing booking.',
     'The resource-level check belongs in the service or data-access code that performs the operation, not only in the URL rules or the token check. A scope such as booking:read says the caller may read bookings in general; it does not say which ones. So the service loads the booking with the ownership or venue condition, for example findByIdAndOwnerId, or checks it before returning data, and refuses otherwise. Putting the rule there means every controller, batch job or new endpoint that uses the service gets the same protection. I test it with a valid token that has the right scope but asks for another owner’s booking.'
   ],
+  26: [
+    'For set-based duplicate detection, the worst case is an input where every ID is different, for example n distinct booking IDs. The loop cannot stop early, so it reads all n items and stores all n keys in the HashSet, which gives expected O(n) time and O(n) extra space. An input with a repeated pair at the start finishes after two steps, which is the best case, not the worst. If IDs are long strings, hashing and comparing each one costs O(m) for length m, so the honest bound is expected O(n·m). I always name the input that reaches the bound I claim, rather than a convenient one.',
+    'Build a prefix-sum array once: prefix[0] = 0 and prefix[i + 1] = prefix[i] + a[i]. That costs one O(n) pass and O(n) memory. Then the count or sum for the half-open range [l, r) is prefix[r] − prefix[l], which is O(1) per query. With q queries the total is O(n + q) instead of O(n·q) for scanning each range. I define the endpoints clearly, return 0 for an empty range where l = r, and use long if sums can overflow int. This only works because the array does not change; with frequent updates I would use a Fenwick tree, which gives O(log n) updates and queries.',
+    'Naive Fibonacci calls F(n − 1) and F(n − 2), and both of those call smaller values again, so the call tree has roughly φⁿ nodes, where φ ≈ 1.618, and the same subproblems are recomputed many times. But Java runs one call at a time: it finishes the whole F(n − 1) branch before starting F(n − 2). Only the frames on the current path from the root are on the stack, and that path is at most n deep, so stack space is O(n). Memoization stores each F(k) after the first computation, so each of the n values is computed once: O(n) time, with O(n) space for the cache and the stack.'
+  ],
+  27: [
+    'For a window of distinct IDs, the invariant is that the window [left, right] never contains a repeated ID. When the new ID at right was last seen inside the window, I move left to one past that earlier index; if it was last seen before left, the window is already valid, so left stays. Left never moves backwards, so each pointer crosses the array once and the scan is O(n). For binary search on a predicate that is false and then true, the invariant is that the first true index is always inside the interval [lo, hi). Each step discards the half that cannot contain it, until lo equals hi.',
+    'The rule is left = max(left, previous[id] + 1), and then I record the current index as the latest position of that ID. If the earlier occurrence is inside the window, this moves left just past it, which removes the duplicate. If the earlier occurrence is already outside the window, previous[id] + 1 is at or before left, so max keeps left where it is. Trace a, b, b, a: at index 2 the second b moves left to 2. At index 3, a was last seen at 0, so previous + 1 = 1, and max(2, 1) keeps left at 2. Moving left back to 1 would put the duplicate b back into the window.',
+    'The predicate must be monotone over the index range: false for every index before some point and true from that point on, for example “start time ≥ 10:00” on a sorted list. I search the half-open interval [0, n). If mid is true, the first true is at mid or earlier, so I set hi = mid and keep mid as a candidate. If mid is false, the first true is after mid, so lo = mid + 1. The loop ends when lo = hi, which is the answer, and n means no index is true. I compute mid as lo + (hi − lo) / 2 and test an empty array, all false, all true and duplicates.'
+  ],
   // @@guides
 };
 
@@ -6907,6 +6945,16 @@ export const lateInterviewGuides = {
 // question text. topic-lessons.js replaces only the answer, and only while the question text still matches, so a
 // Codex edit to a question simply falls back to Codex's answer. ui/checks/late-depth.test.mjs checks every key.
 export const lateTopicAnswers = {
+  'd-complexity-01': {
+    'If an array scan stops at the first hit, can you still say worst-case Θ(n)?': 'Yes. Worst case means the maximum work over all inputs of size n, and early exit only improves some inputs. If the target is absent, or sits at the last index, the scan still makes n comparisons, so the worst case is Θ(n): it is both at most and at least linear for those inputs. The input that returns at index 0 is the best case, Θ(1). I state which case I mean, give the input that reaches it, and, if asked, the average case under an assumption such as a target equally likely at each position, which is about n/2 comparisons and still Θ(n).',
+    'What separates expected constant lookup from amortized constant append?': 'They are different guarantees. Expected O(1) for a HashMap lookup is an average over randomness, such as the hash function spreading keys evenly. A single lookup can still be slow if many keys collide, and Java bounds that by turning large buckets into trees. Amortized O(1) for ArrayList.add is a guarantee about a whole sequence of operations, with no probability involved. Most appends are O(1), and an occasional resize copies all elements, but because capacity grows by a constant factor, the total cost of n appends is O(n). So one append can cost O(n), yet n appends together never cost more than O(n).',
+    'What changes if comparing each string examines up to m characters?': 'Then a comparison is no longer a constant-time step. Comparing two strings of length up to m can take O(m), so an algorithm that does n comparisons costs O(n·m), and sorting n strings costs O(m·n log n) in the worst case. Hashing a string also reads all its characters, so building a HashSet of n strings is expected O(n·m). I say whether m is bounded, for example booking IDs of fixed length 12, in which case treating comparisons as O(1) is fair. If keys can be long, I keep m in the bound, and I may compare a cheap hash or length first.'
+  },
+  'd-pointers-01': {
+    'Why is moving the left pointer safe when the endpoint sum is too small?': 'The array is sorted, and right points to the largest value still available. If a[left] + a[right] is below the target, then a[left] plus any other remaining value is even smaller, because every other remaining value is at most a[right]. So no pair that uses a[left] can reach the target, and discarding left loses nothing. The symmetric argument says that when the sum is too large, a[right] cannot pair with anything and right moves inward. Each step removes one element for good, so the two pointers cross the array once and the scan is O(n) time with O(1) extra space.',
+    'What makes a shrink-on-large-sum strategy unreliable with negative numbers?': 'The variable-size window method assumes that adding an element never decreases the sum and removing one never increases it, which holds only when all values are non-negative. Then, once a window is too large, shrinking from the left is the only useful move. With negative numbers that monotonicity breaks: a later negative value can bring a longer window back under the limit, and a window discarded earlier might have been part of the best answer. For arbitrary signs I switch to prefix sums, for example a HashMap of prefix sums for “subarray sum equals k”, or a monotonic deque over prefix sums for the shortest subarray with sum at least k.',
+    'Do you skip duplicate values if asked for every index triplet?': 'No. Skipping duplicates is correct only when the answer is defined by unique value combinations, as in the classic 3Sum problem that returns each triple of values once. If the question asks for all index triplets i < j < k, then equal values at different positions are different answers and must each be counted or listed. So I first confirm the output contract. For unique value triples I sort and skip equal neighbours at each pointer. For index triplets I either enumerate them, or, when counting, multiply the frequencies of equal values, using combinations such as count choose 2 when two positions share a value.'
+  },
   'd-union-find-01': {
     'What invariant does the parent array maintain?': 'Each set forms a tree inside the parent array. Every element follows parent links to exactly one root, and the root, where parent[r] == r, is the representative of the set. Two elements are in the same set exactly when find returns the same root for both. Only roots carry a meaningful size. Union keeps the invariant by linking one root under the other, never an inner node, so no element ends up with two roots and no cycle forms. Path compression keeps it too, because it only re-points nodes to an ancestor in the same tree, which changes path lengths but never membership.',
     'Why combine union by size and path compression?': 'They attack different costs. Union by size attaches the smaller tree under the larger root, so an element gets one level deeper only when its set at least doubles. That bounds every path at log n even without compression. Path compression, or the simpler path halving, re-points the nodes visited by find towards the root, so the next find on any of them is shorter. Either alone gives O(log n) amortized per operation. Together they give O(α(n)) amortized, where α is the inverse Ackermann function, which is at most 4 for any input that fits in memory. In practice that means constant time per union or find.',
