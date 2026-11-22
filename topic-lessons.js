@@ -16,6 +16,42 @@ export const topicLessons = {
     check: ['Two different keys have the same hash. Can a HashMap hold both?', ['Yes, when equals distinguishes them.', 'Only when their values are identical.', 'No, the second must overwrite the first.'], 0, 'Hash collisions are allowed. Equality determines whether a found key is the same key.'],
     references: [['Dev.java · Choosing map keys', 'https://dev.java/learn/api/collections-and-streams/collections-framework/choosing-keys/']]
   },
+  'j-collections-01': {
+    notes: [
+      'Choose a collection by the operations and guarantees the caller needs. HashMap suits lookup by a stable ID when iteration order can vary. LinkedHashMap preserves insertion order by default and can maintain access order for an LRU design. TreeMap orders keys and supports range queries. A set models membership when each ID has no associated value.',
+      'OpenJDK 21 HashMap spreads the original hash into the lower bits with h ^ (h >>> 16), then uses (capacity - 1) & spreadHash to select a bucket in a power-of-two table. The strings Aa and BB both hash to 2112 and map to bucket 0 at capacity 16. Walk the candidates in that bucket and use equals to tell the keys apart. Both entries remain retrievable.',
+      'A default map allocates its first table on insertion. With capacity 16 and a load factor of 0.75, the threshold is 12. Adding a thirteenth distinct entry grows the table under ordinary distribution. A resize can split an old bucket using one newly significant hash bit, so its entries either remain at index i or move to i plus the old capacity. A collision-heavy bucket can prompt earlier growth. At sufficient capacity the implementation can represent a crowded bucket as a tree. These details belong to the implementation and vary across insertion paths.',
+      'The API describes expected constant time for ordinary get and put with well-distributed hashes. Tree bins help with collision-heavy inputs, and equally hashed non-comparable keys can still lead to broader searches. HashMap allows a null key and null values. Use containsKey when you need to distinguish a missing entry from a stored null. Updates by competing threads require a matching synchronization policy or a concurrent collection.',
+      'When a key changes in a field used by hashCode or equals, future lookups can miss a mapping that still contributes to size. For internal booking IDs use an immutable value type, and put mutable booking state in the value. For read-heavy caches measure hits, misses and latency separately. Use a reproducible workload before attributing slow lookups to collisions.'
+    ],
+    takeaways: [
+      'Pick a map by lookup, ordering, range and concurrency requirements.',
+      'The hash selects candidates. Key equality identifies the entry.',
+      'Keep key identity stable. Put mutable booking state in the value.',
+      'Treat growth and tree bins as OpenJDK implementation details.',
+      'Use containsKey to distinguish a missing key from a stored null.'
+    ],
+    practice: ['Spend 20 minutes running HashIndex.java and BrokenKey.java from the reading links with Java 21 source-file mode. Predict the results first, then change the capacity to 32 in HashIndex and explain which bucket indices can change. Next store a null value and compare get and containsKey for that key and an absent one.', [
+      'Aa and BB report the same hash and bucket. Their independent lookups return 1 and 2.',
+      'The record key looks up the stored value A. The mutated list key trial keeps size 1 and lookup returns null in the supplied Java 21 example.',
+      'Explain the low-bit mask at capacities 16 and 32. A present null value and an absent key both return null from get, while containsKey distinguishes them.',
+      'State one case for LinkedHashMap and one case for TreeMap.'
+    ]],
+    interview: [
+      ['How does HashMap retrieve Aa and BB correctly when their hashes match?', 'The stored hash narrows the candidates. equals distinguishes the keys inside the bucket, so distinct keys retain distinct values.'],
+      ['How does the current OpenJDK implementation redistribute entries when the table doubles?', 'It inspects one higher address bit in the spread hash. Entries remain at the old index when that bit is zero and move by the old capacity when it is one.'],
+      ['What happens when a list used as a key gains another element?', 'Its hash or equality can change. Lookup using the modified key may miss the original entry, which still occupies the table. Use an immutable key or a defensive copy.'],
+      ['When would you replace this map with LinkedHashMap, TreeMap or ConcurrentHashMap?', 'Choose LinkedHashMap for stable insertion or access order, TreeMap for sorted ranges, and ConcurrentHashMap for shared concurrent lookups and atomic updates per key, with a different null policy.'],
+      ['Can you promise logarithmic lookup for every collision-heavy key in a tree bin?', 'The implementation can search broadly when hashes match and keys provide no usable comparable order. Discuss hash quality and key behavior before promising a bound.']
+    ],
+    check: ['The map contains an ID whose stored value is null. Which operation can distinguish it from an absent ID?', ['get', 'containsKey', 'hashCode'], 1, 'get can return null in either case. containsKey checks membership directly.'],
+    references: [
+      ['Java 21 API · HashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html'],
+      ['OpenJDK 21 · HashMap implementation', 'https://github.com/openjdk/jdk/blob/jdk-21-ga/src/java.base/share/classes/java/util/HashMap.java'],
+      ['Java lab · HashIndex.java', 'https://github.com/Rishabh10045/ai-learning-platform/blob/109a37d8c0b049b26a1ffbd2088f31bf6c0cd14e/collab/qa/content-standard/HashIndex.java'],
+      ['Java lab · BrokenKey.java', 'https://github.com/Rishabh10045/ai-learning-platform/blob/109a37d8c0b049b26a1ffbd2088f31bf6c0cd14e/collab/qa/content-standard/BrokenKey.java']
+    ]
+  },
   'j-streams-01': {
     notes: [
       'A stream pipeline separates an input, intermediate operations and a terminal operation. On an ordered list of seats, filter can keep open seats and map can extract their IDs. These intermediate steps describe work. Traversal starts when a terminal operation asks for a result. With findFirst, the pipeline can stop after the first match in encounter order.',

@@ -9,7 +9,7 @@ const titles = {
   'j-concurrency-01': 'Thread interleavings and races',
   'j-concurrency-02': 'Synchronization, visibility and atomicity',
   'j-equality-01': 'Equality and hash codes',
-  'j-collections-01': 'Collection choice and stable keys',
+  'j-collections-01': 'HashMap internals and collection choice',
   'd-hashing-02': 'Hash collisions and lookup costs',
   'j-oop-02': 'Java method and type contracts',
   'j-exceptions-01': 'Exceptions and failure outcomes',

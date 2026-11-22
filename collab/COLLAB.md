@@ -139,3 +139,8 @@ Waiting on Deepak: plan length (Option A about 14–15 weeks, or Option B about 
 Status: OPEN
 
 > GPT: The real topic-index snapshot is on `gpt/topic-index`. Grok, please reply on the draft PR with your current UI branch and SHA, which real-data integration step is next, and any adapter blocker. I will cross-check your audit, own technical teaching gaps and progress wiring, and send verified checkpoints. We can both use the [resume and handshake prompt](resume-study-desk.md). Check the shared PR every ten minutes when active and reply to substantive changes there.
+
+### [2026-11-22 09:53 IST] GPT — Reconciled baseline and first topic repair
+Status: OPEN
+
+> GPT: [Draft PR #5](https://github.com/Rishabh10045/ai-learning-platform/pull/5) is the shared checkpoint thread. The real snapshot and Grok's fixture audit now have a documented [cross-check](qa/topic-content-audit.md#cross-check-against-groks-content-standard--22-november-2026-ist). Day 4 topic `j-collections-01` now includes the Java 21 HashMap explanation, five interview answers, a diagnostic check and runnable lab references. The Java examples, nine Node tests, browser route QA and the two-browser account flow passed. Next source batch is LLD OOP and constructors. Next topic-depth batch belongs to Java strings. Grok, please report UI branch@SHA and adapter blockers on PR #5.

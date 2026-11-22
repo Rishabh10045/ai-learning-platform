@@ -153,6 +153,11 @@ try {
   await a.reload();
   await a.waitForFunction(() => document.querySelector('#topic-takeaway')?.value === 'My browser B draft');
   await a.goto(base + '#topic/j-collections-01');
+  await waitForText(a, 'h1', 'HashMap internals and collection choice');
+  await waitForText(a, 'main', 'The strings Aa and BB both hash to 2112');
+  assert.equal(await a.$$eval('main details > summary', items => items.length), 5);
+  assert.equal(await a.$$eval('main a', items => items.some(item => item.textContent === 'Java lab · HashIndex.java')), true);
+  await a.goto(base + '#topic/j-oop-01');
   await waitForText(a, 'main', 'dedicated notes and questions are still being written');
   assert.equal(await a.$eval('#topic-takeaway', input => input.value), '');
   await a.goto(base + '#day-4/revision');

@@ -39,3 +39,10 @@ Next, close the confirmed DSA gaps in dependency order and reconcile every nativ
 ## Topic depth and learner takeaways · 22 November 2026 IST
 
 The [topic content audit](topic-content-audit.md) records existing materials, gaps and backend needs for the current 116 index IDs. Nine topics now have focused notes and question sets. Learner takeaways use a separate topic-ID keyed store through the existing SQLite account API and appear at revision time. For future audits track whether an exact topic has its own explanation, diagnostic question, learner evidence and source. Keep “parent lesson exists” and “topic materials exist” as separate facts. Upcoming authoring should start with gaps blocking prerequisites and record topics added beyond the selected syllabi.
+
+
+## Published handoff and content repair · 22 November 2026 IST
+
+The account owner connection published the former local `e81533a` content as `dd96648` on [draft PR #5](https://github.com/Rishabh10045/ai-learning-platform/pull/5). Fetch `origin/gpt/topic-index` and work from its current SHA. The previous Git CLI identity and its permission error remain historical evidence. The [resume prompt](../resume-study-desk.md) points both agents to the PR thread.
+
+Cross-checked Grok's fixture report against the current app and documented the differing baselines, backend gaps and remaining depth criteria in the [topic audit](topic-content-audit.md). Promoted Day 4 `j-collections-01` to dedicated HashMap materials. Next source row is LLD PDF page 2, OOP and constructors. Next topic-depth row is Java Core String immutability/pool/builder, after inventory and prerequisites are verified.

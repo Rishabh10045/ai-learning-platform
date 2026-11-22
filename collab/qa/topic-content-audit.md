@@ -175,3 +175,25 @@ A session link means the existing day material is available. Dedicated means the
 | SQL and data | SQL indexes and query plans | `b-sql-02` | 21 · `h-databases-01` | Session link | — | — |
 | SQL and data | JdbcTemplate and row mapping | `b-jdbc-02` | 47 · `b-di-02` | Session link | — | — |
 | SQL and data | Spring rollback and transaction propagation | `b-transactions-05` | 47 · `b-di-02` | Session link | — | — |
+
+
+## Cross-check against Grok’s content standard · 22 November 2026 IST
+
+Grok's [fixture audit and sample](content-standard-2026-11-22.md) reviewed the 42-session UI preview. The real curriculum on draft PR #5 has 55 sessions and 116 indexed topics. The fixture's 164-topic target excludes DSA and its 96 missing items belong to that fixture. The 124-item baseline checklist, 73 published DSA outline bullets, real index and Grok proposal measure different sets. Keep their revisions and denominators in the audit.
+
+| Finding in Grok’s preview | Evidence in the real snapshot at `dd96648` | Remaining work |
+| --- | --- | --- |
+| Redis, Kafka and microservices need teaching | Day 22 predicts cache-aside and TTL behavior. Day 23 traces offsets and replay. Days 49–50 cover gateways and compensations in neighboring scope. | Executable Redis/Kafka labs and a standalone service integration covering discovery and resilience. |
+| Git, Docker, CI and deployment need a track | Days 9, 34 and 51 cover Maven, service readiness and release concepts. | Git workflow, a runnable Compose environment, CI checks and a verified rollback. |
+| Projects, behavioral coaching and mocks need separate tracks | Days 44–45 have a Seat Booking capstone, checks and an architecture walkthrough. | Independent Splitwise and rental projects, behavioral STAR drills and timed rubric-driven mocks across subjects. |
+| Notes, quiz feedback, video and interview evidence were thin | The real program renders 55 written worked examples, 167 day-level answered interview questions, dedicated reading links and day quizzes. In the published snapshot 51 sessions still had short instructional text and three displayed verified standalone Java snippets. | Inspect depth per topic. Check video playback and lab outputs independently. Improve questions by misconception and outcome. |
+| Streaks, synchronization, and email require a backend | Account-backed SQLite progress and opt-in reminder outbox exist locally. Saved topic takeaways are keyed independently. | Deploy the account API and verify it online. Missing items include item-level attempts, spaced-revision due state and a durable engagement ledger. A provider and verified sender are needed for live email. |
+| HashMap sample and three teaching levels | Day 4 had equality and hashing and a stable-ID collections topic linked to the parent session. | Adopt the useful format by teaching scope and time budget. The fixed word and question quotas, mandatory takeaway gate, and +21 reminder are proposals pending agreement. |
+
+### First repaired topic
+
+Day 4 now gives `j-collections-01` a dedicated Java 21 HashMap lesson, a collision trace, five model answers, a diagnostic check and a 20-minute exercise with expected outcomes. Existing day and topic IDs are retained. The index has 10 dedicated packets across 116 topics after this change. The lesson links the runnable HashIndex and BrokenKey examples and uses OpenJDK's implementation to qualify the sample's tree-bin and worst-case claims. The sample's placeholder project URL and instructor video remain outside the published lesson.
+
+Next editorial batch maps the individual Java core rows in Grok's audit to the real topic IDs and verifies source locators. The source coverage audit resumes at LLD PDF p. 2. The DSA repair sequence still starts with Class 1 bit operations and Class 2 primes/sieve/LCM. [Coverage checkpoint](curriculum-audit-checkpoint.md)
+
+Verification passed with Java 21 for all three Grok programs. Nine Node tests passed. Chromium verified 30 route and layout cases, matching Learn and Coach content for all 55 sessions, and two independent clients sharing the same account. The revised browser test checks the HashMap page's lab link, five answered interview questions and independent topic takeaways. The shared HashMap concurrency total varies across executions because the sample intentionally demonstrates an unsafe update.
