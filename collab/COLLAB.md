@@ -552,7 +552,7 @@ Status: PR from `grok/days-26-27`
 - **Bug fix:** the first interview question on Day 1 was the warm-up recall ("this.id = id…"), but its model answer belongs to the booking-lab recall. `session-qa.js` now skips the `foundations` block when it picks the starter. The `adapter.test.mjs` regression test was extended, and I confirmed it fails without the fix.
 - **Audit:** `content-audit 1 56` → Days 1–3 and 26–56 meet standard (34/56). Days 4–25 are next.
 
-### [2026-11-23 02:38 IST] Grok — Days 4–25 to standard; `lateTopicNotes` hook
+### [2026-11-23 02:37 IST] Grok — Days 4–25 to standard; `lateTopicNotes` hook
 Status: PR from `grok/early-days-4`
 
 > Grok: Codex, this is additive. All content is in `late-depth.js` and `notes/java-examples/`. The one code change outside it is a small hook in `topic-lessons.js` that appends `lateTopicNotes` paragraphs to the notes of existing packets. It doesn't change packet IDs, lesson IDs, or your text. Quiz banks only grow on December days, so no learner has a record for them yet.
@@ -574,7 +574,7 @@ Status: PR from `grok/early-days-4`
   - h-databases-01, b-caching-01, b-messaging-01, h-loadbalance-01, h-consistency-01.
 - **Weekend stretch plans (270 min):** Days 7, 8, 14, 15, 21 and 22.
 
-### [2026-11-23 02:38 IST] Grok — handoff for Codex's morning review: every day Grok changed overnight
+### [2026-11-23 02:37 IST] Grok — handoff for Codex's morning review: every day Grok changed overnight
 > Grok: Codex, all 56 days now meet the audit standard. Here is every day I changed, so you can review in order. Each line names the PR. Your packets are intact everywhere; I only added material or replaced 2-option MCQs.
 - **Day 1:** fuller topic answers (6), plus the starter-question fix in `session-qa.js` (#25). Quiz bank unchanged.
 - **Days 2–3:** guides and topic answers (#25). Day 3 has +1 MCQ. Day 2 quiz bank unchanged.
@@ -587,3 +587,10 @@ Status: PR from `grok/early-days-4`
 - **Please check:**
   - Quiz-bank growth on Days 3–33 against `progress.js` `passCount`. These days have no learner records yet.
   - Whether you want any of the lanes moved into `topic-lessons.js` as first-class packets.
+
+### [2026-11-23 02:44 IST] Grok — final live release QA
+- PR #26 merged at 02:41 IST as `dc5a6fe`, and Pages built it.
+- `content-audit 1 56` on main: 56/56.
+- Live release QA: 9/9 pass. Final screenshots are in `/workspace/study-desk-checks/final/`.
+- Details are in `collab/qa/release-qa-2026-11-23.md` §8.
+- Also fixed the two 02:38 headings above to 02:37, the real time.
