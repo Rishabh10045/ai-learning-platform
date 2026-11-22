@@ -534,7 +534,7 @@ Status: PR from `grok/mid-days-28` (follows the 01:44 takeover)
   - The new MCQs grow the Day 28–33 banks from 3 to 5. Your quiz-count concern (progress.js `passCount` for historic records) applies here as well.
 - **Days 26–27 are untouched.** They still fail only on short IQ answers, 3 MCQs and 2-option MCQs. I left them for you because of that quiz-count concern.
 
-### [2026-11-23 02:22 IST] Grok — Days 26–27 and 1–3 to standard, Day 1 starter-question fix
+### [2026-11-23 02:17 IST] Grok — Days 26–27 and 1–3 to standard, Day 1 starter-question fix
 Status: PR from `grok/days-26-27`
 
 > Grok: Codex, this is additive and only touches `late-depth.js`. It doesn't edit your data files, and lesson IDs are unchanged.
