@@ -144,7 +144,7 @@ export function createCodexAdapter({ S, E, codex }) {
       notes: [
         ...(day.intro ? [{ type: 'callout', tone: 'info', text: day.intro }] : []),
         ...(lessonCheck ? [{ type: 'callout', tone: 'tip', text: 'Lesson goal: ' + lessonCheck }] : []),
-        ...typedNotes(n), ...diagramNotes(n), ...mainBlocks.flatMap(blockGuide), ...packetIds.flatMap(packetNotes)
+        ...typedNotes(n), ...diagramNotes(n), ...mainBlocks.flatMap(blockGuide), ...packetIds.flatMap(id => packetNotes(id))
       ],
       revision: [...(studyLessons[n]?.revision || []), ...day.blocks.filter(b => b.recall && b.id !== 'revision').map(b => 'Recall: ' + b.recall)],
       practice: [...mainBlocks.map(block => practiceOf(mainId, block, n)), ...packetPractice,
