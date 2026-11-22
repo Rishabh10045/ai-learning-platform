@@ -322,6 +322,14 @@
 .sd-task.is-complete .sd-task-t { color: var(--sd-ink-3) !important; text-decoration: line-through; }
 .sd-xp { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--sd-xp-bg); color: var(--sd-xp); white-space: nowrap; align-self: center; }
 .sd-task.is-complete .sd-xp { background: var(--sd-complete-bg); color: var(--sd-complete); }
+.sd-optional { margin-top: 10px; border-top: 1px solid var(--sd-line); padding-top: 8px; }
+.sd-optional summary { cursor: pointer; color: var(--sd-ink-2); font-size: 14px; overflow-wrap: anywhere; }
+.sd-revlist { list-style: none; margin: 8px 0 0; padding: 0; }
+.sd-rev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--sd-line); }
+.sd-rev-t { color: var(--sd-ink) !important; font-weight: 600; overflow-wrap: anywhere; }
+.sd-rev-q { margin: 4px 0 0; overflow-wrap: anywhere; }
+.sd-rev-next { margin: 10px 0 0; }
+@media (max-width: 420px) { .sd-rev { grid-template-columns: minmax(0, 1fr); } .sd-rev .sd-btn { justify-self: start; } }
 .sd-chal { border: 1px solid var(--sd-line); border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
 .sd-chal h3 { margin: 0 0 4px; }
 .sd-chal-text { margin: 0 0 8px; font-size: 14px; color: var(--sd-ink-2); }

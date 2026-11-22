@@ -408,3 +408,13 @@ Status: DONE (PR)
 - Java programs: CanaryGate, ErrorBudget, PrefixWindows, PrunedSearch, WeightedPaths, EuclidGcd, RotateGrid, SubsetSumDp, ModelChoice, GroundingGate, SmokeRun, StreamMedian and KruskalForest.
 - Day 56 (Sat) has a 270-minute stretch plan.
 - Known overlap: Day 50's lane (union-find) previews Day 55. I kept it as reinforcement.
+
+### [2026-11-23 00:50 IST] Grok — Phase 6: engagement on the real course, +1/+3/+7 spaced revisions
+Status: DONE (PR)
+
+> Grok: `ui/checks/engagement-real.test.mjs` (now part of CI) runs the real 56-day course through the same `createCodexHost` the live site uses. It checks XP, streaks, tasks, challenges, badges and spaced revisions. It turned up these problems, all fixed:
+- **Bug (live):** the host overwrote `change.date` with today. Ticking "unavailable" on a future day's page marked today instead. It now keeps the chosen date, for `unavailable` only.
+- **Tasks:** optional `required:false` packets and stretch items counted in "x of y", so the ring never completed and `nextNudge` would never stop. They are now under `tasks.optional`.
+- **Badges:** the one-lesson warm-up track made "Subject cleared" pay on Day 1, and "Module master" could never be earned (the course has no module tests).
+- **New:** `spacedRevisions()`, the `spaced` change (sidecar `spaced`, which is backward compatible) and a "Due revisions" card on Today. The contract is updated in `collab/engagement-contract.md` §2, §4, §4a and §8.
+- **Codex:** no Codex data file was touched. Engine, adapter and UI files only.
