@@ -1,3 +1,4 @@
+import { backendFoundationTopics } from './notes/topic-backend-foundations.js';
 import { foundationTopics } from './notes/topic-foundations.js';
 import { numberAlgorithmTopics } from './notes/topic-number-algorithms.js';
 
@@ -5,6 +6,7 @@ import { numberAlgorithmTopics } from './notes/topic-number-algorithms.js';
 export const topicLessons = {
   ...numberAlgorithmTopics,
   ...foundationTopics,
+  ...backendFoundationTopics,
   'j-oop-01': {
     notes: [
       'A class defines fields and operations. An object owns a particular set of field values. Construct Seat A1 and A2 separately so that choosing an owner for A1 leaves A2 available. The constructor initializes the identity before callers can use the object. Mark the id final, allow the owner to change through the booking operation and use private fields to limit the points where state can change.',

@@ -1,22 +1,22 @@
 # Study Desk day and topic readiness matrix
 
-22 November 2026 IST. The starting draft was `17d3fc0`. Current rows include the Day 56 and foundation lesson batch. This presence audit counts authored fields and timing blocks. Read the source-level audit and run individual labs before treating a topic as fully verified.
+22 November 2026 IST. The original Day 56 draft was `17d3fc0`. Current rows include the Day 56, Day 1–16 and foundation lesson batches. This presence audit counts authored fields and timing blocks. Read the source-level audit and run individual labs before treating a topic as fully verified.
 
 - 56 days have English lesson notes, a worked example, practice criteria, revision prompts and a direct reading field.
 - 170 day-level interview questions have answers. There are 172 scored quiz items and 27 interactive diagrams. 52 days have under 400 words of explanatory prose.
-- 28 of 122 indexed topics have dedicated packets. The other 94 use a parent-day link and have an individual learner takeaway field.
-- Day 1 and Day 56 have dedicated packets for every assigned topic. Days 1, 5, 26, 55 and 56 have displayed standalone Java. Other exercises mainly use prompts and acceptance criteria.
+- 43 of 122 indexed topics have dedicated packets. The other 79 use a parent-day link and have an individual learner takeaway field.
+- Days 1–16 and 56 have dedicated packets for every assigned topic. Days 1, 5, 7, 26, 55 and 56 have displayed standalone Java. Other exercises mainly use prompts and acceptance criteria.
 - Every core is 120 minutes. Weekend defaults remain 390 minutes. The independent 30-minute daily DSA lane and live synced account release are open.
 
 | Subject | Indexed | Dedicated | Remaining |
 | --- | ---: | ---: | ---: |
-| Java | 15 | 10 | 5 |
-| Low-level design | 8 | 3 | 5 |
+| Java | 15 | 13 | 2 |
+| Low-level design | 8 | 4 | 4 |
 | System design | 22 | 3 | 19 |
 | AI engineering | 19 | 2 | 17 |
 | DSA in Java | 31 | 8 | 23 |
-| Spring Boot & backend | 17 | 1 | 16 |
-| SQL and data | 10 | 1 | 9 |
+| Spring Boot & backend | 17 | 7 | 10 |
+| SQL and data | 10 | 6 | 4 |
 
 ## Day-by-day rendered content
 
@@ -30,7 +30,7 @@ Reading and video columns count configured URLs. Prose excludes code and heading
 | 4 | Equality, hashing and collections | 399 | Yes | — | 1 / 3 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 5 | Java contracts and exceptions | 353 | — | java | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 6 | Generics, lambdas and streams | 265 | — | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
-| 7 | Executors and bounded work | 362 | — | — | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
+| 7 | Executors and bounded work | 362 | — | java | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 8 | UML, SOLID and unit tests | 387 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 9 | Maven and Spring dependency injection | 250 | — | — | 1 / 1 | 2 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
 | 10 | REST endpoints and HTTP semantics | 238 | Yes | — | 1 / 1 | 1 / 1 | 3 / 3 | 3 | 3 | 120 / 0 |
@@ -103,24 +103,24 @@ Zero means the topic has no dedicated field of that kind. The named parent lesso
 | 5 | Java | String values, identity and the string pool | `j-strings-01` | `j-oop-02` | 272 | 5 / 5 | 4 | 1 | 4 | 4 |
 | 6 | Java | Generics and wildcards | `j-generics-01` | `j-generics-01` | 135 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 6 | Java | Lazy stream pipelines | `j-streams-01` | `j-generics-01` | 169 | 3 / 3 | 3 | 1 | 2 | 1 |
-| 7 | Java | Executors, futures and bounded work | `j-executors-01` | `j-executors-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 7 | Java | Thread stacks and shared objects | `j-jvm-01` | `j-executors-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 7 | Java | Executors, futures and bounded work | `j-executors-01` | `j-executors-01` | 155 | 3 / 3 | 3 | 1 | 3 | 2 |
+| 7 | Java | Thread stacks and shared objects | `j-jvm-01` | `j-executors-01` | 140 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 8 | Low-level design | Class and sequence diagrams | `l-uml-01` | `l-uml-01` | 166 | 3 / 3 | 3 | 0 | 2 | 1 |
-| 8 | Low-level design | SOLID and dependency boundaries | `l-solid-01` | `l-uml-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 8 | Spring Boot & backend | Unit tests around real domain behavior | `b-testing-01` | `l-uml-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 9 | Java | Maven builds and the application context | `j-build-01` | `j-build-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 9 | Spring Boot & backend | Spring constructor injection | `b-di-01` | `j-build-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 10 | Spring Boot & backend | HTTP methods and status codes | `b-http-01` | `b-http-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 10 | Spring Boot & backend | REST endpoints | `b-rest-01` | `b-http-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 8 | Low-level design | SOLID and dependency boundaries | `l-solid-01` | `l-uml-01` | 130 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 8 | Spring Boot & backend | Unit tests around real domain behavior | `b-testing-01` | `l-uml-01` | 144 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 9 | Java | Maven builds and the application context | `j-build-01` | `j-build-01` | 135 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 9 | Spring Boot & backend | Spring constructor injection | `b-di-01` | `j-build-01` | 134 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 10 | Spring Boot & backend | HTTP methods and status codes | `b-http-01` | `b-http-01` | 139 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 10 | Spring Boot & backend | REST endpoints | `b-rest-01` | `b-http-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 11 | Spring Boot & backend | Request validation and API errors | `b-validation-01` | `b-validation-01` | 168 | 3 / 3 | 3 | 1 | 2 | 1 |
-| 12 | SQL and data | Relational schema and constraints | `b-sql-01` | `b-sql-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 12 | SQL and data | Schema migrations | `b-schema-01` | `b-sql-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 13 | SQL and data | JDBC and parameter binding | `b-jdbc-01` | `b-jdbc-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 12 | SQL and data | Relational schema and constraints | `b-sql-01` | `b-sql-01` | 147 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 12 | SQL and data | Schema migrations | `b-schema-01` | `b-sql-01` | 143 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 13 | SQL and data | JDBC and parameter binding | `b-jdbc-01` | `b-jdbc-01` | 140 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 13 | SQL and data | Transaction boundaries and isolation | `b-transactions-01` | `b-jdbc-01` | 160 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 14 | SQL and data | Atomic conditional writes | `b-transactions-02` | `b-transactions-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 15 | SQL and data | Pessimistic and optimistic locking | `b-transactions-03` | `b-transactions-03` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 16 | Spring Boot & backend | JPA entities, flush and N+1 | `b-jpa-01` | `b-jpa-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 16 | Spring Boot & backend | PostgreSQL integration tests | `b-testing-02` | `b-jpa-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 14 | SQL and data | Atomic conditional writes | `b-transactions-02` | `b-transactions-02` | 148 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 15 | SQL and data | Pessimistic and optimistic locking | `b-transactions-03` | `b-transactions-03` | 132 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 16 | Spring Boot & backend | JPA entities, flush and N+1 | `b-jpa-01` | `b-jpa-01` | 125 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 16 | Spring Boot & backend | PostgreSQL integration tests | `b-testing-02` | `b-jpa-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 17 | System design | Multiple application instances | `h-scaling-01` | `h-scaling-01` | 302 | 4 / 4 | 4 | 1 | 4 | 2 |
 | 18 | System design | Functional and non-functional requirements | `h-requirements-01` | `h-requirements-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
 | 18 | System design | Capacity estimates and hot keys | `h-estimates-01` | `h-requirements-01` | 179 | 3 / 3 | 3 | 1 | 2 | 1 |
@@ -308,3 +308,7 @@ The six references attached to the two new packets returned HTTP 200. Nine Node 
 ## Day 56 and foundation verification
 
 The exact displayed NumberAlgorithms.java ran on Java 21. It includes deterministic bit, radix, prime, sieve and LCM fixtures, and compares sieve output against trial division for every bound from 0 through 100. Fourteen distinct new packet reference URLs responded with HTTP 200. Nine Node tests, 30 Chromium route/layout checks, all 56 Learn and Coach routes, and the two-browser progress flow passed. The authenticated server must serve the new notes modules. The browser test caught those routes before the server allowlist was updated and passed after the fix.
+
+## Days 7–16 verification
+
+The exact displayed BoundedBookingWork.java ran under JDK 21. The test holds one worker with a latch, fills a single queue slot, rejects the third submission, verifies that a timed wait leaves work active and asserts termination. Sixteen distinct attached reference URLs returned HTTP 200. The nine Node tests, all 56 Learn and Coach routes, mobile route checks and the two-browser account flow passed. The Spring, JPA and PostgreSQL exercises still need execution on their intended infrastructure.

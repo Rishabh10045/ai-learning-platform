@@ -19,7 +19,7 @@ const publicFiles = new Set([
   'lesson-diagrams.js', 'lesson-videos.js', 'lesson-visuals.js', 'progress.js', 'session-qa.js',
   'study-actions.js', 'study-data.js', 'study-panels.js', 'study-planner.js', 'study-sync.js', 'syllabus.js',
   'topic-index.js', 'topic-lessons.js', 'worked-examples.js',
-  'notes/topic-foundations.js', 'notes/topic-number-algorithms.js',
+  'notes/topic-foundations.js', 'notes/topic-number-algorithms.js', 'notes/topic-backend-foundations.js',
   'ui/study-desk.css', 'ui/study-desk.js'
 ]);
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };

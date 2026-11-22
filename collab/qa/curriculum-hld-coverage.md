@@ -28,3 +28,18 @@ Reviewed the published curriculum at `76d7e560bce88d469e351c2bc32da4b2e2ca5161` 
 | 3.6 Performance bottlenecks | D17 `h-scaling-01` traces a constrained shared database. D24 `h-observability-01` separates app work and database wait in a controlled experiment. The lesson does not isolate locks, pool wait and I/O in a reproducible exercise. | Partial | 30 min, diagnose three bounded tests with metrics that distinguish those causes. |
 
 The next source locator is **Module 4 row 4.1**, horizontal database partitioning. This batch does not close design-case coverage or verify production measurements.
+
+## Module 4 · Database Scaling
+
+Reviewed the Module 4 rows in the saved public listing against the Day 1–56 curriculum at `cdf9d21`. This batch records the coverage evidence. The database integration labs still need independent execution.
+
+| Source row | Current day and evidence | Status | Required repair |
+| --- | --- | --- | --- |
+| 4.1 Horizontal database partitioning | D21 `h-databases-01` distinguishes partitions, shards and replicas, and works the event-key hotspot question with a discussion of selection and skew. There is no end-to-end range versus hash placement exercise. | Partial | 25 min, place eight event IDs with two schemes and compare cross-shard reads and hotspot behavior. |
+| 4.2 Consistent hashing for shard routing | D21 discusses shard keys and D24 discusses target routing. Neither teaches a hash ring, successor lookup or why adding a node remaps only an interval. | Missing | 30 min, work a ring with a node addition and remove one virtual node, calculating which keys move. |
+| 4.3 Read/write separation | D21 `h-databases-01` puts authoritative writes on the enforcing path and names when lagging results can be served. The D21 variation and the Day 17 replica prompt give a concrete read/write example. | Covered | Record explicit write-then-read and failover tests before sign-off on execution. |
+| 4.4 Read replicas for read-heavy loads | D21 explains read scaling and asynchronous lag. D25 distinguishes browsing and confirmation requirements. It lacks a capacity comparison and a measured lag policy. | Partial | 25 min, compare two read workloads and show one stale read plus a primary-read fallback. |
+| 4.5 Multi-leader replication and conflict resolution | D21 introduces replica topology. D25 traces operations under a partition. Neither explains divergent accepted writes from two leaders or conflict resolution. | Missing | 35 min, trace two regions, resolve a concurrent metadata update and explain why exclusive inventory has a different authority requirement. |
+| 4.6 Connection pooling and database optimization | D13 `b-jdbc-01` teaches connection lifecycle. D21 `b-sql-02` teaches plan inspection and Day 17 works a dependency capacity ceiling. There is no pool saturation fixture or sizing exercise. | Partial | 25 min, measure acquire wait, active connections and query latency in a bounded pool. Compare timeout evidence. |
+
+The next source locator is **Module 5 row 5.1**, cache-aside, write-through, write-behind and read-through.

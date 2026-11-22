@@ -135,7 +135,63 @@ export const lessonDetails = {
     section: ['Separate a timed wait from cancellation',
       'When Future.get times out, control returns to the caller. The worker may still be queued, blocked on I/O, or about to commit a booking. Calling cancel(true) can request interruption. Application code and the driver determine whether blocking work actually stops. Give the driver its own deadline and decide how the client can look up an ambiguous write outcome.',
       'To reproduce the distinction, hold one task behind a latch until get reaches its time limit. Release the latch and collect the final result with another bounded get. Then run a separate cooperative cancellation case. Always release the latch and shut the executor down in the test cleanup.'],
-    source: ['Oracle Java 21 · Future timeouts and cancellation', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/Future.html#get(long,java.util.concurrent.TimeUnit)']
+    source: ['Oracle Java 21 · Future timeouts and cancellation', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/Future.html#get(long,java.util.concurrent.TimeUnit)'],
+    code: ['Run BoundedBookingWork.java to trace overload', 'java', `import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+class BoundedBookingWork {
+    private static void require(boolean result, String message) {
+        if (!result) throw new AssertionError(message);
+    }
+
+    public static void main(String[] args) throws Exception {
+        var workerStarted = new CountDownLatch(1);
+        var allowFinish = new CountDownLatch(1);
+        var executor = new ThreadPoolExecutor(
+            1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1),
+            new ThreadPoolExecutor.AbortPolicy()
+        );
+        try {
+            var first = executor.submit(() -> {
+                workerStarted.countDown();
+                require(allowFinish.await(5, TimeUnit.SECONDS), "release the worker");
+                return "first";
+            });
+            require(workerStarted.await(5, TimeUnit.SECONDS), "first task started");
+            var second = executor.submit(() -> "second");
+            try {
+                executor.submit(() -> "third");
+                throw new AssertionError("third task should have been rejected");
+            } catch (RejectedExecutionException expected) {
+                System.out.println("Third submission rejected.");
+            }
+
+            try {
+                first.get(20, TimeUnit.MILLISECONDS);
+                throw new AssertionError("waiting should time out");
+            } catch (TimeoutException expected) {
+                require(!first.isDone() && !first.isCancelled(), "waiting did not cancel the task");
+                System.out.println("Timed wait expired while work remained active.");
+            }
+
+            allowFinish.countDown();
+            require(first.get(5, TimeUnit.SECONDS).equals("first"), "first task result");
+            require(second.get(5, TimeUnit.SECONDS).equals("second"), "queued task result");
+        } finally {
+            allowFinish.countDown();
+            executor.shutdown();
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                require(executor.awaitTermination(5, TimeUnit.SECONDS), "workers terminate");
+            }
+        }
+        System.out.println("Accepted tasks completed and executor terminated.");
+    }
+}`]
   },
   8: {
     section: ['Design patterns at a useful boundary',

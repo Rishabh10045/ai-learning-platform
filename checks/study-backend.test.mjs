@@ -87,7 +87,7 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
   assert.equal(lessons.find(lesson => lesson.id === 'd-union-find-01').source, 'added');
   assert.equal(lessons.find(lesson => lesson.id === 'd-bits-01').source, 'dsa');
   assert.deepEqual(courseOutline.days.at(-1).lessonIds, ['d-bits-01']);
-  for (const topic of topicIndex.filter(topic => [1, 56].includes(topic.day))) {
+  for (const topic of topicIndex.filter(topic => topic.day <= 16 || topic.day === 56)) {
     assert.ok(topicLessons[topic.id], topic.id);
   }
   assert.equal(availabilityBudget('2026-11-28'), 390);
