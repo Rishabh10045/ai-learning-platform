@@ -174,6 +174,15 @@ export const lateLanes = {
     readings: [reading('Princeton Algorithms · Tries', 'https://algs4.cs.princeton.edu/52trie/')],
     recall: 'Why is trie lookup O(L) regardless of how many words are stored, and when is a HashSet the better choice?'
   },
+  39: {
+    title: 'Binary search in a rotated sorted array',
+    concept: 'After a rotation, at least one half around mid is still sorted. Check which half is sorted, then search it only if the target is in its range. The minimum is found by comparing a[mid] with a[hi].',
+    example: 'In 40 50 60 70 10 20 30, 20 is at index 5, 35 is missing, and the rotation point is index 4 (value 10).',
+    practice: 'Implement search and rotationPoint, then compare search with a linear scan for every value in several rotations.',
+    checks: ['O(log n) time and O(1) space.', 'Unrotated, single-element and empty arrays work.', 'Explain why duplicates can make it O(n).'],
+    readings: [reading('Princeton Algorithms · Binary search', 'https://algs4.cs.princeton.edu/11model/BinarySearch.java.html')],
+    recall: 'How do you tell which half is sorted, and why compare a[mid] with a[hi] when looking for the minimum?'
+  },
   // @@lanes
 };
 
@@ -3983,6 +3992,71 @@ prefix XYZ         = []`
       ['After deleting CANCEL-10, countPrefix("CANCEL-") is 2.', 'Deleting a missing word changes nothing.', 'The longest common prefix of the CANCEL codes is "CANCEL-".', 'Test the empty trie.']],
     references: [['Princeton Algorithms · Tries', 'https://algs4.cs.princeton.edu/52trie/']]
   },
+  'ai-rag-01.dsa': {
+    notes: [
+      'A sorted array that has been rotated, such as 40 50 60 70 10 20 30, is no longer sorted as a whole, but every split at mid leaves at least one half sorted. RotatedSearch.java compares a[lo] with a[mid]: if a[lo] <= a[mid], the left half is sorted, otherwise the right half is. If the target lies inside the sorted half’s range, search there; otherwise search the other half. Each step still discards half the range, so the search stays O(log n).',
+      'The rotation point is the index of the smallest value, which is also how many positions the array was rotated. Compare a[mid] with a[hi]: if a[mid] > a[hi], the minimum is to the right of mid, so lo = mid + 1; otherwise it is at mid or to its left, so hi = mid. The loop ends when lo == hi. For the example it returns index 4, value 10, and for an array that is not rotated it returns 0.',
+      'These loops are easy to get subtly wrong. Use mid = lo + (hi − lo) / 2, decide whether the bounds are inclusive, and keep the comparisons strict or non-strict on purpose: a[lo] <= a[mid] matters when lo == mid. Test a rotated array, an unrotated array, one element, an empty array, a missing value and both ends. With duplicates such as 2 2 2 0 2, you cannot tell which half is sorted, and the worst case becomes O(n).'
+    ],
+    code: {
+      title: 'RotatedSearch.java · binary search in a rotated sorted array and the rotation point · java RotatedSearch.java',
+      text: String.raw`// Binary search in a sorted array that was rotated, e.g. ticket IDs after a wrap-around.
+public class RotatedSearch {
+    static int search(int[] a, int target) {
+        int lo = 0, hi = a.length - 1;
+        while (lo <= hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (a[mid] == target) return mid;
+            if (a[lo] <= a[mid]) {                       // left half is sorted
+                if (a[lo] <= target && target < a[mid]) hi = mid - 1; else lo = mid + 1;
+            } else {                                     // right half is sorted
+                if (a[mid] < target && target <= a[hi]) lo = mid + 1; else hi = mid - 1;
+            }
+        }
+        return -1;
+    }
+
+    // Index of the smallest element = number of positions rotated.
+    static int rotationPoint(int[] a) {
+        int lo = 0, hi = a.length - 1;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (a[mid] > a[hi]) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    public static void main(String[] args) {
+        int[] a = {40, 50, 60, 70, 10, 20, 30};
+        System.out.println("search 20 -> index " + search(a, 20));
+        System.out.println("search 60 -> index " + search(a, 60));
+        System.out.println("search 35 -> index " + search(a, 35));
+        System.out.println("rotation point -> index " + rotationPoint(a) + " (value " + a[rotationPoint(a)] + ")");
+        System.out.println("not rotated {1,2,3}: search 3 -> " + search(new int[]{1, 2, 3}, 3) + ", rotation point " + rotationPoint(new int[]{1, 2, 3}));
+        System.out.println("single {5}: search 5 -> " + search(new int[]{5}, 5) + ", empty: " + search(new int[]{}, 5));
+    }
+}
+`,
+      output: String.raw`search 20 -> index 5
+search 60 -> index 2
+search 35 -> index -1
+rotation point -> index 4 (value 10)
+not rotated {1,2,3}: search 3 -> 2, rotation point 0
+single {5}: search 5 -> 0, empty: -1`
+    },
+    takeaways: ['After a rotation, one half around mid is always sorted.', 'Search the sorted half only if the target is in its range.', 'Find the minimum by comparing a[mid] with a[hi].', 'Duplicates can force O(n).'],
+    interview: [
+      ['How do you search a rotated sorted array in O(log n)?', 'I run binary search with one extra decision. At each step I compute mid and check whether the left half is sorted, which is true when a[lo] <= a[mid]; otherwise the right half is sorted. If the target lies within the sorted half’s range, I continue there; otherwise I continue in the other half, which contains the rotation. Each step discards half the remaining range, so it is O(log n) time and O(1) space. I test a rotated array, an unrotated one, a single element, an empty array, a missing target and targets at both ends, because the boundary comparisons are where bugs hide.'],
+      ['How do you find the rotation point, and why compare with a[hi] rather than a[lo]?', 'The rotation point is the index of the minimum. I keep lo and hi and, while lo < hi, compare a[mid] with a[hi]. If a[mid] > a[hi], the drop happens after mid, so the minimum is to the right and lo becomes mid + 1. Otherwise the range from mid to hi is sorted, so the minimum is at mid or before it and hi becomes mid. Comparing with a[hi] works for both rotated and unrotated arrays. Comparing with a[lo] fails for an unrotated array, because a[mid] >= a[lo] there too, and you would move right past the true minimum at index 0.'],
+      ['What changes if the rotated array can contain duplicates?', 'With duplicates you sometimes cannot tell which half is sorted. In 2 2 2 0 2, a[lo], a[mid] and a[hi] are all 2, so the comparison gives no information. The usual fix is to shrink the range by one, for example hi-- when a[mid] == a[hi] while finding the minimum, which is safe because a copy of that value remains. Search still works, but the worst case becomes O(n), for an array that is almost all the same value. In an interview I would state this trade-off and ask whether duplicates are possible before choosing the simpler version.']
+    ],
+    check: ['In 40 50 60 70 10 20 30, what does rotationPoint return?',
+      ['0', '3', '4', '6'], 2,
+      'The minimum, 10, is at index 4, which is also the number of positions rotated.'],
+    practice: ['Copy RotatedSearch.java. Add searchWithDuplicates and a test that runs search against a linear scan for every value from 0 to 80 in five different rotations.',
+      ['search agrees with the linear scan everywhere.', 'searchWithDuplicates finds 0 in 2 2 2 0 2.', 'The empty and one-element arrays work.', 'State the time complexity with and without duplicates.']],
+    references: [['Princeton Algorithms · Binary search', 'https://algs4.cs.princeton.edu/11model/BinarySearch.java.html']]
+  },
   // @@packets
 };
 
@@ -4063,6 +4137,10 @@ export const lateDistractors = {
     ['Any model’s vectors can be compared as long as they have the same length.', 'Cosine similarity works across models because it ignores length.'],
     ['For paraphrased questions that share no words with the passage.', 'Whenever the embedding model is expensive.']
   ],
+  39: [
+    ['The full policy database, so nothing can be missed.', 'Only the user question; the model already knows the policy.'],
+    ['A guess based on similar policies from other venues.', 'A retry with a longer prompt until the model answers.']
+  ],
   // @@distractors
 };
 export const lateExplanations = {
@@ -4104,6 +4182,8 @@ export const lateExplanations = {
     'A fixture returns the same responses every time, including failures, so tests of parsing and fallbacks are repeatable. It says nothing about real model quality.'],
   38: ['Each embedding model defines its own space. Equal dimensions do not make two models’ axes mean the same thing, so stored passages must be re-embedded when the model changes.',
     'Identifiers such as CANCEL-04 carry no meaning an embedding captures reliably. Exact or lexical matching finds them; vectors handle paraphrases.'],
+  39: ['RAG supplies a small set of authorized, current passages retrieved for this request. The model’s weights do not contain today’s policy, and sending everything would exceed the context and leak other venues’ data.',
+    'Without supporting evidence the honest answer is the documented fallback. Invented citations, other venues’ policies and repeated retries all produce unsupported answers.'],
   // @@explanations
 };
 
@@ -4244,6 +4324,14 @@ export const lateAssessment = {
     { question: 'Your team switches to a new embedding model. What must happen to the stored passages?',
       choices: ['Nothing; old vectors stay valid', 'Re-embed them with the new model, ideally into a new index, and evaluate before switching', 'Only normalize the old vectors', 'Only re-embed new passages'], answer: 1,
       explanation: 'Query and passage vectors must come from the same model to be comparable.' }
+  ],
+  39: [
+    { question: 'In RagPipeline.java the answer cites P2 but says 24 hours, while P2 says 48 hours. What does the pipeline return?',
+      choices: ['The answer, because P2 is in the context', 'A validation fallback: the claim is not in the cited text', 'A retrieval fallback', 'The answer with P2-old added as a citation'], answer: 1,
+      explanation: 'Citation membership passes, but the claim check finds that 24 hours is not supported by P2.' },
+    { question: 'Both the current policy (v3) and an outdated one (v2) match the question. Where should the outdated one be removed?',
+      choices: ['In the prompt, by asking the model to prefer newer text', 'In retrieval, by filtering on the current flag or effective date before ranking', 'In the UI, by hiding old citations', 'It should be kept so the user can choose'], answer: 1,
+      explanation: 'Version and effective-date rules belong in retrieval, so outdated text never reaches the model.' }
   ],
   // @@assessment
 };
@@ -4413,6 +4501,11 @@ export const lateInterviewGuides = {
     'I add an exact-match path on the code field, or a lexical path like PostgreSQL full-text search, next to the vector path, and merge the two lists with reciprocal rank fusion. I give the exact list a higher weight, so a literal code match ranks first while paraphrases still work through vectors. The venue and version filters are applied to every path, because forgetting them on one path lets unauthorized passages back in. I prove the change with three labelled tests: the exact code, a paraphrase without the code, and a close match from another venue or an outdated version that must never appear.',
     'I start from the gold passage that a correct answer needs and follow it through the pipeline. Was it ingested and indexed with the right venue, version and current flag? Did the filters let it through? Where did it rank for this query, and did a chunk boundary split the key sentence? If retrieval is the problem, I fix chunking, metadata or add a hybrid path, and measure recall at k on a labelled set. To isolate generation, I pass the correct passage directly to the model: if the answer is now right, the fault was retrieval; if it is still wrong, I look at the prompt or validation.'
   ],
+  39: [
+    'Take "Until when can I cancel for a refund?" for a hall-a user. Retrieve: the Java service searches only passages for hall-a whose version is current and returns P2, "Cancel up to 48 hours before the show for a full refund", with its ID. If nothing authorized matches, it returns a fallback without calling the model. Generate: the model gets a fixed system instruction, the question and P2, and must answer only from it and cite IDs. Validate: every cited ID must be in the supplied context, and every claim such as "48 hours" must appear in the cited text. A supported answer is shown with its citation; otherwise the user gets the fallback.',
+    'Version metadata should act in retrieval, before the model sees anything. Each passage carries its venue, version, effective date and a current flag, and the retrieval query keeps only the passage in force for the booking’s date. If two current passages overlap, a documented precedence rule picks one, for example venue policy over the general policy. The answer shows the cited passage’s version or effective date, so the user and support can see which rule applied. If the sources still conflict, or the answer depends on a date rule we do not have, the system abstains with a fallback and logs the case for the policy owner.',
+    'The first measurement is retrieval hit at k: for each labelled question, is the gold passage among the top k authorized candidates? Here it was, so retrieval succeeded for this case. The second is grounded correctness: of the answers given, how many have every material claim supported by the passages supplied? This case fails that measure, which points to generation or validation. To confirm, I feed the gold passage directly to the model and check whether it still adds the unsupported claim. I report both numbers over the same labelled set, so a better retriever cannot hide a weaker answer step, or the other way round.'
+  ],
   // @@guides
 };
 
@@ -4432,7 +4525,89 @@ export const lateTopicAnswers = {
   'd-primes-01': {
     'Why do you check up to and including the square root?': 'If n is composite, write n = d × q with 1 < d ≤ q. Then d × d ≤ d × q = n, so d ≤ √n. Every composite therefore has a divisor no larger than its square root, and if none exists up to √n, n is prime. The bound must be inclusive, because a perfect square such as 49 has its only nontrivial factor exactly at the boundary: 7 × 7. Stopping before 7 would wrongly report 49 as prime. In Java, write the loop condition as d <= n / d rather than d * d <= n, so it cannot overflow for values near Integer.MAX_VALUE, and handle n < 2 and the even case before the loop.'
   },
+  'ai-rag-01': {
+    'Which parts of a RAG pipeline can fail independently?': 'Three stages can fail on their own. Retrieval can miss the passage the answer needs, because of filtering, chunk boundaries, metadata or ranking. Generation can receive the right passage and still state something it does not say, such as 24 hours instead of 48. Validation can then accept that unsupported claim, for example by checking only that the cited ID exists. In RagPipeline.java each failure returns a Fallback with its stage, retrieval or validation, so I can count them separately. In tests I control one stage at a time: a fixed context to test generation and validation, and labelled queries with expected IDs to test retrieval.',
+    'How would you separate a retrieval miss from a model failure?': 'I run the same question twice. First through normal retrieval, recording whether the gold passage is in the authorized top k; that measures retrieval as hit at k. Then I give the model the gold passage directly, bypassing retrieval. If the answer is correct with the gold passage but wrong with normal retrieval, the problem is retrieval: indexing, filters, chunking or ranking. If the answer is still unsupported even with the gold passage, the problem is generation or validation. Over a labelled set I report both numbers, hit at k and the share of answers whose claims are supported, so a change to one is not hidden by the other.',
+    'What must a citation validator verify?': 'First, membership: every cited ID must belong to the context that was actually supplied for this request, after the venue and version filters, so the model cannot cite a passage from another venue or an outdated version. Second, support: each material claim must follow from the cited text. A stable ID alone proves nothing, because the model can cite the right passage and still say 24 hours where it says 48. RagPipeline.java checks every number with a unit against the cited text. Real systems add checks for dates, amounts and policy codes, and use a human or a calibrated judge for claims a rule cannot check. Missing citations fall back.',
+    'What happens when the provider or evidence path fails?': 'The help feature returns a bounded, deterministic fallback instead of an error or a guess. If retrieval finds no authorized, current passage, the reply says the policy could not be found and links to the help pages, without calling the model. If the provider times out, errors or returns invalid output, the adapter maps it to the same kind of fallback within the time budget. Fallbacks are counted by stage and reason so an outage is visible. Booking is not affected at all: seat holds, payments and cancellations are decided by the Java service and enforced by database constraints, and the help feature has no authority to change them.'
+  },
   'd-sieve-01': {
     'Why can the p pass start at p²?': 'Any multiple of p smaller than p² can be written as k × p with k < p. That k has a prime factor smaller than p, and the pass for that smaller prime already marked k × p as composite. For example, when p = 5 the multiples 10, 15 and 20 were marked by the passes for 2 and 3, so the first value that still needs marking is 25. Starting at p² avoids that repeated work. It also explains why the outer loop can stop once p² exceeds the limit: no new composites remain to mark. The overall time stays O(N log log N), with an O(N) boolean array.'
+  }
+};
+
+// Day 39 (Grok): runnable Java for an existing Codex packet; applied only when the packet has no code.
+export const lateTopicCode = {
+  'ai-rag-01': {
+    title: 'RagPipeline.java · retrieve current authorized passages, generate with a fixture, validate citations and claims, fall back by stage · java RagPipeline.java',
+      text: String.raw`import java.util.*;
+import java.util.regex.*;
+
+// Retrieve -> generate -> validate, with each stage observable.
+// The generator is a fixture so every outcome is repeatable.
+public class RagPipeline {
+    record Passage(String id, String venue, int version, boolean current, String text) {}
+    record Candidate(String text, List<String> citations) {}
+    sealed interface Result permits Answer, Fallback {}
+    record Answer(String text, List<String> citations) implements Result {}
+    record Fallback(String stage, String reason) implements Result {}
+
+    static final List<Passage> POLICY = List.of(
+        new Passage("P2", "hall-a", 3, true,  "Cancel up to 48 hours before the show for a full refund."),
+        new Passage("P2-old", "hall-a", 2, false, "Cancel up to 24 hours before the show for a full refund."),
+        new Passage("P4", "hall-a", 1, true,  "A seat hold expires after 10 minutes without payment."),
+        new Passage("B7", "hall-b", 1, true,  "Cancel up to 2 hours before the show for a full refund.")
+    );
+
+    static List<Passage> retrieve(String question, String venue) {
+        String q = question.toLowerCase(Locale.ROOT);
+        return POLICY.stream()
+            .filter(p -> p.venue().equals(venue) && p.current())          // authorized + current only
+            .filter(p -> Arrays.stream(q.split("\\W+")).filter(w -> w.length() > 4)
+                .anyMatch(w -> p.text().toLowerCase(Locale.ROOT).contains(w.substring(0, 5))))
+            .toList();
+    }
+
+    // Every number with a unit in the answer must appear in a cited passage.
+    static Optional<String> unsupported(Candidate c, List<Passage> context) {
+        Map<String, Passage> byId = new HashMap<>();
+        context.forEach(p -> byId.put(p.id(), p));
+        if (c.citations().isEmpty()) return Optional.of("no citation");
+        for (String id : c.citations()) if (!byId.containsKey(id)) return Optional.of("cites " + id + " outside context");
+        Matcher m = Pattern.compile("\\d+ (hours|minutes)").matcher(c.text());
+        while (m.find()) {
+            String claim = m.group();
+            boolean found = c.citations().stream().anyMatch(id -> byId.get(id).text().contains(claim));
+            if (!found) return Optional.of("claim '" + claim + "' not in cited text");
+        }
+        return Optional.empty();
+    }
+
+    static Result answer(String question, String venue, java.util.function.Function<List<Passage>, Candidate> model) {
+        List<Passage> context = retrieve(question, venue);
+        if (context.isEmpty()) return new Fallback("retrieval", "no authorized evidence");
+        Candidate c = model.apply(context);
+        Optional<String> problem = unsupported(c, context);
+        if (problem.isPresent()) return new Fallback("validation", problem.get());
+        return new Answer(c.text(), c.citations());
+    }
+
+    public static void main(String[] args) {
+        String q = "Until when can I cancel for a refund?";
+        System.out.println("context ids: " + retrieve(q, "hall-a").stream().map(Passage::id).toList());
+        System.out.println("supported : " + answer(q, "hall-a", ctx -> new Candidate("You can cancel up to 48 hours before the show.", List.of("P2"))));
+        System.out.println("stale 24h : " + answer(q, "hall-a", ctx -> new Candidate("You can cancel up to 24 hours before the show.", List.of("P2"))));
+        System.out.println("bad cite  : " + answer(q, "hall-a", ctx -> new Candidate("You can cancel up to 2 hours before.", List.of("B7"))));
+        System.out.println("no cite   : " + answer(q, "hall-a", ctx -> new Candidate("You can cancel up to 48 hours before the show.", List.of())));
+        System.out.println("no evidence: " + answer("Is parking included with tickets?", "hall-a", ctx -> new Candidate("Yes.", List.of("P2"))));
+    }
+}
+`,
+      output: String.raw`context ids: [P2]
+supported : Answer[text=You can cancel up to 48 hours before the show., citations=[P2]]
+stale 24h : Fallback[stage=validation, reason=claim '24 hours' not in cited text]
+bad cite  : Fallback[stage=validation, reason=cites B7 outside context]
+no cite   : Fallback[stage=validation, reason=no citation]
+no evidence: Fallback[stage=retrieval, reason=no authorized evidence]`
   }
 };

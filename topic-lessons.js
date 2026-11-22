@@ -2,7 +2,7 @@ import { backendFoundationTopics } from './notes/topic-backend-foundations.js';
 import { foundationTopics } from './notes/topic-foundations.js';
 import { numberAlgorithmTopics } from './notes/topic-number-algorithms.js';
 import { depthPackets, packetCode } from './day-depth.js';
-import { lateTopicAnswers } from './late-depth.js';
+import { lateTopicAnswers, lateTopicCode } from './late-depth.js';
 import { systemFoundationTopics } from './notes/topic-system-foundations.js';
 
 // A topic gets its own teaching material only when each item is written for that topic.
@@ -281,3 +281,5 @@ for (const [id, packet] of Object.entries(depthPackets)) if (!id.includes('.')) 
 for (const [id, code] of Object.entries(packetCode)) if (topicLessons[id] && !topicLessons[id].code) topicLessons[id].code = code;
 // Days 55–56 (Grok, late-depth.js): fuller answers for existing questions; only applied while the question text matches.
 for (const [id, answers] of Object.entries(lateTopicAnswers)) for (const qa of topicLessons[id]?.interview || []) if (answers[qa[0]]) qa[1] = answers[qa[0]];
+// Day 39 (Grok, late-depth.js): runnable Java for existing packets without code.
+for (const [id, code] of Object.entries(lateTopicCode)) if (topicLessons[id] && !topicLessons[id].code) topicLessons[id].code = code;
