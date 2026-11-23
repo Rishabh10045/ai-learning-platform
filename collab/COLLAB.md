@@ -615,3 +615,62 @@ Status: OPEN (for Codex's review)
   - HLD Module 6: five missing (6.2, 6.3 → now partial, 6.4, 6.5, 6.7) and two partial (6.1, 6.6).
   - Day 26–27 interview depth and the scored-quiz expansion are waiting on the score-migration decision.
   - Open from before: Day 33's 404 rule, and quiz-bank growth versus `progress.js` `passCount`.
+
+### [2026-11-23 14:45 IST] Grok — CLAIM: Deepak's end-to-end fix plan (PR groups A–D)
+Status: OPEN (claim)
+
+> Grok: Baseline main is `fffabc9bdb42a5a9e2dcf0d3fc9ed3919835cd71`. `collab/qa/qa-2026-11-23-depth.md` does not exist on any branch, so the day audit starts fresh. Codex / the QA chat: please don't edit these files until this PR lands, or post on this entry first so we can split the work.
+- **Now: PR A (`grok/pr-a-content-flow`), whole-app content and study-flow fixes.**
+  - Files: `collab/qa/day-audit-2026-11-23.md` (new), `checks/content-audit.mjs`, `checks/content-options.test.mjs` + `checks/fixtures/answer-key-fffabc9.json` (new), `checks/pr-a-walk.mjs` (new), `ci/run-all.sh`, `RELEASING.md`, and content files only where a Hindi sentence or a <4-option question lives (`curriculum.js`, `assessment-scenarios.js`, `session-qa.js`, `topic-lessons.js`, `notes/topic-*.js`).
+  - Update 14:48 IST: per Deepak, **no `ui/*.js` or `index.html` changes** in PR A. The two UI items are written up as specs below for the Spring Boot version.
+- **Queued, not started:** B (main-topic labs, all 56 days), C (booking/ Spring Boot project; on hold until Deepak's Spring Boot conversion scope is clear), D (full app and saved-progress QA).
+- Storage key, lesson IDs, question IDs, correct answers, pass thresholds, day order and the 12+78+30 / 390-minute budgets stay unchanged.
+
+### [2026-11-23 15:30 IST] Grok — Deepak is converting Study Desk to Spring Boot; PR C on hold; two UI items held as specs
+Status: OPEN (for Deepak and Codex)
+
+> Grok: Deepak (2026-11-23, 14:37–14:48 IST) is converting the **whole Study Desk app into a Spring Boot project himself**. Until he shares the new layout:
+- **PR C (booking/ Spring Boot + PostgreSQL project) is on hold.** Nobody should start it or restructure the repo.
+- PR A stays **data-level and portable**: curriculum text, question options, the content audit and Node tests. These carry over to any backend.
+- The two PR A UI items are **held**. No `ui/*.js` or `index.html` change was made for them. Here is what the Spring Boot version needs to implement:
+
+**Spec 1: revision action on Practice (Days 2–56)**
+- Practice for session *n* (n ≥ 2) shows a "Revise session *n−1*" card first, with the same toggle as Quick revision: "✓ Revision done" or "↺ Revision done (undo)", plus `aria-pressed`.
+- There is one saved flag per session, and both tabs read and write it. Today it is Codex block `revision` in `sessions[n].checked` under `ai-learning-platform.study-desk.v1`, plus the v2 sidecar `revisions["Snn"].doneOn`. Ticking it on either tab must show on the other tab, on the day plan's revision block and after a reload.
+- It can only be recorded on the current study day. The current rule throws "Begin the current study day to record progress." On other days, show the state read-only, or disable the button with that reason.
+- Day 1 has no revision (its 12 minutes are Java foundations), so the card is absent.
+- Acceptance test: seed Day 1 complete. On 23 Nov, tick on Day 2 Practice, and Quick revision shows done. Reload, and it is still done. Undo on Quick revision, and Practice shows pending.
+
+**Spec 2: estimate vs slot on the day plan and Today**
+- Core estimate = 12 min revision (from Day 2) + the minutes of every required, non-stretch practice item in the session (main, DSA lane and Day 1 warm-up). Stretch estimate = the minutes of items flagged `stretch: true`.
+- Core slot = `min(12+78+30, minutes for that date)`. Stretch slot = `max(0, minutes − 120)`. Defaults are 120 on weekdays and 390 on Saturday and Sunday (120 core + 270 stretch).
+- Show two rows: **Core work (needed to finish)** with "Estimate X · slot Y", and **Optional stretch (does not block completion)**. Show the stretch row only when either value is non-zero.
+- If core estimate > core slot: "Over by N" plus "Do the items in order; whatever is unfinished stays in this session and carries forward."
+- If stretch estimate > stretch slot > 0: "Over by N · optional" plus "Pick the items that fit; none is required."
+- Current data with default slots: every day is core 120/120, and every weekend is stretch 270/270. **Day 56 (Sat 16 Jan 2027): core 120/120, stretch 270/270, fits.** No day exceeds its default slot. The warning appears only when Deepak shortens a day, e.g. a Monday at 90 min shows core 120/90, over by 30 min.
+- Note: Codex progress has no per-date minutes, only weekday defaults ("Per-date minutes are not stored in Codex progress yet"). The Spring Boot model should store per-date minutes if Deepak wants one-off short days.
+
+### [2026-11-23 15:30 IST] Grok — handoff for Codex: PR A (content and question fixes)
+Status: OPEN (for Codex's review)
+- **Branch:** `grok/pr-a-content-flow`. Baseline `fffabc9`. The PR link, head and merge SHAs are in the PR and in the follow-up line below.
+- **Days covered:**
+  - Hinglish removed on Days 2–4 (`curriculum.js` `liveExamples` concept text). A scan of every content and UI file found no other Hindi or Hinglish sentence.
+  - 4th option added on all 56 days: 56 scenario questions (`assessment-scenarios.js`) and 30 concept checks (`topic-lessons.js`, `notes/topic-*.js`).
+  - New options are appended, so source answer indexes are unchanged. Display order re-rotates because `compile` rotates by `hash % options.length`.
+  - Question IDs, correct-answer text, `passCount` and `passPct` for all 433 items match the `fffabc9` answer key (`checks/fixtures/answer-key-fffabc9.json`).
+  - `assessmentVersion` 5 → 6. Saved `score`, `correct[]` and passed state are untouched (test included). A quiz page left open across the deploy will ask for a reload.
+- **Guards:**
+  - `content-audit.mjs` now exits 1 when any quiz question or concept check has fewer than 4 options. Against `fffabc9` it fails all 56 days; on this branch it passes 56/56.
+  - It also reports `Java (main)` separately from the lane.
+  - New `checks/content-options.test.mjs` covers 4 options, no duplicates, the answer key, saved-score survival and the no-Hinglish rule. Both run in CI.
+- **Codex's test changed:** `checks/study-backend.test.mjs` expected 3 options on the scenario question, so I changed it to 4.
+- **Audit:** `collab/qa/day-audit-2026-11-23.md`. **20 main lessons have no main-topic program: Days 4, 6, 8–25.** The DSA lane was the only Java on those days. There are no SQL fixtures. Day 44 `CapstoneSim` is single-JVM but described as two instances.
+- **Checks run locally on this branch:**
+  - `ci/run-all.sh`: every suite green. backend 9, engine 44, adapter 11, upgrade 13, coverage 3, late-depth 7, engagement 6, content 4.
+  - `content-audit` 56/56. Java 117/117. Browser 251/251. Day 1+2 65/65. Integrated 56×2. qa-browser pass.
+  - New `checks/pr-a-walk.mjs`: 180 checks (Days 1, 9, 17, 26, 35, 44, 46, 56 × plan, learn, practice, revision × 1366/390 × light/dark, with axe on plan and practice).
+  - All 116 distinct lesson programs run individually with JDK 21.
+- **Blockers / next:**
+  - PR B (main-topic labs) is next. It can be done as plain-Java and SQL fixtures that port to Spring Boot.
+  - PR C waits on Deepak's Spring Boot layout. PR D follows.
+  - The UI specs above are waiting for the Spring Boot UI.

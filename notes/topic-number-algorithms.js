@@ -15,7 +15,7 @@ export const numberAlgorithmTopics = {
       ['How do you clear bit k while preserving the other bits?', 'AND the number with the bitwise complement of the mask 1 << k, assuming k is within the bit width.']
     ],
     takeaways: ['Parity is a low-bit property.', 'Choose a mask for one explicit operation.', 'Check aliasing before mutating multiple positions.'],
-    check: ['Which bit operation toggles just the selected bit?', ['AND with the mask', 'XOR with the mask', 'OR with the mask'], 1, 'The XOR changes a bit only where the mask is one.'],
+    check: ['Which bit operation toggles just the selected bit?', ['AND with the mask', 'XOR with the mask', 'OR with the mask', 'NOT of the mask'], 1, 'The XOR changes a bit only where the mask is one.'],
     references: [['JLS 21 · Integer bitwise operators', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.22.1'], gfgOutline]
   },
   'd-bases-01': {
@@ -31,7 +31,7 @@ export const numberAlgorithmTopics = {
       ['What does a base round trip prove?', 'Formatting a value in a declared radix and parsing the resulting text in that same radix preserves the value within the supported range.']
     ],
     takeaways: ['Use place value to explain a conversion.', 'Make the radix explicit at input boundaries.', 'Test illegal digits and range overflow.'],
-    check: ['What does Integer.parseInt("52", 8) return?', ['52', '42', 'An error'], 1, 'Five eights plus two gives 42.'],
+    check: ['What does Integer.parseInt("52", 8) return?', ['52', '42', 'An error', '82'], 1, 'Five eights plus two gives 42.'],
     references: [integerApi, gfgOutline]
   },
   'd-primes-01': {
@@ -47,7 +47,7 @@ export const numberAlgorithmTopics = {
       ['When would you choose a different method?', 'Use a sieve for a dense bounded query range. Large sparse inputs can use a suitable primality algorithm based on the size and correctness requirements.']
     ],
     takeaways: ['Handle numbers below two and even inputs first.', 'Use an inclusive divisor bound.', 'Choose by query workload and supported range.'],
-    check: ['Which fixture specifically detects a strict rather than inclusive square-root check?', ['1', '49', '53'], 1, '49’s first proper divisor is 7, exactly its square root.'],
+    check: ['Which fixture specifically detects a strict rather than inclusive square-root check?', ['1', '49', '53', '2'], 1, '49’s first proper divisor is 7, exactly its square root.'],
     references: [gfgOutline]
   },
   'd-sieve-01': {
@@ -63,7 +63,7 @@ export const numberAlgorithmTopics = {
       ['How does the sieve serve repeated queries?', 'Reuse the marked table and handle numbers below two separately, then use the candidate as an array index within the checked bound.']
     ],
     takeaways: ['Define an inclusive bound and memory budget.', 'Mark from p² using a safe intermediate type.', 'Cross-check against a simpler algorithm for small bounds.'],
-    check: ['What is the first new candidate when p=5 is processed?', ['10', '20', '25'], 2, 'All smaller composite multiples of 5 have already been handled by 2 or 3.'],
+    check: ['What is the first new candidate when p=5 is processed?', ['10', '20', '25', '15'], 2, 'All smaller composite multiples of 5 have already been handled by 2 or 3.'],
     references: [['GfG · Sieve of Eratosthenes', 'https://www.geeksforgeeks.org/dsa/sieve-of-eratosthenes/'], gfgOutline]
   },
   'd-lcm-01': {
@@ -79,7 +79,7 @@ export const numberAlgorithmTopics = {
       ['Why inspect the whole array when it may contain zero?', 'The mathematical LCM is zero if any operand is zero. Folding a positive prefix could otherwise overflow before discovering the zero.']
     ],
     takeaways: ['Trace the remainder step to zero.', 'Declare the zero and empty-input contracts.', 'Use checked arithmetic for the result type.'],
-    check: ['What is the LCM of [6,10,15]?', ['150', '30', '60'], 1, '30 is divisible by all three and the positive fold reaches it after the first two terms.'],
+    check: ['What is the LCM of [6,10,15]?', ['150', '30', '60', '900'], 1, '30 is divisible by all three and the positive fold reaches it after the first two terms.'],
     references: [['Java 21 · Math.multiplyExact', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html#multiplyExact(long,long)'], gfgOutline]
   }
 };
