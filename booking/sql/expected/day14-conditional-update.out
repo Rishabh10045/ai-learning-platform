@@ -1,0 +1,19 @@
+connection B | OK
+-- broken: both read "free", then both run an unconditional UPDATE
+A reads A1 | free
+B reads A1 | free
+A: UPDATE seat SET owner=U1 rows | 1
+B: UPDATE seat SET owner=U2 rows | 1
+stored owner (U1 was told it won) | U2
+-- fixed: the check is inside the UPDATE; B runs while A still holds the row lock
+A: conditional UPDATE rows | 1
+B sends its conditional UPDATE | 1
+wait 300 ms
+B is still waiting for the row lock | t
+B: conditional UPDATE rows (after A committed) | 0
+drain | 0
+stored owner of A2 | U1
+-- the application maps rows changed to the reply
+reply when rows = 1 | 201 Created
+reply when rows = 0 | 409 Conflict
+close | OK

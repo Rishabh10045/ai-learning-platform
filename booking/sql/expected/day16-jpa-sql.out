@@ -1,0 +1,10 @@
+-- N+1: one query for the list, then one query per booking for its seat
+N+1 queries for 4 bookings | 5
+join fetch: 1 query returns rows | 4
+-- @Version: the UPDATE carries the version that was loaded
+tx1 confirms booking 1 (loaded v0) rows | 1
+tx2 cancels booking 1 (loaded v0) rows | 0
+stored booking 1 | CONFIRMED v1
+-- why the integration test needs PostgreSQL: rules that live only in this database
+second active booking for A2 | 23505 one_active_booking_per_seat
+partial index exists | t

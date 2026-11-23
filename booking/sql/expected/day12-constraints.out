@@ -1,0 +1,18 @@
+-- constraints reject bad rows at the database, whatever code sent them
+valid booking A1/U1 | ok
+second active booking for A1 | 23505 one_active_booking_per_seat
+unknown seat Z9 | 23503 booking_seat_id_fkey
+status PAID | 23514 booking_status_check
+blank user | 23514 booking_user_id_check
+null user | 23502 not null: user_id
+bad seat id a-1 | 23514 seat_id_check
+-- the partial unique index allows re-booking after a cancellation
+cancel A1 | 1
+book A1 again for U2 | ok
+A1 history rows | 2
+A1 active rows | 1
+-- the seat row cannot be deleted while bookings reference it
+delete seat A1 | 23503 booking_seat_id_fkey
+-- expand/contract migration: add a nullable column, backfill, then enforce NOT NULL
+enforce NOT NULL before backfill | 23502 not null: booked_at
+enforce NOT NULL after backfill | ok

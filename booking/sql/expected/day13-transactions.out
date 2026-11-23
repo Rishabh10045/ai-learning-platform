@@ -1,0 +1,17 @@
+second connection | OK
+-- commit keeps both rows of one unit of work
+other connection sees A1 before commit | 0
+other connection sees A1 after commit | 1
+-- rollback undoes both rows
+payment with amount 0 | 23514 payment_amount_check
+A2 rows after rollback | 0 booking, 0 payment
+-- isolation: this session reads A3 twice while the other connection commits a change in between
+READ COMMITTED  first read | free
+other connection sets owner | UPDATE 1
+READ COMMITTED  second read | U7
+REPEATABLE READ first read | free
+other connection sets owner | UPDATE 1
+REPEATABLE READ second read | free
+REPEATABLE READ tries to update A3 | 40001 could not serialize access due to concurrent update
+stored owner of A3 | U8
+close | OK

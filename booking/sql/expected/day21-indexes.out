@@ -1,0 +1,9 @@
+-- a lookup by user without an index reads the whole table
+plan for user_id = U4242 (no index) | Seq Scan
+plan for user_id = U4242 (with index) | Index Scan
+plan uses booking_user_idx | t
+rows found | 1
+-- a composite index serves its leftmost column, not the second column alone
+seat_id = Z7 AND status = CANCELLED uses composite | t
+status = HELD alone uses composite | f
+wrapping the column in lower() uses booking_user_idx | f
