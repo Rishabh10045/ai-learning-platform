@@ -74,7 +74,7 @@ test('all sessions have a subject, multiple interview questions, boundary tests 
       item.choices.length === new Set(item.choices).size), label);
     const [scenario, choices] = assessmentScenarios[day.number];
     const applied = qa.assessment.find(item => item.question === scenario);
-    assert.equal(applied.choices.length, 3, label);
+    assert.equal(applied.choices.length, 4, label); // PR A (Grok, 2026-11-23): every scenario check has four options
     assert.equal(applied.choices[applied.answer], choices[0], label);
     assert.equal(gradeAssessment(day.number, qa.assessment.map(item => item.answer)), qa.assessment.length, label);
     assert.equal(gradeAssessment(day.number, qa.assessment.map(item => (item.answer + 1) % item.choices.length)), 0, label);

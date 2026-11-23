@@ -13,6 +13,8 @@ The site is static and served by GitHub Pages from the root of `main`. Every mer
    | adapter | `node --test ui/checks/adapter.test.mjs` |
    | upgrade (profile saved by `0203934`) | `node --test ui/checks/upgrade.test.mjs` |
    | coverage | `node --test ui/checks/coverage.test.mjs` |
+   | content options, answer key, no Hinglish | `node --test checks/content-options.test.mjs` |
+   | content audit (fails on any question with <4 options) | `node checks/content-audit.mjs 1 56` |
    | Java programs (JDK 21) | `node checks/java-examples.mjs` |
    | browser (desktop, 390 and 320 px, axe) | `node ui/checks/run-checks.mjs <out>` |
    | Day 1 + 2 integration | `node ui/checks/day1-integration.mjs <out>` |

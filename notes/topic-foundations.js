@@ -17,7 +17,7 @@ export const foundationTopics = {
       ['Why do equal hash codes not establish equality?', 'The mapping compresses many possible values into a finite number of hashes. Different values can collide.']
     ],
     takeaways: ['A bucket narrows the search.', 'Equal keys update one mapping.', 'A collision test needs unequal keys with the same hash.'],
-    check: ['Aa and BB have the same hash and are unequal. What does inserting both do?', ['Keeps both mappings.', 'Overwrites Aa.', 'Always throws.'], 0, 'The table distinguishes keys using equality even when hashes match.'],
+    check: ['Aa and BB have the same hash and are unequal. What does inserting both do?', ['Keeps both mappings.', 'Overwrites Aa.', 'Always throws.', 'Keeps both only after the map resizes.'], 0, 'The table distinguishes keys using equality even when hashes match.'],
     references: [javaHashMap]
   },
   'j-oop-02': {
@@ -48,7 +48,7 @@ export const foundationTopics = {
       ['Why does an occupied seat differ from an invalid argument?', 'A valid caller can hit a normal conflict under expected conditions. Invalid input fails the stated preconditions. Callers should handle them separately.']
     ],
     takeaways: ['Classify expected outcomes and failed contracts.', 'Catch only where there is a meaningful action.', 'Retain causes and suppressed failures.'],
-    check: ['A Try body and resource close both throw. What is the primary exception?', ['The try body’s exception', 'The close exception', 'No exception'], 0, 'The close error becomes suppressed on the exception from the body.'],
+    check: ['A Try body and resource close both throw. What is the primary exception?', ['The try body’s exception', 'The close exception', 'No exception', 'A new exception that wraps both as causes'], 0, 'The close error becomes suppressed on the exception from the body.'],
     references: [javaExceptions]
   },
   'l-responsibilities-01': {
@@ -79,7 +79,7 @@ export const foundationTopics = {
       ['What can the JVM usually tell you about List<String> at runtime?', 'It can identify a List instance. Erasure generally prevents distinguishing its type argument from another parameterized List by a direct runtime test.']
     ],
     takeaways: ['Choose the type from the method’s read/write duties.', 'A wildcard captures an unknown specific type.', 'Use rejected compilation as evidence for the contract.'],
-    check: ['Which bound permits adding a String into an unknown destination element type?', ['? extends String', '? super String', '? extends CharSequence'], 1, 'Every possible captured destination type under the lower bound can hold a String.'],
+    check: ['Which bound permits adding a String into an unknown destination element type?', ['? extends String', '? super String', '? extends CharSequence', '? extends Object'], 1, 'Every possible captured destination type under the lower bound can hold a String.'],
     references: [javaGenerics]
   }
 };

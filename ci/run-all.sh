@@ -22,12 +22,14 @@ run upgrade      node --test ui/checks/upgrade.test.mjs ui/checks/upgrade-matrix
 run coverage     node --test ui/checks/coverage.test.mjs
 run late-depth   node --test ui/checks/late-depth.test.mjs
 run engagement   node --test ui/checks/engagement-real.test.mjs
+run content      node --test checks/content-options.test.mjs
+run content-audit node checks/content-audit.mjs 1 56
 run java         node checks/java-examples.mjs
 run browser      node ui/checks/run-checks.mjs "$OUT/browser"
 run day1-2       node ui/checks/day1-integration.mjs "$OUT/day1"
 run integrated   env STUDY_SCREENSHOTS="$OUT/integrated" node checks/integrated.mjs
 run qa-browser   node checks/qa-browser.mjs
 echo; printf '%s\n' "${summary[@]}"
-for f in "$OUT"/{backend,engine,adapter,upgrade,coverage,late-depth,engagement}.log; do printf '%s: %s\n' "$(basename "$f" .log)" "$(grep -E '^ℹ (pass|fail)' "$f" | tr '\n' ' ')"; done
-for f in java browser day1-2 integrated qa-browser; do printf '%s: %s\n' "$f" "$(grep -E 'passed|compile and run' "$OUT/$f.log" | tail -1)"; done
+for f in "$OUT"/{backend,engine,adapter,upgrade,coverage,late-depth,engagement,content}.log; do printf '%s: %s\n' "$(basename "$f" .log)" "$(grep -E '^ℹ (pass|fail)' "$f" | tr '\n' ' ')"; done
+for f in content-audit java browser day1-2 integrated qa-browser; do printf '%s: %s\n' "$f" "$(grep -E 'passed|compile and run|meet the standard' "$OUT/$f.log" | tail -1)"; done
 exit $status

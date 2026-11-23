@@ -158,17 +158,17 @@ const foundations = {
 
 const liveExamples = {
   2: {
-    concept: 'Check-then-act mein pehle condition read hoti hai, phir update hota hai. Agar do threads same Seat share karte hain, scheduler dono reads ko pehle chala sakta hai. Dono ko available dikh sakta hai aur dono success return kar sakte hain.',
+    concept: 'Check-then-act reads a condition first and updates state afterwards. When two threads share the same Seat, the scheduler can run both reads before either write. Both threads can then see the seat as available, and both can return success.',
     example: 'T1 reads available → T2 reads available → T1 assigns U1 → T2 assigns U2.',
     checks: ['Both threads share the same Seat instance.', 'Coordinate the test with a latch or barrier between the read and the write.', 'Record both return values and the final owner.', 'Explain visibility and atomicity in your own words.']
   },
   3: {
-    concept: 'Same monitor par mutual exclusion se ek thread check aur update ke beech doosre thread ko enter karne se rokta hai. Volatile visibility deta hai. Read aur write ko ek combined atomic operation banane ke liye separate coordination chahiye.',
+    concept: 'Mutual exclusion on the same monitor stops a second thread from entering between one thread’s check and its update. Volatile gives visibility only. Making the read and the write one atomic operation needs separate coordination, such as a shared lock.',
     example: 'T1 enters the critical section and assigns U1 before T2 can test availability. T2 then sees a booked seat.',
     checks: ['A shared-seat run returns one success and one failure.', 'The winning user remains the owner.', 'The test harness coordinates starts outside the critical section.', 'Explain why this protection has JVM scope.']
   },
   4: {
-    concept: 'Equals define karta hai do values kab same logical key hain. Equal values ka hash code same hona chahiye. Map key ke fields change ho jaayen toh lookup purane bucket se match khona sakta hai.',
+    concept: 'equals defines when two values are the same logical key. Equal values must have the same hash code. If a field used by equals or hashCode changes after the key is stored, a lookup can search the wrong bucket and miss the entry.',
     example: 'Two separately created SeatId values for A1 should find the same booking map entry.',
     checks: ['Equal SeatId values find the same entry.', 'A different SeatId produces a miss.', 'Explain hashing assumptions for lookup time.']
   }

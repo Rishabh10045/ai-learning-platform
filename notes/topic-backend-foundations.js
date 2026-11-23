@@ -18,7 +18,7 @@ export const backendFoundationTopics = {
       ['How can you test rejection deterministically?', 'Hold the active worker on a latch, fill the queue, attempt a third submission and assert the selected rejection behavior before releasing the worker.']
     ],
     takeaways: ['Bound running and queued work independently.', 'Separate waiting, cancellation and completion.', 'Exercise overload and cleanup with explicit coordination.'],
-    check: ['One worker is busy and the one-slot queue is full. What determines the next submission’s outcome?', ['The rejection policy', 'The number of CPU cores alone', 'Future.get’s timeout'], 0, 'Submission occurs against executor capacity and its configured rejection behavior.'],
+    check: ['One worker is busy and the one-slot queue is full. What determines the next submission’s outcome?', ['The rejection policy', 'The number of CPU cores alone', 'Future.get’s timeout', 'The JVM heap size'], 0, 'Submission occurs against executor capacity and its configured rejection behavior.'],
     references: [executorApi, ['Java 21 · Future', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/Future.html']]
   },
   'j-jvm-01': {
@@ -64,7 +64,7 @@ export const backendFoundationTopics = {
       ['Which assertion catches a false return after an incorrect mutation?', 'Read the seat owner afterward and assert that it is unchanged.']
     ],
     takeaways: ['Exercise the real rule and replace only a dependency.', 'Test outcomes and state effects separately.', 'State which layer each test proves.'],
-    check: ['Which test can detect a broken seat invariant?', ['Stub the booking result to true.', 'Use a real Seat and assert the outcome and final owner.', 'Only check that an application context loads.'], 1, 'Running the real domain transition and checking its final state exposes the defect.'],
+    check: ['Which test can detect a broken seat invariant?', ['Stub the booking result to true.', 'Use a real Seat and assert the outcome and final owner.', 'Only check that an application context loads.', 'Assert only that the controller returns HTTP 200.'], 1, 'Running the real domain transition and checking its final state exposes the defect.'],
     references: [junitGuide]
   },
   'j-build-01': {
@@ -95,7 +95,7 @@ export const backendFoundationTopics = {
       ['Does a singleton bean guarantee thread safety?', 'Its scope determines instance reuse inside the container. Its state and mutation protocol determine thread safety.']
     ],
     takeaways: ['Make required dependencies explicit.', 'Test both independent construction and container assembly.', 'Decide scope separately from thread safety.'],
-    check: ['How can you test BookingService without Spring?', ['Call its constructor with a test repository.', 'Hide the repository in a global field.', 'Remove its required dependency.'], 0, 'Direct construction can supply any implementation that honors the required contract.'],
+    check: ['How can you test BookingService without Spring?', ['Call its constructor with a test repository.', 'Hide the repository in a global field.', 'Remove its required dependency.', 'Start the full Spring context for every unit test.'], 0, 'Direct construction can supply any implementation that honors the required contract.'],
     references: [['Spring · Dependency injection', 'https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html']]
   },
   'b-http-01': {
@@ -111,7 +111,7 @@ export const backendFoundationTopics = {
       ['How do you handle a lost POST response?', 'Treat the outcome as uncertain. Use status lookup or a replay contract that scopes and validates an idempotency key.']
     ],
     takeaways: ['Choose methods from request semantics.', 'Use stable result codes and verify persisted effects.', 'Define a deliberate retry contract for writes.'],
-    check: ['A GET says A1 is available and the later POST responds 409. Which outcome governs the booking?', ['The cached GET', 'The authoritative POST check', 'Whichever request arrived at the browser last'], 1, 'The current authoritative write enforces the ownership rule.'],
+    check: ['A GET says A1 is available and the later POST responds 409. Which outcome governs the booking?', ['The cached GET', 'The authoritative POST check', 'Whichever request arrived at the browser last', 'Whichever request the server logged first'], 1, 'The current authoritative write enforces the ownership rule.'],
     references: [['IETF RFC 9110 · HTTP Semantics', 'https://www.rfc-editor.org/rfc/rfc9110.html']]
   },
   'b-rest-01': {
@@ -172,7 +172,7 @@ export const backendFoundationTopics = {
       ['What is the risk of acquiring a separate Connection for each statement?', 'Separate sessions have separate transaction state. Dependent writes can commit or roll back independently.']
     ],
     takeaways: ['Bind values with their intended types.', 'Read the update count as evidence of the guard.', 'Keep a transaction on one connection.'],
-    check: ['Which action retains one transaction boundary?', ['Use the same Connection for all statements in the unit.', 'Open a new connection for each statement.', 'Enable auto-commit between dependent writes.'], 0, 'One connection owns the session and its transaction state.'],
+    check: ['Which action retains one transaction boundary?', ['Use the same Connection for all statements in the unit.', 'Open a new connection for each statement.', 'Enable auto-commit between dependent writes.', 'Call commit after each statement.'], 0, 'One connection owns the session and its transaction state.'],
     references: [['Java 21 · PreparedStatement', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.sql/java/sql/PreparedStatement.html']]
   },
   'b-transactions-02': {
@@ -188,7 +188,7 @@ export const backendFoundationTopics = {
       ['How should a test control a concurrent update?', 'Use separate connections, hold or order the first transaction explicitly, bound waits and then inspect both counts and the final committed state.']
     ],
     takeaways: ['Check eligibility at the write.', 'Interpret counts in the chosen isolation level.', 'Verify final state from an independent session.'],
-    check: ['A guarded UPDATE runs after the winning transaction commits. Which result indicates losing the guard?', ['Two affected rows', 'Zero affected rows', 'A successful prior GET'], 1, 'With owner already set, the availability predicate no longer matches.'],
+    check: ['A guarded UPDATE runs after the winning transaction commits. Which result indicates losing the guard?', ['Two affected rows', 'Zero affected rows', 'A successful prior GET', 'One affected row'], 1, 'With owner already set, the availability predicate no longer matches.'],
     references: [['PostgreSQL · Read Committed isolation', pg + 'transaction-iso.html']]
   },
   'b-transactions-03': {
@@ -219,7 +219,7 @@ export const backendFoundationTopics = {
       ['Why can a collection fetch join complicate pagination?', 'The join can expand each parent into several result rows, interfering with row-limit behavior or requiring additional processing.']
     ],
     takeaways: ['Check effect and durability with the right boundary.', 'Measure query counts in a representative fixture.', 'Keep pagination contract intact during optimization.'],
-    check: ['One query loads bookings, and four additional queries individually load four owners. What pattern is visible?', ['N+1 reads', 'An optimistic write conflict', 'A missing transaction commit'], 0, 'The initial query is followed by one additional lookup per association accessed.'],
+    check: ['One query loads bookings, and four additional queries individually load four owners. What pattern is visible?', ['N+1 reads', 'An optimistic write conflict', 'A missing transaction commit', 'A Cartesian-product join'], 0, 'The initial query is followed by one additional lookup per association accessed.'],
     references: [['Hibernate ORM · Fetching', 'https://docs.hibernate.org/orm/6.6/userguide/html_single/#fetching']]
   },
   'b-testing-02': {

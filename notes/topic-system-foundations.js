@@ -36,7 +36,7 @@ export const systemFoundationTopics = {
       ['Can the online path depend on the cleanup job running on time?', 'The transition should evaluate expiry directly so correctness holds when cleanup is delayed.']
     ],
     takeaways: ['Make every transition name a hold identity.', 'Test the equality boundary.', 'Keep correctness independent of cleanup timing.'],
-    check: ['Strict validity is now < expiresAt. What happens at equality?', ['Confirmation succeeds.', 'Confirmation fails.', 'The answer depends on HTTP method.'], 1, 'Equality fails a strict less-than check.'],
+    check: ['Strict validity is now < expiresAt. What happens at equality?', ['Confirmation succeeds.', 'Confirmation fails.', 'The answer depends on HTTP method.', 'Confirmation succeeds if cleanup has not run yet.'], 1, 'Equality fails a strict less-than check.'],
     references: [timeApi]
   },
   'b-transactions-04': {
@@ -112,7 +112,7 @@ export const systemFoundationTopics = {
       ['What extra evidence does EXPLAIN ANALYZE provide?', 'It executes the statement and reports observed row counts and timings alongside the estimates.']
     ],
     takeaways: ['Start with the workload and distribution.', 'Compare equivalent query results and plans.', 'Account for write costs and execution effects.'],
-    check: ['Which command actually executes the planned query?', ['EXPLAIN', 'EXPLAIN ANALYZE', 'CREATE INDEX alone'], 1, 'ANALYZE in EXPLAIN measures execution rather than only planning.'],
+    check: ['Which command actually executes the planned query?', ['EXPLAIN', 'EXPLAIN ANALYZE', 'CREATE INDEX alone', 'ANALYZE'], 1, 'ANALYZE in EXPLAIN measures execution rather than only planning.'],
     references: [['PostgreSQL · Using EXPLAIN', postgres + 'using-explain.html'], ['PostgreSQL · Multicolumn indexes', postgres + 'indexes-multicolumn.html']]
   },
   'b-caching-01': {
@@ -173,7 +173,7 @@ export const systemFoundationTopics = {
       ['What can happen after an effect commits but the offset does not?', 'The record can be delivered again. The downstream operation needs an idempotency or coordinated effect strategy.']
     ],
     takeaways: ['State the partition and group scope.', 'Separate an offset from business effects.', 'Test a restart at the offset boundary.'],
-    check: ['What happens if a group has more consumers than assigned partitions?', ['Every consumer handles the same partition.', 'Some consumers have no assigned partition.', 'All records become globally ordered.'], 1, 'A single assignment uses each partition at most once within the group.'],
+    check: ['What happens if a group has more consumers than assigned partitions?', ['Every consumer handles the same partition.', 'Some consumers have no assigned partition.', 'All records become globally ordered.', 'Extra consumers split each partition’s records between them.'], 1, 'A single assignment uses each partition at most once within the group.'],
     references: [kafka]
   },
   'h-queues-01': {

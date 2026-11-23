@@ -317,7 +317,7 @@ class Day27Windows {
       ['What would break if every service could set the owner directly?', 'A caller could overwrite an existing owner without checking the booking rule. A guarded transition preserves the rule and makes the permitted updates easy to locate.'],
       ['What should a query return if callers need a point-in-time copy?', 'Return a read-only value representing the seat ID and observed owner. Keep the original Seat as the write authority and document that the observed value can become stale.']
     ],
-    check: ['Seat declares only Seat(String id). What happens if a caller uses new Seat()?', ['Java passes null implicitly.', 'The call fails to compile.', 'Java creates a valid seat with an empty ID.'], 1, 'Java only generates an implicit default constructor when the class declares no constructors.'],
+    check: ['Seat declares only Seat(String id). What happens if a caller uses new Seat()?', ['Java passes null implicitly.', 'The call fails to compile.', 'Java creates a valid seat with an empty ID.', 'Java generates a default no-argument constructor.'], 1, 'Java only generates an implicit default constructor when the class declares no constructors.'],
     references: [
       ['Dev.java · Creating classes and constructors', 'https://dev.java/learn/language/oop/classes-objects/creating-classes/'],
       ['JLS 21 · Default constructor', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.8.9']
@@ -336,7 +336,7 @@ class Day27Windows {
       ['Why can mutating a key break a successful lookup?', 'If its equality fields change, the new hash or comparison can no longer locate the entry placed using the old identity. Store changing fields in the value.'],
       ['How would you test a case-insensitive SeatId?', 'Normalize through one rule at construction. Insert A1 and retrieve with a separately created a1, check equal hashes, then use unequal IDs with the same hash to prove the distinction.']
     ],
-    check: ['Two different keys have the same hash. Can a HashMap hold both?', ['Yes, when equals distinguishes them.', 'Only when their values are identical.', 'No, the second must overwrite the first.'], 0, 'Hash collisions are allowed. Equality determines whether a found key is the same key.'],
+    check: ['Two different keys have the same hash. Can a HashMap hold both?', ['Yes, when equals distinguishes them.', 'Only when their values are identical.', 'No, the second must overwrite the first.', 'Only when the map compares keys by identity.'], 0, 'Hash collisions are allowed. Equality determines whether a found key is the same key.'],
     references: [['Dev.java · Choosing map keys', 'https://dev.java/learn/api/collections-and-streams/collections-framework/choosing-keys/']]
   },
   'j-collections-01': {
@@ -367,7 +367,7 @@ class Day27Windows {
       ['When would you replace this map with LinkedHashMap, TreeMap or ConcurrentHashMap?', 'Choose LinkedHashMap for stable insertion or access order, TreeMap for sorted ranges, and ConcurrentHashMap for shared concurrent lookups and atomic updates per key, with a different null policy.'],
       ['Can you promise logarithmic lookup for every collision-heavy key in a tree bin?', 'The implementation can search broadly when hashes match and keys provide no usable comparable order. Discuss hash quality and key behavior before promising a bound.']
     ],
-    check: ['The map contains an ID whose stored value is null. Which operation can distinguish it from an absent ID?', ['get', 'containsKey', 'hashCode'], 1, 'get can return null in either case. containsKey checks membership directly.'],
+    check: ['The map contains an ID whose stored value is null. Which operation can distinguish it from an absent ID?', ['get', 'containsKey', 'hashCode', 'getOrDefault(id, null)'], 1, 'get can return null in either case. containsKey checks membership directly.'],
     references: [
       ['Java 21 API · HashMap', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html'],
       ['OpenJDK 21 · HashMap implementation', 'https://github.com/openjdk/jdk/blob/jdk-21-ga/src/java.base/share/classes/java/util/HashMap.java'],
@@ -396,7 +396,7 @@ class Day27Windows {
       ['When would you use StringBuilder for booking labels?', 'Use an unshared builder when looping through labels to construct a growing result, then call toString once at the boundary. For a short fixed expression, ordinary concatenation is clear.'],
       ['Does StringBuffer make a read-then-append sequence atomic?', 'Its individual calls can synchronize. A compound sequence still needs coordination outside the buffer or an owner that keeps the buffer local.']
     ],
-    check: ['A database returns a runtime String containing A1. Which comparison expresses the booking rule?', ['value == "A1"', '"A1".equals(value)', 'value.hashCode() == "A1".hashCode()'], 1, 'String.equals checks the identifier contents. Reference identity is narrower and different values can share a hash.'],
+    check: ['A database returns a runtime String containing A1. Which comparison expresses the booking rule?', ['value == "A1"', '"A1".equals(value)', 'value.hashCode() == "A1".hashCode()', 'value.compareTo("A1") > 0'], 1, 'String.equals checks the identifier contents. Reference identity is narrower and different values can share a hash.'],
     references: [
       ['Java 21 API · String', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html'],
       ['JLS 21 · String literals and interning', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-3.html#jls-3.10.5'],
@@ -417,7 +417,7 @@ class Day27Windows {
       ['Why is map a poor place for logging that must happen for every element?', 'Stream implementations can short-circuit or elide operations where their side effects are irrelevant to the result. An explicit traversal or terminal operation gives a clearer contract.'],
       ['What changes when you replace findFirst with toList?', 'The result changes from a possible first match to all matching IDs. Traversal usually must consider the entire input and the collected list needs memory proportional to the output.']
     ],
-    check: ['Which operation asks an ordered pipeline to produce its first matching value?', ['filter', 'map', 'findFirst'], 2, 'filter and map are intermediate operations. findFirst is a short-circuiting terminal operation.'],
+    check: ['Which operation asks an ordered pipeline to produce its first matching value?', ['filter', 'map', 'findFirst', 'sorted'], 2, 'filter and map are intermediate operations. findFirst is a short-circuiting terminal operation.'],
     references: [['Dev.java · Stream API', 'https://dev.java/learn/api/collections-and-streams/streams/']]
   },
   'j-concurrency-02': {
@@ -434,7 +434,7 @@ class Day27Windows {
       ['What changes when your application runs in two JVMs?', 'Java monitor identity stays inside one process. Apply the guard in a shared authority and test two original writers.'],
       ['Where should the test’s start barrier live?', 'Before entering the same exclusive lock. A barrier inside it can wait forever for a worker which cannot enter.']
     ],
-    check: ['Both threads read empty before either writes a volatile owner. What can happen?', ['Both can report success.', 'Volatile guarantees exactly one winner.', 'Java refuses the second read.'], 0, 'Visibility of one field does not make the check and write one atomic action.'],
+    check: ['Both threads read empty before either writes a volatile owner. What can happen?', ['Both can report success.', 'Volatile guarantees exactly one winner.', 'Java refuses the second read.', 'The second write throws an exception.'], 0, 'Visibility of one field does not make the check and write one atomic action.'],
     references: [['Java Language Specification · Happens-before order', 'https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5']]
   },
   'b-transactions-01': {
@@ -450,7 +450,7 @@ class Day27Windows {
       ['How do you prove which snapshot a query saw?', 'Coordinate two connections, record read and commit order, fix the isolation level, and compare the second read in the same transaction with the first read in a new transaction.'],
       ['How do you retry a serialization failure safely?', 'Roll back the failed transaction, start a fresh one, recreate all decision inputs and enforce a retry limit.']
     ],
-    check: ['B reads A1 under PostgreSQL Repeatable Read. A then commits a new owner. What can B read again before ending its transaction?', ['The owner from its first snapshot.', 'The new owner in every case.', 'An uncommitted owner from another session.'], 0, 'PostgreSQL Repeatable Read retains the established transaction snapshot for ordinary reads.'],
+    check: ['B reads A1 under PostgreSQL Repeatable Read. A then commits a new owner. What can B read again before ending its transaction?', ['The owner from its first snapshot.', 'The new owner in every case.', 'An uncommitted owner from another session.', 'Nothing; the row stays locked until A ends.'], 0, 'PostgreSQL Repeatable Read retains the established transaction snapshot for ordinary reads.'],
     references: [['PostgreSQL · Transaction isolation', 'https://www.postgresql.org/docs/current/transaction-iso.html']]
   },
   'b-validation-01': {
@@ -466,7 +466,7 @@ class Day27Windows {
       ['When can a request produce 409?', 'When it is valid but conflicts with current resource state, such as another owner already taking the seat.'],
       ['How do you confirm malformed input did no damage?', 'Exercise the real endpoint and also check the persisted owner, with a direct-service fixture for use cases which bypass HTTP.']
     ],
-    check: ['A valid booking request targets a known occupied seat. Which status fits this API?', ['400 malformed request', '409 conflict', '201 created'], 1, 'The request can be decoded and validated. The protected write fails because the seat is already owned.'],
+    check: ['A valid booking request targets a known occupied seat. Which status fits this API?', ['400 malformed request', '409 conflict', '201 created', '404 not found'], 1, 'The request can be decoded and validated. The protected write fails because the seat is already owned.'],
     references: [['Spring Framework · MVC validation', 'https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html']]
   },
   'l-uml-01': {
@@ -504,7 +504,7 @@ class Day27Windows {
       ['What problem can sticky routing hide?', 'An app may store essential session state in one process. Affinity makes that appear to work until failover, process replacement or imbalance. Route the same workflow across different instances to expose it.'],
       ['What should be checked before scaling on queue depth?', 'Check whether app workers or a downstream dependency are saturated, set replica limits, and measure how long new instances take to become healthy. The useful action depends on the causing layer.']
     ],
-    check: ['Two app processes can serve 80 RPS each. The shared database supports 120 RPS for the same workload. What is the system ceiling in the example?', ['80 RPS', '120 RPS', '160 RPS'], 1, 'The application ceiling is 160 RPS and the dependency ceiling is 120 RPS. The smaller capacity limits this workload.'],
+    check: ['Two app processes can serve 80 RPS each. The shared database supports 120 RPS for the same workload. What is the system ceiling in the example?', ['80 RPS', '120 RPS', '160 RPS', '200 RPS'], 1, 'The application ceiling is 160 RPS and the dependency ceiling is 120 RPS. The smaller capacity limits this workload.'],
     references: [
       ['GeeksforGeeks · System Design Training, Module 2', 'https://www.geeksforgeeks.org/courses/system-design-training-program'],
       ['Kubernetes · Horizontal Pod Autoscaling', 'https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/']
@@ -523,7 +523,7 @@ class Day27Windows {
       ['Why can aggregate traffic hide overload?', 'Load can concentrate on one database row, cache key or partition. Per-key arrival and queueing can saturate before the aggregate does.'],
       ['What changes if the cache is cold?', 'The steady hit assumption fails. Misses can coalesce or amplify. Bound origin work and measure actual fill and connection wait.']
     ],
-    check: ['A hot event gets 240 reads/s and has a 95% hit rate. With one origin fetch per miss, what is its steady origin rate?', ['12 reads/s', '24 reads/s', '228 reads/s'], 0, 'The miss rate is 5%. Multiplying 240 by 0.05 yields 12 reads per second.'],
+    check: ['A hot event gets 240 reads/s and has a 95% hit rate. With one origin fetch per miss, what is its steady origin rate?', ['12 reads/s', '24 reads/s', '228 reads/s', '48 reads/s'], 0, 'The miss rate is 5%. Multiplying 240 by 0.05 yields 12 reads per second.'],
     references: [['GFG · System Design syllabus, scaling foundations', 'https://media.geeksforgeeks.org/courses/syllabus/973f73599e070cabefcf71cd54e1ff1f.pdf#page=4']]
   },
   'd-union-find-01': {
@@ -540,7 +540,7 @@ class Day27Windows {
       ['Why does ordinary Union-Find struggle with edge deletion?', 'Its parent links represent set membership and may not correspond to original graph edges. It cannot tell whether removing an original edge splits the set.'],
       ['How does the union result support Kruskal?', 'A successful union adds connectivity without a cycle, so the sorted edge can be accepted. A redundant union signals an existing path.']
     ],
-    check: ['With four vertices, union(0,1), union(1,2) and union(0,2) run in that order. How many components remain?', ['1', '2', '3'], 1, 'The first two unions merge sets. The third endpoints already match, and vertex 3 remains separate.'],
+    check: ['With four vertices, union(0,1), union(1,2) and union(0,2) run in that order. How many components remain?', ['1', '2', '3', '4'], 1, 'The first two unions merge sets. The third endpoints already match, and vertex 3 remains separate.'],
     references: [['Princeton · Union-Find', 'https://algs4.cs.princeton.edu/15uf/']]
   },
   'ai-rag-01': {
@@ -557,7 +557,7 @@ class Day27Windows {
       ['What must a citation validator verify?', 'The cited passage belongs to the approved context, and its content actually supports the material claim. A stable ID alone is insufficient.'],
       ['What happens when the provider or evidence path fails?', 'The help feature returns a bounded deterministic fallback. Booking authority and domain transitions stay in the Java service and database.']
     ],
-    check: ['The correct passage was retrieved and cited, but the answer contradicts it. Which result should be recorded?', ['Retrieval was a miss.', 'The candidate is supported because the source ID exists.', 'Retrieval succeeded but grounding or its validation failed.'], 2, 'The evidence was present. Compare the actual generated claim with that passage and measure grounding separately.'],
+    check: ['The correct passage was retrieved and cited, but the answer contradicts it. Which result should be recorded?', ['Retrieval was a miss.', 'The candidate is supported because the source ID exists.', 'Retrieval succeeded but grounding or its validation failed.', 'The passage was wrong and should be removed from the index.'], 2, 'The evidence was present. Compare the actual generated claim with that passage and measure grounding separately.'],
     references: [['Spring AI · Retrieval Augmented Generation', 'https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html']]
   }
 };
