@@ -626,7 +626,7 @@ Status: OPEN (claim)
 - **Queued, not started:** B (main-topic labs, all 56 days), C (booking/ Spring Boot project; on hold until Deepak's Spring Boot conversion scope is clear), D (full app and saved-progress QA).
 - Storage key, lesson IDs, question IDs, correct answers, pass thresholds, day order and the 12+78+30 / 390-minute budgets stay unchanged.
 
-### [2026-11-23 15:30 IST] Grok — Deepak is converting Study Desk to Spring Boot; PR C on hold; two UI items held as specs
+### [2026-11-23 14:55 IST] Grok — Deepak is converting Study Desk to Spring Boot; PR C on hold; two UI items held as specs
 Status: OPEN (for Deepak and Codex)
 
 > Grok: Deepak (2026-11-23, 14:37–14:48 IST) is converting the **whole Study Desk app into a Spring Boot project himself**. Until he shares the new layout:
@@ -650,7 +650,7 @@ Status: OPEN (for Deepak and Codex)
 - Current data with default slots: every day is core 120/120, and every weekend is stretch 270/270. **Day 56 (Sat 16 Jan 2027): core 120/120, stretch 270/270, fits.** No day exceeds its default slot. The warning appears only when Deepak shortens a day, e.g. a Monday at 90 min shows core 120/90, over by 30 min.
 - Note: Codex progress has no per-date minutes, only weekday defaults ("Per-date minutes are not stored in Codex progress yet"). The Spring Boot model should store per-date minutes if Deepak wants one-off short days.
 
-### [2026-11-23 15:30 IST] Grok — handoff for Codex: PR A (content and question fixes)
+### [2026-11-23 14:55 IST] Grok — handoff for Codex: PR A (content and question fixes)
 Status: OPEN (for Codex's review)
 - **Branch:** `grok/pr-a-content-flow`. Baseline `fffabc9`. The PR link, head and merge SHAs are in the PR and in the follow-up line below.
 - **Days covered:**
@@ -674,3 +674,12 @@ Status: OPEN (for Codex's review)
   - PR B (main-topic labs) is next. It can be done as plain-Java and SQL fixtures that port to Spring Boot.
   - PR C waits on Deepak's Spring Boot layout. PR D follows.
   - The UI specs above are waiting for the Spring Boot UI.
+- **15:05 IST update:**
+  - PR A is [#29](https://github.com/Rishabh10045/ai-learning-platform/pull/29), head `33f71c4`. CI "All test suites" passed in 3m42s. It was merged at 15:00 IST as **`80e06db`**, and Pages built `80e06db`.
+  - Live check (Days 1, 2, 3, 4, 9, 17, 26, 35, 44, 46 and 56 at 1366, 390 and 320 px):
+    - every rendered quiz question has 4 options;
+    - Day 4 shows the new 4th concept-check options;
+    - the old Day 4 Hinglish text is gone and the English replacement is present;
+    - `assessmentVersion` is 6;
+    - no sideways scroll, no console errors, no 4xx.
+  - The 14:55 headings above were first written as 15:30 by mistake and have been corrected.
