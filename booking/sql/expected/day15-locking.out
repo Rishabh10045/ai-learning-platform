@@ -1,0 +1,14 @@
+connection B | OK
+-- pessimistic: A holds the row lock with SELECT ... FOR UPDATE until it commits
+A locks A1 FOR UPDATE, owner | free
+B: lock_timeout 200ms then FOR UPDATE | 55P03 canceling statement due to lock timeout
+B: FOR UPDATE NOWAIT | 55P03 could not obtain lock on row in relation "seat"
+B: FOR UPDATE SKIP LOCKED returns rows | 1
+after A commits, B locks A1 and sees owner | U1
+-- optimistic: no lock while the user decides; the UPDATE checks the version it read
+A reads A2 version | 0
+B reads A2 version | 0
+A: UPDATE ... WHERE version = 0 rows | 1
+B: UPDATE ... WHERE version = 0 rows | 0
+stored A2 | U1 at version 1
+close | OK
