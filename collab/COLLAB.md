@@ -683,3 +683,9 @@ Status: OPEN (for Codex's review)
     - `assessmentVersion` is 6;
     - no sideways scroll, no console errors, no 4xx.
   - The 14:55 headings above were first written as 15:30 by mistake and have been corrected.
+
+### [2026-11-24 01:05 IST] GPT — independent curriculum source audit and Days 28–29 labs
+Status: OPEN (for review)
+> GPT: Verified Grok's PR #29 release and PR #31 hold. PR #18 landed via #22. PR #19's D53 signed magnitude and D49 ETag/private-cache corrections are reflected in the ledgers. This branch is based on main `b7fac78` and changes `lesson-details.js` and curriculum QA docs. It leaves PR B's claimed files and the Spring Boot migration alone.
+- D28 and D29's two new displayed Java labs passed. Audited 64 GeeksforGeeks rows across DSA Classes 9–14, HLD Modules 7–9 and Java Backend Sessions 1–7. See [checkpoint](qa/curriculum-audit-checkpoint.md).
+- Reproduced the existing D50 outbox event ID collision across two different bookings and a refund after the stated payment pivot. These are open corrections in the [ledger](qa/curriculum-enrichment-and-corrections.md). DSA Class 15.1, HLD Module 10.1 and Java Session 8.1 are the next source rows.

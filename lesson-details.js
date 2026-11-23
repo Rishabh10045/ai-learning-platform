@@ -288,10 +288,138 @@ class BoundedBookingWork {
       'For [2,4,4,7] and target 4, the first mid is 2. Retain the left side including the boundary at 2, then move hi to 1 and discard index 0. The algorithm returns 1. With target 9 every comparison discards a prefix and the final index equals the length. Arbitrary availability flags do not form the monotone predicate this proof requires.',
       'The recursive form makes one smaller call with (lo, mid) after a qualifying value or (mid + 1, hi) after a value below target. The base case lo == hi returns lo. The search interval shrinks by about half per step, so both implementations take O(log n) time. The recursive version holds O(log n) frames and the iterative version keeps O(1) auxiliary state. For exact search, check that the returned index is within bounds and its value equals the target. For an absent target, return −1.']
   },
+  28: {
+    section: ['Compare sorts with equal keys and nearly sorted input',
+      'Stable sorts keep the original order of records that compare equal. If A(2), B(2), C(1) arrive in that order, a stable sort produces C(1), A(2), B(2). Selection sort can swap C with A, moving A behind B. The two results have the same key order, so a test with only integer values misses this difference.',
+      'Take 8 minutes of the existing sorting practice to predict both outputs and count comparisons on four sorted values. Early-exit bubble sort and insertion sort stop after three comparisons. Plain selection sort still makes six. On unsorted arrays all three have a quadratic worst case. Insertion sort is useful for small or almost sorted arrays. Selection sort bounds swaps to at most n − 1, which matters when writes cost more than comparisons. The Java 21 List.sort contract promises stability for objects. Sort numeric keys with Integer.compare or Comparator.comparingInt, since subtracting them can overflow.'],
+    source: ['Princeton Algorithms · Elementary Sorts', 'https://algs4.cs.princeton.edu/21elementary/'],
+    code: ['Run ElementarySortTrace.java. Expect stable=C,A,B, selection=C,B,A and sorted comparisons=3,3,6.', 'java', `import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collections;
+
+class ElementarySortTrace {
+    record Seat(int priority, String id) {}
+
+    static int selectionSort(List<Seat> seats) {
+        int comparisons = 0;
+        for (int i = 0; i + 1 < seats.size(); i++) {
+            int smallest = i;
+            for (int j = i + 1; j < seats.size(); j++) {
+                comparisons++;
+                if (seats.get(j).priority() < seats.get(smallest).priority()) smallest = j;
+            }
+            if (smallest != i) Collections.swap(seats, i, smallest);
+        }
+        return comparisons;
+    }
+
+    static int bubbleSort(int[] seats) {
+        int comparisons = 0;
+        for (int end = seats.length - 1; end > 0; end--) {
+            boolean swapped = false;
+            for (int i = 0; i < end; i++) {
+                comparisons++;
+                if (seats[i] <= seats[i + 1]) continue;
+                int left = seats[i];
+                seats[i] = seats[i + 1];
+                seats[i + 1] = left;
+                swapped = true;
+            }
+            if (!swapped) break;
+        }
+        return comparisons;
+    }
+
+    static int insertionSort(int[] seats) {
+        int comparisons = 0;
+        for (int i = 1; i < seats.length; i++) {
+            int value = seats[i];
+            int j = i;
+            while (j > 0) {
+                comparisons++;
+                if (seats[j - 1] <= value) break;
+                seats[j] = seats[j - 1];
+                j--;
+            }
+            seats[j] = value;
+        }
+        return comparisons;
+    }
+
+    public static void main(String[] args) {
+        var tagged = List.of(new Seat(2, "A"), new Seat(2, "B"), new Seat(1, "C"));
+        var stable = new ArrayList<>(tagged);
+        stable.sort(Comparator.comparingInt(Seat::priority));
+        var selection = new ArrayList<>(tagged);
+        selectionSort(selection);
+        var stableIds = stable.stream().map(Seat::id).toList();
+        var selectionIds = selection.stream().map(Seat::id).toList();
+        if (!stableIds.equals(List.of("C", "A", "B")) ||
+            !selectionIds.equals(List.of("C", "B", "A"))) throw new AssertionError("stability");
+
+        int bubble = bubbleSort(new int[]{1, 2, 3, 4});
+        int insertion = insertionSort(new int[]{1, 2, 3, 4});
+        int select = selectionSort(new ArrayList<>(List.of(
+            new Seat(1, "A"), new Seat(2, "B"), new Seat(3, "C"), new Seat(4, "D"))));
+        if (bubble != 3 || insertion != 3 || select != 6) throw new AssertionError("comparisons");
+        System.out.println("stable=" + String.join(",", stableIds));
+        System.out.println("selection=" + String.join(",", selectionIds));
+        System.out.printf("sorted comparisons=%d,%d,%d%n", bubble, insertion, select);
+    }
+}`]
+  },
   29: {
     section: ['Compare the practice implementation with Java’s collection',
-      'The exercise uses a map and a separate doubly linked list so you can see the ownership of each node and its links. In production Java, compare this with an access-ordered LinkedHashMap and a capacity policy. A successful get changes encounter order in access-order mode. If several threads share a cache, the entire operation needs a concurrency strategy that preserves both lookup and recency.'],
-    source: ['Java 21 · LinkedHashMap access order', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html']
+      'The exercise uses a map and a separate doubly linked list so you can see the ownership of each node and its links. In production Java, compare this with an access-ordered LinkedHashMap and a capacity policy. A successful get changes encounter order in access-order mode. If several threads share a cache, the entire operation needs a concurrency strategy that preserves both lookup and recency.',
+      'A bounded circular FIFO uses head for the next removal, tail for the next insertion and size to distinguish full from empty. With capacity two, offer A and B, then refuse C. Poll A, offer C, and drain B then C. Tail wraps and reuses the slot A occupied. A full queue keeps existing work and returns false on offer. Overwriting would silently drop a request. Use 12 minutes of the existing review to trace the indices and run the code. This exercise models one thread. A production concurrent bounded queue needs synchronization and a deliberate overload policy.'],
+    source: ['Java 21 · LinkedHashMap access order', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html'],
+    code: ['Run BoundedSeatQueue.java. Expect full=false, first=A, remaining=B,C and empty=null.', 'java', `class BoundedSeatQueue {
+    private final String[] seats;
+    private int head;
+    private int tail;
+    private int size;
+
+    BoundedSeatQueue(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException("capacity");
+        seats = new String[capacity];
+    }
+
+    boolean offer(String seat) {
+        java.util.Objects.requireNonNull(seat);
+        if (size == seats.length) return false;
+        seats[tail] = seat;
+        tail = (tail + 1) % seats.length;
+        size++;
+        return true;
+    }
+
+    String poll() {
+        if (size == 0) return null;
+        String seat = seats[head];
+        seats[head] = null;
+        head = (head + 1) % seats.length;
+        size--;
+        return seat;
+    }
+
+    public static void main(String[] args) {
+        var queue = new BoundedSeatQueue(2);
+        if (!queue.offer("A") || !queue.offer("B")) throw new AssertionError("initial offers");
+        boolean fullOffer = queue.offer("C");
+        String first = queue.poll();
+        boolean wrappedOffer = queue.offer("C");
+        String second = queue.poll();
+        String third = queue.poll();
+        String empty = queue.poll();
+        if (fullOffer || !wrappedOffer || !"A".equals(first) ||
+            !"B".equals(second) || !"C".equals(third) || empty != null) {
+            throw new AssertionError("FIFO, wraparound or bounds");
+        }
+        System.out.printf("full=%b%nfirst=%s%nremaining=%s,%s%nempty=%s%n",
+            fullOffer, first, second, third, empty);
+    }
+}`]
   },
   31: {
     section: ['Extend BFS to multiple sources',
