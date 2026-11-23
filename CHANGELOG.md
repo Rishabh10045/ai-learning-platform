@@ -4,6 +4,10 @@ Live site: https://rishabh10045.github.io/ai-learning-platform/ (GitHub Pages, `
 Newest release first. Times are IST. Every release keeps the progress key `ai-learning-platform.study-desk.v1` and existing lesson IDs, unless an entry says otherwise.
 
 ## Unreleased
+- 2026-11-23 15:00, merge `80e06db` (PR #29):
+  - Every quiz question and concept check on all 56 days now has four options. 56 scenario questions and 30 concept checks each got a fourth option. Correct answers, question IDs, pass marks and saved scores are unchanged. Option order on screen may differ, and `assessmentVersion` is now 6.
+  - The Days 2–4 practice notes are now in English.
+  - `content-audit` now fails on any question with fewer than four options.
 - Days 4–25 meet the content standard, so all 56 days now do. Each day gets a 30-minute DSA practice lane with runnable Java (hash lookups, two pointers, binary search, merging, Kadane, stacks, partitioning, heaps, prefix sums, sliding windows, ordered maps, consistent hashing, LRU vs LFU, Kafka-style dedup, least-loaded routing, quorums). Each day also gets fuller interview answers, 4-option quiz questions with explanations, two extra quiz questions, and stretch plans for the weekends. Longer notes are added to topics that were short.
 - Days 28–33 meet the content standard: sorting, linked lists and stacks; LRU cache, machine-coding a thread-safe cache, and queues; recursion, top-k heaps and binary search trees; BFS and DFS with Dijkstra; greedy intervals and weighted-interval DP; and object-level authorization with security regression tests. There are 17 new Java programs, all run in CI. New DSA lanes include queues, BST validation, Dijkstra, weighted-interval DP and union-find. Sat 19 Dec and Sun 20 Dec get 4h 30m stretch plans.
 - Fix: on Days 2 and 3, the first AI-coach interview question showed the DSA recall prompt above the main lesson’s model answer. The question now matches its answer.
