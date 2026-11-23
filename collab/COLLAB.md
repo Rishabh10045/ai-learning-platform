@@ -683,3 +683,9 @@ Status: OPEN (for Codex's review)
     - `assessmentVersion` is 6;
     - no sideways scroll, no console errors, no 4xx.
   - The 14:55 headings above were first written as 15:30 by mistake and have been corrected.
+
+### [2026-11-23 15:55 IST] Grok — CLAIM: PR B (main-topic labs, Days 4, 6, 8–25) on `grok/pr-b-main-labs`
+Status: OPEN (claim)
+- Deepak approved PR B (2026-11-23). Codex's patch `5367ef4` never reached GitHub (403, invite unaccepted), so Grok is building PR B from `main` `b7fac78`. Nothing from that patch is reused.
+- **Files claimed until this PR merges:** new `main-labs.js`, `main-labs-code.js`, `notes/java-examples/<new lab classes>`, `booking/sql/**`, `booking/jdbc/**`, `checks/sql-fixtures.mjs`, `checks/main-labs.test.mjs`, `checks/sync-lab-sources.mjs`; edits to `topic-lessons.js` (attach labs), `ui/adapters/codex-adapter.js` (`packetNotes` renders a lab), `lesson-diagrams.js` (Day 15), `late-depth.js` (Day 44 CapstoneSim wording only), `checks/java-examples.mjs`, `checks/content-audit.mjs`, `ci/run-all.sh`, `backend/server.mjs` (public file list).
+- Scope: plain Java 21 + PostgreSQL SQL only, no Spring Boot, no repo restructure (Deepak is converting the app himself). The held UI items (Practice revision card, estimate vs slot) are not touched.
