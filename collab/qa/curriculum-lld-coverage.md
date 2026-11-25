@@ -68,3 +68,15 @@ The 96-session plan already lists independent cases. Keep Parking Lot, Elevator,
 Module 1 locators are from the saved public listing of the [GfG System Design course](https://www.geeksforgeeks.org/courses/system-design-training-program). Next source row is HLD Module 2, vertical and horizontal scaling. Equivalent named HLD cases in the combined syllabus remain separate source obligations.
 
 The Java Strings follow-up moves the operator-language row to covered for the Java adaptation. At the original LLD checkpoint it was missing. The current 42 rows now have 9 covered, 17 partial, 15 missing and 1 source unverified.
+
+## Named booking cases · 25 November 2026 IST
+
+Rechecked the two distinct cases at draft parent `11f45a12f9ed67436becb1f18bc77fbfcac4897e`. The newly fetched combined PDF matches the saved SHA-256 `24595db1588537d2f5febbdb19c9714bd1f73f913894469fefc7680cbb8a12f6`. The section below is from physical p. 3, Case Studies & Contests. [GfG LLD/HLD syllabus, p. 3](https://media.geeksforgeeks.org/courses/syllabus/f968df9d7b7f24623e8c14b2c22bbd45.pdf#page=3)
+
+| Source case | Scheduled evidence and verification | Status | Standalone exercise and acceptance |
+| --- | --- | --- | --- |
+| Movie Ticket Booking System | D1 `j-oop-01` teaches seat state, D19 `l-invariants-02` teaches the hold invariant and D44 `h-case-up-01` runs the single-JVM `CapstoneSim.java`. Java 21 verified the latter's local behavior. There is no show-scoped inventory or atomic group hold. | Partial | Keep 78 minutes for a named design session. Model theatre, screen, show and show seat. In a separate Java exercise, A1 may be reserved in each of two shows and a multi-seat request with one unavailable seat leaves every other seat untouched. |
+| Airline Booking System | D19's single-seat lifecycle is a prerequisite. A dedicated itinerary, seat assignment by segment, and change or cancellation policy have no scheduled exercise. | Missing | Keep 78 minutes for the independent case, with an optional implementation lab. Scope inventory to flight instance and segment. Trace a two-segment booking with an unavailable leg and model cancellation. Reusing seat label 14A on two segments must work, and cancelling one confirmed itinerary must preserve seats owned by others. |
+| Other live cases | The section gives no titles or exercise text for the additional live cases. | Source unverified | Record titled cases from an accessible official outline before adding source rows. |
+
+The D45 expense-splitting exercise covers a different domain. The [Java source crosswalk](curriculum-java-coverage.md#session-12--splitwise-backend-part-1--25-november-2026-ist) records the separate Splitwise scope and the [corrections ledger](curriculum-enrichment-and-corrections.md#independent-dsa-reliability-and-expense-corrections) records its reproduced boundary cases.

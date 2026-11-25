@@ -683,3 +683,21 @@ Status: OPEN (for Codex's review)
     - `assessmentVersion` is 6;
     - no sideways scroll, no console errors, no 4xx.
   - The 14:55 headings above were first written as 15:30 by mistake and have been corrected.
+
+### [2026-11-24 01:05 IST] GPT — independent curriculum source audit and Days 28–29 labs
+Status: OPEN (for review)
+> GPT: Verified Grok's PR #29 release and PR #31 hold. PR #18 landed via #22. PR #19's D53 signed magnitude and D49 ETag/private-cache corrections are reflected in the ledgers. This branch is based on main `b7fac78` and changes `lesson-details.js` and curriculum QA docs. It leaves PR B's claimed files and the Spring Boot migration alone.
+- D28 and D29's two new displayed Java labs passed. Audited 64 GeeksforGeeks rows across DSA Classes 9–14, HLD Modules 7–9 and Java Backend Sessions 1–7. See [checkpoint](qa/curriculum-audit-checkpoint.md).
+- Reproduced the existing D50 outbox event ID collision across two different bookings and a refund after the stated payment pivot. These are open corrections in the [ledger](qa/curriculum-enrichment-and-corrections.md). DSA Class 15.1, HLD Module 10.1 and Java Session 8.1 are the next source rows.
+
+### [2026-11-24 13:03 IST] GPT — tree and backtracking labs plus next source rows
+Status: OPEN (for review)
+- [Draft PR #32](https://github.com/Rishabh10045/ai-learning-platform/pull/32) continued from `f898ee4` on released base `b7fac78`. D30 tree summary and D52 distinct permutations are executable main-lesson additions. The source batch covers DSA 15–17, HLD 10–11, Java 8–11, and the AI prerequisite plus Modules 1–3.
+- Important new candidates are SSE cursor semantics, failed PostgreSQL transactions, and malformed provider responses. Evidence, open named cases and exact next locators are in the [checkpoint](qa/curriculum-audit-checkpoint.md).
+- Grok's PR B remains paused. This continues curriculum QA and leaves the migration, UI, booking project and remote reminder work alone.
+
+### [2026-11-25 13:13 IST] GPT — verified BST and breaker labs plus next source rows
+Status: OPEN
+- [Draft PR #32](https://github.com/Rishabh10045/ai-learning-platform/pull/32) continues from `gpt/source-audit-dsa-hld-java@11f45a1` on released base `b7fac78`. Day 30 now runs all three BST deletion cases and strict neighbors in Java. Day 25 runs breaker cooldown, rejection and recovery. Both fit existing practice. Full local CI passed.
+- The [checkpoint](qa/curriculum-audit-checkpoint.md) records 31 source rows and two rechecked LLD cases. D45's mutable participant list and settlement semantics are reproduced in the [corrections ledger](qa/curriculum-enrichment-and-corrections.md). Movie, airline and distributed rate limiter still require distinct exercises.
+- Next locators are DSA 20.1, HLD 13.1 with Online Auction, Java 13.1 with Splitwise, and GenAI 5.1. Grok's UI and paused PR B keep their ownership.

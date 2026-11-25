@@ -1,83 +1,83 @@
 # Study Desk day and topic readiness matrix
 
-23 November 2026 IST. Recounted the live curriculum data at `main@cf892c4` plus the Days 26–27 audit changes. Authoring and links are measured from the adapter payload. The separate source matrices record whether the full source scope is taught.
+25 November 2026 IST. Recounted the curriculum at `main@b7fac781615bb9119f0066d85ae00ca4cc0d037e` plus the lab additions in draft PR #32. This update resumes from published draft head `11f45a12f9ed67436becb1f18bc77fbfcac4897e` and adds the circuit breaker and BST update labs on Days 25 and 30. Authoring and links are measured from the adapter payload. The separate source matrices record whether the full source scope is taught.
 
-- 96 of 122 indexed topics have dedicated packets. The other 26 use a parent lesson and have individual learner takeaway fields. Pending packet days are 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40.
-- 524 answered interview prompts are assigned across main lessons, warm-up and DSA lanes. There are 204 scored questions and 27 day-level interactive diagrams. 14 day views have fewer than 400 words in paragraph blocks.
-- Every scheduled core totals 120 minutes. Weekend defaults remain 390 minutes. 21 days have explicit 30-minute DSA blocks (Days 1–3, 26–27 and 41–56). Source reconciliation, lab execution, full daily DSA and live account setup remain open.
+- All 122 indexed topics have a dedicated packet in the course data. Source subtopics that need added teaching and independent cases remain in the linked audit matrices.
+- 657 answered interview prompts are assigned across main lessons, warm-up and DSA lanes. There are 279 scored questions and 27 day-level interactive diagrams. 0 day views have fewer than 400 words in paragraph blocks.
+- Every scheduled core totals 120 minutes. Weekend defaults remain 390 minutes. These counts report field presence and scheduled slots. Teaching fit, core-versus-stretch time and lab authenticity still require review. 56 days have explicit 30-minute DSA blocks. See the [25 November checkpoint](curriculum-audit-checkpoint.md#bst-updates-circuit-recovery-and-source-reconciliation--2026-11-25-ist) for source reconciliation, case teaching and external verification that remain open.
 
 | Subject | Indexed | Dedicated | Remaining |
 | --- | ---: | ---: | ---: |
 | Java | 15 | 15 | 0 |
-| Low-level design | 8 | 7 | 1 |
-| System design | 22 | 21 | 1 |
-| AI engineering | 19 | 10 | 9 |
-| DSA in Java | 31 | 20 | 11 |
-| Spring Boot & backend | 17 | 13 | 4 |
+| Low-level design | 8 | 8 | 0 |
+| System design | 22 | 22 | 0 |
+| AI engineering | 19 | 19 | 0 |
+| DSA in Java | 31 | 31 | 0 |
+| Spring Boot & backend | 17 | 17 | 0 |
 | SQL and data | 10 | 10 | 0 |
 
 ## Day-by-day rendered content
 
-Counts include the main lesson, warm-up and DSA lane. Prose counts paragraph blocks. Reading and video columns count distinct configured URLs, with no assumption about playback. Practice includes optional cards, and scored questions exclude topic diagnostics.
+Except for the Java column, counts can include the main lesson, warm-up and DSA lane. Java counts separately show snippets with a main method in the main lesson and DSA lane. See the [main-topic lab audit](day-audit-2026-11-23.md) for the topic match and project backlog. Prose counts paragraph blocks. Reading and video columns count distinct configured URLs, with no assumption about playback. Practice includes optional cards, and scored questions exclude topic diagnostics.
 
-| Day | Session | Prose words | Diagram | Displayed code | Practice / criteria | Read / video URLs | Interview Q / A | Scored questions | Recall bullets | Core / DSA min |
+| Day | Session | Prose words | Diagram | Main / DSA Java programs | Practice / criteria | Read / video URLs | Interview Q / A | Scored questions | Recall bullets | Core / DSA min |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Build the first booking flow | 2243 | Yes | java | 15 / 38 | 18 / 5 | 26 / 26 | 5 | 12 | 120 / 30 |
-| 2 | Java thread interleavings | 703 | Yes | java | 7 / 13 | 3 / 2 | 9 / 9 | 5 | 6 | 120 / 30 |
-| 3 | Visibility and locking | 632 | Yes | java | 7 / 11 | 4 / 1 | 10 / 10 | 3 | 6 | 120 / 30 |
-| 4 | Equality, hashing and collections | 1097 | Yes | — | 7 / 12 | 5 / 1 | 14 / 14 | 3 | 4 | 120 / 0 |
-| 5 | Java contracts and exceptions | 1037 | — | java | 8 / 14 | 7 / 1 | 17 / 17 | 3 | 4 | 120 / 0 |
-| 6 | Generics, lambdas and streams | 569 | — | — | 6 / 6 | 2 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 7 | Executors and bounded work | 657 | — | java | 6 / 7 | 4 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 8 | UML, SOLID and unit tests | 841 | Yes | — | 7 / 9 | 2 / 1 | 12 / 12 | 3 | 4 | 120 / 0 |
-| 9 | Maven and Spring dependency injection | 519 | — | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 10 | REST endpoints and HTTP semantics | 517 | Yes | — | 6 / 7 | 2 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 11 | Validation and API errors | 494 | — | — | 5 / 3 | 2 / 1 | 6 / 6 | 3 | 4 | 120 / 0 |
-| 12 | SQL and schema constraints | 522 | — | — | 6 / 7 | 2 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 13 | JDBC and database transactions | 650 | Yes | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 14 | Atomic SQL updates | 405 | Yes | — | 5 / 4 | 2 / 1 | 6 / 6 | 3 | 4 | 120 / 0 |
-| 15 | Pessimistic and optimistic locking | 349 | — | — | 5 / 4 | 2 / 1 | 6 / 6 | 3 | 4 | 120 / 0 |
-| 16 | JPA mapping and integration tests | 565 | — | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 17 | Run two application instances | 599 | Yes | — | 5 / 5 | 3 / 1 | 7 / 7 | 3 | 4 | 120 / 0 |
-| 18 | Requirements and capacity estimates | 517 | — | text | 6 / 6 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 19 | Temporary holds and expiry | 599 | Yes | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 20 | Idempotent booking requests | 600 | Yes | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 21 | Database scaling and indexes | 494 | — | — | 6 / 7 | 4 / 2 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 22 | Read caching and eviction | 622 | Yes | — | 7 / 10 | 4 / 1 | 12 / 12 | 3 | 4 | 120 / 0 |
-| 23 | Messaging and delivery guarantees | 452 | Yes | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 24 | Traffic experiments and load balancing | 433 | — | — | 6 / 7 | 3 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 25 | Consistency and failure scenarios | 441 | — | — | 6 / 7 | 5 / 1 | 9 / 9 | 3 | 4 | 120 / 0 |
-| 26 | Arrays, strings and complexity | 1400 | — | java | 8 / 16 | 5 / 1 | 15 / 15 | 3 | 7 | 120 / 30 |
-| 27 | Two pointers, windows and search | 1318 | Yes | java | 7 / 13 | 6 / 1 | 13 / 13 | 3 | 6 | 120 / 30 |
-| 28 | Sorting, linked lists and stacks | 195 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 29 | LRU implementation and queue operations | 277 | Yes | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 30 | Recursion, trees and heaps | 202 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 31 | Graphs, BFS and DFS | 275 | Yes | — | 4 / 1 | 1 / 2 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 32 | Greedy and dynamic programming | 265 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 33 | Backend security and regression tests | 203 | Yes | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 34 | Packaging and observability | 174 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 35 | LLM inputs and model behavior | 219 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 36 | Prompts and structured output | 209 | Yes | json | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 37 | Java model API adapter | 182 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 38 | Embeddings and search | 287 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 39 | Grounded RAG answers | 376 | Yes | — | 5 / 3 | 1 / 1 | 7 / 7 | 3 | 4 | 120 / 0 |
-| 40 | Evaluate and observe AI behavior | 328 | — | — | 4 / 1 | 1 / 1 | 3 / 3 | 3 | 4 | 120 / 0 |
-| 41 | Tool calling and MCP | 1195 | Yes | java | 8 / 15 | 9 / 1 | 14 / 14 | 5 | 6 | 120 / 30 |
-| 42 | AI security, latency and cost | 1230 | — | java | 11 / 25 | 9 / 1 | 14 / 14 | 5 | 6 | 120 / 30 |
-| 43 | When to customize a model | 830 | — | java | 10 / 21 | 6 / 1 | 11 / 11 | 5 | 6 | 120 / 30 |
-| 44 | Seat Booking capstone | 947 | — | java | 7 / 11 | 7 / 1 | 9 / 9 | 5 | 6 | 120 / 30 |
-| 45 | Review, demonstration and interview | 1468 | — | java | 9 / 20 | 7 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
-| 46 | JVM diagnostics and concurrent utilities | 1297 | — | java | 8 / 15 | 7 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 47 | Spring cross-cutting concerns and data access | 1491 | Yes | java | 9 / 17 | 10 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
-| 48 | OAuth 2.0, OIDC and authorization | 1314 | — | java | 8 / 16 | 10 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 49 | API gateways and real-time contracts | 1247 | Yes | java | 11 / 26 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 50 | Outbox, sagas and failure isolation | 1146 | Yes | java | 11 / 26 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 51 | Cloud deployment, SLOs and data placement | 1155 | — | java | 8 / 15 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 52 | Backtracking and graph paths | 857 | — | java | 7 / 12 | 3 / 2 | 9 / 9 | 5 | 6 | 120 / 30 |
-| 53 | Math, matrices and deeper dynamic programming | 1171 | Yes | text, java | 8 / 16 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 54 | Java-first AI deployment and final review | 1240 | Yes | java | 9 / 20 | 8 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
-| 55 | Union-Find and minimum spanning trees | 952 | Yes | java | 7 / 10 | 3 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
-| 56 | Bits, number bases and prime algorithms | 1109 | Yes | java | 12 / 25 | 5 / 1 | 18 / 18 | 5 | 6 | 120 / 30 |
+| 1 | Build the first booking flow | 2300 | Yes | 2 / 1 | 15 / 38 | 18 / 5 | 26 / 26 | 5 | 12 | 120 / 30 |
+| 2 | Java thread interleavings | 702 | Yes | 1 / 1 | 7 / 13 | 3 / 2 | 9 / 9 | 5 | 6 | 120 / 30 |
+| 3 | Visibility and locking | 633 | Yes | 1 / 1 | 7 / 11 | 4 / 1 | 10 / 10 | 4 | 6 | 120 / 30 |
+| 4 | Equality, hashing and collections | 1139 | Yes | 0 / 1 | 8 / 15 | 5 / 1 | 14 / 14 | 5 | 6 | 120 / 30 |
+| 5 | Java contracts and exceptions | 1223 | — | 1 / 1 | 10 / 21 | 8 / 1 | 18 / 18 | 5 | 6 | 120 / 30 |
+| 6 | Generics, lambdas and streams | 745 | — | 0 / 1 | 8 / 13 | 3 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 7 | Executors and bounded work | 840 | — | 1 / 1 | 11 / 24 | 5 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 8 | UML, SOLID and unit tests | 997 | Yes | 0 / 1 | 12 / 26 | 3 / 1 | 13 / 13 | 5 | 6 | 120 / 30 |
+| 9 | Maven and Spring dependency injection | 792 | — | 0 / 1 | 8 / 14 | 4 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 10 | REST endpoints and HTTP semantics | 673 | Yes | 0 / 1 | 8 / 14 | 3 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 11 | Validation and API errors | 741 | — | 0 / 1 | 7 / 10 | 3 / 1 | 7 / 7 | 5 | 6 | 120 / 30 |
+| 12 | SQL and schema constraints | 872 | — | 0 / 1 | 8 / 14 | 3 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 13 | JDBC and database transactions | 820 | Yes | 0 / 1 | 8 / 14 | 4 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 14 | Atomic SQL updates | 681 | Yes | 0 / 1 | 10 / 21 | 3 / 1 | 7 / 7 | 5 | 6 | 120 / 30 |
+| 15 | Pessimistic and optimistic locking | 835 | — | 0 / 1 | 10 / 21 | 3 / 1 | 7 / 7 | 5 | 6 | 120 / 30 |
+| 16 | JPA mapping and integration tests | 719 | — | 0 / 1 | 8 / 14 | 4 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 17 | Run two application instances | 737 | Yes | 0 / 1 | 7 / 12 | 4 / 1 | 8 / 8 | 5 | 6 | 120 / 30 |
+| 18 | Requirements and capacity estimates | 739 | — | 0 / 1 | 8 / 13 | 4 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 19 | Temporary holds and expiry | 805 | Yes | 0 / 1 | 8 / 14 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 20 | Idempotent booking requests | 808 | Yes | 0 / 1 | 8 / 14 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 21 | Database scaling and indexes | 825 | — | 0 / 1 | 11 / 24 | 6 / 2 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 22 | Read caching and eviction | 721 | Yes | 0 / 1 | 11 / 23 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 23 | Messaging and delivery guarantees | 741 | Yes | 0 / 1 | 8 / 14 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 24 | Traffic experiments and load balancing | 840 | — | 0 / 1 | 8 / 14 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 25 | Consistency and failure scenarios | 1048 | — | 1 / 1 | 8 / 14 | 6 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 26 | Arrays, strings and complexity | 1400 | — | 2 / 1 | 8 / 16 | 5 / 1 | 15 / 15 | 5 | 7 | 120 / 30 |
+| 27 | Two pointers, windows and search | 1318 | Yes | 1 / 1 | 7 / 13 | 6 / 1 | 13 / 13 | 5 | 6 | 120 / 30 |
+| 28 | Sorting, linked lists and stacks | 1031 | — | 3 / 1 | 11 / 26 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 29 | LRU implementation and queue operations | 1073 | Yes | 3 / 1 | 11 / 26 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 30 | Recursion, trees and heaps | 1279 | — | 3 / 1 | 8 / 16 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 31 | Graphs, BFS and DFS | 752 | Yes | 1 / 1 | 7 / 12 | 3 / 2 | 7 / 7 | 5 | 6 | 120 / 30 |
+| 32 | Greedy and dynamic programming | 765 | — | 1 / 1 | 7 / 12 | 3 / 1 | 9 / 9 | 5 | 6 | 120 / 30 |
+| 33 | Backend security and regression tests | 890 | Yes | 2 / 1 | 8 / 16 | 6 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 34 | Packaging and observability | 906 | — | 2 / 1 | 8 / 16 | 7 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 35 | LLM inputs and model behavior | 985 | — | 2 / 1 | 11 / 26 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 36 | Prompts and structured output | 939 | Yes | 2 / 1 | 11 / 26 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 37 | Java model API adapter | 876 | — | 2 / 1 | 8 / 16 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 38 | Embeddings and search | 1001 | — | 2 / 1 | 8 / 16 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 39 | Grounded RAG answers | 658 | Yes | 1 / 1 | 7 / 10 | 2 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 40 | Evaluate and observe AI behavior | 1042 | — | 2 / 1 | 8 / 16 | 3 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 41 | Tool calling and MCP | 1195 | Yes | 2 / 1 | 8 / 15 | 9 / 1 | 14 / 14 | 5 | 6 | 120 / 30 |
+| 42 | AI security, latency and cost | 1230 | — | 2 / 1 | 11 / 25 | 9 / 1 | 14 / 14 | 5 | 6 | 120 / 30 |
+| 43 | When to customize a model | 830 | — | 1 / 1 | 10 / 21 | 6 / 1 | 11 / 11 | 5 | 6 | 120 / 30 |
+| 44 | Seat Booking capstone | 947 | — | 2 / 0 | 7 / 11 | 7 / 1 | 9 / 9 | 5 | 6 | 120 / 30 |
+| 45 | Review, demonstration and interview | 1468 | — | 2 / 1 | 9 / 20 | 7 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
+| 46 | JVM diagnostics and concurrent utilities | 1297 | — | 2 / 1 | 8 / 15 | 7 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 47 | Spring cross-cutting concerns and data access | 1491 | Yes | 3 / 1 | 9 / 17 | 10 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
+| 48 | OAuth 2.0, OIDC and authorization | 1314 | — | 2 / 1 | 8 / 16 | 10 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 49 | API gateways and real-time contracts | 1392 | Yes | 2 / 1 | 11 / 26 | 9 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 50 | Outbox, sagas and failure isolation | 1146 | Yes | 2 / 1 | 11 / 26 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 51 | Cloud deployment, SLOs and data placement | 1155 | — | 2 / 1 | 8 / 15 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 52 | Backtracking and graph paths | 1097 | — | 2 / 1 | 7 / 12 | 3 / 2 | 9 / 9 | 5 | 6 | 120 / 30 |
+| 53 | Math, matrices and deeper dynamic programming | 1228 | Yes | 2 / 1 | 8 / 16 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 54 | Java-first AI deployment and final review | 1240 | Yes | 3 / 1 | 9 / 20 | 8 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
+| 55 | Union-Find and minimum spanning trees | 952 | Yes | 1 / 1 | 7 / 10 | 3 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
+| 56 | Bits, number bases and prime algorithms | 1109 | Yes | 1 / 0 | 12 / 25 | 5 / 1 | 18 / 18 | 5 | 6 | 120 / 30 |
 
 ## Topic-by-topic authoring status
 
@@ -86,10 +86,10 @@ A zero indicates that the topic has no dedicated field of that kind. The parent 
 | Day | Subject | Topic | Stable topic ID | Parent lesson ID | Notes words | Interview Q / A | Coach takeaways | Diagnostic checks | Practice criteria | Read links |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Java | Objects, encapsulation and ownership | `j-oop-01` | `j-oop-01` | 266 | 4 / 4 | 4 | 1 | 4 | 2 |
-| 1 | Low-level design | Domain invariants | `l-invariants-01` | `j-oop-01` | 182 | 4 / 4 | 4 | 1 | 3 | 1 |
+| 1 | Low-level design | Domain invariants | `l-invariants-01` | `j-oop-01` | 197 | 4 / 4 | 4 | 1 | 3 | 1 |
 | 1 | System design | Browser-to-server request flow | `h-request-01` | `j-oop-01` | 191 | 4 / 4 | 4 | 1 | 3 | 2 |
-| 1 | AI engineering | Training, inference and application boundaries | `ai-foundations-01` | `j-oop-01` | 180 | 3 / 3 | 4 | 1 | 2 | 1 |
-| 1 | DSA in Java | Find duplicate IDs with a set | `d-hashing-01` | `j-oop-01` | 168 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 1 | AI engineering | Training, inference and application boundaries | `ai-foundations-01` | `j-oop-01` | 189 | 3 / 3 | 4 | 1 | 2 | 1 |
+| 1 | DSA in Java | Find duplicate IDs with a set | `d-hashing-01` | `j-oop-01` | 183 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 2 | Java | Thread interleavings and races | `j-concurrency-01` | `j-concurrency-01` | 180 | 3 / 3 | 4 | 1 | 3 | 2 |
 | 3 | Java | Synchronization, visibility and atomicity | `j-concurrency-02` | `j-concurrency-02` | 169 | 4 / 4 | 3 | 1 | 2 | 1 |
 | 4 | Java | Equality and hash codes | `j-equality-01` | `j-equality-01` | 175 | 3 / 3 | 3 | 1 | 2 | 1 |
@@ -106,69 +106,69 @@ A zero indicates that the topic has no dedicated field of that kind. The parent 
 | 8 | Low-level design | Class and sequence diagrams | `l-uml-01` | `l-uml-01` | 166 | 3 / 3 | 3 | 0 | 2 | 1 |
 | 8 | Low-level design | SOLID and dependency boundaries | `l-solid-01` | `l-uml-01` | 130 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 8 | Spring Boot & backend | Unit tests around real domain behavior | `b-testing-01` | `l-uml-01` | 144 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 9 | Java | Maven builds and the application context | `j-build-01` | `j-build-01` | 135 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 9 | Java | Maven builds and the application context | `j-build-01` | `j-build-01` | 219 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 9 | Spring Boot & backend | Spring constructor injection | `b-di-01` | `j-build-01` | 134 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 10 | Spring Boot & backend | HTTP methods and status codes | `b-http-01` | `b-http-01` | 139 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 10 | Spring Boot & backend | REST endpoints | `b-rest-01` | `b-http-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
-| 11 | Spring Boot & backend | Request validation and API errors | `b-validation-01` | `b-validation-01` | 168 | 3 / 3 | 3 | 1 | 2 | 1 |
-| 12 | SQL and data | Relational schema and constraints | `b-sql-01` | `b-sql-01` | 147 | 3 / 3 | 3 | 0 | 3 | 1 |
-| 12 | SQL and data | Schema migrations | `b-schema-01` | `b-sql-01` | 143 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 11 | Spring Boot & backend | Request validation and API errors | `b-validation-01` | `b-validation-01` | 261 | 3 / 3 | 3 | 1 | 2 | 1 |
+| 12 | SQL and data | Relational schema and constraints | `b-sql-01` | `b-sql-01` | 237 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 12 | SQL and data | Schema migrations | `b-schema-01` | `b-sql-01` | 235 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 13 | SQL and data | JDBC and parameter binding | `b-jdbc-01` | `b-jdbc-01` | 140 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 13 | SQL and data | Transaction boundaries and isolation | `b-transactions-01` | `b-jdbc-01` | 160 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 14 | SQL and data | Atomic conditional writes | `b-transactions-02` | `b-transactions-02` | 148 | 3 / 3 | 3 | 1 | 3 | 1 |
-| 15 | SQL and data | Pessimistic and optimistic locking | `b-transactions-03` | `b-transactions-03` | 132 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 14 | SQL and data | Atomic conditional writes | `b-transactions-02` | `b-transactions-02` | 251 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 15 | SQL and data | Pessimistic and optimistic locking | `b-transactions-03` | `b-transactions-03` | 437 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 16 | Spring Boot & backend | JPA entities, flush and N+1 | `b-jpa-01` | `b-jpa-01` | 125 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 16 | Spring Boot & backend | PostgreSQL integration tests | `b-testing-02` | `b-jpa-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 17 | System design | Multiple application instances | `h-scaling-01` | `h-scaling-01` | 302 | 4 / 4 | 4 | 1 | 4 | 2 |
-| 18 | System design | Functional and non-functional requirements | `h-requirements-01` | `h-requirements-01` | 128 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 18 | System design | Functional and non-functional requirements | `h-requirements-01` | `h-requirements-01` | 211 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 18 | System design | Capacity estimates and hot keys | `h-estimates-01` | `h-requirements-01` | 179 | 3 / 3 | 3 | 1 | 2 | 1 |
 | 19 | Low-level design | Hold states and expiry | `l-invariants-02` | `l-invariants-02` | 140 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 19 | SQL and data | Atomic hold confirmation | `b-transactions-04` | `l-invariants-02` | 143 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 20 | Spring Boot & backend | Idempotency keys | `b-http-02` | `b-http-02` | 141 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 20 | System design | Recovery after a lost response | `h-reliability-01` | `b-http-02` | 126 | 3 / 3 | 3 | 0 | 3 | 1 |
-| 21 | System design | Replication, partitioning and sharding | `h-databases-01` | `h-databases-01` | 147 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 21 | System design | Replication, partitioning and sharding | `h-databases-01` | `h-databases-01` | 246 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 21 | SQL and data | SQL indexes and query plans | `b-sql-02` | `h-databases-01` | 134 | 3 / 3 | 3 | 1 | 3 | 2 |
-| 22 | Spring Boot & backend | Redis cache-aside and eviction | `b-caching-01` | `b-caching-01` | 127 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 22 | Spring Boot & backend | Redis cache-aside and eviction | `b-caching-01` | `b-caching-01` | 198 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 22 | System design | Cache staleness and invalidation | `h-caching-01` | `b-caching-01` | 153 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 22 | DSA in Java | Cache capacity and eviction trade-offs | `d-lru-01` | `b-caching-01` | 127 | 3 / 3 | 3 | 0 | 3 | 1 |
-| 23 | Spring Boot & backend | Kafka partitions, consumer groups and offsets | `b-messaging-01` | `b-messaging-01` | 128 | 3 / 3 | 3 | 1 | 3 | 1 |
+| 23 | Spring Boot & backend | Kafka partitions, consumer groups and offsets | `b-messaging-01` | `b-messaging-01` | 210 | 3 / 3 | 3 | 1 | 3 | 1 |
 | 23 | System design | Message redelivery and deduplication | `h-queues-01` | `b-messaging-01` | 121 | 3 / 3 | 3 | 0 | 3 | 2 |
-| 24 | System design | Load balancing and traffic experiments | `h-loadbalance-01` | `h-loadbalance-01` | 129 | 3 / 3 | 3 | 0 | 3 | 1 |
+| 24 | System design | Load balancing and traffic experiments | `h-loadbalance-01` | `h-loadbalance-01` | 329 | 3 / 3 | 3 | 0 | 3 | 1 |
 | 24 | System design | Latency percentiles and queue wait | `h-observability-01` | `h-loadbalance-01` | 123 | 3 / 3 | 3 | 0 | 3 | 1 |
-| 25 | System design | Consistency choices during a partition | `h-consistency-01` | `h-consistency-01` | 128 | 3 / 3 | 3 | 0 | 3 | 2 |
+| 25 | System design | Consistency choices during a partition | `h-consistency-01` | `h-consistency-01` | 329 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 25 | System design | Timeouts and degraded operation | `h-reliability-02` | `h-consistency-01` | 112 | 3 / 3 | 3 | 0 | 3 | 2 |
 | 26 | DSA in Java | Time, space and input size | `d-complexity-01` | `d-complexity-01` | 256 | 4 / 4 | 4 | 1 | 3 | 1 |
 | 26 | DSA in Java | Array scans and prefix sums | `d-arrays-01` | `d-complexity-01` | 263 | 4 / 4 | 4 | 1 | 4 | 2 |
 | 26 | DSA in Java | Recursion, factorial and Fibonacci | `d-recursion-02` | `d-complexity-01` | 234 | 4 / 4 | 4 | 1 | 4 | 2 |
 | 27 | DSA in Java | Two pointers and sliding windows | `d-pointers-01` | `d-pointers-01` | 467 | 5 / 5 | 4 | 1 | 4 | 3 |
 | 27 | DSA in Java | Binary search and lower bound | `d-search-01` | `d-pointers-01` | 398 | 5 / 5 | 4 | 1 | 4 | 3 |
-| 28 | DSA in Java | Sorting and stability | `d-sort-01` | `d-sort-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 28 | DSA in Java | Linked-list reversal | `d-linkedlist-01` | `d-sort-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 28 | DSA in Java | Stacks and delimiter validation | `d-stacks-01` | `d-sort-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 29 | DSA in Java | Implement an LRU cache | `d-lru-02` | `d-lru-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 29 | DSA in Java | Queues and recency operations | `d-queues-01` | `d-lru-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 29 | Low-level design | Machine coding with a cache invariant | `l-machine-01` | `d-lru-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 30 | DSA in Java | Recursion in tree traversal | `d-recursion-01` | `d-recursion-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 30 | DSA in Java | Binary trees and BST traversal | `d-trees-01` | `d-recursion-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 30 | DSA in Java | Priority queues and top-k | `d-heaps-01` | `d-recursion-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 31 | DSA in Java | Graph traversal, BFS and DFS | `d-graphs-01` | `d-graphs-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 32 | DSA in Java | Greedy interval selection | `d-greedy-01` | `d-greedy-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 32 | DSA in Java | Dynamic programming for weighted intervals | `d-dp-01` | `d-greedy-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 33 | Spring Boot & backend | Authentication and resource authorization | `b-security-01` | `b-security-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 33 | Spring Boot & backend | Security regression tests | `b-testing-03` | `b-security-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 34 | Spring Boot & backend | Packaging a Java service | `b-deployment-01` | `b-deployment-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 34 | System design | Readiness, liveness and request signals | `h-observability-02` | `b-deployment-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 35 | AI engineering | Neural networks, attention and token prediction | `ai-foundations-02` | `ai-foundations-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 35 | AI engineering | Model comparison and inference budgets | `ai-models-01` | `ai-foundations-02` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 36 | AI engineering | Prompt instructions, examples and constraints | `ai-prompting-01` | `ai-prompting-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 36 | AI engineering | Structured output and semantic validation | `ai-structured-01` | `ai-prompting-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 37 | AI engineering | Java model-provider adapter | `ai-model-api-01` | `ai-model-api-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 37 | Spring Boot & backend | Spring AI ChatClient boundary | `b-ai-01` | `ai-model-api-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 38 | AI engineering | Embeddings and vector similarity | `ai-embeddings-01` | `ai-embeddings-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 38 | AI engineering | Hybrid retrieval and metadata filters | `ai-retrieval-01` | `ai-embeddings-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 28 | DSA in Java | Sorting and stability | `d-sort-01` | `d-sort-01` | 233 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 28 | DSA in Java | Linked-list reversal | `d-linkedlist-01` | `d-sort-01` | 210 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 28 | DSA in Java | Stacks and delimiter validation | `d-stacks-01` | `d-sort-01` | 221 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 29 | DSA in Java | Implement an LRU cache | `d-lru-02` | `d-lru-02` | 243 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 29 | DSA in Java | Queues and recency operations | `d-queues-01` | `d-lru-02` | 200 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 29 | Low-level design | Machine coding with a cache invariant | `l-machine-01` | `d-lru-02` | 224 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 30 | DSA in Java | Recursion in tree traversal | `d-recursion-01` | `d-recursion-01` | 251 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 30 | DSA in Java | Binary trees and BST traversal | `d-trees-01` | `d-recursion-01` | 179 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 30 | DSA in Java | Priority queues and top-k | `d-heaps-01` | `d-recursion-01` | 233 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 31 | DSA in Java | Graph traversal, BFS and DFS | `d-graphs-01` | `d-graphs-01` | 288 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 32 | DSA in Java | Greedy interval selection | `d-greedy-01` | `d-greedy-01` | 280 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 32 | DSA in Java | Dynamic programming for weighted intervals | `d-dp-01` | `d-greedy-01` | 190 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 33 | Spring Boot & backend | Authentication and resource authorization | `b-security-01` | `b-security-01` | 295 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 33 | Spring Boot & backend | Security regression tests | `b-testing-03` | `b-security-01` | 230 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 34 | Spring Boot & backend | Packaging a Java service | `b-deployment-01` | `b-deployment-01` | 238 | 3 / 3 | 4 | 1 | 4 | 3 |
+| 34 | System design | Readiness, liveness and request signals | `h-observability-02` | `b-deployment-01` | 240 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 35 | AI engineering | Neural networks, attention and token prediction | `ai-foundations-02` | `ai-foundations-02` | 269 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 35 | AI engineering | Model comparison and inference budgets | `ai-models-01` | `ai-foundations-02` | 237 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 36 | AI engineering | Prompt instructions, examples and constraints | `ai-prompting-01` | `ai-prompting-01` | 247 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 36 | AI engineering | Structured output and semantic validation | `ai-structured-01` | `ai-prompting-01` | 229 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 37 | AI engineering | Java model-provider adapter | `ai-model-api-01` | `ai-model-api-01` | 222 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 37 | Spring Boot & backend | Spring AI ChatClient boundary | `b-ai-01` | `ai-model-api-01` | 209 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 38 | AI engineering | Embeddings and vector similarity | `ai-embeddings-01` | `ai-embeddings-01` | 235 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 38 | AI engineering | Hybrid retrieval and metadata filters | `ai-retrieval-01` | `ai-embeddings-01` | 230 | 3 / 3 | 4 | 1 | 4 | 2 |
 | 39 | AI engineering | Retrieval and grounded generation | `ai-rag-01` | `ai-rag-01` | 177 | 4 / 4 | 3 | 1 | 2 | 1 |
-| 40 | AI engineering | Evaluate retrieval and answer support | `ai-evaluation-01` | `ai-evaluation-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
-| 40 | AI engineering | Measure AI behavior in production | `ai-operations-01` | `ai-evaluation-01` | 0 | 0 / 0 | 0 | 0 | 0 | 0 |
+| 40 | AI engineering | Evaluate retrieval and answer support | `ai-evaluation-01` | `ai-evaluation-01` | 217 | 3 / 3 | 4 | 1 | 4 | 1 |
+| 40 | AI engineering | Measure AI behavior in production | `ai-operations-01` | `ai-evaluation-01` | 228 | 3 / 3 | 4 | 1 | 4 | 1 |
 | 41 | AI engineering | Tool calling and authorization | `ai-tools-01` | `ai-tools-01` | 357 | 4 / 4 | 5 | 1 | 4 | 3 |
 | 41 | AI engineering | MCP clients, servers and trust boundaries | `ai-mcp-01` | `ai-tools-01` | 409 | 4 / 4 | 5 | 1 | 4 | 4 |
 | 42 | AI engineering | Model input and output safeguards | `ai-security-01` | `ai-security-01` | 405 | 4 / 4 | 6 | 1 | 4 | 3 |
@@ -186,7 +186,7 @@ A zero indicates that the topic has no dedicated field of that kind. The parent 
 | 47 | SQL and data | Spring rollback and transaction propagation | `b-transactions-05` | `b-di-02` | 299 | 3 / 3 | 4 | 1 | 3 | 3 |
 | 48 | Spring Boot & backend | OAuth 2.0 and OIDC in Spring | `b-security-02` | `b-security-02` | 347 | 3 / 3 | 4 | 1 | 4 | 4 |
 | 48 | System design | Token audience, scope and ownership | `h-security-01` | `b-security-02` | 349 | 3 / 3 | 4 | 1 | 4 | 4 |
-| 49 | System design | Gateway, REST, GraphQL and gRPC | `h-api-01` | `h-api-01` | 343 | 3 / 3 | 4 | 1 | 4 | 3 |
+| 49 | System design | Gateway, REST, GraphQL and gRPC | `h-api-01` | `h-api-01` | 488 | 3 / 3 | 4 | 1 | 4 | 4 |
 | 49 | System design | SSE, WebSockets and replay | `h-realtime-01` | `h-api-01` | 372 | 3 / 3 | 4 | 1 | 4 | 4 |
 | 50 | System design | Transactional outbox and idempotent consumer | `h-queues-02` | `h-queues-02` | 338 | 3 / 3 | 4 | 1 | 4 | 4 |
 | 50 | System design | Saga compensation and failure isolation | `h-reliability-03` | `h-queues-02` | 347 | 3 / 3 | 4 | 1 | 4 | 3 |
@@ -194,7 +194,7 @@ A zero indicates that the topic has no dedicated field of that kind. The parent 
 | 51 | System design | Service level indicators and error budgets | `h-observability-03` | `h-cloud-01` | 368 | 3 / 3 | 4 | 1 | 3 | 3 |
 | 52 | DSA in Java | Backtracking and valid pruning | `d-backtracking-01` | `d-backtracking-01` | 326 | 3 / 3 | 4 | 1 | 4 | 1 |
 | 52 | DSA in Java | Topological order and weighted paths | `d-graphs-02` | `d-backtracking-01` | 287 | 3 / 3 | 4 | 1 | 4 | 2 |
-| 53 | DSA in Java | Euclid’s GCD algorithm | `d-math-01` | `d-math-01` | 291 | 3 / 3 | 4 | 1 | 4 | 2 |
+| 53 | DSA in Java | Euclid’s GCD algorithm | `d-math-01` | `d-math-01` | 348 | 3 / 3 | 4 | 1 | 4 | 2 |
 | 53 | DSA in Java | Matrix rotation and rectangular dimensions | `d-matrix-01` | `d-math-01` | 237 | 3 / 3 | 4 | 1 | 4 | 1 |
 | 53 | DSA in Java | Subset sum and interval DP | `d-dp-02` | `d-math-01` | 322 | 3 / 3 | 4 | 1 | 4 | 1 |
 | 54 | AI engineering | Local and hosted Java model deployment | `ai-operations-03` | `ai-operations-03` | 298 | 3 / 3 | 4 | 1 | 4 | 2 |

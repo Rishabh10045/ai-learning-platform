@@ -263,6 +263,68 @@ class BoundedBookingWork {
       ]
     }
   },
+  25: {
+    section: ['Use a circuit breaker to protect a degraded dependency',
+      'A circuit breaker remembers recent outcomes for a dependency. Closed permits calls. In this exercise two consecutive failures open the circuit, so subsequent calls are rejected before contacting that dependency. The caller decides whether to fail or use a fallback. After the cooldown, the next request is a half-open probe. A successful probe closes the breaker. A failed probe opens it again and starts a fresh cooldown.',
+      'Trace failures at 0 ms and 10 ms. At 1009 ms the breaker still blocks the call. At 1010 ms a probe is allowed. If it fails, the next eligible probe is at 2010 ms. A definitely unavailable booking operation must fail safely. Optional help can degrade to a policy link. Choose the fallback for the operation before tuning the breaker.',
+      'Spend 12 minutes of the existing reliability practice predicting each transition and running the example. The clock values are simulated, and each dependency call in the exercise returns a boolean. In production, define which exceptions, timeouts and slow calls count toward opening the circuit. Coordinate concurrent probes with a breaker library and set a separate concurrency limit when calls can exhaust shared resources.'],
+    source: ['Resilience4j · Circuit breaker', 'https://resilience4j.readme.io/docs/circuitbreaker'],
+    code: ['Run BreakerTrace.java. Expect closed → open → rejected → half-open failure → rejected → closed.', 'java', `import java.util.function.BooleanSupplier;
+
+class BreakerTrace {
+    enum State { CLOSED, OPEN, HALF_OPEN }
+    enum Outcome { SUCCESS, FAILURE, REJECTED }
+
+    static final class Breaker {
+        private static final long COOLDOWN_MS = 1000;
+        private State state = State.CLOSED;
+        private int failedCalls;
+        private long openedAt;
+
+        Outcome call(long now, BooleanSupplier dependency) {
+            if (state == State.HALF_OPEN) return Outcome.REJECTED;
+            if (state == State.OPEN) {
+                if (now - openedAt < COOLDOWN_MS) return Outcome.REJECTED;
+                state = State.HALF_OPEN;
+            }
+            if (dependency.getAsBoolean()) {
+                failedCalls = 0;
+                state = State.CLOSED;
+                return Outcome.SUCCESS;
+            }
+            if (state == State.HALF_OPEN || ++failedCalls == 2) {
+                state = State.OPEN;
+                openedAt = now;
+            }
+            return Outcome.FAILURE;
+        }
+    }
+
+    static void check(Breaker breaker, long now, BooleanSupplier dependency, Outcome outcome, State state) {
+        if (breaker.call(now, dependency) != outcome || breaker.state != state) {
+            throw new AssertionError("Wrong state or result at " + now);
+        }
+        System.out.println(now + " ms: " + outcome + " → " + state);
+    }
+
+    public static void main(String[] args) {
+        var breaker = new Breaker();
+        BooleanSupplier rejected = () -> { throw new AssertionError("Dependency called while open"); };
+        check(breaker, 0, () -> false, Outcome.FAILURE, State.CLOSED);
+        check(breaker, 10, () -> false, Outcome.FAILURE, State.OPEN);
+        check(breaker, 1009, rejected, Outcome.REJECTED, State.OPEN);
+        check(breaker, 1010, () -> {
+            if (breaker.state != State.HALF_OPEN) throw new AssertionError("Probe state");
+            return false;
+        }, Outcome.FAILURE, State.OPEN);
+        check(breaker, 2009, rejected, Outcome.REJECTED, State.OPEN);
+        check(breaker, 2010, () -> {
+            if (breaker.state != State.HALF_OPEN) throw new AssertionError("Probe state");
+            return true;
+        }, Outcome.SUCCESS, State.CLOSED);
+    }
+}`]
+  },
   26: {
     section: ['A complete complexity statement',
       'Specify what you counted before stating Big O. A two-loop method that moves two monotone pointers can still be linear in n. A HashMap loop is expected linear in n under a suitable hash and bounded key-processing cost. Sorting a collection before scanning usually changes the dominant bound to O(n log n). Amortized cost is different from average case. It distributes occasional expensive operations, such as array growth, over a sequence of operations.',
@@ -288,10 +350,242 @@ class BoundedBookingWork {
       'For [2,4,4,7] and target 4, the first mid is 2. Retain the left side including the boundary at 2, then move hi to 1 and discard index 0. The algorithm returns 1. With target 9 every comparison discards a prefix and the final index equals the length. Arbitrary availability flags do not form the monotone predicate this proof requires.',
       'The recursive form makes one smaller call with (lo, mid) after a qualifying value or (mid + 1, hi) after a value below target. The base case lo == hi returns lo. The search interval shrinks by about half per step, so both implementations take O(log n) time. The recursive version holds O(log n) frames and the iterative version keeps O(1) auxiliary state. For exact search, check that the returned index is within bounds and its value equals the target. For an absent target, return −1.']
   },
+  28: {
+    section: ['Compare sorts with equal keys and nearly sorted input',
+      'Stable sorts keep the original order of records that compare equal. If A(2), B(2), C(1) arrive in that order, a stable sort produces C(1), A(2), B(2). Selection sort can swap C with A, moving A behind B. The two results have the same key order, so a test with only integer values misses this difference.',
+      'Take 8 minutes of the existing sorting practice to predict both outputs and count comparisons on four sorted values. Early-exit bubble sort and insertion sort stop after three comparisons. Plain selection sort still makes six. On unsorted arrays all three have a quadratic worst case. Insertion sort is useful for small or almost sorted arrays. Selection sort bounds swaps to at most n − 1, which matters when writes cost more than comparisons. The Java 21 List.sort contract promises stability for objects. Sort numeric keys with Integer.compare or Comparator.comparingInt, since subtracting them can overflow.'],
+    source: ['Princeton Algorithms · Elementary Sorts', 'https://algs4.cs.princeton.edu/21elementary/'],
+    code: ['Run ElementarySortTrace.java. Expect stable=C,A,B, selection=C,B,A and sorted comparisons=3,3,6.', 'java', `import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Collections;
+
+class ElementarySortTrace {
+    record Seat(int priority, String id) {}
+
+    static int selectionSort(List<Seat> seats) {
+        int comparisons = 0;
+        for (int i = 0; i + 1 < seats.size(); i++) {
+            int smallest = i;
+            for (int j = i + 1; j < seats.size(); j++) {
+                comparisons++;
+                if (seats.get(j).priority() < seats.get(smallest).priority()) smallest = j;
+            }
+            if (smallest != i) Collections.swap(seats, i, smallest);
+        }
+        return comparisons;
+    }
+
+    static int bubbleSort(int[] seats) {
+        int comparisons = 0;
+        for (int end = seats.length - 1; end > 0; end--) {
+            boolean swapped = false;
+            for (int i = 0; i < end; i++) {
+                comparisons++;
+                if (seats[i] <= seats[i + 1]) continue;
+                int left = seats[i];
+                seats[i] = seats[i + 1];
+                seats[i + 1] = left;
+                swapped = true;
+            }
+            if (!swapped) break;
+        }
+        return comparisons;
+    }
+
+    static int insertionSort(int[] seats) {
+        int comparisons = 0;
+        for (int i = 1; i < seats.length; i++) {
+            int value = seats[i];
+            int j = i;
+            while (j > 0) {
+                comparisons++;
+                if (seats[j - 1] <= value) break;
+                seats[j] = seats[j - 1];
+                j--;
+            }
+            seats[j] = value;
+        }
+        return comparisons;
+    }
+
+    public static void main(String[] args) {
+        var tagged = List.of(new Seat(2, "A"), new Seat(2, "B"), new Seat(1, "C"));
+        var stable = new ArrayList<>(tagged);
+        stable.sort(Comparator.comparingInt(Seat::priority));
+        var selection = new ArrayList<>(tagged);
+        selectionSort(selection);
+        var stableIds = stable.stream().map(Seat::id).toList();
+        var selectionIds = selection.stream().map(Seat::id).toList();
+        if (!stableIds.equals(List.of("C", "A", "B")) ||
+            !selectionIds.equals(List.of("C", "B", "A"))) throw new AssertionError("stability");
+
+        int bubble = bubbleSort(new int[]{1, 2, 3, 4});
+        int insertion = insertionSort(new int[]{1, 2, 3, 4});
+        int select = selectionSort(new ArrayList<>(List.of(
+            new Seat(1, "A"), new Seat(2, "B"), new Seat(3, "C"), new Seat(4, "D"))));
+        if (bubble != 3 || insertion != 3 || select != 6) throw new AssertionError("comparisons");
+        System.out.println("stable=" + String.join(",", stableIds));
+        System.out.println("selection=" + String.join(",", selectionIds));
+        System.out.printf("sorted comparisons=%d,%d,%d%n", bubble, insertion, select);
+    }
+}`]
+  },
   29: {
     section: ['Compare the practice implementation with Java’s collection',
-      'The exercise uses a map and a separate doubly linked list so you can see the ownership of each node and its links. In production Java, compare this with an access-ordered LinkedHashMap and a capacity policy. A successful get changes encounter order in access-order mode. If several threads share a cache, the entire operation needs a concurrency strategy that preserves both lookup and recency.'],
-    source: ['Java 21 · LinkedHashMap access order', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html']
+      'The exercise uses a map and a separate doubly linked list so you can see the ownership of each node and its links. In production Java, compare this with an access-ordered LinkedHashMap and a capacity policy. A successful get changes encounter order in access-order mode. If several threads share a cache, the entire operation needs a concurrency strategy that preserves both lookup and recency.',
+      'A bounded circular FIFO uses head for the next removal, tail for the next insertion and size to distinguish full from empty. With capacity two, offer A and B, then refuse C. Poll A, offer C, and drain B then C. Tail wraps and reuses the slot A occupied. A full queue keeps existing work and returns false on offer. Overwriting would silently drop a request. Use 12 minutes of the existing review to trace the indices and run the code. This exercise models one thread. A production concurrent bounded queue needs synchronization and a deliberate overload policy.'],
+    source: ['Java 21 · LinkedHashMap access order', 'https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/LinkedHashMap.html'],
+    code: ['Run BoundedSeatQueue.java. Expect full=false, first=A, remaining=B,C and empty=null.', 'java', `class BoundedSeatQueue {
+    private final String[] seats;
+    private int head;
+    private int tail;
+    private int size;
+
+    BoundedSeatQueue(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException("capacity");
+        seats = new String[capacity];
+    }
+
+    boolean offer(String seat) {
+        java.util.Objects.requireNonNull(seat);
+        if (size == seats.length) return false;
+        seats[tail] = seat;
+        tail = (tail + 1) % seats.length;
+        size++;
+        return true;
+    }
+
+    String poll() {
+        if (size == 0) return null;
+        String seat = seats[head];
+        seats[head] = null;
+        head = (head + 1) % seats.length;
+        size--;
+        return seat;
+    }
+
+    public static void main(String[] args) {
+        var queue = new BoundedSeatQueue(2);
+        if (!queue.offer("A") || !queue.offer("B")) throw new AssertionError("initial offers");
+        boolean fullOffer = queue.offer("C");
+        String first = queue.poll();
+        boolean wrappedOffer = queue.offer("C");
+        String second = queue.poll();
+        String third = queue.poll();
+        String empty = queue.poll();
+        if (fullOffer || !wrappedOffer || !"A".equals(first) ||
+            !"B".equals(second) || !"C".equals(third) || empty != null) {
+            throw new AssertionError("FIFO, wraparound or bounds");
+        }
+        System.out.printf("full=%b%nfirst=%s%nremaining=%s,%s%nempty=%s%n",
+            fullOffer, first, second, third, empty);
+    }
+}`]
+  },
+  30: {
+    section: ['Combine subtree results in one postorder pass',
+      'A binary tree is full when every node has zero or two children. A root with a left leaf and a right child with two leaves is full. It is not complete because the last level has gaps on the left. A complete tree fills every level except possibly the last, and fills that level from the left. A root with a single left child is complete. A skewed tree has one child at each internal node, so a pass can hold a linear number of frames.',
+      'For each subtree, return its node count, sum and height together. The null subtree returns three zeros. After both calls return, add one to their combined counts, add the parent key to the combined sum and add one to the greater height. Height here counts nodes, so a leaf has height one. This is postorder because the parent needs the children’s summaries. Counting and summing do not depend on BST ordering.',
+      'Use 10 minutes within the existing tree practice. Predict the summaries before running the example. The wide-key case catches an int sum wrapping when two large keys are combined. Expect O(n) time and O(h) call-stack space on a proper tree. For uncontrolled depth, use an explicit traversal rather than increasing the JVM stack as a correctness strategy.',
+      'A BST adds an order invariant. Every key on the left is smaller and every key on the right is larger. Search and insert choose a branch using that rule. This index stores one node per key, so a repeat insert keeps the existing entry. Deleting a leaf drops it. Deleting a node with one child promotes that child. For two children, use the smallest key in the right subtree as the replacement, then remove its old entry from that subtree.',
+      'In the existing BST practice, spend 12 minutes tracing inserts, deletes, and the strict neighbors of 25. The greatest smaller key is 20 and the least greater key is 30, even though 25 is absent. The tree uses immutable nodes and returns the updated root. Retaining the old root still gives the old tree. Search and neighbor lookup cost O(h) time and O(1) space. An update copies the changed path using O(h) time, stack and new nodes. Sorted input can produce h = n.'],
+    source: ['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/'],
+    code: ['Run TreeSummary.java. Check counts, all three deletion cases and the strict neighbors of 25.', 'java', `class TreeSummary {
+    record Node(int key, Node left, Node right) {}
+    record Stats(long count, long sum, int height) {}
+
+    static Stats summarize(Node node) {
+        if (node == null) return new Stats(0, 0, 0);
+        Stats left = summarize(node.left());
+        Stats right = summarize(node.right());
+        return new Stats(1 + left.count() + right.count(),
+            node.key() + left.sum() + right.sum(), 1 + Math.max(left.height(), right.height()));
+    }
+
+    static void check(String label, Node root, Stats expected) {
+        Stats actual = summarize(root);
+        if (!expected.equals(actual)) throw new AssertionError(label + ": " + actual);
+        System.out.printf("%s=(%d,%d,%d)%n", label, actual.count(), actual.sum(), actual.height());
+    }
+
+    static Node insert(Node node, int key) {
+        if (node == null) return new Node(key, null, null);
+        if (key < node.key()) return new Node(node.key(), insert(node.left(), key), node.right());
+        if (key > node.key()) return new Node(node.key(), node.left(), insert(node.right(), key));
+        return node;
+    }
+
+    static boolean contains(Node node, int key) {
+        while (node != null) {
+            if (node.key() == key) return true;
+            node = key < node.key() ? node.left() : node.right();
+        }
+        return false;
+    }
+
+    static Node delete(Node node, int key) {
+        if (node == null) return null;
+        if (key < node.key()) return new Node(node.key(), delete(node.left(), key), node.right());
+        if (key > node.key()) return new Node(node.key(), node.left(), delete(node.right(), key));
+        if (node.left() == null) return node.right();
+        if (node.right() == null) return node.left();
+        Node successor = node.right();
+        while (successor.left() != null) successor = successor.left();
+        return new Node(successor.key(), node.left(), delete(node.right(), successor.key()));
+    }
+
+    record Neighbors(Integer predecessor, Integer successor) {}
+
+    static Neighbors neighbors(Node node, int key) {
+        Integer predecessor = null, successor = null;
+        while (node != null) {
+            if (key == node.key()) {
+                for (Node child = node.left(); child != null; child = child.right()) predecessor = child.key();
+                for (Node child = node.right(); child != null; child = child.left()) successor = child.key();
+                break;
+            }
+            if (key < node.key()) {
+                successor = node.key();
+                node = node.left();
+            } else {
+                predecessor = node.key();
+                node = node.right();
+            }
+        }
+        return new Neighbors(predecessor, successor);
+    }
+
+    static void checkDeletion(Node root, int key, long sum) {
+        Node updated = delete(root, key);
+        if (contains(updated, key) || !contains(root, key) || !contains(updated, 30)) {
+            throw new AssertionError("Wrong deletion result");
+        }
+        check("delete " + key, updated, new Stats(5, sum, 3));
+    }
+
+    public static void main(String[] args) {
+        check("empty", null, new Stats(0, 0, 0));
+        Node branched = new Node(5, new Node(-2, new Node(9, null, null), null), new Node(2, null, null));
+        check("branched", branched, new Stats(4, 14, 3));
+        Node wide = new Node(Integer.MAX_VALUE, null, new Node(Integer.MAX_VALUE, null, null));
+        check("wide", wide, new Stats(2, 4294967294L, 2));
+
+        Node index = null;
+        for (int key : new int[]{40, 20, 60, 10, 30, 70, 30}) index = insert(index, key);
+        check("index", index, new Stats(6, 230, 3));
+        checkDeletion(index, 10, 220);
+        checkDeletion(index, 60, 170);
+        checkDeletion(index, 40, 190);
+        var around25 = neighbors(index, 25);
+        if (contains(index, 25) || !around25.equals(new Neighbors(20, 30))
+            || !neighbors(index, 20).equals(new Neighbors(10, 30))
+            || !neighbors(index, Integer.MIN_VALUE).equals(new Neighbors(null, 10))) {
+            throw new AssertionError("Strict neighbors");
+        }
+        System.out.println("neighbors of 25: " + around25);
+    }
+}`]
   },
   31: {
     section: ['Extend BFS to multiple sources',
@@ -338,6 +632,54 @@ class BoundedBookingWork {
         ['Typed service-to-service calls', 'gRPC', 'Schema evolution, deadlines and client support']
       ]
     }
+  },
+  52: {
+    section: ['Generate arrangements with repeated values',
+      'Permutations order every input position. Combination-sum reuse uses a start index; permutations need to remember all positions already chosen on the current path. Sort a copy to group equal values. At each depth, skip an equal value if its preceding copy is still unused. Otherwise choosing that later copy first would explore a branch the earlier copy already represents. A later copy is still allowed when the preceding one is part of the current path.',
+      'Trace [A,A,B]. Choosing A at the first depth has two different completions, AAB and ABA. The sibling for the second A would duplicate both. Choosing B first has one completion, BAA. Copy each completed path before undoing the choice, or subsequent edits would change results already emitted. The empty input has one empty arrangement. Input size should be small because the number of outputs can reach n factorial.',
+      'Use 12 minutes of the existing backtracking practice as a refresher on the Day 26 base case. Trace the repeated A choice, confirm all three results and test that the input remains unchanged. The extra search state is O(n), excluding results. With distinct values the worst-case time is O(n × n!) including completed path copies. For the separate combination-sum example, the sample assumes distinct positive prices. Allowing reuse of price zero leaves the remaining budget unchanged and breaks termination. Equal candidate values can create duplicate results unless the caller deduplicates them or the search skips equal siblings.'],
+    code: ['Run DistinctArrangements.java. Expect repeated=[[1, 1, 2], [1, 2, 1], [2, 1, 1]] and empty results=1.', 'java', `import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+class DistinctArrangements {
+    static List<List<Integer>> permutations(int[] values) {
+        int[] sorted = values.clone();
+        Arrays.sort(sorted);
+        var results = new ArrayList<List<Integer>>();
+        search(sorted, new boolean[sorted.length], new ArrayList<>(), results);
+        return results;
+    }
+
+    static void search(int[] sorted, boolean[] used, List<Integer> path, List<List<Integer>> results) {
+        if (path.size() == sorted.length) {
+            results.add(List.copyOf(path));
+            return;
+        }
+        for (int i = 0; i < sorted.length; i++) {
+            if (used[i]) continue;
+            if (i > 0 && sorted[i] == sorted[i - 1] && !used[i - 1]) continue;
+            used[i] = true;
+            path.add(sorted[i]);
+            search(sorted, used, path, results);
+            path.removeLast();
+            used[i] = false;
+        }
+    }
+
+    public static void main(String[] args) {
+        int[] input = {2, 1, 1};
+        var repeated = permutations(input);
+        if (!repeated.equals(List.of(List.of(1, 1, 2), List.of(1, 2, 1), List.of(2, 1, 1)))) {
+            throw new AssertionError("Repeated values produced an extra or missing arrangement");
+        }
+        if (!Arrays.equals(input, new int[]{2, 1, 1})) throw new AssertionError("Input changed");
+        var empty = permutations(new int[0]);
+        if (!empty.equals(List.of(List.of()))) throw new AssertionError("Expected one empty arrangement");
+        System.out.println("repeated=" + repeated);
+        System.out.println("empty results=" + empty.size());
+    }
+}`]
   },
   53: {
     code: ['Compare update direction in a 0/1 exercise', 'text', 'Before item 3: reachable = {0}\nDescending order: inspect sum 6 before sum 3, so 6 stays false.\nAscending order: sum 3 becomes true before checking 6, so the item can be reused.']
