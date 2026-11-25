@@ -1,10 +1,10 @@
 # Study Desk day and topic readiness matrix
 
-24 November 2026 IST. Recounted the curriculum at `main@b7fac781615bb9119f0066d85ae00ca4cc0d037e` plus the lab additions in draft PR #32. This update resumes from published draft head `f898ee44a9de7e64e06100fefe3499888e297cbf` and adds the Days 30 and 52 labs. Authoring and links are measured from the adapter payload. The separate source matrices record whether the full source scope is taught.
+25 November 2026 IST. Recounted the curriculum at `main@b7fac781615bb9119f0066d85ae00ca4cc0d037e` plus the lab additions in draft PR #32. This update resumes from published draft head `11f45a12f9ed67436becb1f18bc77fbfcac4897e` and adds the circuit breaker and BST update labs on Days 25 and 30. Authoring and links are measured from the adapter payload. The separate source matrices record whether the full source scope is taught.
 
 - All 122 indexed topics have a dedicated packet in the course data. Source subtopics that need added teaching and independent cases remain in the linked audit matrices.
 - 657 answered interview prompts are assigned across main lessons, warm-up and DSA lanes. There are 279 scored questions and 27 day-level interactive diagrams. 0 day views have fewer than 400 words in paragraph blocks.
-- Every scheduled core totals 120 minutes. Weekend defaults remain 390 minutes. These counts report field presence and scheduled slots. Teaching fit, core-versus-stretch time and lab authenticity still require review. 56 days have explicit 30-minute DSA blocks. Source reconciliation, case teaching, external lab execution and live account setup remain open.
+- Every scheduled core totals 120 minutes. Weekend defaults remain 390 minutes. These counts report field presence and scheduled slots. Teaching fit, core-versus-stretch time and lab authenticity still require review. 56 days have explicit 30-minute DSA blocks. See the [25 November checkpoint](curriculum-audit-checkpoint.md#bst-updates-circuit-recovery-and-source-reconciliation--2026-11-25-ist) for source reconciliation, case teaching and external verification that remain open.
 
 | Subject | Indexed | Dedicated | Remaining |
 | --- | ---: | ---: | ---: |
@@ -46,12 +46,12 @@ Except for the Java column, counts can include the main lesson, warm-up and DSA 
 | 22 | Read caching and eviction | 721 | Yes | 0 / 1 | 11 / 23 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 23 | Messaging and delivery guarantees | 741 | Yes | 0 / 1 | 8 / 14 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 24 | Traffic experiments and load balancing | 840 | — | 0 / 1 | 8 / 14 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 25 | Consistency and failure scenarios | 857 | — | 0 / 1 | 8 / 14 | 6 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 25 | Consistency and failure scenarios | 1048 | — | 1 / 1 | 8 / 14 | 6 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 26 | Arrays, strings and complexity | 1400 | — | 2 / 1 | 8 / 16 | 5 / 1 | 15 / 15 | 5 | 7 | 120 / 30 |
 | 27 | Two pointers, windows and search | 1318 | Yes | 1 / 1 | 7 / 13 | 6 / 1 | 13 / 13 | 5 | 6 | 120 / 30 |
 | 28 | Sorting, linked lists and stacks | 1031 | — | 3 / 1 | 11 / 26 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 29 | LRU implementation and queue operations | 1073 | Yes | 3 / 1 | 11 / 26 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 30 | Recursion, trees and heaps | 1114 | — | 3 / 1 | 8 / 16 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 30 | Recursion, trees and heaps | 1279 | — | 3 / 1 | 8 / 16 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 31 | Graphs, BFS and DFS | 752 | Yes | 1 / 1 | 7 / 12 | 3 / 2 | 7 / 7 | 5 | 6 | 120 / 30 |
 | 32 | Greedy and dynamic programming | 765 | — | 1 / 1 | 7 / 12 | 3 / 1 | 9 / 9 | 5 | 6 | 120 / 30 |
 | 33 | Backend security and regression tests | 890 | Yes | 2 / 1 | 8 / 16 | 6 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |

@@ -263,6 +263,68 @@ class BoundedBookingWork {
       ]
     }
   },
+  25: {
+    section: ['Use a circuit breaker to protect a degraded dependency',
+      'A circuit breaker remembers recent outcomes for a dependency. Closed permits calls. In this exercise two consecutive failures open the circuit, so subsequent calls are rejected before contacting that dependency. The caller decides whether to fail or use a fallback. After the cooldown, the next request is a half-open probe. A successful probe closes the breaker. A failed probe opens it again and starts a fresh cooldown.',
+      'Trace failures at 0 ms and 10 ms. At 1009 ms the breaker still blocks the call. At 1010 ms a probe is allowed. If it fails, the next eligible probe is at 2010 ms. A definitely unavailable booking operation must fail safely. Optional help can degrade to a policy link. Choose the fallback for the operation before tuning the breaker.',
+      'Spend 12 minutes of the existing reliability practice predicting each transition and running the example. The clock values are simulated, and each dependency call in the exercise returns a boolean. In production, define which exceptions, timeouts and slow calls count toward opening the circuit. Coordinate concurrent probes with a breaker library and set a separate concurrency limit when calls can exhaust shared resources.'],
+    source: ['Resilience4j · Circuit breaker', 'https://resilience4j.readme.io/docs/circuitbreaker'],
+    code: ['Run BreakerTrace.java. Expect closed → open → rejected → half-open failure → rejected → closed.', 'java', `import java.util.function.BooleanSupplier;
+
+class BreakerTrace {
+    enum State { CLOSED, OPEN, HALF_OPEN }
+    enum Outcome { SUCCESS, FAILURE, REJECTED }
+
+    static final class Breaker {
+        private static final long COOLDOWN_MS = 1000;
+        private State state = State.CLOSED;
+        private int failedCalls;
+        private long openedAt;
+
+        Outcome call(long now, BooleanSupplier dependency) {
+            if (state == State.HALF_OPEN) return Outcome.REJECTED;
+            if (state == State.OPEN) {
+                if (now - openedAt < COOLDOWN_MS) return Outcome.REJECTED;
+                state = State.HALF_OPEN;
+            }
+            if (dependency.getAsBoolean()) {
+                failedCalls = 0;
+                state = State.CLOSED;
+                return Outcome.SUCCESS;
+            }
+            if (state == State.HALF_OPEN || ++failedCalls == 2) {
+                state = State.OPEN;
+                openedAt = now;
+            }
+            return Outcome.FAILURE;
+        }
+    }
+
+    static void check(Breaker breaker, long now, BooleanSupplier dependency, Outcome outcome, State state) {
+        if (breaker.call(now, dependency) != outcome || breaker.state != state) {
+            throw new AssertionError("Wrong state or result at " + now);
+        }
+        System.out.println(now + " ms: " + outcome + " → " + state);
+    }
+
+    public static void main(String[] args) {
+        var breaker = new Breaker();
+        BooleanSupplier rejected = () -> { throw new AssertionError("Dependency called while open"); };
+        check(breaker, 0, () -> false, Outcome.FAILURE, State.CLOSED);
+        check(breaker, 10, () -> false, Outcome.FAILURE, State.OPEN);
+        check(breaker, 1009, rejected, Outcome.REJECTED, State.OPEN);
+        check(breaker, 1010, () -> {
+            if (breaker.state != State.HALF_OPEN) throw new AssertionError("Probe state");
+            return false;
+        }, Outcome.FAILURE, State.OPEN);
+        check(breaker, 2009, rejected, Outcome.REJECTED, State.OPEN);
+        check(breaker, 2010, () -> {
+            if (breaker.state != State.HALF_OPEN) throw new AssertionError("Probe state");
+            return true;
+        }, Outcome.SUCCESS, State.CLOSED);
+    }
+}`]
+  },
   26: {
     section: ['A complete complexity statement',
       'Specify what you counted before stating Big O. A two-loop method that moves two monotone pointers can still be linear in n. A HashMap loop is expected linear in n under a suitable hash and bounded key-processing cost. Sorting a collection before scanning usually changes the dominant bound to O(n log n). Amortized cost is different from average case. It distributes occasional expensive operations, such as array growth, over a sequence of operations.',
@@ -425,8 +487,11 @@ class ElementarySortTrace {
     section: ['Combine subtree results in one postorder pass',
       'A binary tree is full when every node has zero or two children. A root with a left leaf and a right child with two leaves is full. It is not complete because the last level has gaps on the left. A complete tree fills every level except possibly the last, and fills that level from the left. A root with a single left child is complete. A skewed tree has one child at each internal node, so a pass can hold a linear number of frames.',
       'For each subtree, return its node count, sum and height together. The null subtree returns three zeros. After both calls return, add one to their combined counts, add the parent key to the combined sum and add one to the greater height. Height here counts nodes, so a leaf has height one. This is postorder because the parent needs the children’s summaries. Counting and summing do not depend on BST ordering.',
-      'Use 10 minutes within the existing tree practice. Predict the summaries before running the example. The wide-key case catches an int sum wrapping when two large keys are combined. Expect O(n) time and O(h) call-stack space on a proper tree. For uncontrolled depth, use an explicit traversal rather than increasing the JVM stack as a correctness strategy.'],
-    code: ['Run TreeSummary.java. Expect empty=(0,0,0), branched=(4,14,3) and wide=(2,4294967294,2).', 'java', `class TreeSummary {
+      'Use 10 minutes within the existing tree practice. Predict the summaries before running the example. The wide-key case catches an int sum wrapping when two large keys are combined. Expect O(n) time and O(h) call-stack space on a proper tree. For uncontrolled depth, use an explicit traversal rather than increasing the JVM stack as a correctness strategy.',
+      'A BST adds an order invariant. Every key on the left is smaller and every key on the right is larger. Search and insert choose a branch using that rule. This index stores one node per key, so a repeat insert keeps the existing entry. Deleting a leaf drops it. Deleting a node with one child promotes that child. For two children, use the smallest key in the right subtree as the replacement, then remove its old entry from that subtree.',
+      'In the existing BST practice, spend 12 minutes tracing inserts, deletes, and the strict neighbors of 25. The greatest smaller key is 20 and the least greater key is 30, even though 25 is absent. The tree uses immutable nodes and returns the updated root. Retaining the old root still gives the old tree. Search and neighbor lookup cost O(h) time and O(1) space. An update copies the changed path using O(h) time, stack and new nodes. Sorted input can produce h = n.'],
+    source: ['Princeton Algorithms · Binary search trees', 'https://algs4.cs.princeton.edu/32bst/'],
+    code: ['Run TreeSummary.java. Check counts, all three deletion cases and the strict neighbors of 25.', 'java', `class TreeSummary {
     record Node(int key, Node left, Node right) {}
     record Stats(long count, long sum, int height) {}
 
@@ -444,12 +509,81 @@ class ElementarySortTrace {
         System.out.printf("%s=(%d,%d,%d)%n", label, actual.count(), actual.sum(), actual.height());
     }
 
+    static Node insert(Node node, int key) {
+        if (node == null) return new Node(key, null, null);
+        if (key < node.key()) return new Node(node.key(), insert(node.left(), key), node.right());
+        if (key > node.key()) return new Node(node.key(), node.left(), insert(node.right(), key));
+        return node;
+    }
+
+    static boolean contains(Node node, int key) {
+        while (node != null) {
+            if (node.key() == key) return true;
+            node = key < node.key() ? node.left() : node.right();
+        }
+        return false;
+    }
+
+    static Node delete(Node node, int key) {
+        if (node == null) return null;
+        if (key < node.key()) return new Node(node.key(), delete(node.left(), key), node.right());
+        if (key > node.key()) return new Node(node.key(), node.left(), delete(node.right(), key));
+        if (node.left() == null) return node.right();
+        if (node.right() == null) return node.left();
+        Node successor = node.right();
+        while (successor.left() != null) successor = successor.left();
+        return new Node(successor.key(), node.left(), delete(node.right(), successor.key()));
+    }
+
+    record Neighbors(Integer predecessor, Integer successor) {}
+
+    static Neighbors neighbors(Node node, int key) {
+        Integer predecessor = null, successor = null;
+        while (node != null) {
+            if (key == node.key()) {
+                for (Node child = node.left(); child != null; child = child.right()) predecessor = child.key();
+                for (Node child = node.right(); child != null; child = child.left()) successor = child.key();
+                break;
+            }
+            if (key < node.key()) {
+                successor = node.key();
+                node = node.left();
+            } else {
+                predecessor = node.key();
+                node = node.right();
+            }
+        }
+        return new Neighbors(predecessor, successor);
+    }
+
+    static void checkDeletion(Node root, int key, long sum) {
+        Node updated = delete(root, key);
+        if (contains(updated, key) || !contains(root, key) || !contains(updated, 30)) {
+            throw new AssertionError("Wrong deletion result");
+        }
+        check("delete " + key, updated, new Stats(5, sum, 3));
+    }
+
     public static void main(String[] args) {
         check("empty", null, new Stats(0, 0, 0));
         Node branched = new Node(5, new Node(-2, new Node(9, null, null), null), new Node(2, null, null));
         check("branched", branched, new Stats(4, 14, 3));
         Node wide = new Node(Integer.MAX_VALUE, null, new Node(Integer.MAX_VALUE, null, null));
         check("wide", wide, new Stats(2, 4294967294L, 2));
+
+        Node index = null;
+        for (int key : new int[]{40, 20, 60, 10, 30, 70, 30}) index = insert(index, key);
+        check("index", index, new Stats(6, 230, 3));
+        checkDeletion(index, 10, 220);
+        checkDeletion(index, 60, 170);
+        checkDeletion(index, 40, 190);
+        var around25 = neighbors(index, 25);
+        if (contains(index, 25) || !around25.equals(new Neighbors(20, 30))
+            || !neighbors(index, 20).equals(new Neighbors(10, 30))
+            || !neighbors(index, Integer.MIN_VALUE).equals(new Neighbors(null, 10))) {
+            throw new AssertionError("Strict neighbors");
+        }
+        System.out.println("neighbors of 25: " + around25);
     }
 }`]
   },
