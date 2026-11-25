@@ -1,6 +1,6 @@
 # Study Desk day and topic readiness matrix
 
-24 November 2026 IST. Recounted the curriculum at `main@b7fac781615bb9119f0066d85ae00ca4cc0d037e` plus the Day 28–29 lab additions. Authoring and links are measured from the adapter payload. The separate source matrices record whether the full source scope is taught.
+24 November 2026 IST. Recounted the curriculum at `main@b7fac781615bb9119f0066d85ae00ca4cc0d037e` plus the lab additions in draft PR #32. This update resumes from published draft head `f898ee44a9de7e64e06100fefe3499888e297cbf` and adds the Days 30 and 52 labs. Authoring and links are measured from the adapter payload. The separate source matrices record whether the full source scope is taught.
 
 - All 122 indexed topics have a dedicated packet in the course data. Source subtopics that need added teaching and independent cases remain in the linked audit matrices.
 - 657 answered interview prompts are assigned across main lessons, warm-up and DSA lanes. There are 279 scored questions and 27 day-level interactive diagrams. 0 day views have fewer than 400 words in paragraph blocks.
@@ -51,7 +51,7 @@ Except for the Java column, counts can include the main lesson, warm-up and DSA 
 | 27 | Two pointers, windows and search | 1318 | Yes | 1 / 1 | 7 / 13 | 6 / 1 | 13 / 13 | 5 | 6 | 120 / 30 |
 | 28 | Sorting, linked lists and stacks | 1031 | — | 3 / 1 | 11 / 26 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 29 | LRU implementation and queue operations | 1073 | Yes | 3 / 1 | 11 / 26 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 30 | Recursion, trees and heaps | 899 | — | 2 / 1 | 8 / 16 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
+| 30 | Recursion, trees and heaps | 1114 | — | 3 / 1 | 8 / 16 | 4 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 31 | Graphs, BFS and DFS | 752 | Yes | 1 / 1 | 7 / 12 | 3 / 2 | 7 / 7 | 5 | 6 | 120 / 30 |
 | 32 | Greedy and dynamic programming | 765 | — | 1 / 1 | 7 / 12 | 3 / 1 | 9 / 9 | 5 | 6 | 120 / 30 |
 | 33 | Backend security and regression tests | 890 | Yes | 2 / 1 | 8 / 16 | 6 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |
@@ -73,7 +73,7 @@ Except for the Java column, counts can include the main lesson, warm-up and DSA 
 | 49 | API gateways and real-time contracts | 1392 | Yes | 2 / 1 | 11 / 26 | 9 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 50 | Outbox, sagas and failure isolation | 1146 | Yes | 2 / 1 | 11 / 26 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 51 | Cloud deployment, SLOs and data placement | 1155 | — | 2 / 1 | 8 / 15 | 8 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
-| 52 | Backtracking and graph paths | 857 | — | 1 / 1 | 7 / 12 | 3 / 2 | 9 / 9 | 5 | 6 | 120 / 30 |
+| 52 | Backtracking and graph paths | 1097 | — | 2 / 1 | 7 / 12 | 3 / 2 | 9 / 9 | 5 | 6 | 120 / 30 |
 | 53 | Math, matrices and deeper dynamic programming | 1228 | Yes | 2 / 1 | 8 / 16 | 5 / 1 | 12 / 12 | 5 | 6 | 120 / 30 |
 | 54 | Java-first AI deployment and final review | 1240 | Yes | 3 / 1 | 9 / 20 | 8 / 1 | 15 / 15 | 5 | 6 | 120 / 30 |
 | 55 | Union-Find and minimum spanning trees | 952 | Yes | 1 / 1 | 7 / 10 | 3 / 1 | 10 / 10 | 5 | 6 | 120 / 30 |

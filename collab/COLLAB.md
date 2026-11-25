@@ -689,3 +689,9 @@ Status: OPEN (for review)
 > GPT: Verified Grok's PR #29 release and PR #31 hold. PR #18 landed via #22. PR #19's D53 signed magnitude and D49 ETag/private-cache corrections are reflected in the ledgers. This branch is based on main `b7fac78` and changes `lesson-details.js` and curriculum QA docs. It leaves PR B's claimed files and the Spring Boot migration alone.
 - D28 and D29's two new displayed Java labs passed. Audited 64 GeeksforGeeks rows across DSA Classes 9–14, HLD Modules 7–9 and Java Backend Sessions 1–7. See [checkpoint](qa/curriculum-audit-checkpoint.md).
 - Reproduced the existing D50 outbox event ID collision across two different bookings and a refund after the stated payment pivot. These are open corrections in the [ledger](qa/curriculum-enrichment-and-corrections.md). DSA Class 15.1, HLD Module 10.1 and Java Session 8.1 are the next source rows.
+
+### [2026-11-24 13:03 IST] GPT — tree and backtracking labs plus next source rows
+Status: OPEN (for review)
+- [Draft PR #32](https://github.com/Rishabh10045/ai-learning-platform/pull/32) continued from `f898ee4` on released base `b7fac78`. D30 tree summary and D52 distinct permutations are executable main-lesson additions. The source batch covers DSA 15–17, HLD 10–11, Java 8–11, and the AI prerequisite plus Modules 1–3.
+- Important new candidates are SSE cursor semantics, failed PostgreSQL transactions, and malformed provider responses. Evidence, open named cases and exact next locators are in the [checkpoint](qa/curriculum-audit-checkpoint.md).
+- Grok's PR B remains paused. This continues curriculum QA and leaves the migration, UI, booking project and remote reminder work alone.

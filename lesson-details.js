@@ -421,6 +421,38 @@ class ElementarySortTrace {
     }
 }`]
   },
+  30: {
+    section: ['Combine subtree results in one postorder pass',
+      'A binary tree is full when every node has zero or two children. A root with a left leaf and a right child with two leaves is full. It is not complete because the last level has gaps on the left. A complete tree fills every level except possibly the last, and fills that level from the left. A root with a single left child is complete. A skewed tree has one child at each internal node, so a pass can hold a linear number of frames.',
+      'For each subtree, return its node count, sum and height together. The null subtree returns three zeros. After both calls return, add one to their combined counts, add the parent key to the combined sum and add one to the greater height. Height here counts nodes, so a leaf has height one. This is postorder because the parent needs the children’s summaries. Counting and summing do not depend on BST ordering.',
+      'Use 10 minutes within the existing tree practice. Predict the summaries before running the example. The wide-key case catches an int sum wrapping when two large keys are combined. Expect O(n) time and O(h) call-stack space on a proper tree. For uncontrolled depth, use an explicit traversal rather than increasing the JVM stack as a correctness strategy.'],
+    code: ['Run TreeSummary.java. Expect empty=(0,0,0), branched=(4,14,3) and wide=(2,4294967294,2).', 'java', `class TreeSummary {
+    record Node(int key, Node left, Node right) {}
+    record Stats(long count, long sum, int height) {}
+
+    static Stats summarize(Node node) {
+        if (node == null) return new Stats(0, 0, 0);
+        Stats left = summarize(node.left());
+        Stats right = summarize(node.right());
+        return new Stats(1 + left.count() + right.count(),
+            node.key() + left.sum() + right.sum(), 1 + Math.max(left.height(), right.height()));
+    }
+
+    static void check(String label, Node root, Stats expected) {
+        Stats actual = summarize(root);
+        if (!expected.equals(actual)) throw new AssertionError(label + ": " + actual);
+        System.out.printf("%s=(%d,%d,%d)%n", label, actual.count(), actual.sum(), actual.height());
+    }
+
+    public static void main(String[] args) {
+        check("empty", null, new Stats(0, 0, 0));
+        Node branched = new Node(5, new Node(-2, new Node(9, null, null), null), new Node(2, null, null));
+        check("branched", branched, new Stats(4, 14, 3));
+        Node wide = new Node(Integer.MAX_VALUE, null, new Node(Integer.MAX_VALUE, null, null));
+        check("wide", wide, new Stats(2, 4294967294L, 2));
+    }
+}`]
+  },
   31: {
     section: ['Extend BFS to multiple sources',
       'Put every source in the initial queue with distance zero and mark them discovered. The first visit to a vertex gives the minimum number of edges from any source in an unweighted graph. For an exercise, treat several entrances as sources and compute the distance of each reachable seat from its nearest entrance. Include an isolated vertex and two entrances tied at the same distance. If the path must prefer one entrance, specify the tie-breaking rule.']
@@ -466,6 +498,54 @@ class ElementarySortTrace {
         ['Typed service-to-service calls', 'gRPC', 'Schema evolution, deadlines and client support']
       ]
     }
+  },
+  52: {
+    section: ['Generate arrangements with repeated values',
+      'Permutations order every input position. Combination-sum reuse uses a start index; permutations need to remember all positions already chosen on the current path. Sort a copy to group equal values. At each depth, skip an equal value if its preceding copy is still unused. Otherwise choosing that later copy first would explore a branch the earlier copy already represents. A later copy is still allowed when the preceding one is part of the current path.',
+      'Trace [A,A,B]. Choosing A at the first depth has two different completions, AAB and ABA. The sibling for the second A would duplicate both. Choosing B first has one completion, BAA. Copy each completed path before undoing the choice, or subsequent edits would change results already emitted. The empty input has one empty arrangement. Input size should be small because the number of outputs can reach n factorial.',
+      'Use 12 minutes of the existing backtracking practice as a refresher on the Day 26 base case. Trace the repeated A choice, confirm all three results and test that the input remains unchanged. The extra search state is O(n), excluding results. With distinct values the worst-case time is O(n × n!) including completed path copies. For the separate combination-sum example, the sample assumes distinct positive prices. Allowing reuse of price zero leaves the remaining budget unchanged and breaks termination. Equal candidate values can create duplicate results unless the caller deduplicates them or the search skips equal siblings.'],
+    code: ['Run DistinctArrangements.java. Expect repeated=[[1, 1, 2], [1, 2, 1], [2, 1, 1]] and empty results=1.', 'java', `import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+class DistinctArrangements {
+    static List<List<Integer>> permutations(int[] values) {
+        int[] sorted = values.clone();
+        Arrays.sort(sorted);
+        var results = new ArrayList<List<Integer>>();
+        search(sorted, new boolean[sorted.length], new ArrayList<>(), results);
+        return results;
+    }
+
+    static void search(int[] sorted, boolean[] used, List<Integer> path, List<List<Integer>> results) {
+        if (path.size() == sorted.length) {
+            results.add(List.copyOf(path));
+            return;
+        }
+        for (int i = 0; i < sorted.length; i++) {
+            if (used[i]) continue;
+            if (i > 0 && sorted[i] == sorted[i - 1] && !used[i - 1]) continue;
+            used[i] = true;
+            path.add(sorted[i]);
+            search(sorted, used, path, results);
+            path.removeLast();
+            used[i] = false;
+        }
+    }
+
+    public static void main(String[] args) {
+        int[] input = {2, 1, 1};
+        var repeated = permutations(input);
+        if (!repeated.equals(List.of(List.of(1, 1, 2), List.of(1, 2, 1), List.of(2, 1, 1)))) {
+            throw new AssertionError("Repeated values produced an extra or missing arrangement");
+        }
+        if (!Arrays.equals(input, new int[]{2, 1, 1})) throw new AssertionError("Input changed");
+        var empty = permutations(new int[0]);
+        if (!empty.equals(List.of(List.of()))) throw new AssertionError("Expected one empty arrangement");
+        System.out.println("repeated=" + repeated);
+        System.out.println("empty results=" + empty.size());
+    }
+}`]
   },
   53: {
     code: ['Compare update direction in a 0/1 exercise', 'text', 'Before item 3: reachable = {0}\nDescending order: inspect sum 6 before sum 3, so 6 stays false.\nAscending order: sum 3 becomes true before checking 6, so the item can be reused.']
